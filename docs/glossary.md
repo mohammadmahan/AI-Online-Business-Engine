@@ -30,7 +30,9 @@ optional; incomplete products are valid and must not be blocked.
 **Variant** — A real, independently sellable and independently stocked
 combination of a product (for example Black / L). Products without
 variants must never be forced into artificial variants. Variant-level
-prices and inventory are supported.
+prices and inventory are supported. Variant-defining axes are Color and
+Size, active only where they genuinely vary (D-018); products differing
+only by product-level attributes are separate products.
 
 **Product ID** — The stable business-facing product identifier.
 Human-readable (`P00001`), stable, category-agnostic, not derived from
@@ -67,15 +69,20 @@ size, fabric). Product attributes are optional unless explicitly
 required; incomplete products are valid. (PROJECT_RULES §8)
 
 **Attribute Term** — A single canonical value within an attribute's
-controlled vocabulary: a Latin code (e.g. `BLK`) plus a display label
-(e.g. Persian color name), with a lifecycle state (active/deprecated).
-Suffix codes in SKUs may come only from Attribute Terms.
+controlled vocabulary: a Latin code where applicable (e.g. `BLK`)
+plus a display label (e.g. Persian color name), with aliases, a
+lifecycle state (active/deprecated, never deleted), and provenance
+(D-011 states). Suffix codes in SKUs may come only from Attribute
+Terms. Governance per D-019: humans create terms; AI may propose but
+never create/activate/modify/delete; exact alias normalization only —
+no fuzzy matching; unmapped values retained for human review.
 
 **Controlled Vocabulary** — The closed registry of allowed Attribute
 Terms for a field (colors, sizes, categories, …). Used where
 consistency matters; unknown/unprovided values are preserved as
-explicit states — the vocabulary must never force a guess. Final value
-lists are an open Phase 2 decision (D-016.C).
+explicit states — the vocabulary must never force a guess. Governance
+architecture approved (D-019); **concrete registry v1 value lists
+remain open** (D-016.C / register item 3) and owner-supplied.
 
 **Barcode / EAN** — The external trade identifier printed on goods.
 Separate from the SKU: it has its own field and lifecycle, and the SKU
@@ -87,6 +94,43 @@ information must always carry provenance (`AI_GENERATED`) and cannot
 be presented as verified fact; only humans set `HUMAN_*` states, and
 `HUMAN_VERIFIED` information cannot be silently overwritten by AI.
 (PROJECT_RULES §7, D-011)
+
+**Variant-defining attribute** — An attribute whose values combine to
+form real, independently sellable/stocked variants. Approved initial
+set: {Color, Size}, with per-axis applicability — an axis is active
+only when it genuinely varies; a simple product has zero active axes
+and SKU = Product ID (D-018).
+
+**Active axis** — A variant-defining attribute that genuinely varies
+for a given product. SKU suffix contains exactly the active axes in
+canonical order Color, then Size: `P00001` (simple), `P00001-BLK`
+(color-only), `P00001-BLK-M` (color + size). Duplicate checks run over
+active axes only (D-018).
+
+**Size family** — The size-system classification (alpha/letter,
+numeric, pants/waist, shoe, future/brand-specific) declared at product
+level; the specific size term belongs to the variant. Canonical size
+term (registry identity + SKU code) and customer-facing display value
+remain distinguishable; measurements are reference data, never
+invented (D-020).
+
+**Size-code convention (O/I/L-safe) — OPEN approval gate.** Display
+labels may stay conventional (L, XL), but SKU codes must avoid O/I/L
+(D-014 rule 7). A deterministic convention is pending owner approval;
+mappings are not finalized. (D-020)
+
+**Required field / publication minimum** — Minimal required-field
+policy (D-021): product creation minimum (Product ID, Name, Product
+status, Created date); variant creation minimum (Variant ID, Product
+ID, SKU, active variant-defining attributes, Variant status);
+publication minimum (Name, Main category, resolvable price, ≥1 media
+image, valid publication status, all variants valid). Description and
+short description are not publication blockers. Missing required
+fields block only the relevant lifecycle transition and never receive
+guessed values. AI may draft descriptions/SEO/keywords/suggestions
+(Yellow tier, provenance-tagged) but may never create identifiers,
+prices, discounts, stock, vocabulary terms, shipping/payment/order
+facts, or guessed attribute values.
 
 ---
 

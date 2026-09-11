@@ -22,7 +22,9 @@ Entry condition (Phase 1 exit):
 - Finalize the logical product/variant model on top of
   `DATA_MODEL.md`.
 - Record and apply decisions D-014 (SKU convention), D-015
-  (identifier separation), and D-017 (identifier policy); resolve the
+  (identifier separation), D-017 (identifier policy), D-018
+  (variant-defining attributes), D-019 (vocabulary governance), D-020
+  (size-system policy), and D-021 (required-field policy); resolve the
   remaining D-016 open items.
 - Controlled-vocabulary registry v1 (colors, sizes, categories, other
   controlled fields as needed).
@@ -84,15 +86,84 @@ Entry condition (Phase 1 exit):
   Variant IDs, or SKUs. Identifier-based import idempotency is
   approved (D-017); event-level idempotency remains open (D-016.K).
 
+## Variant-defining attributes, vocabularies, size system, required fields (D-018–D-021 — APPROVED)
+
+### D-018 — Variant-defining attributes (APPROVED)
+
+- Set: exactly {Color, Size}; per-axis applicability — an axis is
+  active only when it genuinely varies across sellable variants;
+  non-varying axes are omitted, never guessed; a simple product has
+  zero active axes (SKU = Product ID); products differing only by
+  product-level attributes are separate products; duplicate checks run
+  over active axes only.
+- SKU contains exactly the active axes in canonical order Color, then
+  Size: `P00001` (simple), `P00001-BLK` (color-only), `P00001-BLK-M`
+  (color + size).
+- No new axes in Phase 2; inseam/jeans length remains deferred.
+
+### D-019 — Controlled-vocabulary governance (APPROVED; registry v1 contents OPEN)
+
+- Each controlled attribute has a registry of Attribute Terms:
+  attribute; canonical code where applicable; canonical value/slug;
+  display label; aliases; status (active/deprecated, never deleted);
+  provenance; created/updated timestamps; notes.
+- Humans (owner/delegated staff) create terms; variant-defining
+  vocabulary terms require owner approval.
+- AI may propose a term but may never create, activate, modify, or
+  delete one; AI references only existing active terms.
+- Normalization: exact alias matching after case/whitespace
+  normalization; no fuzzy matching; no similarity guessing; unmapped
+  provided values are retained for human review.
+- No concrete value lists are created by this decision — registry v1
+  contents remain owner-supplied and owner-gated.
+
+### D-020 — Size-system policy (APPROVED, architecture; size-code gate OPEN)
+
+- Multi-family size architecture (alpha/letter; numeric; pants/waist;
+  shoe; future/brand-specific families when genuinely required); no
+  universal size system is forced.
+- The size family/system context belongs to the product-level
+  configuration; the size term belongs to the variant.
+- Canonical size term (registry identity + SKU code) and
+  customer-facing display value remain distinguishable; display may
+  stay conventional (L, XL).
+- Measurements are reference data, never invented. Brand-specific
+  sizing uses measurement/display context, not a separate vocabulary
+  per brand. Cross-family conversion is human-curated only; AI never
+  invents conversions.
+- SKU codes avoid O/I/L (D-014 rule 7) — no L exception is created.
+  A deterministic O/I/L-safe Size-code convention is a separate OPEN
+  owner approval gate; mappings are not finalized.
+
+### D-021 — Required-field policy (APPROVED)
+
+- Product creation minimum: Product ID, Name, Product status, Created
+  date.
+- Variant creation minimum: Variant ID, Product ID, SKU, all active
+  variant-defining attributes, Variant status.
+- Publication minimum: Name, Main category, resolvable price, at
+  least one media image, valid publication status, all variants valid.
+  Description and short description are NOT publication blockers.
+- Inventory: nothing required at creation; stock is verified data;
+  missing stock stays `NOT_PROVIDED`; AI never estimates stock.
+- `UNKNOWN` does not automatically block publication — it is surfaced
+  to human review (a future field-specific safety rule may block, but
+  none is created now).
+- AI enrichment: may draft description, short description, SEO title,
+  SEO description, keywords, category/attribute suggestions (Yellow
+  tier, provenance-tagged); may NOT create identifiers, prices,
+  discounts, stock, vocabulary terms, shipping/payment/order facts, or
+  guessed attribute values.
+
 ## Remaining open decisions
 
 All remaining Phase 2 decisions are **OPEN** (D-016 and `DECISIONS.md`
 register items 13–23); none may be resolved silently:
 
-- Variant-defining attributes (proposed: color, size) — D-016.A
-- Minimum required product fields — D-016.B
-- Controlled vocabularies / registry v1 — D-016.C
-- Size system (letter vs Iranian/numeric vs business-specific) — D-016.D
+- Concrete controlled-vocabulary registry v1 value lists — D-016.C
+  (governance approved via D-019; contents owner-supplied)
+- Size-code convention avoiding O/I/L — explicit owner approval gate
+  (per D-020); concrete size-family values also owner-supplied
 - Product status state machine (candidates: draft / active /
   archived; no WooCommerce mapping) — D-016.E
 - Publication status values — D-016.F
@@ -110,10 +181,14 @@ register items 13–23); none may be resolved silently:
 1. Finalize Product/Variant identifier policy — resolved: D-017
    **Approved** (Product ID = product code; Variant ID = UUIDv4; AI
    never issues identifiers).
-2. Finalize variant-defining attributes.
-3. Finalize minimum required product fields.
-4. Design controlled-vocabulary registry v1.
-5. Resolve size system.
+2. Finalize variant-defining attributes — resolved: D-018
+   **Approved** ({Color, Size}, per-axis applicability).
+3. Finalize minimum required product fields — resolved: D-021
+   **Approved** (creation/publication minimums; AI enrichment bounds).
+4. Design controlled-vocabulary registry v1 — governance resolved:
+   D-019 **Approved**; concrete registry v1 contents still open.
+5. Resolve size system — architecture resolved: D-020 **Approved**
+   (multi-family); O/I/L-safe size-code gate still open.
 6. Define product/publication status state machines.
 7. Define price/discount model.
 8. Define provenance mechanism.
@@ -153,5 +228,6 @@ The following are out of scope for Phase 2 and are NOT started:
 - `PROJECT_RULES.md` §8–§13 (product, variant, SKU, price, inventory,
   WooCommerce rules)
 - `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-017
-  (Approved), D-016 (Open)
+  (Approved), D-018 (Approved), D-019 (Approved), D-020 (Approved),
+  D-021 (Approved), D-016 (Open)
 - `DATA_MODEL.md` — §9 (SKU), §9.2 (Identifiers)

@@ -39,6 +39,10 @@ major decisions (PROJECT_RULES §3).
 | D-015 | Product ID / Variant ID / SKU separation | Approved |
 | D-016 | Phase 2 open-decision register | Open |
 | D-017 | Product/Variant identifier policy | **Approved** |
+| D-018 | Variant-defining attributes | **Approved** |
+| D-019 | Controlled-vocabulary governance | **Approved** (registry v1 contents open) |
+| D-020 | Size-system policy | **Approved** (size-code gate open) |
+| D-021 | Required-field policy | **Approved** |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -270,15 +274,20 @@ major decisions (PROJECT_RULES §3).
 - **Status:** **Open** — this entry records; it approves nothing.
   Every item below remains open and must not be treated as decided.
 - **Decision:** Record the Phase 2 decision surface explicitly:
-  - A. **Variant-defining attributes** — proposed {color, size} — OPEN
-    pending final Phase 2 validation.
-  - B. **Minimum required product fields** — OPEN.
-  - C. **Controlled vocabularies** — OPEN for Phase 2 implementation;
-    initial registries will eventually include at least colors, sizes,
-    categories, and other controlled fields as needed; final values
-    are not invented yet.
-  - D. **Size system** — OPEN (letter sizes, Iranian/numeric sizes, or
-    other business-specific sizing; not chosen).
+  - A. **Variant-defining attributes** — RESOLVED: D-018 **Approved**
+    (2026-09-11, exactly {Color, Size}, per-axis applicability).
+  - B. **Minimum required product fields** — RESOLVED: D-021
+    **Approved** (2026-09-11, creation/publication minimums).
+  - C. **Controlled vocabularies** — PARTIALLY RESOLVED: governance
+    architecture approved via D-019 (2026-09-11); concrete registry v1
+    contents remain OPEN and owner-gated. Registries will eventually
+    include at least colors, sizes, categories, and other controlled
+    fields as needed; final values are not invented.
+  - D. **Size system** — PARTIALLY RESOLVED: D-020 multi-family
+    architecture approved (2026-09-11); the O/I/L-safe size-code
+    convention and concrete family values remain OPEN (candidates:
+    letter sizes, Iranian/numeric sizes, or other business-specific
+    sizing; not chosen).
   - E. **Product status state machine** — OPEN; candidate states
     `draft` / `active` / `archived` are documented only; no WooCommerce
     mapping yet.
@@ -367,6 +376,170 @@ major decisions (PROJECT_RULES §3).
   D-014, D-015; MASTER_PLAN §4; PROJECT_RULES §9–§10, §25, §32;
   human owner approval (2026-09-11).
 
+## D-018 — Variant-defining attributes
+
+- **Status:** **Approved** (2026-09-11, human owner)
+- **Decision:** The initial variant-defining set is exactly
+  {Color, Size}, with per-axis applicability:
+  1. **Variant-defining set:** Color and Size only. No other attribute
+     defines variants in the initial clothing system.
+  2. **Per-axis applicability:** an axis is **active** for a product
+     only when it genuinely varies across sellable variants; a
+     non-varying axis is omitted, never guessed (an axis that does not
+     vary is simply inactive — `UNKNOWN`/`NOT_PROVIDED` values never
+     define variants).
+  3. **Simple product:** zero active axes; SKU = Product ID (D-014
+     rule 4).
+  4. **Separate products:** products differing only by product-level
+     attributes (material, cut/fit, style, …) are separate products,
+     never variants of one product.
+  5. **Duplicate prevention:** the D-014 rule 11 duplicate check runs
+     over the product's **active** axes only (a color-only product
+     rejects duplicate colors; a color+size product rejects duplicate
+     color+size combinations).
+  6. **SKU axes (clarification of D-014 rules 3/11, approved):** the
+     SKU suffix contains exactly the active variant-defining axes in
+     canonical order **Color, then Size** — `P00001` (simple),
+     `P00001-BLK` (color-only), `P00001-BLK-M` (color + size).
+  7. **No new axes in Phase 2:** inseam/jeans length remains deferred;
+     adding or removing an axis is a major decision (STOP → EXPLAIN →
+     APPROVAL) because it changes SKU shape and duplicate rules.
+     "Variant-defining" is a registry-level flag per vocabulary (see
+     D-019).
+- **Rationale:** Matches real clothing sellability (color and size are
+  the only axes that create independently stocked/sold items), avoids
+  artificial variants (RULES §9) and guessed values (RULES §8), keeps
+  SKU suffixes short and duplicate checks well-defined.
+- **Source:** Phase 2 Task 2 design; MASTER_PLAN §4; PROJECT_RULES
+  §8–§9; D-014 rules 3/4/11; human owner approval (2026-09-11).
+
+## D-019 — Controlled-vocabulary governance
+
+- **Status:** **Approved** (governance architecture) — **registry v1
+  concrete contents remain OPEN** and owner-gated.
+- **Decision:** Each controlled attribute has a closed registry of
+  **Attribute Terms**, governed as follows:
+  1. **Term fields:** attribute (owning vocabulary); canonical code
+     (only where applicable — variant-defining vocabularies bearing
+     SKU codes); canonical value/slug; display label; aliases; status
+     (active/deprecated); provenance (D-011 states); created/updated
+     timestamps; notes.
+  2. **Human authority:** the human owner or delegated staff create
+     terms via approved tooling, logged and auditable. Terms for
+     **variant-defining** vocabularies (SKU-code-bearing) additionally
+     require owner approval.
+  3. **No deletion:** terms are never deleted — deprecation only;
+     deprecated terms remain resolvable (protects frozen SKUs, D-014
+     rules 10/14).
+  4. **AI authority:** AI may **propose** a term (with evidence) into
+     a human review queue as `AI_GENERATED`; AI may never create,
+     activate, modify, or delete a term. AI filling attribute values
+     may reference only existing **active** terms.
+  5. **Normalization:** exact alias matching after basic
+     case/whitespace normalization. **No fuzzy matching; no
+     similarity-based guessing.**
+  6. **Unmapped values:** unmapped provided values are never discarded
+     and never auto-mapped — the raw value is retained and sent for
+     human review. The vocabulary never forces a guess; missing values
+     remain `UNKNOWN`/`NOT_PROVIDED` (D-011).
+  7. **No concrete lists:** no color/size/material/brand values are
+     created by this decision. Registry v1 contents are owner-supplied
+     and approved separately.
+- **Resolves:** the governance architecture of D-016.C. The concrete
+  registry v1 value lists remain **open** (see register item 3).
+- **Source:** Phase 2 Task 4 design; MASTER_PLAN §4; PROJECT_RULES
+  §6–§8, §32–§33; D-011, D-014 rule 6, D-017; human owner approval
+  (2026-09-11).
+
+## D-020 — Size-system policy
+
+- **Status:** **Approved** (architecture) — **Size-code convention
+  (O/I/L-safe) remains an explicit OPEN owner approval gate.**
+- **Decision:** Multi-family size architecture:
+  1. **Size is a controlled Attribute Term** (D-019 model) with a
+     `size family` classification and optional sort order.
+  2. **Families:** alpha/letter; numeric; pants/waist; shoe;
+     future/brand-specific families when genuinely required. No single
+     universal size system is forced.
+  3. **Level split:** the size **family/system context belongs to the
+     product-level configuration** (a product declares which family it
+     uses); the **size term belongs to the variant**.
+  4. **Canonical vs display:** the canonical size term (registry
+     identity + SKU code) and the customer-facing display value remain
+     distinguishable. Display labels may remain conventional (L, XL),
+     regardless of the canonical code.
+  5. **Measurements:** size measurements (cm/inch tables) are
+     reference data attached to terms or products — never invented;
+     `NOT_PROVIDED` when absent.
+  6. **Brand-specific sizing:** uses product/brand measurement and
+     display context rather than automatically creating a separate
+     vocabulary per brand; a genuinely different sellable fit is a
+     different product (D-018 rule 4).
+  7. **Cross-family conversion:** human-curated equivalence only; AI
+     must never invent conversions. Optional, owner-gated.
+  8. **Canonicalization:** size inputs resolve through the Size
+     registry's exact-match normalization (D-019 rule 5) to one active
+     term within the product's declared family; values outside the
+     family or unmapped are retained and human-reviewed, never
+     auto-converted.
+  9. **SKU codes must avoid O/I/L (D-014 rule 7):** no exception is
+     created. Display labels stay conventional (L, XL), but SKU codes
+     use a separate safe canonical code. A deterministic Size-code
+     convention avoiding O/I/L is to be proposed and approved as a
+     separate owner gate — mappings are NOT finalized in this
+     decision.
+- **Rationale:** Respects real-world clothing sizing diversity without
+  forcing one system; keeps SKUs rule-compliant and unambiguous; keeps
+  identity (term) separate from display.
+- **Source:** Phase 2 Task 5 design; MASTER_PLAN §4; PROJECT_RULES
+  §6, §8; D-014 rule 7, D-018, D-019; human owner approval
+  (2026-09-11).
+- **Open sub-gate:** Size-code convention avoiding O/I/L (new owner
+  approval required before any size-code mapping is finalized).
+
+## D-021 — Required-field policy
+
+- **Status:** **Approved** (2026-09-11, human owner)
+- **Decision:** Minimal creation minimums; a real publication minimum;
+  verified-data-only inventory; strictly bounded AI enrichment.
+  1. **Product creation minimum:** Product ID; Name; Product status
+     (default `draft`); Created date. Nothing else is required to
+     create a product.
+  2. **Variant creation minimum:** Variant ID; Product ID (parent);
+     SKU; all **active** variant-defining attributes (D-018); Variant
+     status.
+  3. **Publication minimum** (before public visibility): Name; Main
+     category; resolvable price (mechanism per D-016.G, open); at
+     least one media image; valid publication status (values per
+     D-016.F, open); all variants satisfy the variant creation
+     minimum. **Description and short description are NOT publication
+     blockers.**
+  4. **Inventory:** no inventory field is required at creation; stock
+     is verified data only; missing stock remains `NOT_PROVIDED`; AI
+     never estimates stock (RULES §12, D-016.I constraints).
+  5. **UNKNOWN handling:** `UNKNOWN` does not automatically block
+     publication — it is surfaced to human review. A future
+     field-specific safety rule may explicitly block publication, but
+     none is created now.
+  6. **AI enrichment (Yellow tier, provenance-tagged):** AI may draft
+     description, short description, SEO title, SEO description,
+     keywords, and category/attribute suggestions (human review before
+     customer/production exposure). AI may NOT create identifiers,
+     prices, discounts, stock, vocabulary terms, shipping/payment/
+     order facts, or guessed attribute values.
+  7. **Missing required fields:** a required field missing at input
+     blocks only the relevant lifecycle transition (e.g., publish);
+     it never receives a guessed value (RULES §8).
+- **Rationale:** A field being useful does not make it required;
+  blocking capture over optional data creates junk data and guesses;
+  data-quality burden is enforced at the moment it matters
+  (publication), without inventing values.
+- **Source:** Phase 2 Task 3 design; MASTER_PLAN §4–§5; PROJECT_RULES
+  §6–§8, §12, §32–§33; D-011, D-017, D-018; human owner approval
+  (2026-09-11).
+- **Open dependencies:** price mechanism (D-016.G), publication status
+  values (D-016.F) — referenced but not resolved here.
+
 ---
 
 ## Open decision register
@@ -374,8 +547,8 @@ major decisions (PROJECT_RULES §3).
 | # | Decision | Status | Blocking | Target phase |
 | --- | --- | --- | --- | --- |
 | 1 | ~~Final SKU convention~~ — resolved: D-014 **Approved** | Resolved | — | 2 (done) |
-| 2 | Truly required product fields | Open | Product validation rules | 2 |
-| 3 | Taxonomy value lists (colors, sizes, fabrics, …) | Open | Product data entry | 2 |
+| 2 | ~~Truly required product fields~~ — resolved: D-021 **Approved** | Resolved | — | 2 (done) |
+| 3 | Taxonomy value lists — governance approved (D-019); concrete registry v1 contents still open | Open | Product data entry | 2 |
 | 4 | Data-entry language for product data | Open | Product data entry | 2 |
 | 5 | WooCommerce field mapping (conceptual → WooCommerce) | Open | WooCommerce foundation | 3 |
 | 6 | WooCommerce hosting / VPS | Open | Store setup | 3–4 |
@@ -385,9 +558,9 @@ major decisions (PROJECT_RULES §3).
 | 10 | Iranian payment provider | Open | Payment go-live | 12 |
 | 11 | Iranian shipping provider | Open | Shipping go-live | 13 |
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
-| 13 | Variant-defining attributes (proposed: color, size — D-016.A) | Open | Variant model finalization | 2 |
+| 13 | ~~Variant-defining attributes~~ — resolved: D-018 **Approved** ({color, size}, per-axis applicability) | Resolved | — | 2 (done) |
 | 14 | ~~Variant ID generation mechanism~~ — resolved: D-017 **Approved** (UUIDv4) | Resolved | — | 2 (done) |
-| 15 | Size system (letter vs Iranian/numeric — D-016.D) | Open | Vocabulary registry v1 | 2 |
+| 15 | Size system — architecture resolved: D-020 **Approved** (multi-family); size-code convention avoiding O/I/L remains an open approval gate; concrete values owner-supplied | Open (partially resolved) | Vocabulary registry v1; size-code gate | 2 |
 | 16 | Product status state machine (candidates: draft/active/archived — D-016.E) | Open | Product lifecycle rules | 2 |
 | 17 | Publication status values (D-016.F) | Open | Product lifecycle rules | 2 |
 | 18 | Price model: default + variant override + sale behavior (D-016.G) | Open | Pricing rules | 2 |
@@ -398,5 +571,8 @@ major decisions (PROJECT_RULES §3).
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
-Only the human owner approves decisions; D-014, D-015, and D-017 are
-approved; D-016 and every item not marked Resolved above remain open.
+Only the human owner approves decisions; D-014, D-015, D-017, D-018,
+D-019 (governance), D-020 (architecture), and D-021 are approved;
+D-016 and every item not marked Resolved above remain open — including
+registry v1 contents (item 3) and the size-code approval gate (item
+15).

@@ -34,23 +34,32 @@ Status: **Complete** (foundation committed in `e6d85ca`); scope in
 
 Scope from MASTER_PLAN §13: product/variant model, SKU, taxonomy,
 media, validation, import/export, Excel import preparation. Decisions
-D-014 (SKU convention), D-015 (identifier separation), and D-017
-(identifier policy) are **Approved**; the remaining Phase 2 decisions
-are open (D-016, `DECISIONS.md` register items 13–23).
+D-014 (SKU convention), D-015 (identifier separation), D-017
+(identifier policy), D-018 (variant-defining attributes), D-019
+(vocabulary governance), D-020 (size-system architecture), and D-021
+(required-field policy) are **Approved**; the remaining Phase 2
+open items include registry v1 contents (D-016.C), the O/I/L-safe
+size-code gate (D-016.D), and D-016.E–M.
 
-Ordered tasks (task 1 resolved via D-017 — do not treat other items
-as done until verified):
+Ordered tasks (tasks 1–5 resolved via D-017–D-021 — do not treat
+other items as done until verified):
 
 - [x] ~~SKU strategy~~ — resolved: D-014 **Approved** (2026-09-11)
 - [x] 1. Finalize Product/Variant identifier policy — **D-017
        Approved** (2026-09-11): Product ID = product code (`P00001`…),
        Variant ID = opaque UUIDv4, AI never issues identifiers;
        event-level idempotency still open (D-016.K)
-- [ ] 2. Finalize variant-defining attributes (proposed: color, size —
-       D-016.A)
-- [ ] 3. Finalize minimum required product fields (D-016.B)
-- [ ] 4. Design controlled-vocabulary registry v1 (D-016.C)
-- [ ] 5. Resolve size system (D-016.D)
+- [x] 2. Finalize variant-defining attributes — **D-018 Approved**
+       (2026-09-11): exactly {Color, Size}, per-axis applicability,
+       SKU suffix = active axes (Color, then Size)
+- [x] 3. Finalize minimum required product fields — **D-021 Approved**
+       (2026-09-11): minimal creation minimums, publication minimum,
+       verified-data-only inventory, bounded AI enrichment
+- [x] 4. Design controlled-vocabulary registry v1 — governance
+       **D-019 Approved**; concrete registry v1 contents remain OPEN
+- [x] 5. Resolve size system — architecture **D-020 Approved**
+       (multi-family); O/I/L-safe size-code convention remains an
+       explicit OPEN owner approval gate
 - [ ] 6. Define product/publication status state machines (D-016.E/F)
 - [ ] 7. Define price/discount model (D-016.G/H)
 - [ ] 8. Define provenance mechanism (D-016.J)

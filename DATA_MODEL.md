@@ -4,10 +4,12 @@ Conceptual data model for the AI-First Online Business Engine.
 
 **Status:** Approved direction from `MASTER_PLAN.md` §4–§8 and
 `PROJECT_RULES.md` §6–§13; SKU convention and identifier separation
-approved via D-014 / D-015 in `DECISIONS.md`. This is a **conceptual**
-model only: it does not define a physical schema, a database engine, or
-a WooCommerce field mapping. Those are Phase 2 / Phase 3 work and
-remain open decisions.
+approved via D-014 / D-015 / D-017; variant-defining attributes,
+vocabulary governance, size system (architecture), and required-field
+policy approved via D-018 / D-019 / D-020 / D-021 in `DECISIONS.md`.
+This is a **conceptual** model only: it does not define a physical
+schema, a database engine, or a WooCommerce field mapping. Those are
+Phase 2 / Phase 3 work and remain open decisions.
 
 ---
 
@@ -40,7 +42,7 @@ Rules:
 ## 3. Product
 
 Fields (from MASTER_PLAN §4; all optional unless explicitly marked
-required — "truly required" fields are an open decision):
+required — the required-field policy is approved via D-021; see §12):
 
 | Field | Notes |
 | --- | --- |
@@ -54,8 +56,8 @@ required — "truly required" fields are an open decision):
 | Previous price | Numeric Toman |
 | Discount | Derived or explicit; never invented by AI |
 | Material / fabric | |
-| Color | Taxonomy term; variant-defining (proposed — D-016.A, open); product-level default, variant-level override |
-| Size | Taxonomy term; variant-defining (proposed — D-016.A, open); product-level default, variant-level override |
+| Color | Taxonomy term; **variant-defining axis** (D-018); product-level default, variant-level value |
+| Size | Taxonomy term; **variant-defining axis** (D-018); size family belongs to product config (D-020); product-level default, variant-level value |
 | Pattern | |
 | Model / form | |
 | Style | Taxonomy term |
@@ -92,8 +94,8 @@ Fields (from MASTER_PLAN §4):
 | Variant ID | Internal identifier; opaque UUIDv4 (D-017) |
 | Product ID | Owning product |
 | SKU | Unique; see §9 |
-| Color | Taxonomy term |
-| Size | Taxonomy term |
+| Color | Taxonomy term; required iff Color axis is active for the product (D-018, D-021) |
+| Size | Taxonomy term; required iff Size axis is active (D-018, D-021); from the product's declared size family (D-020) |
 | Price | Numeric Toman; may differ per variant |
 | Sale price | Numeric Toman |
 | Stock quantity | Verified data only |
@@ -127,9 +129,58 @@ types, closure types.
 - Controlled vocabulary is used where consistency matters.
 - Unknown / unprovided values are always preserved as explicit states —
   the vocabulary must never force a guess.
+- The concrete value lists for each vocabulary are an **open decision**
+  (registry v1 contents — register item 3).
 
-The concrete value lists for each vocabulary are an **open decision**
-(Phase 2).
+### 6.1 Vocabulary governance (D-019 — APPROVED)
+
+Each controlled attribute has a closed registry of **Attribute Terms**:
+
+| Term field | Notes |
+| --- | --- |
+| Attribute | Owning vocabulary (color, size, pattern, …) |
+| Canonical code | Only for variant-defining vocabularies bearing SKU codes (Color, Size per D-018); must avoid O/I/L (D-014 rule 7) |
+| Canonical value/slug | Registry identity |
+| Display label | Customer/staff-facing label (e.g., Persian); display stays conventional (L, XL) independently of the SKU code (D-020) |
+| Aliases | Alternative spellings/transliterations for input normalization |
+| Status | Active / deprecated (never deleted; deprecated remains resolvable) |
+| Provenance | D-011 states |
+| Created / updated | Timestamps |
+| Notes | |
+
+Rules (D-019):
+
+- Humans (owner/delegated staff) create terms via approved tooling;
+  variant-defining-vocabulary terms require owner approval.
+- AI may **propose** a term into a human review queue (`AI_GENERATED`);
+  AI may never create, activate, modify, or delete a term, and may
+  reference only existing active terms.
+- Normalization: exact alias matching after case/whitespace
+  normalization; **no fuzzy matching, no similarity guessing**.
+- Unmapped provided values are retained and human-reviewed; never
+  discarded or auto-mapped; the vocabulary never forces a guess.
+
+### 6.2 Size system (D-020 — APPROVED, architecture)
+
+- Size is a controlled Attribute Term (D-019) with a `size family`
+  classification and optional sort order.
+- Families: alpha/letter; numeric; pants/waist; shoe;
+  future/brand-specific when genuinely required. No universal system
+  is forced.
+- **The size family/system context belongs to the product-level
+  configuration**; the size term belongs to the variant.
+- Canonical size term (registry identity + SKU code) and
+  customer-facing display value remain distinguishable; display stays
+  conventional (L, XL) regardless of code.
+- Measurements are reference data (per term or product) — never
+  invented; `NOT_PROVIDED` when absent.
+- Brand-specific sizing uses measurement/display context, not a
+  separate vocabulary per brand.
+- Cross-family conversion is human-curated only; AI never invents
+  conversions.
+- SKU codes avoid O/I/L (D-014 rule 7); the O/I/L-safe Size-code
+  convention is an **open owner approval gate** — mappings not
+  finalized.
 
 ## 7. Data integrity & provenance
 
@@ -257,18 +308,21 @@ Hard rules:
 
 Status and ownership of these decisions are tracked in `DECISIONS.md`
 (D-014 SKU convention: **Approved**; D-015 identifier separation:
-**Approved**; D-017 identifier policy: **Approved**; D-016:
+**Approved**; D-017 identifier policy: **Approved**; D-018
+variant-defining attributes: **Approved**; D-019 vocabulary governance:
+**Approved**; D-020 size-system architecture: **Approved**, size-code
+gate open; D-021 required-field policy: **Approved**; D-016:
 open-decision register).
 
 | # | Decision | Notes |
 | --- | --- | --- |
 | 1 | ~~Final SKU convention~~ | Resolved: D-014 **Approved** — see §9.1 |
-| 2 | Truly required product fields | Open (D-016.B): currently everything except ID/name (+ price) is treated as optional |
-| 3 | Taxonomy value lists | Open (D-016.C): colors, sizes, fabrics, styles, seasons, uses, collar, sleeve, length, closure |
+| 2 | Truly required product fields | Resolved: D-021 **Approved** — creation/publication minimums; AI enrichment bounds |
+| 3 | Taxonomy value lists | Governance approved (D-019); **registry v1 contents open** (D-016.C) |
 | 4 | WooCommerce field mapping | Open (Phase 3): conceptual model → WooCommerce concrete mapping |
 | 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
-| 6 | Size system | Open (D-016.D): letter sizes vs Iranian/numeric vs business-specific |
-| 7 | Variant-defining attributes | Open (D-016.A): color + size proposed, pending validation |
+| 6 | Size system | Architecture approved (D-020, multi-family); size-code gate + concrete values open |
+| 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |
 | 8 | Price/discount model | Open (D-016.G/H): default + variant override + sale behavior |
 | 9 | Provenance mechanism | Open (D-016.J): states fixed, physical storage deferred |
 | 10 | Import idempotency + Excel import scope | Identifier keying approved (D-017); event-level policy open (D-016.K); Excel scope open (D-016.L) |
