@@ -1,0 +1,133 @@
+# Glossary
+
+Shared vocabulary for the AI-First Online Business Engine project.
+Terms are defined once here and referenced everywhere else.
+
+---
+
+## Business context
+
+**Iranian Toman** — The project's initial currency. Prices are stored
+numerically (for example `590000`), never as formatted strings such as
+`590,000 تومان`. Formatting to Persian text happens only at display
+time. (MASTER_PLAN §6, PROJECT_RULES §11)
+
+**RTL-first** — The future storefront UI is designed right-to-left /
+Persian first. Applies to customer-facing products, not to project
+documentation.
+
+**Product Master Excel** — Excel is an import/cleanup and management
+tool only. It is never the production database and never a source of
+truth. (PROJECT_RULES §13)
+
+---
+
+## Data model
+
+**Product** — The general product definition. Most attributes are
+optional; incomplete products are valid and must not be blocked.
+
+**Variant** — A real, independently sellable and independently stocked
+combination of a product (for example Black / L). Products without
+variants must never be forced into artificial variants. Variant-level
+prices and inventory are supported.
+
+**SKU** — Stock Keeping Unit. A unique, deterministic, stable identifier
+for every independently stocked/sold variant. Never silently reused;
+production changes require human approval; duplicate SKUs are a blocking
+data-integrity error.
+
+- Provisional example pattern: `P0001-BLK-M`
+- The final production convention is **not yet approved** and must be
+  approved before any inventory automation.
+
+---
+
+## Data integrity & provenance
+
+Missing information states (PROJECT_RULES §6, MASTER_PLAN §5):
+
+- `UNKNOWN` — Searched for, not determinable.
+- `NOT_PROVIDED` — Source did not supply the value.
+
+Provenance states (PROJECT_RULES §7, MASTER_PLAN §5):
+
+- `AI_GENERATED` — Produced by AI; has not passed human review.
+- `HUMAN_REVIEWED` — Seen and accepted by a human; may still contain AI
+  content.
+- `HUMAN_VERIFIED` — Confirmed by a human against a trusted source.
+
+Core rule: AI must never invent material, color, size, measurements,
+price, discount, stock, shipping time, payment status, order status, or
+customer information. AI inference must never be presented as verified
+fact.
+
+---
+
+## Human-in-the-loop autonomy tiers
+
+(MASTER_PLAN §9, PROJECT_RULES §32)
+
+- **Green — autonomous.** Classification, formatting, drafts, internal
+  summaries, low-risk transformations. No human gate required.
+- **Yellow — monitored.** Customer reply drafts, product descriptions,
+  lead classification, marketing drafts, recommendations. Human review
+  happens before customer/production exposure; the activity is logged.
+- **Red — human approval.** Refunds, financial actions, production price
+  changes, credential changes, security changes, destructive operations,
+  permanent deletion, high-impact disputes, high-risk production
+  deployment. AI execution is forbidden without explicit human approval.
+
+---
+
+## Architecture
+
+**Source of Truth** — The single authoritative system for a category of
+data. For this project, WooCommerce is the transactional source of truth
+for products, variants, SKUs, prices, inventory, orders, customers,
+coupons, and store state. Notion and Excel are explicitly not sources of
+truth for transactional data.
+
+**Business Operating System (Notion)** — Dashboards, SOPs,
+documentation, knowledge, content planning, ideas, review queues, and
+reports. Never inventory, payment, or order state.
+
+**Orchestration layer (n8n)** — Webhooks, scheduled jobs, API
+integration, data transformation, AI orchestration, retries,
+idempotency, error handling, notifications.
+
+**AI Runtime** — API-based AI services used for classification,
+extraction, content drafts, customer/sales assistance, analysis, and
+recommendations — within the Green/Yellow/Red autonomy tiers.
+
+**Development/custom-tool layer (Freebuff)** — Internal tools,
+dashboards, utilities, adapters, tests, refactoring, and custom
+interfaces. Does not replace WooCommerce or n8n by default.
+
+**Provider boundary** — A vendor-agnostic interface that keeps
+integrations replaceable. Planned boundaries (PROJECT_RULES §35):
+`AIProvider`, `PaymentProvider`, `ShippingProvider`, `InstagramProvider`.
+
+---
+
+## Process
+
+**Phase** — A numbered stage of the roadmap (Phase 0 – Phase 28) defined
+in MASTER_PLAN §13.
+
+**Definition of Done** — A meaningful task is done when: correct
+implementation exists; relevant tests/checks pass; failure cases are
+considered; security is considered; documentation is updated when
+needed; Git state is understandable; required approval exists; no known
+critical failure is hidden. (PROJECT_RULES §38, MASTER_PLAN §14)
+
+**STOP → EXPLAIN → APPROVAL** — The mandatory sequence for major
+architecture changes (database, ecommerce source of truth,
+authentication, payment, security, infrastructure, API strategy, data
+ownership, major vendor dependency, production deployment).
+(PROJECT_RULES §4)
+
+**Destructive operation** — Deleting database data, customer records,
+products, files; dropping tables; resetting production; revoking
+credentials; rewriting Git history; replacing production configuration.
+Requires explicit human approval. (PROJECT_RULES §22)
