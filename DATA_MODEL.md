@@ -44,7 +44,7 @@ required — "truly required" fields are an open decision):
 
 | Field | Notes |
 | --- | --- |
-| Product ID | Internal identifier |
+| Product ID | Business-facing product identifier; = D-014 product code (D-015, D-017) |
 | Name | |
 | Brand | |
 | Main category | Taxonomy term |
@@ -89,7 +89,7 @@ Fields (from MASTER_PLAN §4):
 
 | Field | Notes |
 | --- | --- |
-| Variant ID | Internal identifier |
+| Variant ID | Internal identifier; opaque UUIDv4 (D-017) |
 | Product ID | Owning product |
 | SKU | Unique; see §9 |
 | Color | Taxonomy term |
@@ -204,7 +204,7 @@ Hard rules:
   parsed for meaning.
 - SKUs are never silently reused for another product/variant.
 
-### 9.2 Identifiers — Product ID / Variant ID / SKU (D-015, APPROVED)
+### 9.2 Identifiers — Product ID / Variant ID / SKU (D-015, D-017 — APPROVED)
 
 - **Product ID** — stable business-facing product identifier,
   human-readable (`P00001`), stable, category-agnostic, not derived
@@ -218,6 +218,22 @@ Hard rules:
 - **The SKU is NOT the internal database identity of a variant.** SKU
   parsing must never be used as the source of attribute truth —
   structured attributes (see §6) are authoritative.
+- Product ID is the canonical name for the D-014 product code — one
+  identifier, not two (D-017).
+- Product ID format: `P` + five-digit zero-padded sequence; immutable;
+  never reused; issued only by humans or approved deterministic
+  tooling (D-017).
+- Variant ID format: UUIDv4, canonical lowercase hyphenated; opaque;
+  issued at variant creation by approved deterministic tooling;
+  immutable; never reused (D-017).
+- AI must never issue, assign, invent, or transform Product IDs,
+  Variant IDs, or SKUs (D-017; extends D-014 rule 12).
+- Product IDs and SKUs share one uniqueness namespace (structurally
+  collision-free).
+- Identifier-based import idempotency (D-017): products keyed by
+  Product ID; variants by Variant ID (SKU fallback); identical
+  re-import = no-op; conflicting payload = human review, never a
+  silent overwrite. Event-level idempotency remains open (D-016.K).
 
 ## 10. Inventory
 
@@ -241,7 +257,8 @@ Hard rules:
 
 Status and ownership of these decisions are tracked in `DECISIONS.md`
 (D-014 SKU convention: **Approved**; D-015 identifier separation:
-**Approved**; D-016: open-decision register).
+**Approved**; D-017 identifier policy: **Approved**; D-016:
+open-decision register).
 
 | # | Decision | Notes |
 | --- | --- | --- |
@@ -254,4 +271,4 @@ Status and ownership of these decisions are tracked in `DECISIONS.md`
 | 7 | Variant-defining attributes | Open (D-016.A): color + size proposed, pending validation |
 | 8 | Price/discount model | Open (D-016.G/H): default + variant override + sale behavior |
 | 9 | Provenance mechanism | Open (D-016.J): states fixed, physical storage deferred |
-| 10 | Import idempotency + Excel import scope | Open (D-016.K/L) |
+| 10 | Import idempotency + Excel import scope | Identifier keying approved (D-017); event-level policy open (D-016.K); Excel scope open (D-016.L) |

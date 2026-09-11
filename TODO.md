@@ -34,16 +34,18 @@ Status: **Complete** (foundation committed in `e6d85ca`); scope in
 
 Scope from MASTER_PLAN §13: product/variant model, SKU, taxonomy,
 media, validation, import/export, Excel import preparation. Decisions
-D-014 (SKU convention) and D-015 (identifier separation) are
-**Approved**; the remaining Phase 2 decisions are open (D-016,
-`DECISIONS.md` register items 13–23).
+D-014 (SKU convention), D-015 (identifier separation), and D-017
+(identifier policy) are **Approved**; the remaining Phase 2 decisions
+are open (D-016, `DECISIONS.md` register items 13–23).
 
-Ordered tasks (none completed yet — do not treat as done until
-verified):
+Ordered tasks (task 1 resolved via D-017 — do not treat other items
+as done until verified):
 
 - [x] ~~SKU strategy~~ — resolved: D-014 **Approved** (2026-09-11)
-- [ ] 1. Finalize Product/Variant identifier policy (D-015 recorded;
-       variant ID generation mechanism open)
+- [x] 1. Finalize Product/Variant identifier policy — **D-017
+       Approved** (2026-09-11): Product ID = product code (`P00001`…),
+       Variant ID = opaque UUIDv4, AI never issues identifiers;
+       event-level idempotency still open (D-016.K)
 - [ ] 2. Finalize variant-defining attributes (proposed: color, size —
        D-016.A)
 - [ ] 3. Finalize minimum required product fields (D-016.B)

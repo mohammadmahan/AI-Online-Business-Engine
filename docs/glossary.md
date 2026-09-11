@@ -34,13 +34,15 @@ prices and inventory are supported.
 
 **Product ID** — The stable business-facing product identifier.
 Human-readable (`P00001`), stable, category-agnostic, not derived from
-the product name. Distinct from WooCommerce's internal numeric ID.
-(D-015)
+the product name. Distinct from WooCommerce's internal numeric ID. It
+is the canonical name for the D-014 product code: `P` + five-digit
+zero-padded sequence, issued only by humans or approved deterministic
+tooling, immutable, never reused. (D-015, D-017)
 
 **Variant ID** — A separate stable internal identifier for a variant.
-Must NOT be the SKU; opaque and system-safe. Its physical generation
-mechanism is a later implementation decision (no UUID or
-database-specific format chosen yet). (D-015)
+Must NOT be the SKU; opaque and system-safe: **UUIDv4**, canonical
+lowercase hyphenated form. Issued only by approved deterministic
+tooling at variant creation; immutable; never reused. (D-015, D-017)
 
 **SKU** — Stock Keeping Unit. The business/inventory identifier:
 human-readable, used for WooCommerce/inventory/Excel/n8n references.
@@ -56,7 +58,9 @@ SKU**; never used as the barcode; identifiers are opaque — business
 logic must not parse meaning from digit count. **The SKU is not the
 internal database identity of a variant** — structured attributes are
 the authoritative source of attribute truth, never SKU parsing.
-(D-014, D-015)
+D-017 reaffirms that Product ID, Variant ID, and SKU remain
+permanently distinct and that AI never issues, assigns, invents, or
+transforms any identifier. (D-014, D-015, D-017)
 
 **Attribute** — A named product or variant characteristic (e.g. color,
 size, fabric). Product attributes are optional unless explicitly

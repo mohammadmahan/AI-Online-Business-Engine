@@ -38,6 +38,7 @@ major decisions (PROJECT_RULES §3).
 | D-014 | Final SKU convention | **Approved** |
 | D-015 | Product ID / Variant ID / SKU separation | Approved |
 | D-016 | Phase 2 open-decision register | Open |
+| D-017 | Product/Variant identifier policy | **Approved** |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -308,6 +309,64 @@ major decisions (PROJECT_RULES §3).
 - **Source:** Approved Phase 2 Design Review; human owner instruction
   to record as open (2026-09-11).
 
+## D-017 — Product/Variant identifier policy
+
+- **Status:** **Approved** (2026-09-11, human owner)
+- **Decision:** The identifier policy (IP), finalizing Phase 2 Task 1:
+  1. **Product ID canonical name:** Product ID is the canonical name
+     for the D-014 product code — one identifier, not two concepts.
+  2. **Product ID format:** `P` + five-digit zero-padded sequence —
+     `P00001`, `P00002`, … (uppercase Latin ASCII; width carries no
+     meaning, D-014 rule 15).
+  3. **Product ID issuance/immutability:** immutable, never reused;
+     issued only by humans or approved deterministic tooling.
+  4. **Variant ID separation:** a separate internal identity, distinct
+     from Product ID and SKU (extends D-015).
+  5. **Variant ID format:** opaque; **UUIDv4** in canonical lowercase
+     hyphenated form.
+  6. **Variant ID issuance/immutability:** immutable, never reused;
+     issued only by approved deterministic tooling.
+  7. **AI authority:** AI must never issue, assign, invent, or
+     transform Product IDs, Variant IDs, or SKUs (extends D-014
+     rule 12 to all identifiers).
+  8. **SKU:** remains governed by all approved D-014 rules; the SKU is
+     never the internal identity of a variant (D-015).
+  9. **Permanently distinct concepts:** Product ID, Variant ID, and
+     SKU remain separate forever.
+  10. **Import idempotency:** identifier-based import idempotency is
+      approved (products keyed by Product ID; variants by Variant ID,
+      SKU fallback where Variant ID is absent; identical re-import =
+      no-op; conflicting payload = flagged for human review, never a
+      silent overwrite; new rows receive tool-issued IDs, written back
+      and logged). Event-level idempotency (webhooks/retries/
+      scheduled) remains open under D-016.K.
+- **Complementary policy rules** (approved with the proposal):
+  uniqueness domain — Product IDs and SKUs share one namespace
+  (structurally collision-free: bare `P#####` vs suffixed variant
+  SKUs); lifecycle — creation order Product ID → Variant ID → SKU,
+  deactivate + recreate for suffix-invalidating corrections, no
+  renaming/recycling, history retains original identifiers;
+  duplicate color+size (and the final variant-defining set once
+  D-016.A is approved) rejected as data errors; the `-2` valve is
+  emergency-only with human approval; import batches are
+  pre-validated as a whole.
+- **Resolves:** DECISIONS register item 14 (Variant ID generation
+  mechanism). Partially informs item 21 (D-016.K): identifier-based
+  keying is settled; event-level idempotency remains open.
+- **Alternatives considered:** sequential `V#####` Variant IDs
+  (rejected — second quasi-readable code, central counter, violates
+  opacity); UUIDv7/ULID (acceptable alternative — compatible swap at
+  implementation); derived composite IDs (rejected — violates D-015,
+  collides with deactivate+recreate); WooCommerce internal ID as
+  Variant ID (rejected — platform-owned; mapping is Phase 3 work).
+- **Rationale:** Zero-coordination issuance and universal library
+  support for internal identity; readability stays where it belongs
+  (SKU); closes the AI-invention surface for all identifiers; keeps
+  the D-014 rule 10 correction path safe.
+- **Source:** Approved Phase 2 Task 1 Identifier Policy proposal;
+  D-014, D-015; MASTER_PLAN §4; PROJECT_RULES §9–§10, §25, §32;
+  human owner approval (2026-09-11).
+
 ---
 
 ## Open decision register
@@ -327,17 +386,17 @@ major decisions (PROJECT_RULES §3).
 | 11 | Iranian shipping provider | Open | Shipping go-live | 13 |
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
 | 13 | Variant-defining attributes (proposed: color, size — D-016.A) | Open | Variant model finalization | 2 |
-| 14 | Variant ID generation mechanism (deferred by D-015) | Open | Variant implementation | 2–3 |
+| 14 | ~~Variant ID generation mechanism~~ — resolved: D-017 **Approved** (UUIDv4) | Resolved | — | 2 (done) |
 | 15 | Size system (letter vs Iranian/numeric — D-016.D) | Open | Vocabulary registry v1 | 2 |
 | 16 | Product status state machine (candidates: draft/active/archived — D-016.E) | Open | Product lifecycle rules | 2 |
 | 17 | Publication status values (D-016.F) | Open | Product lifecycle rules | 2 |
 | 18 | Price model: default + variant override + sale behavior (D-016.G) | Open | Pricing rules | 2 |
 | 19 | Discount model (sale-price direction preferred, not approved — D-016.H) | Open | Pricing rules | 2 |
 | 20 | Provenance storage mechanism (states fixed, storage open — D-016.J) | Open | Product data entry | 2 |
-| 21 | Import idempotency strategy (D-016.K) | Open | Excel import specification | 2 |
+| 21 | Import idempotency strategy (D-016.K) — identifier keying approved via D-017; event-level policy still open | Open | Excel import specification | 2 |
 | 22 | Excel import scope: spec only vs spec + template (D-016.L) | Open | Phase 2 scope | 2 |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
-Only the human owner approves decisions; D-014 and D-015 are approved,
-D-016 and every item above remain open.
+Only the human owner approves decisions; D-014, D-015, and D-017 are
+approved; D-016 and every item not marked Resolved above remain open.

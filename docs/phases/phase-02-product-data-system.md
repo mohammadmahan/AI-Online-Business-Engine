@@ -21,8 +21,9 @@ Entry condition (Phase 1 exit):
 
 - Finalize the logical product/variant model on top of
   `DATA_MODEL.md`.
-- Record and apply decisions D-014 (SKU convention) and D-015
-  (identifier separation); resolve the remaining D-016 open items.
+- Record and apply decisions D-014 (SKU convention), D-015
+  (identifier separation), and D-017 (identifier policy); resolve the
+  remaining D-016 open items.
 - Controlled-vocabulary registry v1 (colors, sizes, categories, other
   controlled fields as needed).
 - Product/publication status state machines (candidates only).
@@ -64,19 +65,24 @@ Entry condition (Phase 1 exit):
     not depend on digit count — identifiers are opaque and must not be
     parsed for meaning.
 
-## Product ID / Variant ID / SKU separation (D-015, APPROVED)
+## Product ID / Variant ID / SKU separation (D-015, D-017 — APPROVED)
 
 - **Product ID** — stable business-facing product identifier,
   human-readable (`P00001`), stable, category-agnostic, not derived
-  from the product name.
+  from the product name. It is the canonical name for the D-014
+  product code; issued only by humans or approved deterministic
+  tooling; immutable; never reused.
 - **Variant ID** — separate stable internal identifier for a variant;
-  must NOT be the SKU; opaque and system-safe; physical
-  representation/generation mechanism is a later implementation
-  decision (no UUID or database-specific ID format chosen now).
+  must NOT be the SKU; opaque and system-safe: **UUIDv4**, canonical
+  lowercase hyphenated form; issued only by approved deterministic
+  tooling at variant creation; immutable; never reused.
 - **SKU** — business/inventory identifier; human-readable; used for
   WooCommerce/inventory/Excel/n8n references; immutable after creation.
 - The SKU is NOT the internal database identity of a variant; SKU
   parsing is never the source of attribute truth.
+- AI must never issue, assign, invent, or transform Product IDs,
+  Variant IDs, or SKUs. Identifier-based import idempotency is
+  approved (D-017); event-level idempotency remains open (D-016.K).
 
 ## Remaining open decisions
 
@@ -101,8 +107,9 @@ register items 13–23); none may be resolved silently:
 
 ## Implementation sequence
 
-1. Finalize Product/Variant identifier policy (variant ID mechanism
-   still open).
+1. Finalize Product/Variant identifier policy — resolved: D-017
+   **Approved** (Product ID = product code; Variant ID = UUIDv4; AI
+   never issues identifiers).
 2. Finalize variant-defining attributes.
 3. Finalize minimum required product fields.
 4. Design controlled-vocabulary registry v1.
@@ -145,5 +152,6 @@ The following are out of scope for Phase 2 and are NOT started:
 - `MASTER_PLAN.md` §13 (Project Phases — Phase 2), §16 (Current Status)
 - `PROJECT_RULES.md` §8–§13 (product, variant, SKU, price, inventory,
   WooCommerce rules)
-- `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-016 (Open)
+- `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-017
+  (Approved), D-016 (Open)
 - `DATA_MODEL.md` — §9 (SKU), §9.2 (Identifiers)
