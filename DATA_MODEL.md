@@ -3,9 +3,11 @@
 Conceptual data model for the AI-First Online Business Engine.
 
 **Status:** Approved direction from `MASTER_PLAN.md` §4–§8 and
-`PROJECT_RULES.md` §6–§13. This is a **conceptual** model only: it does
-not define a physical schema, a database engine, or a WooCommerce field
-mapping. Those are Phase 2 / Phase 3 work and remain open decisions.
+`PROJECT_RULES.md` §6–§13; SKU convention and identifier separation
+approved via D-014 / D-015 in `DECISIONS.md`. This is a **conceptual**
+model only: it does not define a physical schema, a database engine, or
+a WooCommerce field mapping. Those are Phase 2 / Phase 3 work and
+remain open decisions.
 
 ---
 
@@ -52,8 +54,8 @@ required — "truly required" fields are an open decision):
 | Previous price | Numeric Toman |
 | Discount | Derived or explicit; never invented by AI |
 | Material / fabric | |
-| Color | Taxonomy term (product-level default; variant-level overrides) |
-| Size | Taxonomy term (product-level default; variant-level overrides) |
+| Color | Taxonomy term; variant-defining (proposed — D-016.A, open); product-level default, variant-level override |
+| Size | Taxonomy term; variant-defining (proposed — D-016.A, open); product-level default, variant-level override |
 | Pattern | |
 | Model / form | |
 | Style | Taxonomy term |
@@ -150,6 +152,8 @@ Hard rules:
 - AI inference must never be presented as verified fact.
 - Every AI-generated field must remain distinguishable as
   `AI_GENERATED` until a human changes its state.
+- `HUMAN_VERIFIED` information cannot be silently overwritten by AI;
+  only humans change `HUMAN_*` states.
 
 ## 8. Pricing
 
@@ -167,9 +171,53 @@ Hard rules:
 - SKUs are unique, deterministic, stable; never silently reused; a
   duplicate SKU is a blocking data-integrity error; production changes
   require human approval (RULES §10, MASTER_PLAN §4).
-- **Provisional pattern:** `P0001-BLK-M`.
-- **Status: OPEN.** The final production convention must be explicitly
-  approved before any inventory automation.
+
+### 9.1 Final convention — D-014 (APPROVED, 2026-09-11)
+
+- Product code: five-digit numeric sequence from the beginning —
+  `P00001`, `P00002`, `P00003`, … (the earlier four-digit `P0001`
+  provisional form is NOT the final standard).
+- Variant SKU: product code + canonical attribute suffix, e.g.
+  `P00001-BLK-M`.
+- Simple product without variants: SKU = product code, e.g. `P00002`.
+- Character set: uppercase Latin ASCII only.
+- Attribute suffix codes come only from controlled vocabularies;
+  humans and AI must not invent arbitrary attribute codes. Attribute
+  registries avoid visually confusable letters (O, I, L); product
+  numbering remains numeric.
+- Structured attributes remain authoritative; the SKU suffix is only a
+  compact human/warehouse readability aid. Category and brand are
+  never encoded into the SKU.
+- SKU is frozen at creation. If a SKU was created incorrectly: do NOT
+  rename it; deactivate the incorrect product/variant and create a new
+  correct product/variant with a new identifier/SKU.
+- The same color + size combination must not exist twice under one
+  product; duplicates are data errors and must be rejected. A `-2`
+  suffix exists only as an emergency safety valve for exceptional
+  collision/disambiguation — never as normal variant numbering.
+- Product codes are assigned by humans or approved deterministic
+  tooling. AI must NEVER autonomously assign or invent a SKU.
+- SKU and barcode/EAN are separate concepts; the SKU must not be used
+  as the barcode; barcode/EAN has its own field and lifecycle.
+- Five-digit numbering is the initial standard; business logic must
+  not depend on digit count — identifiers are opaque and must not be
+  parsed for meaning.
+- SKUs are never silently reused for another product/variant.
+
+### 9.2 Identifiers — Product ID / Variant ID / SKU (D-015, APPROVED)
+
+- **Product ID** — stable business-facing product identifier,
+  human-readable (`P00001`), stable, category-agnostic, not derived
+  from the product name.
+- **Variant ID** — separate stable internal identifier for a variant;
+  must NOT be the SKU; opaque and system-safe. Its exact physical
+  representation/generation mechanism is a later implementation
+  decision (no UUID or database-specific format chosen now).
+- **SKU** — business/inventory identifier; human-readable; used for
+  WooCommerce/inventory/Excel/n8n references; immutable after creation.
+- **The SKU is NOT the internal database identity of a variant.** SKU
+  parsing must never be used as the source of attribute truth —
+  structured attributes (see §6) are authoritative.
 
 ## 10. Inventory
 
@@ -191,10 +239,19 @@ Hard rules:
 
 ## 12. Open decisions (Phase 2)
 
+Status and ownership of these decisions are tracked in `DECISIONS.md`
+(D-014 SKU convention: **Approved**; D-015 identifier separation:
+**Approved**; D-016: open-decision register).
+
 | # | Decision | Notes |
 | --- | --- | --- |
-| 1 | Final SKU convention | Provisional `P0001-BLK-M`; approval gates inventory automation |
-| 2 | Truly required product fields | Currently everything except ID/name (+ price) is treated as optional |
-| 3 | Taxonomy value lists | Colors, sizes, fabrics, styles, seasons, uses, collar, sleeve, length, closure |
-| 4 | WooCommerce field mapping | Conceptual model → WooCommerce concrete mapping (Phase 3) |
-| 5 | Data-entry language | Persian / English / bilingual for product data |
+| 1 | ~~Final SKU convention~~ | Resolved: D-014 **Approved** — see §9.1 |
+| 2 | Truly required product fields | Open (D-016.B): currently everything except ID/name (+ price) is treated as optional |
+| 3 | Taxonomy value lists | Open (D-016.C): colors, sizes, fabrics, styles, seasons, uses, collar, sleeve, length, closure |
+| 4 | WooCommerce field mapping | Open (Phase 3): conceptual model → WooCommerce concrete mapping |
+| 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
+| 6 | Size system | Open (D-016.D): letter sizes vs Iranian/numeric vs business-specific |
+| 7 | Variant-defining attributes | Open (D-016.A): color + size proposed, pending validation |
+| 8 | Price/discount model | Open (D-016.G/H): default + variant override + sale behavior |
+| 9 | Provenance mechanism | Open (D-016.J): states fixed, physical storage deferred |
+| 10 | Import idempotency + Excel import scope | Open (D-016.K/L) |

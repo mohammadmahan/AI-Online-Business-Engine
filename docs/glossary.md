@@ -32,20 +32,64 @@ combination of a product (for example Black / L). Products without
 variants must never be forced into artificial variants. Variant-level
 prices and inventory are supported.
 
-**SKU** — Stock Keeping Unit. A unique, deterministic, stable identifier
-for every independently stocked/sold variant. Never silently reused;
-production changes require human approval; duplicate SKUs are a blocking
-data-integrity error.
+**Product ID** — The stable business-facing product identifier.
+Human-readable (`P00001`), stable, category-agnostic, not derived from
+the product name. Distinct from WooCommerce's internal numeric ID.
+(D-015)
 
-- Provisional example pattern: `P0001-BLK-M`
-- The final production convention is **not yet approved** and must be
-  approved before any inventory automation.
+**Variant ID** — A separate stable internal identifier for a variant.
+Must NOT be the SKU; opaque and system-safe. Its physical generation
+mechanism is a later implementation decision (no UUID or
+database-specific format chosen yet). (D-015)
+
+**SKU** — Stock Keeping Unit. The business/inventory identifier:
+human-readable, used for WooCommerce/inventory/Excel/n8n references.
+Per D-014 (Approved): five-digit product code (`P00001`) plus canonical
+attribute suffix for variants (`P00001-BLK-M`); a simple product
+without variants uses its product code as SKU (`P00002`). Uppercase
+Latin ASCII only; suffix codes come only from controlled vocabularies;
+category and brand are never encoded; frozen at creation (correction =
+deactivate + recreate, never rename); duplicate color+size combinations
+are rejected as data errors (`-2` exists only as an emergency safety
+valve); never silently reused; **AI must never assign or invent a
+SKU**; never used as the barcode; identifiers are opaque — business
+logic must not parse meaning from digit count. **The SKU is not the
+internal database identity of a variant** — structured attributes are
+the authoritative source of attribute truth, never SKU parsing.
+(D-014, D-015)
+
+**Attribute** — A named product or variant characteristic (e.g. color,
+size, fabric). Product attributes are optional unless explicitly
+required; incomplete products are valid. (PROJECT_RULES §8)
+
+**Attribute Term** — A single canonical value within an attribute's
+controlled vocabulary: a Latin code (e.g. `BLK`) plus a display label
+(e.g. Persian color name), with a lifecycle state (active/deprecated).
+Suffix codes in SKUs may come only from Attribute Terms.
+
+**Controlled Vocabulary** — The closed registry of allowed Attribute
+Terms for a field (colors, sizes, categories, …). Used where
+consistency matters; unknown/unprovided values are preserved as
+explicit states — the vocabulary must never force a guess. Final value
+lists are an open Phase 2 decision (D-016.C).
+
+**Barcode / EAN** — The external trade identifier printed on goods.
+Separate from the SKU: it has its own field and lifecycle, and the SKU
+must not be used as the barcode. (D-014 rule 13)
+
+**Provenance** — The tracking of how a piece of information came to
+exist: who/what produced it and its verification state. AI-generated
+information must always carry provenance (`AI_GENERATED`) and cannot
+be presented as verified fact; only humans set `HUMAN_*` states, and
+`HUMAN_VERIFIED` information cannot be silently overwritten by AI.
+(PROJECT_RULES §7, D-011)
 
 ---
 
 ## Data integrity & provenance
 
-Missing information states (PROJECT_RULES §6, MASTER_PLAN §5):
+Missing information states (PROJECT_RULES §6, MASTER_PLAN §5) — two
+distinct states, never conflated:
 
 - `UNKNOWN` — Searched for, not determinable.
 - `NOT_PROVIDED` — Source did not supply the value.
@@ -56,6 +100,7 @@ Provenance states (PROJECT_RULES §7, MASTER_PLAN §5):
 - `HUMAN_REVIEWED` — Seen and accepted by a human; may still contain AI
   content.
 - `HUMAN_VERIFIED` — Confirmed by a human against a trusted source.
+  Stronger than `HUMAN_REVIEWED`; cannot be silently overwritten by AI.
 
 Core rule: AI must never invent material, color, size, measurements,
 price, discount, stock, shipping time, payment status, order status, or

@@ -152,7 +152,7 @@ resolved silently.
 
 | # | Decision | Deferred to |
 | --- | --- | --- |
-| 1 | Final SKU convention (provisional: `P0001-BLK-M`) | Phase 2 — blocks inventory automation |
+| 1 | ~~Final SKU convention~~ — resolved: **Approved (D-014)**: product code `P00001` + attribute suffix, e.g. `P00001-BLK-M`; see `DECISIONS.md` | Phase 2 (done) |
 | 2 | WooCommerce hosting / VPS | Phase 3–4 |
 | 3 | n8n deployment model (cloud vs self-hosted) | Phase 5 |
 | 4 | AI runtime provider(s) | Phase 7 |
