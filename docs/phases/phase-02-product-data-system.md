@@ -30,10 +30,10 @@ Entry condition (Phase 1 exit):
   controlled fields as needed).
 - Product/publication status state machines — **D-022/D-023
   approved** (see below).
-- Price/discount model definition (no implementation).
-- Provenance mechanism definition (states fixed; storage deferred).
-- Import idempotency policy; Excel import specification (and template
-  only if approved — D-016.L).
+- Price/discount model — **D-024/D-025 approved** (see below).
+- Provenance mechanism — **D-026 approved** (see below).
+- Import idempotency policy — **D-027 approved** (see below); Excel
+  import specification (and template only if approved — D-016.L).
 - Phase 2 final review, then commit only after human approval.
 
 ## D-014 — Final SKU convention (APPROVED)
@@ -203,6 +203,77 @@ substitute for product status.**
 - AI: may prepare submissions and suggest transitions; may **never
   execute** publish or unpublish.
 
+## Price, discount, provenance, event idempotency (D-024–D-027 — APPROVED)
+
+### D-024 — Price model (APPROVED)
+
+- Minimal three-field model (numeric Iranian Toman, D-010): **list
+  price** (required, product level), **variant override** (optional;
+  required when the variant differs), **sale price** (optional, with
+  optional validity end).
+- Effective price (deterministic): effective sale price (variant-level
+  sale if set and valid, else product-level sale if set and valid) →
+  variant override → list price. No base price → effective price is
+  **unresolved** — never guessed (RULES §6); blocks publication
+  (D-021).
+- Sale price must be lower than the effective base price; sale ≥ base
+  is a validation error.
+- History: immutable price-change log (who/when/old → new, with
+  provenance); details implementation-deferred.
+- AI may recommend a price change (Yellow tier); never create or
+  change one (production price changes are Red tier, RULES §11/§32).
+
+### D-025 — Discount model (APPROVED)
+
+- Sale-price-based: a discount is an explicit sale price; the base
+  price field is never silently changed by a discount; no percentage
+  is stored as the mechanism (display percentages computed only).
+- Product or variant level, price precedence; fixed final price only;
+  optional validity end; expired = ignored (never auto-extended).
+- Invalid discounts (sale ≥ effective base; effective price zero or
+  negative) are validation errors — rejected, never clamped; negative
+  prices and over-100% impossible by construction.
+- One effective sale price per product/variant — the most specific
+  valid one (variant-level if set and valid, else product-level); an
+  invalid/expired variant sale falls back to the product-level sale,
+  then to the base price; no stacking.
+- AI may suggest only; never creates/changes/executes.
+- Out of scope (future): coupons, campaigns, loyalty, customer-specific
+  pricing, promotional engines.
+
+### D-026 — Provenance mechanism (APPROVED)
+
+- Per-value provenance: source type (exactly one of `HUMAN_ENTERED`,
+  `SYSTEM_GENERATED`, `AI_GENERATED`, `IMPORTED`, `EXTERNAL_SYNC`);
+  actor/source identity (no secrets); timestamp; review state (D-011
+  states); optional source reference; optional original value where
+  normalization applied.
+- No confidence scores (not justified by existing documents).
+- Append-only/immutable — new entries supersede, never overwrite.
+- AI-originated values stay `AI_GENERATED`-origin until a human raises
+  the review state; origin is never erased; only humans change
+  `HUMAN_*` states.
+- Imported values retain source provenance; no secrets stored;
+  provenance ≠ audit history (no audit-log system designed here).
+
+### D-027 — Event-level idempotency (APPROVED)
+
+- Distinct from identifier-based import idempotency (D-017): that
+  resolves *what* is written; this resolves *whether an event runs
+  again*.
+- Record per event: source system; event ID (or deterministic hash of
+  operation type, target identifier, timestamp, payload when the
+  source supplies none); operation type; received timestamp;
+  processing status; result/reference.
+- Uniqueness key (source system, event ID): identical repeat → skip
+  and log; conflicting payload → data-integrity error, human review,
+  never silently reprocessed.
+- Status flow `received` → `processing` → `succeeded` / `failed` /
+  `skipped_duplicate`; terminal states never re-entered; retries safe
+  while non-terminal or after `failed`.
+- Failures logged and flagged (RULES §24, §41); retention deferred
+  (implementation decision).
+
 ## Remaining open decisions
 
 All remaining Phase 2 decisions are **OPEN** (D-016 and the
@@ -213,12 +284,8 @@ register is the authoritative list); none may be resolved silently:
   (governance approved via D-019; contents owner-supplied)
 - Size-code convention avoiding O/I/L — explicit owner approval gate
   (per D-020); concrete size-family values also owner-supplied
-- Price model (default + variant override + sale behavior) — D-016.G
-- Discount model (sale-price direction preferred, NOT approved) — D-016.H
 - Inventory design constraints (already-approved rules remain: WooCommerce
   SoT, verified, idempotent, auditable, AI never estimates) — D-016.I
-- Provenance mechanism (states fixed; storage deferred) — D-016.J
-- Import idempotency strategy — D-016.K
 - Excel import scope (spec only vs spec + template) — D-016.L
 - SEO slug language — D-016.M
 
@@ -239,9 +306,13 @@ register is the authoritative list); none may be resolved silently:
    D-022 **Approved** (draft/active/archived) and D-023 **Approved**
    (unpublished/in_review/published/withdrawn); publication is Red
    tier.
-7. Define price/discount model.
-8. Define provenance mechanism.
-9. Define import idempotency policy.
+7. Define price/discount model — resolved: D-024 **Approved**
+   (three-field model, deterministic effective price) and D-025
+   **Approved** (sale-price discounts, no engine).
+8. Define provenance mechanism — resolved: D-026 **Approved** (per-
+   value provenance tuple; append-only; storage deferred).
+9. Define import idempotency policy — resolved: D-027 **Approved**
+   (event-level, (source, event ID) key; complements D-017).
 10. Decide Excel import scope.
 11. Consolidate the logical data model.
 12. Produce Excel import specification/template if approved.
@@ -278,6 +349,8 @@ The following are out of scope for Phase 2 and are NOT started:
   WooCommerce rules)
 - `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-017
   (Approved), D-018 (Approved), D-019 (Approved), D-020 (Approved),
-  D-021 (Approved), D-016 (Open)
-- `DATA_MODEL.md` — §3.1/§3.2 (status state machines), §9 (SKU), §9.2
+  D-021 (Approved), D-022/D-023 (Approved), D-024–D-027 (Approved),
+  D-016 (Open)
+- `DATA_MODEL.md` — §3.1/§3.2 (status state machines), §8 (Pricing),
+  §8a (Provenance), §8b (Event idempotency), §9 (SKU), §9.2
   (Identifiers)

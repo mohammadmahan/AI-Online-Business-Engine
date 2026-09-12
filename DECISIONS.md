@@ -45,6 +45,10 @@ major decisions (PROJECT_RULES §3).
 | D-021 | Required-field policy | **Approved** |
 | D-022 | Product status state machine | **Approved** |
 | D-023 | Publication status state machine | **Approved** |
+| D-024 | Price model | **Approved** |
+| D-025 | Discount model | **Approved** |
+| D-026 | Provenance mechanism | **Approved** |
+| D-027 | Event-level idempotency | **Approved** |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -660,6 +664,197 @@ major decisions (PROJECT_RULES §3).
 - **Source:** D-016.F; D-021 publication minimum; D-022; MASTER_PLAN
   §4; PROJECT_RULES §32–§33; human owner approval (2026-09-12).
 
+## D-024 — Price model
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Minimal three-field price model, currency per D-010
+  (numeric Iranian Toman):
+  1. **List price** (required): numeric Toman, stored as a number
+     (never a formatted string). The reference/base price of a
+     product.
+  2. **Variant override** (optional): numeric Toman; required when a
+     variant's price differs from the product list price.
+  3. **Sale price** (optional): numeric Toman, plus optional `sale
+     price validity end` (timestamp). A sale price may also be set at
+     the variant level (optional variant-level sale override).
+  4. **Effective/resolvable price** (deterministic): the effective
+     sale price — the variant-level sale if set and valid, else the
+     product-level sale if set and valid (the same precedence as
+     prices, D-025 rule 2); else `variant override` if set; else
+     `list price`.
+  5. **Missing/unresolved price:** if no base price exists (list
+     price absent and no override), the effective price is
+     **unresolved** — it is never guessed, never invented (RULES §6,
+     D-021). An unresolved price is surfaced for human attention and
+     blocks publication (resolvable price is a publication minimum,
+     D-021).
+  6. **Conflict semantics:** there is no true conflict — precedence is
+     fixed (sale → override → list). A sale price must be lower than
+     the effective base price (override, else list); a sale price ≥
+     the base price is a validation error.
+  7. **Authoritative price at publication:** the effective price (rule
+     4) is what publication requires to be resolvable; the effective
+     price is what the storefront would sell at.
+  8. **AI authority:** AI may *recommend* a price change (Yellow
+     tier, RULES §11); AI may never create or change a price.
+     Production price changes are Red tier (RULES §32).
+  9. **History:** historical price changes are represented by an
+     immutable price-change log (when changed, by whom, old value →
+     new value, provenance of the change); current price fields hold
+     only current values. Log details are implementation-deferred.
+  10. **Currency/unit semantics:** numeric Toman only (D-010); no
+      currency conversion logic in this model.
+- **Resolves:** D-016.G / register item 18.
+- **Rationale:** Smallest deterministic model that answers
+  default/override/missing/conflict/publication questions without a
+  pricing engine; keeps discount separation (D-025) and publication
+  resolvability (D-021) intact; respects the Red-tier rule for price
+  changes (RULES §11, §32).
+- **Source:** MASTER_PLAN §4, §6; PROJECT_RULES §6, §11, §32; D-010,
+  D-021; human owner approval (2026-09-12).
+
+## D-025 — Discount model
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Sale-price-based discounts; no discount engine:
+  1. **Representation:** a discount is *expressed* as an explicit
+     **sale price** (D-024 field 3), never as a live percentage
+     computed over the base price; the numeric base/list price field
+     is never silently changed by a discount.
+  2. **Scope:** discounts are set at product level or variant level,
+     following the same precedence as prices (variant-level sale
+     price overrides product-level).
+  3. **Type:** fixed final price (Toman) only — no percentage field
+     is required in the initial model (display percentages may be
+     computed for presentation, never stored as the mechanism).
+  4. **Validity:** optional `sale price validity end` (D-024); no
+     start-date scheduling in the initial model (a future start
+     timestamp may be added by owner approval if needed).
+  5. **Active/inactive:** a sale price is active when set and valid;
+     removing it (or expiry) falls back per rule 8's fixed order (the
+     other sale level if valid, else the base price) — never a stored
+     state change of the base price.
+  6. **Invalid discounts:** a sale price that is ≥ the effective base
+     price, or that would make the effective price zero or negative,
+     is a validation error — rejected, never clamped.
+  7. **Negative prices/over-100%:** impossible by construction (rule
+     6); there is no percentage to exceed 100%.
+  8. **Multiple discounts / precedence:** there is exactly one
+     effective sale price per product/variant — the most specific
+     valid one: variant-level sale if set and valid, else
+     product-level sale if set and valid; when neither is set and
+     valid, the item sells at its base price. No stacking; the
+     precedence is exactly this fixed order.
+  9. **AI authority:** AI may *suggest* a discount (Yellow tier); AI
+     may never create, change, or execute a discount — production
+     price-affecting changes are Red tier (RULES §6, §32).
+  10. **Out of scope (future phases):** coupons, campaigns, loyalty,
+      customer-specific pricing, promotional engines — not designed
+      here.
+- **Resolves:** D-016.H / register item 19 (sale-price direction now
+  approved).
+- **Rationale:** The preferred sale-price direction (D-016.H) made
+  deterministic and minimal: one optional field + validity, fixed
+  precedence, hard validation bounds; no engine, no coupons, no
+  stacking; base price integrity preserved.
+- **Source:** MASTER_PLAN §4, §6; PROJECT_RULES §6, §11, §32; D-010,
+  D-024, D-021; human owner approval (2026-09-12).
+
+## D-026 — Provenance mechanism
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Per-value provenance metadata (mechanism for the
+  D-011 states), kept conceptual and implementation-agnostic:
+  1. **Scope:** provenance attaches to important product data values
+     (attributes, price fields, media, descriptions/SEO drafts,
+     taxonomy references) — wherever origin matters.
+  2. **Recorded per value:**
+     - **Source type** — exactly one of: `HUMAN_ENTERED`,
+       `SYSTEM_GENERATED`, `AI_GENERATED`, `IMPORTED`,
+       `EXTERNAL_SYNC`.
+     - **Actor/source identity** — which human/tool/system produced
+       the value (no secrets stored).
+     - **Timestamp** — when the value was produced.
+     - **Review state** — the D-011 verification states
+       (`AI_GENERATED` / `HUMAN_REVIEWED` / `HUMAN_VERIFIED`),
+       where relevant.
+     - **Source reference** (optional) — where available (import
+       file/batch, external record reference).
+     - **Original/source value** (optional) — the pre-normalization
+       value, where normalization was applied.
+  3. **No confidence scores:** none is justified by existing project
+     documents; not added.
+  4. **Immutability/auditability:** provenance records are append-only
+     and immutable — a new provenance entry supersedes (never
+     overwrites) an old one; history remains answerable.
+  5. **AI-generated values remain distinguishable:** an AI-originated
+     value carries `AI_GENERATED` source/review state until a human
+     changes the review state (D-011); human review never erases the
+     origin (source type stays `AI_GENERATED` while the review state
+     may rise).
+  6. **Imported values retain source provenance:** `IMPORTED` values
+     record their source reference (e.g., import batch); normalization
+     keeps the original value where relevant.
+  7. **No secrets in provenance:** actor identity never includes
+     credentials or secrets (RULES §16, §27).
+  8. **Provenance vs audit history:** provenance answers "where did
+     this value come from"; the event/audit history (RULES §27) is a
+     separate concern. This decision defines provenance only — no
+     audit-log system is designed here.
+- **Resolves:** D-016.J / register item 20 (mechanism now defined;
+  physical storage stays implementation-deferred).
+- **Rationale:** D-011 fixed the *states*; this decision fixes the
+  *record shape and rules* minimally — five source types, review
+  states per D-011, append-only immutability, and the human/AI
+  distinction preserved — without designing an audit-log system or
+  choosing storage.
+- **Source:** MASTER_PLAN §5; PROJECT_RULES §6–§7, §16, §27; D-011;
+  human owner approval (2026-09-12).
+
+## D-027 — Event-level idempotency
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Minimal event-idempotency model for repeated
+  webhook/retry/scheduled events; **distinct from and complementary
+  to the identifier-based import idempotency approved in D-017**:
+  1. **Event/request identifier:** a stable source event ID; where
+     the source supplies none, a deterministic hash of (operation
+     type, target identifier, timestamp, payload) serves as the
+     identifier.
+  2. **Recorded per event:** source system; event ID; operation
+     type; received timestamp; processing status; result/reference.
+  3. **Duplicate detection:** the pair (source system, event ID) is
+     the uniqueness key. A repeat with identical payload is skipped
+     and logged (no repeated effect). A repeat with a conflicting
+     payload is a data-integrity error — flagged for human review,
+     never silently reprocessed (mirrors D-017's conflict rule).
+  4. **Processing status:** `received` → `processing` → `succeeded` /
+     `failed` / `skipped_duplicate`. Terminal states (`succeeded`,
+     `skipped_duplicate`) are never re-entered.
+  5. **Retry behavior:** retries are safe by design — a retry of a
+     non-terminal event (`received`/`processing`) or after `failed`
+     re-uses the same (source system, event ID) key; a
+     terminal-succeeded event is never re-executed.
+  6. **Failure handling:** a `failed` event is logged with its error
+     (RULES §24 — never hidden), flagged for retry or human review;
+     partial-failure reporting is honest (RULES §41).
+  7. **Retention:** long enough to answer duplicate/success questions
+     per RULES §27; the concrete retention period is an
+     implementation decision, deferred.
+  8. **No implementation specifics:** no database structures, no
+     provider behavior, no distributed-systems machinery beyond this
+     conceptual model.
+- **Resolves:** D-016.K / register item 21 (event-level policy now
+  defined; identifier-based keying was already approved via D-017).
+- **Rationale:** RULES §25 requires that webhook/retry/scheduled
+  events never create harmful duplicate effects; the (source, event
+  ID) key + terminal-state model is the smallest deterministic design
+  that satisfies it, stays consistent with D-017's identifier keying
+  (which resolves *what* is written; this resolves *whether an event
+  runs again*), and defers all implementation choices.
+- **Source:** PROJECT_RULES §12, §24–§25, §27, §41; MASTER_PLAN §7;
+  D-017; human owner approval (2026-09-12).
+
 ---
 
 ## Open decision register
@@ -683,16 +878,16 @@ major decisions (PROJECT_RULES §3).
 | 15 | Size system — architecture resolved: D-020 **Approved** (multi-family); size-code convention avoiding O/I/L remains an open approval gate; concrete values owner-supplied | Open (partially resolved) | Vocabulary registry v1; size-code gate | 2 |
 | 16 | ~~Product status state machine~~ — resolved: D-022 **Approved** (draft/active/archived) | Resolved | — | 2 (done) |
 | 17 | ~~Publication status values~~ — resolved: D-023 **Approved** (unpublished/in_review/published/withdrawn) | Resolved | — | 2 (done) |
-| 18 | Price model: default + variant override + sale behavior (D-016.G) | Open | Pricing rules | 2 |
-| 19 | Discount model (sale-price direction preferred, not approved — D-016.H) | Open | Pricing rules | 2 |
-| 20 | Provenance storage mechanism (states fixed, storage open — D-016.J) | Open | Product data entry | 2 |
-| 21 | Import idempotency strategy (D-016.K) — identifier keying approved via D-017; event-level policy still open | Open | Excel import specification | 2 |
+| 18 | ~~Price model~~ — resolved: D-024 **Approved** (list price + variant override + sale price; effective price precedence) | Resolved | — | 2 (done) |
+| 19 | ~~Discount model~~ — resolved: D-025 **Approved** (sale-price-based; no engine; no coupons) | Resolved | — | 2 (done) |
+| 20 | ~~Provenance mechanism~~ — resolved: D-026 **Approved** (per-value provenance tuple; append-only; storage deferred) | Resolved | — | 2 (done) |
+| 21 | ~~Import idempotency strategy~~ — resolved: D-027 **Approved** (event-level) + D-017 (identifier-based) | Resolved | — | 2 (done) |
 | 22 | Excel import scope: spec only vs spec + template (D-016.L) | Open | Phase 2 scope | 2 |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
-D-019 (governance), D-020 (architecture), D-021, D-022, and D-023 are
-approved; D-016 and every item not marked Resolved above remain open —
-including registry v1 contents (item 3) and the size-code approval
-gate (item 15).
+D-019 (governance), D-020 (architecture), D-021, D-022, D-023, D-024,
+D-025, D-026, and D-027 are approved; D-016 and every item not marked
+Resolved above remain open — including registry v1 contents (item 3)
+and the size-code approval gate (item 15).

@@ -38,11 +38,15 @@ D-014 (SKU convention), D-015 (identifier separation), D-017
 (identifier policy), D-018 (variant-defining attributes), D-019
 (vocabulary governance), D-020 (size-system architecture), D-021
 (required-field policy), D-022 (product status state machine), and
-D-023 (publication status state machine) are **Approved**; the
-remaining Phase 2 open items include registry v1 contents (D-016.C),
-the O/I/L-safe size-code gate (D-016.D), and D-016.G–M.
+D-023 (publication status state machine), D-024 (price model), D-025
+(discount model), D-026 (provenance mechanism), and D-027 (event-level
+idempotency) are **Approved**; the remaining Phase 2 open items include
+registry v1 contents (D-016.C), the O/I/L-safe size-code gate
+(D-016.D), Excel import scope (D-016.L), and SEO slug language
+(D-016.M).
 
-Ordered tasks (tasks 1–5 resolved via D-017–D-021 — do not treat
+Ordered tasks (tasks 1–9 resolved via D-017–D-021, D-022/D-023, and
+D-024–D-027 — do not treat
 other items as done until verified):
 
 - [x] ~~SKU strategy~~ — resolved: D-014 **Approved** (2026-09-11)
@@ -66,9 +70,19 @@ other items as done until verified):
        `draft`/`active`/`archived`; publication `unpublished`/
        `in_review`/`published`/`withdrawn`; publication transitions are
        Red-tier (human approval); AI may suggest, never execute
-- [ ] 7. Define price/discount model (D-016.G/H)
-- [ ] 8. Define provenance mechanism (D-016.J)
-- [ ] 9. Define import idempotency policy (D-016.K)
+- [x] 7. Define price/discount model — **D-024 / D-025 Approved**
+       (2026-09-12): three-field minimal price model (list price,
+       variant override, optional sale price with explicit validity);
+       sale-price-only discounts, no discount engine; AI suggests
+       only, Red tier applies to production changes
+- [x] 8. Define provenance mechanism — **D-026 Approved**
+       (2026-09-12): per-value provenance tuple (source, actor,
+       timestamp, review state, optional source ref + raw value),
+       immutable/append-only; five source types; provenance ≠ audit log
+- [x] 9. Define import idempotency policy — **D-027 Approved**
+       (2026-09-12): event-level idempotency via (source system, event
+       ID) unique key with terminal processing states; safe retries;
+       distinct from identifier-based idempotency (D-017)
 - [ ] 10. Decide Excel import scope (D-016.L)
 - [ ] 11. Consolidate the logical data model
 - [ ] 12. Produce Excel import specification/template if approved

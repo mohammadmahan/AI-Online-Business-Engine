@@ -7,7 +7,9 @@ Conceptual data model for the AI-First Online Business Engine.
 approved via D-014 / D-015 / D-017; variant-defining attributes,
 vocabulary governance, size system (architecture), and required-field
 policy approved via D-018 / D-019 / D-020 / D-021; product and publication
-status state machines approved via D-022 / D-023 in `DECISIONS.md`.
+status state machines approved via D-022 / D-023; price, discount,
+provenance, and event-idempotency models approved via D-024 / D-025 /
+D-026 / D-027 in `DECISIONS.md`.
 This is a **conceptual** model only: it does not define a physical
 schema, a database engine, or a WooCommerce field mapping. Those are
 Phase 2 / Phase 3 work and remain open decisions.
@@ -55,7 +57,7 @@ required — the required-field policy is approved via D-021; see §12):
 | Product status | Lifecycle state (see §3.1, D-022) |
 | Price | Numeric Toman (see §8) |
 | Previous price | Numeric Toman |
-| Discount | Derived or explicit; never invented by AI |
+| Discount | Expressed as an explicit sale price (D-025); never a stored percentage; never invented by AI |
 | Material / fabric | |
 | Color | Taxonomy term; **variant-defining axis** (D-018); product-level default, variant-level value |
 | Size | Taxonomy term; **variant-defining axis** (D-018); size family belongs to product config (D-020); product-level default, variant-level value |
@@ -215,8 +217,8 @@ Fields (from MASTER_PLAN §4):
 | SKU | Unique; see §9 |
 | Color | Taxonomy term; required iff Color axis is active for the product (D-018, D-021) |
 | Size | Taxonomy term; required iff Size axis is active (D-018, D-021); from the product's declared size family (D-020) |
-| Price | Numeric Toman; may differ per variant |
-| Sale price | Numeric Toman |
+| Price | Numeric Toman; may differ per variant (variant override, D-024) |
+| Sale price | Numeric Toman; optional; discount representation per D-025 |
 | Stock quantity | Verified data only |
 | Stock status | Derived from verified stock |
 | Barcode | |
@@ -325,15 +327,123 @@ Hard rules:
 - `HUMAN_VERIFIED` information cannot be silently overwritten by AI;
   only humans change `HUMAN_*` states.
 
-## 8. Pricing
+## 8. Pricing (D-024 / D-025 — APPROVED)
 
-- Currency: **Iranian Toman**.
+- Currency: **Iranian Toman** (D-010).
 - Store prices as numbers: `590000`.
 - Never store formatted strings (`590,000 تومان`) as the primary stored
   value. Formatting happens at display time only.
-- Production prices are never changed automatically without explicit
-  authorization and auditability. AI may only *recommend* price changes
-  (Yellow tier).
+
+### 8.1 Price model (D-024 — APPROVED)
+
+Minimal three-field model:
+
+| Field | Level | Notes |
+| --- | --- | --- |
+| List price | Product | Required; numeric Toman; the reference/base price |
+| Variant override | Variant | Optional; required when a variant's price differs from the product list price |
+| Sale price (+ optional validity end) | Product or Variant | Optional; the discount representation (§8.2) |
+
+**Effective price (deterministic):** effective sale price (variant-
+level sale if set and valid, else product-level sale if set and
+valid) → variant override (if set) →
+list price. If no base price exists, the
+effective price is **unresolved** — never guessed, never invented
+(RULES §6); unresolved price blocks publication (D-021). A sale price
+must be lower than the effective base price (override, else list);
+sale ≥ base is a validation error.
+
+- Historical price changes are recorded in an immutable price-change
+  log (who/when/old → new, with provenance); current fields hold only
+  current values; log details are implementation-deferred.
+- AI may recommend a price change (Yellow tier); AI never creates or
+  changes a price; production price changes are Red tier (RULES §11,
+  §32).
+
+### 8.2 Discount model (D-025 — APPROVED)
+
+- A discount is *expressed* as an explicit **sale price** — never as a
+  live percentage computed over the base price; the base/list price
+  field is never silently changed by a discount.
+- Scope: product level or variant level, following the same precedence
+  as prices (variant-level sale price overrides product-level).
+- Fixed final price (Toman) only; display percentages may be computed
+  for presentation, never stored as the mechanism.
+- Validity: optional `sale price validity end`; expired sale prices
+  are ignored (never extended automatically). No start-date scheduling
+  in the initial model.
+- Active = set and valid; removing/expiring a sale price reverts the
+  effective price to the base price.
+- Invalid discounts (sale ≥ effective base price; effective price zero
+  or negative) are validation errors — rejected, never clamped.
+  Negative prices and over-100% are impossible by construction.
+- Exactly one effective sale price per product/variant — the most
+  specific **valid** one (variant-level if set and valid, else
+  product-level); no stacking; an invalid/expired variant sale falls
+  back to the product-level sale, then to the base price.
+- AI may suggest a discount (Yellow tier); AI never creates, changes,
+  or executes a discount (Red tier, RULES §32).
+- Out of scope (future phases): coupons, campaigns, loyalty,
+  customer-specific pricing, promotional engines.
+
+## 8a. Provenance mechanism (D-026 — APPROVED)
+
+Per-value provenance metadata for important product data (mechanism
+for the D-011 states):
+
+- **Scope:** attributes, price fields, media, descriptions/SEO drafts,
+  taxonomy references — wherever origin matters.
+- **Recorded per value:** source type (exactly one of `HUMAN_ENTERED`,
+  `SYSTEM_GENERATED`, `AI_GENERATED`, `IMPORTED`, `EXTERNAL_SYNC`);
+  actor/source identity (no secrets); timestamp; review state (D-011
+  states, where relevant); optional source reference (import
+  file/batch, external record); optional original/source value where
+  normalization was applied.
+- **No confidence scores** — none is justified by existing documents.
+- **Append-only and immutable:** new provenance entries supersede old
+  ones, never overwrite them.
+- **AI-originated values remain distinguishable:** source type stays
+  `AI_GENERATED`; human review raises the review state only and never
+  erases the origin; only humans change `HUMAN_*` states.
+- **Imported values retain source provenance** (`IMPORTED` + source
+  reference; original value kept where normalization applied).
+- **No secrets in provenance** (RULES §16, §27).
+- **Provenance ≠ audit history:** provenance answers "where did this
+  value come from"; event/audit history (RULES §27) is a separate
+  concern; no audit-log system is designed here.
+
+## 8b. Event-level idempotency (D-027 — APPROVED)
+
+Duplicate suppression for webhook/retry/scheduled events; **distinct
+from and complementary to identifier-based import idempotency
+(§9.2, D-017)** — identifier keying resolves *what* is written;
+event idempotency resolves *whether an event runs again*.
+
+Conceptual record per processed event:
+
+| Field | Notes |
+| --- | --- |
+| Source system | Which system sent the event |
+| Event ID | Stable source event ID; when absent, deterministic hash of (operation type, target identifier, timestamp, payload) |
+| Operation type | What the event does |
+| Received timestamp | When received |
+| Processing status | `received` → `processing` → `succeeded` / `failed` / `skipped_duplicate` |
+| Result / reference | Outcome reference where applicable |
+
+Rules:
+
+- **Uniqueness key:** (source system, event ID). Repeat with identical
+  payload → skipped and logged; repeat with conflicting payload →
+  data-integrity error, flagged for human review, never silently
+  reprocessed (mirrors D-017).
+- **Terminal states** (`succeeded`, `skipped_duplicate`) are never
+  re-entered; retries are safe while non-terminal or after `failed`.
+- **Failure handling:** failures are logged and flagged (RULES §24);
+  partial failures reported honestly (RULES §41).
+- **Retention:** long enough per RULES §27; concrete period is an
+  implementation decision, deferred.
+- No database structures, provider behavior, or distributed-systems
+  machinery is defined here.
 
 ## 9. SKU
 
@@ -432,7 +542,9 @@ variant-defining attributes: **Approved**; D-019 vocabulary governance:
 **Approved**; D-020 size-system architecture: **Approved**, size-code
 gate open; D-021 required-field policy: **Approved**; D-022 product
 status and D-023 publication status state machines: **Approved**;
-D-016: open-decision register).
+D-024 price model, D-025 discount model, D-026 provenance mechanism,
+and D-027 event-level idempotency: **Approved**; D-016: open-decision
+register).
 
 | # | Decision | Notes |
 | --- | --- | --- |
@@ -443,7 +555,7 @@ D-016: open-decision register).
 | 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
 | 6 | Size system | Architecture approved (D-020, multi-family); size-code gate + concrete values open |
 | 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |
-| 8 | Price/discount model | Open (D-016.G/H): default + variant override + sale behavior |
-| 9 | Provenance mechanism | Open (D-016.J): states fixed, physical storage deferred |
-| 10 | Import idempotency + Excel import scope | Identifier keying approved (D-017); event-level policy open (D-016.K); Excel scope open (D-016.L) |
+| 8 | Price/discount model | Resolved: D-024 / D-025 **Approved** — see §8 |
+| 9 | Provenance mechanism | Resolved: D-026 **Approved** — see §8a; physical storage deferred to implementation |
+| 10 | Import idempotency | Resolved: D-027 **Approved** (event-level, §8b) + D-017 (identifier-based, §9.2); Excel scope still open (D-016.L) |
 | 11 | Product/publication status state machines | Resolved: D-022 / D-023 **Approved** — see §3.1 / §3.2 |

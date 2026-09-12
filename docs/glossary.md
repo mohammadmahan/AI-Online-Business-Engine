@@ -155,9 +155,56 @@ publish or unpublish. Deterministic tooling may run the checks and
 move `unpublished` → `in_review`; it may never publish or unpublish.
 (D-023)
 
----
+**List price / variant price / effective price** — The minimal
+three-field price model (D-024): `list price` (numeric Toman;
+required; the reference/base price), optional `variant override`
+(required when the variant's price differs from the product's), and
+optional `sale price` with optional `sale price validity end`
+(timestamp). Effective price = the effective sale price (variant-level
+sale if set and valid, else product-level sale if set and valid),
+otherwise variant override if set, otherwise list price. Deterministic,
+variant-aware, and resolvable per D-021; the resolvable price is a
+publication minimum. AI may draft a recommendation (Yellow tier,
+provenance-tagged) but never creates or changes a price. (D-024)
 
-## Data integrity & provenance
+**Sale price** — An optional, explicitly stored selling price (D-024,
+D-025). The approved discount model is sale-price-based: a discount is
+*expressed* as an explicit sale price, never as a live computed
+percentage — the numeric base price field is never silently changed by
+a discount. Sale price is optional, must be lower than the effective
+base price, must never make the effective price negative or zero, and
+may carry an optional validity end (after which it is ignored — never
+extended automatically). Exactly one effective sale price applies per
+product/variant: the most specific valid one (variant-level if set and
+valid, else product-level); an invalid/expired variant sale falls back
+to the product-level sale, then to the base price. (D-024, D-025)
+
+**Event-level idempotency** — Duplicate suppression for webhook,
+retry, and scheduled events (D-027), distinct from identifier-based
+import idempotency (D-017). Conceptual model: each processed event is
+recorded with a **source system**, a **source event ID** (stable ID
+from the source; when absent, a deterministic hash of operation type,
+target identifier, timestamp, and payload), the **operation type**, a
+received timestamp, and a **processing status** (`received` →
+`processing` → `succeeded`/`failed`/`skipped_duplicate` — terminal
+states are never re-entered). The pair (source system, event ID) is
+the uniqueness key; a repeat with identical payload is skipped and
+logged; a repeat with a conflicting payload is a data-integrity error
+— flagged for human review, never silently reprocessed. Safe-retry
+rule: an operation may be retried only while its status is
+non-terminal (`received`/`processing`) or after `failed`; a
+terminal-succeeded event is never re-executed. Retention is an
+implementation decision, deferred. (D-027)
+
+**Provenance source types** — The five origins a value's provenance
+may record (D-026): `HUMAN_ENTERED` (a human entered the value),
+`SYSTEM_GENERATED` (deterministic tooling produced it),
+`AI_GENERATED` (AI produced it — always paired with the D-011 review
+state until a human raises it), `IMPORTED` (arrived via an import,
+with a source reference such as a file/batch), `EXTERNAL_SYNC`
+(arrived via a verified external-system sync). Provenance records are
+append-only; AI origin is never erased; no secrets are stored.
+(D-011, D-026)
 
 Missing information states (PROJECT_RULES §6, MASTER_PLAN §5) — two
 distinct states, never conflated:
