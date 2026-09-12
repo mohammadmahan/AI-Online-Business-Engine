@@ -92,9 +92,21 @@ other items as done until verified):
        physical sheet/column mapping is confirmed at the specification
        task); dry-run first; human-approved exceptions; Excel never
        issues IDs/SKUs and never writes inventory
-- [ ] 11. Consolidate the logical data model
-- [ ] 12. Produce Excel import specification/template if approved
-- [ ] 13. Perform Phase 2 final review
+- [x] 11. Consolidate the logical data model — **done (2026-09-12)**:
+       `DATA_MODEL.md` §13 consolidates D-014–D-030 into one
+       implementation-ready logical model (entity catalog,
+       relationships, identity, missing-value semantics, import/
+       idempotency, provenance, authority matrix, deferred boundary);
+       no new business rules
+- [x] 12. Produce Excel import specification — **done (2026-09-12)**:
+       semantic import contract + validation pipeline + error classes
+       + dry-run/partial-failure/re-import rules in the phase-02
+       document; physical sheet/column mapping remains an **open
+       dependency** pending the owner's workbook (not in the repo —
+       not invented)
+- [x] 13. Perform Phase 2 final review — **done (2026-09-12)**: full
+       D-014–D-030 audit passed; no contradictions; open gates
+       preserved (see the phase-02 review section)
 - [ ] 14. Commit Phase 2 foundation only after human approval
 
 Standing constraints (always apply):

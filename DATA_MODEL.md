@@ -337,8 +337,10 @@ never a transactional store (D-006, RULES §13). Full rules in
 `DECISIONS.md` (D-028); key points:
 
 - One workbook, mapped to the semantic fields of this model; the
-  physical sheet/column mapping is confirmed at the Excel-import
-  specification task (no column names invented here).
+  physical sheet/column mapping is confirmed against the owner's
+  workbook at the Excel-import specification task (no column names
+  invented here; the mapping is an open dependency pending the
+  workbook).
 - One product = one product row + zero or more variant rows; simple
   products need no variant rows; variant rows carry all active axes.
 - Import never issues Product IDs (human-supplied only); never
@@ -603,26 +605,164 @@ Status and ownership of these decisions are tracked in `DECISIONS.md`
 (D-014 SKU convention: **Approved**; D-015 identifier separation:
 **Approved**; D-017 identifier policy: **Approved**; D-018
 variant-defining attributes: **Approved**; D-019 vocabulary governance:
-**Approved**; D-020 size-system architecture: **Approved**, size-code
-gate open; D-021 required-field policy: **Approved**; D-022 product
-status and D-023 publication status state machines: **Approved**;
-D-024 price model, D-025 discount model, D-026 provenance mechanism,
-and D-027 event-level idempotency: **Approved**; D-016: open-decision
-register).
+**Approved**; D-020 size-system architecture and D-030 size-code
+governance: **Approved** (concrete mappings open); D-021 required-field
+policy: **Approved**; D-022 product status and D-023 publication status
+state machines: **Approved**; D-024 price model, D-025 discount model,
+D-026 provenance mechanism, D-027 event-level idempotency, D-028
+Excel import contract, and D-029 registry v1 structure: **Approved**;
+D-016: open-decision register).
 
 | # | Decision | Notes |
 | --- | --- | --- |
 | 1 | ~~Final SKU convention~~ | Resolved: D-014 **Approved** — see §9.1 |
 | 2 | Truly required product fields | Resolved: D-021 **Approved** — creation/publication minimums; AI enrichment bounds |
-| 3 | Taxonomy value lists | Governance approved (D-019); **registry v1 contents open** (D-016.C) |
+| 3 | Taxonomy value lists | Governance (D-019) + v1 structure (D-029) **Approved**; **concrete values open** (D-016.C) |
 | 4 | WooCommerce field mapping | Open (Phase 3): conceptual model → WooCommerce concrete mapping |
 | 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
-| 6 | Size system | Architecture approved (D-020, multi-family); size-code gate + concrete values open |
+| 6 | Size system | Architecture (D-020) + size-code governance (D-030) **Approved**; concrete mappings + values open |
 | 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |
 | 8 | Price/discount model | Resolved: D-024 / D-025 **Approved** — see §8 |
 | 9 | Provenance mechanism | Resolved: D-026 **Approved** — see §8a; physical storage deferred to implementation |
 | 10 | Import idempotency | Resolved: D-027 **Approved** (event-level, §8b) + D-017 (identifier-based, §9.2); Excel import contract per D-028 (§6.4) |
 | 11 | Product/publication status state machines | Resolved: D-022 / D-023 **Approved** — see §3.1 / §3.2 |
-| 12 | Excel import scope | Resolved: D-028 **Approved** — see §6.4; physical sheet/column mapping confirmed at the specification task |
+| 12 | Excel import scope | Resolved: D-028 **Approved** — see §6.4; physical sheet/column mapping pending the owner workbook (open dependency, see the phase-02 import specification) |
 | 13 | Registry v1 structure / values | Structure resolved: D-029 **Approved** — see §6.3; concrete values remain OPEN and owner-gated |
 | 14 | Size-code governance / mappings | Governance resolved: D-030 **Approved** — see §6.2/§6.3; concrete mappings remain an open owner sub-decision |
+
+## 13. Consolidated logical model (Phase 2 — implementation-ready)
+
+This section consolidates the decision set D-014–D-030 into one
+coherent logical model: entities, relationships, identity, missing-
+value semantics, import/idempotency, provenance, authority, and the
+implementation-deferred boundary. It is implementation-ready at the
+logical level — a developer could build the product-data backend from
+this model plus the referenced detail sections without inventing
+business rules. No entity, field, or rule here is new business logic;
+each traces to D-014–D-030. Physical representation is deliberately
+deferred (§13.8).
+
+### 13.1 Entity catalog
+
+| Entity | Purpose | Stable identity | Key constraints | Authority | Detail |
+| --- | --- | --- | --- | --- | --- |
+| Product | General product definition | Product ID (`P#####`), immutable, never reused | Creation minimum (D-021); lifecycle (D-022); publication (D-023); publication minimum incl. resolvable price (D-021/D-024) | Human / approved tooling; AI never issues IDs | §3, §3.1, §3.2, §9.2 |
+| Product Variant | Real, independently sellable combination | Variant ID (UUIDv4), immutable, never reused | One parent product; (product, active axes) unique (D-014 rule 11); SKU unique (RULES §10); creation minimum (D-021) | Tool-issued IDs; human data entry; AI never issues IDs | §4, §9.2 |
+| Price | Numeric Toman price fields: list price, variant override | — (fields on Product/Variant) | D-024 precedence; numeric Toman (D-010); no conversion logic; no engine | Human; AI recommends only | §8.1 |
+| Sale price / discount | Optional sale price + validity end (product- or variant-level) | — (fields on Product/Variant) | sale < effective base; no zero/negative; no stored percentage; no stacking; no engine (D-025) | Human; AI suggests only | §8.2 |
+| Controlled Vocabulary Term | Canonical value in a closed registry | (vocabulary, canonical slug); canonical code where applicable | Persian label required; code O/I/L-safe (variant-defining only); active/deprecated, never deleted; exact-alias resolution | Human-owned; owner approval for variant-defining; AI proposes only | §6.1, §6.3, D-029 |
+| Size family / size term | Size-system classification | Size term = vocabulary term + family | Family context on product; term on variant; family-scoped code namespace; no auto-conversion | Human-curated equivalence only; D-030 governance | §6.2, D-030 |
+| Provenance record | Origin of a value | (value, version), append-only | Source type ∈ {HUMAN_ENTERED, SYSTEM_GENERATED, AI_GENERATED, IMPORTED, EXTERNAL_SYNC}; review state (D-011); no secrets | Written by the system performing the change; humans advance review state | §8a, D-026 |
+| Import run / event | One Excel import execution | (source system, event ID) | D-027 status machine; run provenance (workbook ref, timestamps, counts, approver) | Human-promoted; tool executes; AI never executes | §6.4, §8b, D-028 |
+| Idempotency record | Duplicate suppression for events | = the event record (§8b) | Identifier-level idempotency is a constraint on identity keys, not a separate entity | — | §8b, §9.2 |
+| Publication status | Storefront visibility | — (state on Product) | D-023 states/transitions; Red tier for publish/unpublish | Human; tool per D-023; AI never executes | §3.2 |
+| Product lifecycle status | Lifecycle state | — (state on Product) | D-022 states/transitions; variants mirror | Human; tool per D-022; AI never executes | §3.1 |
+
+### 13.2 Consolidated relationships
+
+```text
+Product 1 ─── 0..n Variant
+Product 1 ─── 1 Price (list)          Variant 1 ─── 0..1 Price override
+Product/Variant ─── 0..1 Sale price (+ optional validity end)
+Product/Variant ─── n..n Vocabulary Term (category, color, size, …)
+Variant ─── 0..1 Color term (iff Color axis active)
+Variant ─── 0..1 Size term (iff Size axis active; family from Product)
+Value ─── 1..n Provenance record (append-only; supersede, never overwrite)
+Import run ─── n imported values (IMPORTED provenance)
+Import run ─── 1 event idempotency record (D-027)
+Product ─── 1 product status (D-022) ; 1 publication status (D-023)
+```
+
+No physical relational schema is implied; these are logical
+relationships only.
+
+### 13.3 Identity model
+
+**Product ID ≠ Variant ID ≠ SKU ≠ internal database identity** (D-014,
+D-015, D-017 — see §9.2):
+
+- **Product ID** — `P` + five digits, uppercase Latin ASCII, immutable,
+  never reused; issued by humans or approved deterministic tooling;
+  AI never creates or assigns it.
+- **Variant ID** — UUIDv4 canonical lowercase hyphenated; immutable,
+  never reused; the internal identity of a variant; issued by approved
+  deterministic tooling; AI never creates or assigns it.
+- **SKU** — business/inventory identifier; immutable after creation;
+  D-014 rules (suffix = active axes in Color → Size order, D-018);
+  never the database primary identity; AI never creates or assigns it.
+- **Internal database identity** — owned by the future database
+  technology; not defined in Phase 2 (implementation-deferred).
+
+### 13.4 Missing-value semantics
+
+| State | Meaning | Handling |
+| --- | --- | --- |
+| `NOT_PROVIDED` | The source did not supply the value | Preserved as-is; never guessed (RULES §8) |
+| `UNKNOWN` | Searched for but not determinable | Preserved; surfaced to human review; does not automatically block publication (D-021 rule 5) |
+| `INVALID` | Supplied, but structurally or business-rule invalid | Rejected at validation with a row/field-level error; never auto-corrected, never clamped (D-028 rule 13) |
+
+These three states are distinct and are never silently transformed
+into one another (D-011, D-021, D-028).
+
+### 13.5 Import / idempotency model
+
+Two separate mechanisms, never merged (D-017, D-027, D-028):
+
+- **A) Identifier-level idempotency** — products keyed by Product ID;
+  variants by Variant ID (SKU fallback where Variant ID is absent).
+  Identical re-import = no-op; conflicting payload = human review,
+  never a silent overwrite (D-017 rule 10, §9.2).
+- **B) Event-level idempotency** — one record per event: source
+  system, event ID, operation type, received timestamp, processing
+  status (`received` → `processing` → `succeeded` / `failed` /
+  `skipped_duplicate`), result/reference. Terminal states are never
+  re-entered (D-027, §8b).
+- **One import run is one event**; the rows inside it still obey the
+  identifier-level rules (D-028 rules 16–17).
+
+### 13.6 Import provenance
+
+Excel import produces `IMPORTED` provenance (D-026, D-028 rule 8):
+
+- source reference = workbook/batch;
+- original/source value retained where normalization was applied;
+- import event/run reference (D-027 event ID).
+
+Excel is **input only**. Excel is **not**: a Source of Truth, a
+transactional database, an inventory database, or an order database
+(D-006, RULES §13).
+
+### 13.7 Authority matrix
+
+| Operation | Human | Approved deterministic tooling | AI |
+| --- | --- | --- | --- |
+| Create product / enter product data | Yes | Yes (import, D-028) | Drafts/suggestions only (D-021) |
+| Issue Product ID | Yes | Yes (approved) | Never (D-014 rule 12, D-017) |
+| Issue Variant ID | — | Yes (approved) | Never (D-017) |
+| Construct / issue SKU | Yes (per D-014) | Yes (approved, after human confirmation) | Never (D-014 rule 12) |
+| Create vocabulary term | Yes (owner approval for variant-defining) | No | Propose only (D-019) |
+| Assign size code | Yes (owner) | Derive/validate candidates (D-030) | Propose only (D-030) |
+| Lifecycle transitions | Yes | Per D-022 (checks-only for draft→active) | Suggest only; never execute (D-022) |
+| Publication transitions | Yes (Red tier) | Per D-023 (never publish/unpublish) | Suggest only; never execute (D-023) |
+| Production price changes | Yes (Red tier) | Execute after approval | Recommend only (RULES §11, §32) |
+| Excel import execution | Promotes dry-run | Executes after promotion | Never executes; may prepare/summarize (D-028) |
+| Resolve import exceptions | Yes | No | No (D-028 rule 19) |
+
+### 13.8 Implementation-deferred boundary
+
+The following are **not** decided in Phase 2 and must not be inferred
+from this model:
+
+- SQL database engine / ORM / exact table names / indexes
+- UUID implementation library
+- Excel parser library / API implementation / storage format
+- Infrastructure, caching, queues
+- Physical transaction mechanism (atomicity is a logical requirement
+  of the import contract, D-028 rule 20; the mechanism is deferred)
+- Price-change-log physical shape (D-024 rule 9)
+- Provenance physical storage (D-026)
+- Event-record retention period (D-027 rule 7)
+- Physical Excel sheet/column mapping (pending the owner workbook,
+  D-028 rule 1)
+- Concrete vocabulary values (D-029) and concrete size-code mappings
+  (D-030)

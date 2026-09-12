@@ -352,6 +352,142 @@ substitute for product status.**
 - **Concrete size-code mappings remain an open owner sub-decision** —
   until approved, no size code can be issued for any term.
 
+## Excel import specification (Task 12 — implementation-ready; physical mapping OPEN)
+
+Implementation-ready specification turning D-028 into a deterministic
+import procedure. The **physical sheet/column mapping is an OPEN
+dependency**: no Product Master workbook exists in this repository
+(verified), so no physical sheet names, column names, or headers are
+invented or claimed as verified. The owner supplies the workbook; the
+mapping-confirmation checklist below is then executed once, and the
+result is recorded in task 12's outcome.
+
+### A) Semantic import contract (fixed; independent of physical layout)
+
+| Semantic field | Product row | Variant row | Required | Rules |
+| --- | --- | --- | --- | --- |
+| Product ID | ✔ | (parent reference) | No* | Human-supplied only; absent → human assignment before completion (D-028 rule 4) |
+| Variant ID | — | — | Never in Excel | Tool-issued (UUIDv4) for genuinely new variants (D-028 rule 5) |
+| SKU | (simple products) | ✔ | No* | D-014 convention validated if present; omitted → derived by approved tooling after human confirmation (D-028 rule 6) |
+| Name | ✔ | — | Yes | Publication minimum (D-021) |
+| Main category | ✔ | — | No* | Resolves via Category vocabulary (D-019/D-029); publication minimum (D-021) |
+| Color term | (default) | ✔ iff Color axis active | Axis-dependent | Exact-alias resolution (D-019) |
+| Size term | (default) | ✔ iff Size axis active | Axis-dependent | Exact-alias resolution within declared family (D-020) |
+| Size family | ✔ | — | No* | Product-level context (D-020) |
+| List price | ✔ | — | No* | Numeric Toman (D-010/D-024); required for publication (D-021) |
+| Variant price override | — | ✔ | No | Numeric Toman (D-024) |
+| Sale price (+ validity end) | ✔ | ✔ | No | D-024/D-025 validation at import |
+| Product status | ✔ | — | No* | Defaults `draft` (D-022); import never activates |
+| Publication status | ✔ | — | No* | Import-created products enter as `unpublished` (D-023); import never publishes |
+| Media references | ✔ | — | No | References only; media itself is not imported |
+| Description / SEO drafts | ✔ | — | No | Accepted as provenance-tagged content (D-026) |
+| Inventory / stock | — | — | — | **Not accepted** (verified data only, RULES §12) |
+
+`No*` = accepted but not required at import; lifecycle/publication
+minimums still gate their transitions later (D-021/D-022/D-023).
+
+### B) Physical mapping confirmation checklist (owner workbook)
+
+1. Confirm the workbook file and version (owner-provided).
+2. Record each physical **sheet name** and its role
+   (products / variants / other).
+3. Record each physical **column header** per sheet against the
+   semantic fields above; note exact spelling, order, and any merged
+   or derived columns.
+4. Confirm the product/variant **row structure** (how a variant row
+   references its product).
+5. Record **examples only where actually present** in the workbook —
+   none are invented.
+6. Record the numeric format of price cells (must be numeric Toman,
+   not formatted text).
+7. Record the result in the task-12 outcome and treat it as the
+   authoritative mapping thereafter.
+
+### C) Validation pipeline (deterministic order)
+
+1. Workbook/schema validation (structure, readable numeric cells).
+2. Row-structure validation (product vs variant rows; parent
+   references).
+3. Required-field validation (per the contract above; D-021 minimums).
+4. Identifier validation (Product ID format/charset; no AI issuance).
+5. SKU validation (D-014: charset, suffix axes = active axes in Color
+   → Size order; uniqueness).
+6. Vocabulary resolution (exact alias matching, active terms only,
+   D-019).
+7. Size-family resolution (declared family; no auto-conversion,
+   D-020).
+8. Variant-combination validation (duplicate active-axis combinations
+   rejected, D-014 rule 11/D-018 rule 5).
+9. Price validation (numeric Toman; D-024/D-025 rules).
+10. Provenance preparation (IMPORTED records, D-026).
+11. Duplicate/idempotency checks (D-017 identifier level; D-027 event
+    level for the run).
+12. Dry-run report (no writes).
+13. **Human promotion** (explicit; AI may summarize/suggest, never
+    promote).
+14. Write (single deterministic application of the promoted result).
+
+No AI decision occurs silently inside validation; every step is
+deterministic and logged.
+
+### D) Error classes (every error actionable; no auto-correction)
+
+| Class | Deterministic handling |
+| --- | --- |
+| Missing required field | Row rejected at step 3; human supplies the value; never guessed (D-021) |
+| Missing optional field | `NOT_PROVIDED`; row proceeds (RULES §8) |
+| Unknown value | `UNKNOWN` preserved; surfaced to review; not auto-blocking (D-021 rule 5) |
+| Invalid value (structure/business rule) | Rejected with row/column error; never auto-corrected or clamped (D-028 rule 13) |
+| Duplicate in workbook or vs existing data | Affected rows rejected; nothing silently merged (D-028 rule 14) |
+| Conflicting existing record (re-import) | Flagged for human review; never a silent overwrite (D-017) |
+| Unresolved vocabulary value | Raw value retained on the row; routed to human review queue; never auto-added to the registry (D-019/D-028 rule 9) |
+| Unresolved size value | Retained; human-reviewed; never auto-converted (D-020) |
+| Invalid SKU | Rejected; corrected by human or re-derived by approved tooling after confirmation; never renamed in place (D-014 rule 10) |
+| Invalid price | Rejected (D-024/D-025 validation); never clamped |
+| Invalid lifecycle/publication state value | Rejected; import never sets `active`/`published` (D-022/D-023) |
+| Invalid variant combination | Rejected (duplicate active-axis combination, D-018 rule 5) |
+
+### E) Dry-run, partial failure, re-import
+
+- **Dry-run:** validates everything, writes nothing, produces a
+  deterministic report: errors, warnings, and the records that would
+  be **created / updated (no-op or flagged) / skipped /
+  rejected**. Only an explicit human promotes a dry-run to an actual
+  import (D-028 rules 18–19).
+- **Partial failure:** a failed actual import writes nothing (D-028
+  rule 20). Atomicity is a **logical requirement**; the physical
+  transaction mechanism is implementation-deferred (DATA_MODEL §13.8).
+- **Re-import matrix (deterministic; never silently merged):**
+
+| Scenario | Behavior |
+| --- | --- |
+| Identical workbook / repeated event | Event skipped and logged (D-027) |
+| Same identifiers + same values | Identifier-level no-op (D-017) |
+| Same identifiers + changed values | Flagged for human review; never a silent overwrite (D-017) |
+| Duplicate SKU (within workbook or vs existing) | Rows rejected as data-integrity errors (RULES §10, D-028 rule 14) |
+| Duplicate active-axis combination | Rows rejected (D-014 rule 11) |
+| Changed immutable identifier (attempted Product ID / Variant ID rename) | Rejected — identifiers are immutable and never reused (D-017); a genuinely new record gets a new identifier |
+| Attempted SKU rename | Rejected — SKU is frozen at creation (D-014 rule 10); deactivate + recreate instead |
+
+## Task 13 — Phase 2 final review (2026-09-12)
+
+Full audit of D-014–D-030 against the consolidated model (DATA_MODEL
+§13) and this specification. Result: **PASS — no contradictions; no
+new business rules invented; all open owner gates preserved.** Key
+verifications: Product ID ≠ Variant ID ≠ SKU (§13.3); AI never assigns
+identifiers, never creates vocabulary terms, never assigns size
+codes, never executes lifecycle/import transitions (§13.7); no fuzzy
+or confidence-based matching anywhere (all occurrences are
+prohibitions); UNKNOWN ≠ NOT_PROVIDED ≠ INVALID (§13.4); D-024/D-025
+price precedence incl. variant-sale fallback intact; publication
+requires a resolvable effective price; provenance append-only; event
+idempotency ≠ identifier idempotency (§13.5); Excel never a Source of
+Truth and never writes without human promotion; failed import writes
+nothing; no inventory/order model, no pricing engine, no new
+lifecycle states, no concrete vocabulary values, no concrete size
+mappings. Remaining open items are exactly the owner-gated set below
+— none closed.
+
 ## Remaining open decisions
 
 All remaining Phase 2 decisions are **OPEN** (D-016 and the

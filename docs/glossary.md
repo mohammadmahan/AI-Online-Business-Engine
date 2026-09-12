@@ -81,8 +81,10 @@ no fuzzy matching; unmapped values retained for human review.
 Terms for a field (colors, sizes, categories, …). Used where
 consistency matters; unknown/unprovided values are preserved as
 explicit states — the vocabulary must never force a guess. Governance
-architecture approved (D-019); **concrete registry v1 value lists
-remain open** (D-016.C / register item 3) and owner-supplied.
+architecture approved (D-019); v1 structure approved (D-029 —
+required vocabularies: color, size, category); **concrete registry v1
+value lists remain open** (D-016.C / register item 3) and
+owner-supplied.
 
 **Barcode / EAN** — The external trade identifier printed on goods.
 Separate from the SKU: it has its own field and lifecycle, and the SKU
@@ -114,10 +116,14 @@ term (registry identity + SKU code) and customer-facing display value
 remain distinguishable; measurements are reference data, never
 invented (D-020).
 
-**Size-code convention (O/I/L-safe) — OPEN approval gate.** Display
-labels may stay conventional (L, XL), but SKU codes must avoid O/I/L
-(D-014 rule 7). A deterministic convention is pending owner approval;
-mappings are not finalized. (D-020)
+**Size-code convention (O/I/L-safe)** — Governance approved (D-030):
+size codes are uppercase Latin ASCII, never contain `O`/`I`/`L` in any
+position (D-014 rule 7 — no exception), owner-created and
+owner-approved, frozen once referenced (deprecate + recreate, never
+rename), family-scoped. A deterministic letter→code mapping is pending
+owner approval; **concrete mappings are not finalized**. Display labels
+may stay conventional (L, XL) regardless of the canonical code.
+(D-014 rule 7, D-020, D-030)
 
 **Required field / publication minimum** — Minimal required-field
 policy (D-021): product creation minimum (Product ID, Name, Product
@@ -252,6 +258,12 @@ distinct states, never conflated:
 
 - `UNKNOWN` — Searched for, not determinable.
 - `NOT_PROVIDED` — Source did not supply the value.
+- `INVALID` — Supplied, but structurally or business-rule invalid
+  (e.g., malformed number, price-rule violation). Rejected at
+  validation with a row/field-level error; never auto-corrected,
+  never clamped (D-028 rule 13). `UNKNOWN` ≠ `NOT_PROVIDED` ≠
+  `INVALID` — the three are never silently transformed into one
+  another.
 
 Provenance states (PROJECT_RULES §7, MASTER_PLAN §5):
 

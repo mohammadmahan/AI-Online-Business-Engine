@@ -297,29 +297,31 @@ major decisions (PROJECT_RULES §3).
     convention and concrete family values remain OPEN (candidates:
     letter sizes, Iranian/numeric sizes, or other business-specific
     sizing; not chosen).
-  - E. **Product status state machine** — OPEN; candidate states
-    `draft` / `active` / `archived` are documented only; no WooCommerce
-    mapping yet.
-  - F. **Publication status** — OPEN; no unnecessary states unless
-    justified.
-  - G. **Price model** — OPEN; the final decision must define product
-    default price, optional variant override, and sale-price behavior;
-    not implemented.
-  - H. **Discount model** — OPEN; a sale-price model is the preferred
-    direction but is NOT approved.
+  - E. **Product status state machine** — RESOLVED: D-022 **Approved**
+    (2026-09-12; `draft`/`active`/`archived`; no WooCommerce mapping
+    yet — that is Phase 3 work).
+  - F. **Publication status** — RESOLVED: D-023 **Approved**
+    (2026-09-12; `unpublished`/`in_review`/`published`/`withdrawn`;
+    no unnecessary states added).
+  - G. **Price model** — RESOLVED: D-024 **Approved** (2026-09-12;
+    list price + variant override + sale price; deterministic
+    effective price; no pricing engine).
+  - H. **Discount model** — RESOLVED: D-025 **Approved** (2026-09-12;
+    sale-price-based; no engine; no coupons).
   - I. **Inventory** — OPEN for Phase 2 design. Already-approved
     constraints remain in force (D-003, RULES §12): WooCommerce is the
     transactional Source of Truth; inventory must be verified;
     mutations must be idempotent and auditable; AI must never estimate
     stock. No inventory implementation in Phase 2.
-  - J. **Provenance mechanism** — OPEN. The approved states remain
-    UNKNOWN, NOT_PROVIDED, AI_GENERATED, HUMAN_REVIEWED,
-    HUMAN_VERIFIED (D-011); the physical storage mechanism is not
-    chosen yet.
-  - K. **Import idempotency** — OPEN; future Excel/import design must
-    have a deterministic idempotency strategy.
-  - L. **Excel import scope** — OPEN; Phase 2 must still decide:
-    specification only, or specification + reusable Excel template.
+  - J. **Provenance mechanism** — RESOLVED: D-026 **Approved**
+    (2026-09-12; per-value provenance tuple; append-only; physical
+    storage mechanism not chosen yet — implementation-deferred).
+  - K. **Import idempotency** — RESOLVED: D-027 **Approved**
+    (2026-09-12; event-level) with D-017 (identifier-based) and D-028
+    (import contract).
+  - L. **Excel import scope** — RESOLVED: D-028 **Approved**
+    (2026-09-12; specification + reusable template; physical mapping
+    pending the owner workbook).
   - M. **SEO slug language** — OPEN/deferred; no URL slug
     implementation now.
 - **Rationale:** Prevents silent decisions (PROJECT_RULES §4) and gives
@@ -546,8 +548,9 @@ major decisions (PROJECT_RULES §3).
 - **Source:** Phase 2 Task 3 design; MASTER_PLAN §4–§5; PROJECT_RULES
   §6–§8, §12, §32–§33; D-011, D-017, D-018; human owner approval
   (2026-09-11).
-- **Open dependencies:** price mechanism (D-016.G), publication status
-  values (D-016.F) — referenced but not resolved here.
+- **Open dependencies (since resolved):** price mechanism (D-024),
+  publication status values (D-023) — referenced here; resolved by
+  later decisions.
 
 ## D-022 — Product status state machine
 
