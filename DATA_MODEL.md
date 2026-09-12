@@ -6,7 +6,8 @@ Conceptual data model for the AI-First Online Business Engine.
 `PROJECT_RULES.md` §6–§13; SKU convention and identifier separation
 approved via D-014 / D-015 / D-017; variant-defining attributes,
 vocabulary governance, size system (architecture), and required-field
-policy approved via D-018 / D-019 / D-020 / D-021 in `DECISIONS.md`.
+policy approved via D-018 / D-019 / D-020 / D-021; product and publication
+status state machines approved via D-022 / D-023 in `DECISIONS.md`.
 This is a **conceptual** model only: it does not define a physical
 schema, a database engine, or a WooCommerce field mapping. Those are
 Phase 2 / Phase 3 work and remain open decisions.
@@ -51,7 +52,7 @@ required — the required-field policy is approved via D-021; see §12):
 | Brand | |
 | Main category | Taxonomy term |
 | Subcategory | Taxonomy term |
-| Product status | Lifecycle state |
+| Product status | Lifecycle state (see §3.1, D-022) |
 | Price | Numeric Toman (see §8) |
 | Previous price | Numeric Toman |
 | Discount | Derived or explicit; never invented by AI |
@@ -78,12 +79,130 @@ required — the required-field policy is approved via D-021; see §12):
 | Main image | Reference to Media |
 | Additional media | References to Media |
 | Product URL | |
-| Publication status | |
+| Publication status | Storefront visibility; separate from product status (see §3.2, D-023) |
 | Created / updated dates | |
 | Internal notes | Never customer-facing |
 
 Incomplete products are valid. Do not block product creation over
 optional fields; never fill missing optional fields with guesses.
+
+### 3.1 Product status (D-022 — APPROVED)
+
+The product lifecycle state machine. **Product status is a separate
+concept from publication status (§3.2) and is never replaced by it.**
+
+States:
+
+| State | Meaning |
+| --- | --- |
+| `draft` | Exists, work-in-progress; incomplete products valid (RULES §8); never sellable; never published |
+| `active` | Usable product; entry = human approval of the draft + all D-021 publication checks passing; not directly customer-visible by itself (visibility is publication, §3.2) |
+| `archived` | Deactivated / no longer offered; not sellable; nothing deleted; identifiers, SKU, and history fully preserved |
+
+Allowed transitions (complete set):
+
+| From → To | Authority | Notes |
+| --- | --- | --- |
+| `draft → active` | Human; or approved deterministic tooling **only** when all D-021 publication checks pass | every variant must satisfy the variant creation minimum, else blocked |
+| `active → draft` | Human; approved deterministic tooling only on explicit per-product human instruction | review rejection returns here (publication → `unpublished`) |
+| `active → archived` | Human; approved deterministic tooling only on explicit per-product human instruction | variants stop being sellable together with the product |
+| `archived → draft` | Human-only | explicit restore decision |
+
+Forbidden transitions: `draft → archived` (no side-step — review via
+`active` first); `archived → active` (never — reactivation is via
+`draft → active` with full checks).
+
+AI authority: AI may **suggest/prepare** a transition (provenance-
+tagged, logged); AI may **never execute** any lifecycle transition and
+may never move a product to or out of `archived`.
+
+Variant behavior: variants mirror the product lifecycle; variants are
+never left sellable while their product is `draft` or `archived`; no
+per-variant archival cascade is created; the D-021 variant creation
+minimum is enforced at `draft → active`.
+
+### 3.2 Publication status (D-023 — APPROVED)
+
+The storefront-visibility state machine, **independent of product
+status; publication status is never a substitute for product status.**
+
+States:
+
+| State | Meaning |
+| --- | --- |
+| `unpublished` | Default at creation; not visible |
+| `in_review` | Being checked against the D-021 publication minimum |
+| `published` | Publicly visible / sellable |
+| `withdrawn` | Intentionally unpublished after having been published |
+
+Allowed transitions (complete set):
+
+| From → To | Authority | Notes |
+| --- | --- | --- |
+| `unpublished → in_review` | Human; or approved deterministic tooling (checks-only) | |
+| `in_review → unpublished` | Human; or approved deterministic tooling | rejection / withdrawal from review |
+| `in_review → published` | **Red tier — explicit human approval**; approved deterministic tooling executes only after that approval, all checks passing | publication gate below |
+| `published → withdrawn` | **Red tier — explicit human approval**; tooling only on explicit human instruction | intentional unpublish |
+| `published → in_review` | Human; or approved deterministic tooling | re-review before a material change |
+| `withdrawn → in_review` | Human; or approved deterministic tooling | re-publication preparation |
+
+Forbidden transitions: `unpublished → published` (no bypassing
+review); `withdrawn → published` (no direct re-publish — re-enter
+review first).
+
+Publication checks (gate for any `→ published`; exactly D-021): Name;
+Main category; resolvable price; ≥1 media image; valid publication
+status; all variants satisfy the variant creation minimum; product
+status must be `active` (§3.1). **Description and short description
+are NOT blockers.** `UNKNOWN` values are surfaced to human review and
+do not automatically block (a future field-specific safety hard-block
+may be approved separately; none exists now). Inventory is
+verified-data-only; missing stock stays `NOT_PROVIDED`; AI never
+estimates stock.
+
+AI authority: AI may prepare review submissions and suggest
+transitions (Yellow tier, provenance-tagged); AI may **never execute**
+publish or unpublish.
+
+### 3.3 Lifecycle edge cases (D-022 / D-023)
+
+1. **Created but incomplete** — valid in `draft`; creation is never
+   blocked by optional fields (RULES §8, D-021).
+2. **No variants (simple product)** — valid at every status; SKU =
+   Product ID (D-014 rule 4); publication gate unchanged.
+3. **One incomplete variant** — blocks `draft → active` and any
+   `→ published` (variant creation minimum, D-021); never
+   auto-corrected or guessed.
+4. **Active variant, publication incomplete** — the product may be
+   `active` while publication stays `unpublished`/`in_review`; product
+   status never substitutes for publication status.
+5. **Unpublished after being published** — `published → withdrawn`
+   (human-approved); re-publication only via `withdrawn → in_review →
+   published`.
+6. **Archived product** — not sellable; nothing deleted;
+   identifiers/SKU/history preserved (D-014 rule 14, D-017).
+7. **Publishing an archived product** — forbidden directly
+   (`archived → active` is forbidden); restore via `archived → draft →
+   active` with full checks, then publication review.
+8. **Data changes after publication** — routine edits allowed;
+   material changes go through `published → in_review` re-review;
+   every change is logged (RULES §27).
+9. **Price becomes unresolved after publication** — the publication
+   checks are surfaced for human decision (withdrawal or correction);
+   the price is never auto-guessed or auto-changed (RULES §11).
+10. **Required publication data removed after publication** — surfaced
+    for human decision; never silently kept public without required
+    data (RULES §24: no hidden failure).
+11. **UNKNOWN optional/safety-relevant attributes** — surfaced to
+    human review; do not automatically block publication (D-021 rule
+    5); a future field-specific hard-block may be approved
+    separately.
+12. **Zero active axes (simple product)** — valid (D-018); SKU =
+    Product ID; duplicate rule vacuously satisfied.
+13. **One active axis** — valid (e.g. color-only); SKU `P00001-BLK`;
+    duplicate checks over active axes only (D-018).
+14. **Color + Size variants** — both axes active; SKU `P00001-BLK-M`;
+    duplicate color+size combinations rejected (D-014 rule 11).
 
 ## 4. Variant
 
@@ -311,8 +430,9 @@ Status and ownership of these decisions are tracked in `DECISIONS.md`
 **Approved**; D-017 identifier policy: **Approved**; D-018
 variant-defining attributes: **Approved**; D-019 vocabulary governance:
 **Approved**; D-020 size-system architecture: **Approved**, size-code
-gate open; D-021 required-field policy: **Approved**; D-016:
-open-decision register).
+gate open; D-021 required-field policy: **Approved**; D-022 product
+status and D-023 publication status state machines: **Approved**;
+D-016: open-decision register).
 
 | # | Decision | Notes |
 | --- | --- | --- |
@@ -326,3 +446,4 @@ open-decision register).
 | 8 | Price/discount model | Open (D-016.G/H): default + variant override + sale behavior |
 | 9 | Provenance mechanism | Open (D-016.J): states fixed, physical storage deferred |
 | 10 | Import idempotency + Excel import scope | Identifier keying approved (D-017); event-level policy open (D-016.K); Excel scope open (D-016.L) |
+| 11 | Product/publication status state machines | Resolved: D-022 / D-023 **Approved** — see §3.1 / §3.2 |

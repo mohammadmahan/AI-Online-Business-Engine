@@ -132,6 +132,29 @@ guessed values. AI may draft descriptions/SEO/keywords/suggestions
 prices, discounts, stock, vocabulary terms, shipping/payment/order
 facts, or guessed attribute values.
 
+**Product status** — The product lifecycle state machine (D-022):
+`draft` (exists, incomplete allowed, not sellable), `active` (usable;
+structurally valid; required for publication), `archived`
+(deactivated; never deleted). Rejection of a review candidate returns
+it to `draft` — no separate stored state. Transitions are human
+actions (draft → active may be executed by approved deterministic
+tooling when all publication checks pass); archived products can never
+reactivate directly. Variant status mirrors the product's lifecycle.
+**Publication status is a separate state machine (see below) and is
+never a substitute for product status.** (D-022)
+
+**Publication status** — The storefront-visibility state machine
+(D-023), independent of product status: `unpublished` (default),
+`in_review` (being checked against the D-021 publication minimum),
+`published` (publicly visible/sellable), `withdrawn`
+(intentionally unpublished after having been published). Publishing is
+Red tier: **explicit human approval** plus all D-021 publication
+minimums plus product status `active` are required; AI may prepare
+review submissions and suggest transitions but may never execute
+publish or unpublish. Deterministic tooling may run the checks and
+move `unpublished` → `in_review`; it may never publish or unpublish.
+(D-023)
+
 ---
 
 ## Data integrity & provenance

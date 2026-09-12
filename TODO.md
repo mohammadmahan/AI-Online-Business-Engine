@@ -36,10 +36,11 @@ Scope from MASTER_PLAN §13: product/variant model, SKU, taxonomy,
 media, validation, import/export, Excel import preparation. Decisions
 D-014 (SKU convention), D-015 (identifier separation), D-017
 (identifier policy), D-018 (variant-defining attributes), D-019
-(vocabulary governance), D-020 (size-system architecture), and D-021
-(required-field policy) are **Approved**; the remaining Phase 2
-open items include registry v1 contents (D-016.C), the O/I/L-safe
-size-code gate (D-016.D), and D-016.E–M.
+(vocabulary governance), D-020 (size-system architecture), D-021
+(required-field policy), D-022 (product status state machine), and
+D-023 (publication status state machine) are **Approved**; the
+remaining Phase 2 open items include registry v1 contents (D-016.C),
+the O/I/L-safe size-code gate (D-016.D), and D-016.G–M.
 
 Ordered tasks (tasks 1–5 resolved via D-017–D-021 — do not treat
 other items as done until verified):
@@ -60,7 +61,11 @@ other items as done until verified):
 - [x] 5. Resolve size system — architecture **D-020 Approved**
        (multi-family); O/I/L-safe size-code convention remains an
        explicit OPEN owner approval gate
-- [ ] 6. Define product/publication status state machines (D-016.E/F)
+- [x] 6. Define product/publication status state machines —
+       **D-022 / D-023 Approved** (2026-09-12): product lifecycle
+       `draft`/`active`/`archived`; publication `unpublished`/
+       `in_review`/`published`/`withdrawn`; publication transitions are
+       Red-tier (human approval); AI may suggest, never execute
 - [ ] 7. Define price/discount model (D-016.G/H)
 - [ ] 8. Define provenance mechanism (D-016.J)
 - [ ] 9. Define import idempotency policy (D-016.K)

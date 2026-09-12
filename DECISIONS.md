@@ -43,6 +43,8 @@ major decisions (PROJECT_RULES §3).
 | D-019 | Controlled-vocabulary governance | **Approved** (registry v1 contents open) |
 | D-020 | Size-system policy | **Approved** (size-code gate open) |
 | D-021 | Required-field policy | **Approved** |
+| D-022 | Product status state machine | **Approved** |
+| D-023 | Publication status state machine | **Approved** |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -540,6 +542,124 @@ major decisions (PROJECT_RULES §3).
 - **Open dependencies:** price mechanism (D-016.G), publication status
   values (D-016.F) — referenced but not resolved here.
 
+## D-022 — Product status state machine
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Minimal, deterministic product lifecycle state
+  machine; **Product status is a separate concept from publication
+  status (D-023) and is never replaced by it.**
+  1. **States (exactly three):**
+     - `draft` — exists, work-in-progress. Incomplete products are
+       valid here (RULES §8); not structurally checked; never
+       sellable; never published.
+     - `active` — usable product. Entry = human approval of the
+       draft + all D-021 publication checks passing. Not directly
+       customer-visible/sellable by itself (that is publication,
+       D-023).
+     - `archived` — deactivated/no longer offered. Not sellable;
+       nothing is deleted; history (identifiers, SKU, provenance) is
+       fully preserved.
+  2. **Allowed transitions (complete set):** `draft → active`;
+     `active → archived`; `archived → draft`; `active → draft`.
+  3. **Forbidden transitions:** `draft → archived` (no side-step —
+     review/deactivate first via `active`); `archived → active`
+     (never; no direct reactivation).
+  4. **Transition authority:**
+     - `draft → active`: human action, OR approved deterministic
+       tooling only when all D-021 publication checks pass
+       (deterministic, governed).
+     - `active → draft`, `active → archived`: human action; approved
+       deterministic tooling may execute only when explicitly
+       instructed by a human for that specific product.
+     - `archived → draft`: human-only (explicit restore decision).
+  5. **AI authority:** AI may **suggest/prepare** a transition (e.g.
+     mark a product ready for review) — suggestion only, logged with
+     provenance; AI may **never execute** any lifecycle transition.
+     AI may never move a product to or out of `archived`.
+  6. **No new states:** no `deleted`, no `pending-review` state on the
+     product (review is publication's `in_review`, D-023). Rejection
+     of a review candidate = product returns to `draft` (via the
+     `active → draft` transition) and publication returns to
+     `unpublished`.
+  7. **Variant behavior on product transitions:** the D-021 variant
+     creation minimum stays intact. `draft → active`: every variant
+     must satisfy the variant creation minimum (transition blocked
+     otherwise). `active → archived`: the product's variants stop
+     being sellable together with the product — no per-variant
+     archival cascade is created. `archived → draft` / `active →
+     draft` (edits): variant states mirror the product; variants are
+     never left sellable while their product is `draft` or
+     `archived`.
+  8. **Audit/provenance:** every transition is logged (who/what,
+     when, from → to, reason where given; RULES §27). AI-originated
+     suggestions carry `AI_GENERATED` provenance; human decisions
+     are `HUMAN_*`; provenance is never overwritten by a
+     transition.
+- **Resolves:** D-016.E / register item 16.
+- **Rationale:** Smallest state set that covers the project's own
+  lifecycle needs (draft/active/archived, per D-016.E candidates);
+  keeps sellability where it belongs (publication, D-023); preserves
+  human authority and auditability per RULES §3, §27, §32.
+- **Source:** D-016.E candidates; D-021; MASTER_PLAN §4; PROJECT_RULES
+  §3, §27, §32; human owner approval (2026-09-12).
+
+## D-023 — Publication status state machine
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Minimal publication-visibility state machine,
+  **independent of product status (D-022); publication status is
+  never a substitute for product status.**
+  1. **States (exactly four):**
+     - `unpublished` — default at creation; not visible.
+     - `in_review` — being prepared/checked against the D-021
+       publication minimum.
+     - `published` — publicly visible/sellable.
+     - `withdrawn` — intentionally unpublished after having been
+       published.
+  2. **Allowed transitions (complete set):** `unpublished →
+     in_review`; `in_review → unpublished` (rejection/withdrawal
+     from review); `in_review → published` (approval); `published →
+     withdrawn` (intentional unpublish); `published → in_review`
+     (re-review of a published product before a material change);
+     `withdrawn → in_review` (re-publication preparation).
+  3. **Forbidden transitions:** `unpublished → published` (no
+     bypassing review); `withdrawn → published` (no direct
+     re-publish — re-enter review).
+  4. **Publication checks (gate for any `→ published` transition),
+     exactly D-021:** Name; Main category; resolvable price; ≥1
+     media image; valid publication status; all variants satisfy the
+     variant creation minimum; product status must be `active`
+     (D-022). **Description/short description are NOT blockers;
+     `UNKNOWN` values are surfaced to human review and do not
+     automatically block** (D-021); a future field-specific
+     safety hard-block may be approved separately, none exists now.
+     Inventory: verified-data-only; missing stock stays
+     `NOT_PROVIDED`; AI never estimates stock.
+  5. **Transition authority:**
+     - `unpublished → in_review`: human action, OR approved
+       deterministic tooling (checks-only, deterministic, governed).
+     - `in_review → published`: **Red tier — explicit human
+       approval**; approved deterministic tooling may execute only
+       after that approval, with all checks passing.
+     - `published → withdrawn`: **Red tier — explicit human
+       approval** (deterministic tooling only on explicit human
+       instruction).
+     - `in_review → unpublished`, `published → in_review`,
+       `withdrawn → in_review`: human action or approved
+       deterministic tooling.
+  6. **AI authority:** AI may prepare review submissions and
+     suggest transitions (Yellow tier, provenance-tagged); AI may
+     **never execute** publish or unpublish.
+  7. **Audit/provenance:** every transition logged (RULES §27); AI
+     suggestions carry `AI_GENERATED`; human approvals are `HUMAN_*`.
+- **Resolves:** D-016.F / register item 17.
+- **Rationale:** Smallest set covering not-published / being-reviewed
+  / published / intentionally-unpublished without extra states;
+  enforces D-021 minimums at the moment of visibility; keeps human
+  authority over public exposure (Red tier per RULES §32).
+- **Source:** D-016.F; D-021 publication minimum; D-022; MASTER_PLAN
+  §4; PROJECT_RULES §32–§33; human owner approval (2026-09-12).
+
 ---
 
 ## Open decision register
@@ -561,8 +681,8 @@ major decisions (PROJECT_RULES §3).
 | 13 | ~~Variant-defining attributes~~ — resolved: D-018 **Approved** ({color, size}, per-axis applicability) | Resolved | — | 2 (done) |
 | 14 | ~~Variant ID generation mechanism~~ — resolved: D-017 **Approved** (UUIDv4) | Resolved | — | 2 (done) |
 | 15 | Size system — architecture resolved: D-020 **Approved** (multi-family); size-code convention avoiding O/I/L remains an open approval gate; concrete values owner-supplied | Open (partially resolved) | Vocabulary registry v1; size-code gate | 2 |
-| 16 | Product status state machine (candidates: draft/active/archived — D-016.E) | Open | Product lifecycle rules | 2 |
-| 17 | Publication status values (D-016.F) | Open | Product lifecycle rules | 2 |
+| 16 | ~~Product status state machine~~ — resolved: D-022 **Approved** (draft/active/archived) | Resolved | — | 2 (done) |
+| 17 | ~~Publication status values~~ — resolved: D-023 **Approved** (unpublished/in_review/published/withdrawn) | Resolved | — | 2 (done) |
 | 18 | Price model: default + variant override + sale behavior (D-016.G) | Open | Pricing rules | 2 |
 | 19 | Discount model (sale-price direction preferred, not approved — D-016.H) | Open | Pricing rules | 2 |
 | 20 | Provenance storage mechanism (states fixed, storage open — D-016.J) | Open | Product data entry | 2 |
@@ -572,7 +692,7 @@ major decisions (PROJECT_RULES §3).
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
-D-019 (governance), D-020 (architecture), and D-021 are approved;
-D-016 and every item not marked Resolved above remain open — including
-registry v1 contents (item 3) and the size-code approval gate (item
-15).
+D-019 (governance), D-020 (architecture), D-021, D-022, and D-023 are
+approved; D-016 and every item not marked Resolved above remain open —
+including registry v1 contents (item 3) and the size-code approval
+gate (item 15).

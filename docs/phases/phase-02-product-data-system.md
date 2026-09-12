@@ -28,7 +28,8 @@ Entry condition (Phase 1 exit):
   remaining D-016 open items.
 - Controlled-vocabulary registry v1 (colors, sizes, categories, other
   controlled fields as needed).
-- Product/publication status state machines (candidates only).
+- Product/publication status state machines — **D-022/D-023
+  approved** (see below).
 - Price/discount model definition (no implementation).
 - Provenance mechanism definition (states fixed; storage deferred).
 - Import idempotency policy; Excel import specification (and template
@@ -155,18 +156,63 @@ Entry condition (Phase 1 exit):
   discounts, stock, vocabulary terms, shipping/payment/order facts, or
   guessed attribute values.
 
+## Product/publication status state machines (D-022, D-023 — APPROVED)
+
+Two separate state machines; **publication status is never a
+substitute for product status.**
+
+### D-022 — Product status state machine (APPROVED)
+
+- States: `draft` (exists, incomplete allowed, not sellable),
+  `active` (usable; entry = human approval + all D-021 publication
+  checks passing), `archived` (deactivated; never deleted; history
+  preserved).
+- Allowed transitions: `draft → active`; `active → draft`; `active →
+  archived`; `archived → draft`.
+- Forbidden: `draft → archived` (no side-step); `archived → active`
+  (no direct reactivation; restore via `draft` with full checks).
+- Authority: humans; `draft → active` may also be executed by
+  approved deterministic tooling when all publication checks pass;
+  other tool-assisted transitions only on explicit per-product human
+  instruction.
+- AI: may suggest/prepare (provenance-tagged); may **never execute**
+  a lifecycle transition or touch `archived`.
+- Variants mirror the product lifecycle; never sellable while their
+  product is `draft`/`archived`.
+
+### D-023 — Publication status state machine (APPROVED)
+
+- States: `unpublished` (default), `in_review`, `published`,
+  `withdrawn` (intentionally unpublished after having been
+  published).
+- Allowed transitions: `unpublished → in_review`;
+  `in_review → unpublished`; `in_review → published`;
+  `published → withdrawn`; `published → in_review` (re-review);
+  `withdrawn → in_review` (re-publication preparation).
+- Forbidden: `unpublished → published` (no review bypass);
+  `withdrawn → published` (no direct re-publish).
+- Publication checks (any `→ published`), exactly D-021: Name; Main
+  category; resolvable price; ≥1 media image; valid publication
+  status; all variants valid; product status `active` (D-022).
+  Description/short description are NOT blockers; `UNKNOWN` is
+  surfaced to human review, not automatically blocking; inventory is
+  verified-data-only; AI never estimates stock.
+- Authority: `in_review → published` and `published → withdrawn` are
+  **Red tier — explicit human approval**; deterministic tooling may
+  run checks and move into/out of review.
+- AI: may prepare submissions and suggest transitions; may **never
+  execute** publish or unpublish.
+
 ## Remaining open decisions
 
-All remaining Phase 2 decisions are **OPEN** (D-016 and `DECISIONS.md`
-register items 13–23); none may be resolved silently:
+All remaining Phase 2 decisions are **OPEN** (D-016 and the
+still-open items in the `DECISIONS.md` open-decision register — the
+register is the authoritative list); none may be resolved silently:
 
 - Concrete controlled-vocabulary registry v1 value lists — D-016.C
   (governance approved via D-019; contents owner-supplied)
 - Size-code convention avoiding O/I/L — explicit owner approval gate
   (per D-020); concrete size-family values also owner-supplied
-- Product status state machine (candidates: draft / active /
-  archived; no WooCommerce mapping) — D-016.E
-- Publication status values — D-016.F
 - Price model (default + variant override + sale behavior) — D-016.G
 - Discount model (sale-price direction preferred, NOT approved) — D-016.H
 - Inventory design constraints (already-approved rules remain: WooCommerce
@@ -189,7 +235,10 @@ register items 13–23); none may be resolved silently:
    D-019 **Approved**; concrete registry v1 contents still open.
 5. Resolve size system — architecture resolved: D-020 **Approved**
    (multi-family); O/I/L-safe size-code gate still open.
-6. Define product/publication status state machines.
+6. Define product/publication status state machines — resolved:
+   D-022 **Approved** (draft/active/archived) and D-023 **Approved**
+   (unpublished/in_review/published/withdrawn); publication is Red
+   tier.
 7. Define price/discount model.
 8. Define provenance mechanism.
 9. Define import idempotency policy.
@@ -230,4 +279,5 @@ The following are out of scope for Phase 2 and are NOT started:
 - `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-017
   (Approved), D-018 (Approved), D-019 (Approved), D-020 (Approved),
   D-021 (Approved), D-016 (Open)
-- `DATA_MODEL.md` — §9 (SKU), §9.2 (Identifiers)
+- `DATA_MODEL.md` — §3.1/§3.2 (status state machines), §9 (SKU), §9.2
+  (Identifiers)
