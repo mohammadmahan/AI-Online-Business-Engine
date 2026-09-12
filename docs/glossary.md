@@ -196,6 +196,47 @@ non-terminal (`received`/`processing`) or after `failed`; a
 terminal-succeeded event is never re-executed. Retention is an
 implementation decision, deferred. (D-027)
 
+**Excel import contract** — The approved scope for importing the
+Product Master Excel workbook (D-028): Excel is an input/import
+surface, never a Source of Truth and never a store. One product = one
+product row plus zero or more variant rows; import never issues any
+identifier (Product IDs are human-supplied; Variant IDs/SKUs come only
+from approved deterministic tooling); prices map 1:1 to D-024 with
+D-024 validation; vocabulary/size resolution is exact-match against
+active terms (D-019/D-020); missing values stay `NOT_PROVIDED`,
+unknown stay `UNKNOWN`, invalid values are rejected per row with no
+auto-correction; duplicates are rejected, never silently merged.
+Every imported value carries `IMPORTED` provenance (D-026); each run
+is a D-027 event; **dry-run first**, and only a human promotes a
+dry-run to an actual import. Re-import follows D-017. (D-028)
+
+**Dry-run (import preview)** — The mandatory first stage of an Excel
+import (D-028): full deterministic validation and a would-be-result
+report with **no writes**. Only an explicit human promotion turns a
+dry-run result into an actual import.
+
+**Registry v1 (structure)** — The approved minimal vocabulary set for
+Phase 2 (D-029): `color` and `size` (variant-defining,
+SKU-code-bearing) and `category` (product-level). Other attributes
+are deferred until the owner promotes them. Entries carry: canonical
+code (variant-defining only, O/I/L-safe per D-030), canonical
+value/slug, required Persian display label, optional English label,
+aliases, active/deprecated status, provenance, timestamps, notes.
+Governance is D-019's, unchanged: humans create, AI proposes only,
+exact alias matching, no fuzzy matching. **Concrete registry values
+(colors, sizes, categories) remain OPEN and owner-gated.** (D-029)
+
+**Size-code governance** — The O/I/L-safe generation rules for size
+codes (D-030): uppercase Latin ASCII; `O`, `I`, `L` forbidden in any
+position (D-014 rule 7, no exception); codes owner-created and
+owner-approved; AI proposes only, never assigns; frozen once
+referenced (correction = deprecate + recreate, never rename); one
+canonical code per active term (aliases resolve to the term, not to
+another code); namespace scoped within the size family; registry
+collisions rejected at proposal time; SKU collisions handled only by
+the D-014 `-2` emergency valve. **Concrete size-code mappings remain
+an open owner sub-decision** — no mapping is finalized. (D-030)
+
 **Provenance source types** — The five origins a value's provenance
 may record (D-026): `HUMAN_ENTERED` (a human entered the value),
 `SYSTEM_GENERATED` (deterministic tooling produced it),

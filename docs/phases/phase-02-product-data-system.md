@@ -33,7 +33,10 @@ Entry condition (Phase 1 exit):
 - Price/discount model — **D-024/D-025 approved** (see below).
 - Provenance mechanism — **D-026 approved** (see below).
 - Import idempotency policy — **D-027 approved** (see below); Excel
-  import specification (and template only if approved — D-016.L).
+  import contract — **D-028 approved** (see below), with the physical
+  sheet/column mapping and template question resolved at the
+  specification task (D-016.L scope approved; template decision
+  folds into task 12).
 - Phase 2 final review, then commit only after human approval.
 
 ## D-014 — Final SKU convention (APPROVED)
@@ -274,19 +277,94 @@ substitute for product status.**
 - Failures logged and flagged (RULES §24, §41); retention deferred
   (implementation decision).
 
+## Excel import, registry v1, size-code governance (D-028–D-030 — APPROVED)
+
+### D-028 — Excel import contract (APPROVED)
+
+- Excel is an input/import surface — **never a Source of Truth**, never
+  a store (D-006, RULES §13). One workbook = the owner's Product
+  Master file; the contract is stated over the semantic fields of
+  `DATA_MODEL.md` (no physical column names invented — the mapping is
+  confirmed once at the specification task).
+- One product = one product row + zero or more variant rows; simple
+  products need no variant rows; variant rows carry all active axes.
+- Excel never manufactures identifiers: Product IDs are human-
+  supplied column values only; Variant IDs (UUIDv4) and SKUs come
+  only from approved deterministic tooling (omitted SKUs derived
+  from structured attributes after human confirmation); AI never
+  generates any identifier.
+- Prices: numeric Toman mapped 1:1 to D-024 fields; D-024 validation
+  runs at import; formatted strings rejected, not parsed.
+- Resolution: exact alias matching against active terms (D-019);
+  size inputs resolve within the declared family (D-020); unmapped
+  values retained and human-reviewed — never silently becoming new
+  vocabulary or size terms.
+- Missing → `NOT_PROVIDED`; unknown → `UNKNOWN` (surfaced, not
+  auto-blocking); invalid → row-level rejection, never auto-corrected;
+  duplicates (Product IDs, Variant IDs/SKUs, active-axis combinations)
+  rejected, nothing silently merged.
+- Every imported value carries `IMPORTED` provenance (D-026); each
+  run is a D-027 event (one (source system, event ID) per batch).
+- **Dry-run first** (full validation, no writes); only a human
+  promotes a dry-run to an actual import; every exception path routes
+  to human review; AI may prepare/suggest but never executes an
+  import or resolves an exception.
+- Partial failure writes nothing; per-row honest reporting (RULES
+  §24, §41); re-import follows D-017 (identical = no-op; conflict =
+  human review); updates beyond the D-017 re-import path are not an
+  Excel feature (future tool concern, Phase 19 class).
+- **Explicitly NOT supported:** creating/modifying vocabulary terms;
+  issuing identifiers; writing inventory/stock; order/customer/
+  payment/shipping data; coupons; fuzzy matching or AI-guessed
+  values; becoming a persistent store or second database; silent
+  overwrites.
+
+### D-029 — Controlled-vocabulary registry v1, structure (APPROVED; values OPEN)
+
+- **Required in v1:** `color`, `size` (variant-defining,
+  SKU-code-bearing) and `category` (product-level).
+- **Deferred** until the owner promotes them: pattern, style, season,
+  usage, collar, sleeve, length, closure, suitable-for, brand,
+  material — free/product-level optional attributes for now.
+- Entry fields per D-019, confirmed: canonical code (variant-defining
+  only; O/I/L-safe per D-030); canonical value/slug (lowercase Latin,
+  unique, stable); **Persian display label required**; English label
+  optional where justified; aliases; active/deprecated (never
+  deleted); provenance; timestamps; notes.
+- Governance unchanged from D-019: humans create (variant-defining
+  terms need owner approval); AI proposes only; exact alias
+  normalization; no fuzzy matching; unmapped values retained and
+  human-reviewed.
+- **Concrete registry values remain OPEN and owner-gated** — none are
+  invented here.
+
+### D-030 — Size-code governance (APPROVED; concrete mappings OPEN)
+
+- Uppercase Latin ASCII; `O`, `I`, `L` forbidden in any position
+  (D-014 rule 7 — no exception is created).
+- Owner creates and approves codes; deterministic tooling may
+  derive/validate candidates; AI proposes only, never assigns.
+- Codes frozen once referenced (deprecate + recreate, never rename);
+  one canonical code per active term; aliases resolve to the term,
+  not to a second code; namespace scoped within the size family.
+- Registry collisions rejected at proposal/validation; SKU
+  collisions handled only by the D-014 `-2` emergency valve.
+- **Concrete size-code mappings remain an open owner sub-decision** —
+  until approved, no size code can be issued for any term.
+
 ## Remaining open decisions
 
 All remaining Phase 2 decisions are **OPEN** (D-016 and the
 still-open items in the `DECISIONS.md` open-decision register — the
 register is the authoritative list); none may be resolved silently:
 
-- Concrete controlled-vocabulary registry v1 value lists — D-016.C
-  (governance approved via D-019; contents owner-supplied)
-- Size-code convention avoiding O/I/L — explicit owner approval gate
-  (per D-020); concrete size-family values also owner-supplied
+- Concrete controlled-vocabulary registry v1 values (colors, sizes,
+  categories) — D-016.C (structure approved via D-029; values
+  owner-supplied)
+- Concrete size-code mappings (O/I/L-safe) — per D-020 + D-030;
+  owner-supplied; concrete size-family values also owner-supplied
 - Inventory design constraints (already-approved rules remain: WooCommerce
   SoT, verified, idempotent, auditable, AI never estimates) — D-016.I
-- Excel import scope (spec only vs spec + template) — D-016.L
 - SEO slug language — D-016.M
 
 ## Implementation sequence
@@ -313,7 +391,10 @@ register is the authoritative list); none may be resolved silently:
    value provenance tuple; append-only; storage deferred).
 9. Define import idempotency policy — resolved: D-027 **Approved**
    (event-level, (source, event ID) key; complements D-017).
-10. Decide Excel import scope.
+10. Decide Excel import scope — resolved: D-028 **Approved** (input-
+    only contract over semantic fields; dry-run first; human-approved
+    exceptions; physical sheet/column mapping confirmed at the
+    specification task; template decision folds into task 12).
 11. Consolidate the logical data model.
 12. Produce Excel import specification/template if approved.
 13. Perform Phase 2 final review.
@@ -325,7 +406,9 @@ register is the authoritative list); none may be resolved silently:
       owner approval
 - [ ] Logical data model consolidated in `DATA_MODEL.md`
 - [ ] Controlled-vocabulary registry v1 defined (if approved in scope)
-- [ ] Excel import specification complete (scope per D-016.L)
+- [ ] Excel import specification complete (contract per D-028;
+      physical sheet/column mapping confirmed against the owner's
+      workbook; template produced if approved in task 12)
 - [ ] Cross-references valid; no secrets; no contradictions
 - [ ] Phase 2 final review passed
 - [ ] Foundation committed (with explicit human approval)
@@ -349,8 +432,10 @@ The following are out of scope for Phase 2 and are NOT started:
   WooCommerce rules)
 - `DECISIONS.md` — D-014 (Approved), D-015 (Approved), D-017
   (Approved), D-018 (Approved), D-019 (Approved), D-020 (Approved),
-  D-021 (Approved), D-022/D-023 (Approved), D-024–D-027 (Approved),
-  D-016 (Open)
-- `DATA_MODEL.md` — §3.1/§3.2 (status state machines), §8 (Pricing),
-  §8a (Provenance), §8b (Event idempotency), §9 (SKU), §9.2
-  (Identifiers)
+  D-021 (Approved), D-022/D-023 (Approved), D-024–D-030 (Approved;
+  D-029 structure + D-030 governance with concrete values/mappings
+  open), D-016 (Open)
+- `DATA_MODEL.md` — §3.1/§3.2 (status state machines), §6.1–§6.4
+  (taxonomy governance, size system, registry v1, Excel import), §8
+  (Pricing), §8a (Provenance), §8b (Event idempotency), §9 (SKU),
+  §9.2 (Identifiers)

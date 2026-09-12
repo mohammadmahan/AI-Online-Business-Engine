@@ -9,7 +9,9 @@ vocabulary governance, size system (architecture), and required-field
 policy approved via D-018 / D-019 / D-020 / D-021; product and publication
 status state machines approved via D-022 / D-023; price, discount,
 provenance, and event-idempotency models approved via D-024 / D-025 /
-D-026 / D-027 in `DECISIONS.md`.
+D-026 / D-027; the Excel import contract, registry v1 structure, and
+size-code governance approved via D-028 / D-029 / D-030 in
+`DECISIONS.md`.
 This is a **conceptual** model only: it does not define a physical
 schema, a database engine, or a WooCommerce field mapping. Those are
 Phase 2 / Phase 3 work and remain open decisions.
@@ -299,9 +301,71 @@ Rules (D-019):
   separate vocabulary per brand.
 - Cross-family conversion is human-curated only; AI never invents
   conversions.
-- SKU codes avoid O/I/L (D-014 rule 7); the O/I/L-safe Size-code
-  convention is an **open owner approval gate** — mappings not
+- SKU codes avoid O/I/L (D-014 rule 7); size-code governance is
+  approved via D-030 (uppercase Latin ASCII, no O/I/L in any
+  position, owner-approved, frozen once referenced, one code per
+  active term, family-scoped namespace); **concrete size-code
+  mappings remain an open owner sub-decision** — no mapping is
   finalized.
+
+### 6.3 Registry v1 structure (D-029 — APPROVED; concrete values OPEN)
+
+- **Required vocabularies in v1:** `color` and `size`
+  (variant-defining, SKU-code-bearing, D-018) and `category`
+  (product-level).
+- **Deferred vocabularies** (promotable later by owner decision):
+  pattern, style, season, usage, collar, sleeve, length, closure,
+  suitable-for, brand, material — remain free/product-level optional
+  attributes for now.
+- **Entry fields (per D-019):** attribute; canonical code (only for
+  variant-defining vocabularies; O/I/L-safe per D-030); canonical
+  value/slug (lowercase Latin, unique, stable); **Persian display
+  label (required)**; optional English label where justified;
+  aliases; status (active/deprecated, never deleted); provenance
+  (D-011/D-026); created/updated timestamps; notes.
+- **Governance unchanged from D-019:** humans create terms
+  (variant-defining terms need owner approval); AI proposes only;
+  exact alias normalization; no fuzzy matching; unmapped values
+  retained and human-reviewed.
+- **Concrete registry values (colors, sizes, categories) remain OPEN
+  and owner-gated** — none are invented here.
+
+### 6.4 Excel import contract (D-028 — APPROVED)
+
+Excel is an input/import surface, **never a Source of Truth** and
+never a transactional store (D-006, RULES §13). Full rules in
+`DECISIONS.md` (D-028); key points:
+
+- One workbook, mapped to the semantic fields of this model; the
+  physical sheet/column mapping is confirmed at the Excel-import
+  specification task (no column names invented here).
+- One product = one product row + zero or more variant rows; simple
+  products need no variant rows; variant rows carry all active axes.
+- Import never issues Product IDs (human-supplied only); never
+  issues Variant IDs or SKUs (approved deterministic tooling derives
+  omitted SKUs after human confirmation); AI never generates any
+  identifier.
+- Prices: numeric Toman mapped 1:1 to the D-024 fields with D-024
+  validation at import; formatted strings rejected.
+- Vocabulary/size resolution: exact alias matching against active
+  terms within the declared family (D-019/D-020); unmapped values
+  retained and human-reviewed — never auto-added to any registry.
+- Missing → `NOT_PROVIDED`; unknown → `UNKNOWN` (surfaced, not
+  auto-blocking); invalid → rejected with row-level errors, never
+  auto-corrected; duplicates (IDs, SKUs, active-axis combinations)
+  rejected, nothing silently merged.
+- Every imported value carries `IMPORTED` provenance (D-026) with
+  workbook/batch reference; each run is itself a D-027 event
+  (one (source system, event ID) per batch).
+- **Dry-run first:** full validation without writes; only a human
+  promotes a dry-run to an actual import; partial failure writes
+  nothing; re-import follows D-017 (identical = no-op; conflict =
+  human review). Updates beyond the D-017 re-import path are not an
+  Excel feature.
+- **Explicitly NOT supported:** creating/modifying vocabulary terms;
+  issuing identifiers; writing inventory/stock; order/customer/
+  payment/shipping data; fuzzy matching or AI-guessed values;
+  becoming a persistent store; silent overwrites.
 
 ## 7. Data integrity & provenance
 
@@ -557,5 +621,8 @@ register).
 | 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |
 | 8 | Price/discount model | Resolved: D-024 / D-025 **Approved** — see §8 |
 | 9 | Provenance mechanism | Resolved: D-026 **Approved** — see §8a; physical storage deferred to implementation |
-| 10 | Import idempotency | Resolved: D-027 **Approved** (event-level, §8b) + D-017 (identifier-based, §9.2); Excel scope still open (D-016.L) |
+| 10 | Import idempotency | Resolved: D-027 **Approved** (event-level, §8b) + D-017 (identifier-based, §9.2); Excel import contract per D-028 (§6.4) |
 | 11 | Product/publication status state machines | Resolved: D-022 / D-023 **Approved** — see §3.1 / §3.2 |
+| 12 | Excel import scope | Resolved: D-028 **Approved** — see §6.4; physical sheet/column mapping confirmed at the specification task |
+| 13 | Registry v1 structure / values | Structure resolved: D-029 **Approved** — see §6.3; concrete values remain OPEN and owner-gated |
+| 14 | Size-code governance / mappings | Governance resolved: D-030 **Approved** — see §6.2/§6.3; concrete mappings remain an open owner sub-decision |

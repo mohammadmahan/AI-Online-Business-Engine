@@ -37,16 +37,17 @@ media, validation, import/export, Excel import preparation. Decisions
 D-014 (SKU convention), D-015 (identifier separation), D-017
 (identifier policy), D-018 (variant-defining attributes), D-019
 (vocabulary governance), D-020 (size-system architecture), D-021
-(required-field policy), D-022 (product status state machine), and
+(required-field policy), D-022 (product status state machine),
 D-023 (publication status state machine), D-024 (price model), D-025
-(discount model), D-026 (provenance mechanism), and D-027 (event-level
-idempotency) are **Approved**; the remaining Phase 2 open items include
-registry v1 contents (D-016.C), the O/I/L-safe size-code gate
-(D-016.D), Excel import scope (D-016.L), and SEO slug language
-(D-016.M).
+(discount model), D-026 (provenance mechanism), D-027 (event-level
+idempotency), D-028 (Excel import contract), D-029 (registry v1
+structure), and D-030 (size-code governance) are **Approved**; the
+remaining Phase 2 open items include registry v1 concrete values
+(D-016.C), concrete size-code mappings (D-020/D-030), and SEO slug
+language (D-016.M).
 
-Ordered tasks (tasks 1–9 resolved via D-017–D-021, D-022/D-023, and
-D-024–D-027 — do not treat
+Ordered tasks (tasks 1–10 resolved via D-017–D-021, D-022/D-023,
+D-024–D-027, and D-028–D-030 — do not treat
 other items as done until verified):
 
 - [x] ~~SKU strategy~~ — resolved: D-014 **Approved** (2026-09-11)
@@ -61,10 +62,13 @@ other items as done until verified):
        (2026-09-11): minimal creation minimums, publication minimum,
        verified-data-only inventory, bounded AI enrichment
 - [x] 4. Design controlled-vocabulary registry v1 — governance
-       **D-019 Approved**; concrete registry v1 contents remain OPEN
+       **D-019 Approved**; v1 structure **D-029 Approved** (required:
+       color, size, category); concrete registry v1 values remain OPEN
+       and owner-supplied
 - [x] 5. Resolve size system — architecture **D-020 Approved**
-       (multi-family); O/I/L-safe size-code convention remains an
-       explicit OPEN owner approval gate
+       (multi-family); size-code governance **D-030 Approved**
+       (O/I/L-safe); concrete size-code mappings remain an explicit
+       OPEN owner sub-decision
 - [x] 6. Define product/publication status state machines —
        **D-022 / D-023 Approved** (2026-09-12): product lifecycle
        `draft`/`active`/`archived`; publication `unpublished`/
@@ -83,7 +87,11 @@ other items as done until verified):
        (2026-09-12): event-level idempotency via (source system, event
        ID) unique key with terminal processing states; safe retries;
        distinct from identifier-based idempotency (D-017)
-- [ ] 10. Decide Excel import scope (D-016.L)
+- [x] 10. Decide Excel import scope — **D-028 Approved**
+       (2026-09-12): input-only contract over semantic fields (the
+       physical sheet/column mapping is confirmed at the specification
+       task); dry-run first; human-approved exceptions; Excel never
+       issues IDs/SKUs and never writes inventory
 - [ ] 11. Consolidate the logical data model
 - [ ] 12. Produce Excel import specification/template if approved
 - [ ] 13. Perform Phase 2 final review
