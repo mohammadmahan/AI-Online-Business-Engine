@@ -14,6 +14,9 @@ supporting material: shared vocabulary and per-phase working documents.
 | [glossary.md](glossary.md) | Shared vocabulary: entities, provenance states, autonomy tiers, conventions. |
 | [phases/](phases/) | Per-phase scope, entry/exit criteria, and Definition-of-Done tracking. |
 | [phases/phase-01-project-architecture.md](phases/phase-01-project-architecture.md) | Phase 1 — Project Architecture. |
+| [phases/phase-02-product-data-system.md](phases/phase-02-product-data-system.md) | Phase 2 — Product Data System (closed; decision set D-014–D-030). |
+| [phases/phase-02-5-business-data-configuration.md](phases/phase-02-5-business-data-configuration.md) | Phase 2.5 — Business Data Configuration (owner-approved store structure, Batches 1–3). |
+| [phases/phase-02-5-excel-master-template.md](phases/phase-02-5-excel-master-template.md) | Phase 2.5 — Product Master Excel template: physical workbook contract (D-033). |
 
 ## Conventions
 

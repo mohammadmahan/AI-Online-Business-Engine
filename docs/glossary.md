@@ -16,7 +16,9 @@ time. (MASTER_PLAN §6, PROJECT_RULES §11)
 Persian first. Applies to customer-facing products, not to project
 documentation.
 
-**Product Master Excel** — Excel is an import/cleanup and management
+**Product Master Excel** — The seller-facing input workbook
+(`product-master.xlsx`, physical contract per D-033: sheets محصولات،
+تنوع‌ها، راهنما، گزینه‌ها). Excel is an import/cleanup and management
 tool only. It is never the production database and never a source of
 truth. (PROJECT_RULES §13)
 
@@ -82,9 +84,11 @@ Terms for a field (colors, sizes, categories, …). Used where
 consistency matters; unknown/unprovided values are preserved as
 explicit states — the vocabulary must never force a guess. Governance
 architecture approved (D-019); v1 structure approved (D-029 —
-required vocabularies: color, size, category); **concrete registry v1
-value lists remain open** (D-016.C / register item 3) and
-owner-supplied.
+required vocabularies: color, size, category); concrete category,
+color, and size terms **owner-approved via D-031 Batch 1** (see
+`docs/phases/phase-02-5-business-data-configuration.md`); color/size
+**SKU-code mappings owner-approved via D-032 Batch 2** (O/I/L-safe);
+**aliases remain open** (register item 3) and owner-gated.
 
 **Barcode / EAN** — The external trade identifier printed on goods.
 Separate from the SKU: it has its own field and lifecycle, and the SKU
@@ -120,10 +124,23 @@ invented (D-020).
 size codes are uppercase Latin ASCII, never contain `O`/`I`/`L` in any
 position (D-014 rule 7 — no exception), owner-created and
 owner-approved, frozen once referenced (deprecate + recreate, never
-rename), family-scoped. A deterministic letter→code mapping is pending
-owner approval; **concrete mappings are not finalized**. Display labels
+rename), family-scoped. Size **terms** are owner-approved (D-031
+Batch 1: Alpha/8, Numeric/11, Pants Waist/9; shoe excluded);
+concrete mappings are **owner-approved via D-032 Batch 2** (Alpha
+uses separate O/I/L-safe codes — L→LG, XL→XG, XXL→XXG, 3XL→3XG,
+4XL→4XG; Numeric/Pants Waist use canonical value = code). Display
 may stay conventional (L, XL) regardless of the canonical code.
-(D-014 rule 7, D-020, D-030)
+(D-014 rule 7, D-020, D-030, D-031)
+
+**Owner-approved configuration** — Concrete business values (category
+structure, color terms, size terms/families, product-attribute list)
+supplied and approved by the human owner (D-031), recorded in
+`docs/phases/phase-02-5-business-data-configuration.md`. Distinct
+from AI-generated or AI-suggested content: the AI's role in producing
+these records was limited to structuring exactly what the owner
+approved — no value was invented, defaulted, or auto-filled.
+Governance for future changes of these values is D-019 plus an
+explicit owner decision.
 
 **Required field / publication minimum** — Minimal required-field
 policy (D-021): product creation minimum (Product ID, Name, Product
@@ -214,7 +231,10 @@ unknown stay `UNKNOWN`, invalid values are rejected per row with no
 auto-correction; duplicates are rejected, never silently merged.
 Every imported value carries `IMPORTED` provenance (D-026); each run
 is a D-027 event; **dry-run first**, and only a human promotes a
-dry-run to an actual import. Re-import follows D-017. (D-028)
+dry-run to an actual import. Re-import follows D-017. (D-028; the
+physical realization is the D-033 workbook contract —
+`docs/phases/phase-02-5-excel-master-template.md`: blank =
+`NOT_PROVIDED`, exact `نامشخص` = `UNKNOWN`, invalid = rejected.)
 
 **Dry-run (import preview)** — The mandatory first stage of an Excel
 import (D-028): full deterministic validation and a would-be-result
@@ -240,8 +260,9 @@ referenced (correction = deprecate + recreate, never rename); one
 canonical code per active term (aliases resolve to the term, not to
 another code); namespace scoped within the size family; registry
 collisions rejected at proposal time; SKU collisions handled only by
-the D-014 `-2` emergency valve. **Concrete size-code mappings remain
-an open owner sub-decision** — no mapping is finalized. (D-030)
+the D-014 `-2` emergency valve. **Concrete size-code mappings are
+owner-approved via D-032 Batch 2**; size-equivalence mappings remain
+an open owner sub-decision. (D-030)
 
 **Provenance source types** — The five origins a value's provenance
 may record (D-026): `HUMAN_ENTERED` (a human entered the value),

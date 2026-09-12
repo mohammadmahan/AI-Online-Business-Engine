@@ -118,6 +118,60 @@ Standing constraints (always apply):
 - No major architectural decisions outside `DECISIONS.md` (STOP →
   EXPLAIN → APPROVAL).
 
+## Phase 2.5 — Business Data Configuration (current)
+
+Owner-approved configuration on top of the closed Phase 2 decision
+set (specification/configuration only — no implementation). Scope and
+values in `docs/phases/phase-02-5-business-data-configuration.md`.
+
+- [x] Batch 1 — Register approved store structure **(2026-09-12,
+      owner-approved; recorded in the Phase 2.5 document)**:
+      category structure (2 primaries + 12 women's + 8 men's
+      subcategories; category NOT variant-defining); Registry v1 =
+      exactly {color, size, category}; 25 owner-approved color terms
+      (Persian display values; no aliases invented; no SKU codes
+      assigned); approved size families Alpha/8 · Numeric/11 ·
+      Pants Waist/9 (shoe excluded; no code mappings; no equivalence
+      links); approved product-attribute list (8 general + 5
+      garment-specific; Color/Size remain the only variant-defining
+      axes); seller-enters-readable-values principle; AI authority
+      unchanged. Recorded as owner-approved configuration, not
+      AI-generated defaults.
+- [x] Batch 2 — Color & size code governance **(2026-09-12,
+      owner-approved; recorded as decision D-032 + the Phase 2.5
+      document)**: 25 owner-approved color codes (BK, WHT, GRY, …,
+      CAM — the owner corrected the initial BLK/BLU/YLW to the
+      O/I/L-safe BK/BU/YW; D-014 rule 7 and D-030 remain fully
+      intact, no exception); size codes family-scoped — Alpha
+      XS→XS · S→S · M→M · L→LG · XL→XG · XXL→XXG · 3XL→3XG ·
+      4XL→4XG (separate O/I/L-safe codes; display labels remain
+      L/XL per D-020 rule 4), Numeric 34→34 … 54→54 and Pants Waist
+      28→28 … 44→44 (canonical value = code); no aliases created,
+      no equivalence links, no runtime SKU generation; AI may
+      validate but never assign codes.
+- [x] Batch 3 — Physical Excel contract **(2026-09-12,
+      owner-approved; recorded as decision D-033 + the new
+      `docs/phases/phase-02-5-excel-master-template.md`)**:
+      `product-master.xlsx` with 4 sheets (محصولات، تنوع‌ها، راهنما،
+      گزینه‌ها); exact columns/types/required-optional, canonical
+      Persian↔canonical status/vocabulary mappings, D-032 codes,
+      D-024/D-025 price fields, blank=NOT_PROVIDED / نامشخص=UNKNOWN /
+      invalid=rejected, active-axis encoding, dropdown validation,
+      D-026/D-027/D-028/D-017 import semantics unchanged; closes the
+      D-028 physical-mapping gate. Template file itself is built at
+      the implementation task — no code/implementation in this batch.
+- [ ] Size equivalence mappings, if ever needed (owner-curated only,
+      D-020 rule 7)
+- [ ] Color/size aliases (owner-supplied when needed; none invented)
+- [ ] Data-entry language for general product data (register item 4;
+      not resolved by Batch 1)
+- [ ] SEO slug language (D-016.M)
+- [ ] Inventory design constraints (D-016.I)
+- [ ] Registry promotion decisions for brand/material/pattern/style/
+      season/usage/collar/sleeve/length/closure/fit (separate owner
+      decisions; D-019/D-029 governance)
+- [ ] Phase 3+ integration decisions (blocked until their phase)
+
 ## Blocked / do-not-start
 
 Forbidden until their phase begins (MASTER_PLAN §16). Do not start

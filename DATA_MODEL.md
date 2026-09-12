@@ -305,8 +305,11 @@ Rules (D-019):
   approved via D-030 (uppercase Latin ASCII, no O/I/L in any
   position, owner-approved, frozen once referenced, one code per
   active term, family-scoped namespace); **concrete size-code
-  mappings remain an open owner sub-decision** — no mapping is
-  finalized.
+  mappings are owner-approved via D-032** (Alpha uses separate
+  O/I/L-safe codes — L→LG, XL→XG, XXL→XXG, 3XL→3XG, 4XL→4XG —
+  with display labels unchanged; Numeric/Pants Waist use
+  canonical value = code); size-equivalence mappings remain
+  human-curated/open.
 
 ### 6.3 Registry v1 structure (D-029 — APPROVED; concrete values OPEN)
 
@@ -327,8 +330,12 @@ Rules (D-019):
   (variant-defining terms need owner approval); AI proposes only;
   exact alias normalization; no fuzzy matching; unmapped values
   retained and human-reviewed.
-- **Concrete registry values (colors, sizes, categories) remain OPEN
-  and owner-gated** — none are invented here.
+- **Concrete category/color/size terms: owner-approved via D-031
+  Batch 1** (recorded in
+  `docs/phases/phase-02-5-business-data-configuration.md`). Color/size
+  **SKU-code mappings: owner-approved via D-032 Batch 2**
+  (O/I/L-safe; color `BK`/`BU`/`YW` per the owner correction).
+  **Aliases remain OPEN and owner-gated**.
 
 ### 6.4 Excel import contract (D-028 — APPROVED)
 
@@ -337,10 +344,10 @@ never a transactional store (D-006, RULES §13). Full rules in
 `DECISIONS.md` (D-028); key points:
 
 - One workbook, mapped to the semantic fields of this model; the
-  physical sheet/column mapping is confirmed against the owner's
-  workbook at the Excel-import specification task (no column names
-  invented here; the mapping is an open dependency pending the
-  workbook).
+  **physical sheet/column mapping is owner-approved via D-033**
+  (Batch 3): workbook `product-master.xlsx`, sheets محصولات / تنوع‌ها /
+  راهنما / گزینه‌ها, exact columns and mappings specified in
+  `docs/phases/phase-02-5-excel-master-template.md`.
 - One product = one product row + zero or more variant rows; simple
   products need no variant rows; variant rows carry all active axes.
 - Import never issues Product IDs (human-supplied only); never
@@ -617,18 +624,18 @@ D-016: open-decision register).
 | --- | --- | --- |
 | 1 | ~~Final SKU convention~~ | Resolved: D-014 **Approved** — see §9.1 |
 | 2 | Truly required product fields | Resolved: D-021 **Approved** — creation/publication minimums; AI enrichment bounds |
-| 3 | Taxonomy value lists | Governance (D-019) + v1 structure (D-029) **Approved**; **concrete values open** (D-016.C) |
+| 3 | Taxonomy value lists | Governance (D-019) + v1 structure (D-029) **Approved**; concrete terms **owner-approved via D-031 Batch 1**; SKU-code mappings **resolved via D-032 Batch 2** (O/I/L-safe); aliases open (D-016.C) |
 | 4 | WooCommerce field mapping | Open (Phase 3): conceptual model → WooCommerce concrete mapping |
 | 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
-| 6 | Size system | Architecture (D-020) + size-code governance (D-030) **Approved**; concrete mappings + values open |
+| 6 | Size system | Architecture (D-020) + size-code governance (D-030) **Approved**; size terms owner-approved (D-031 Batch 1); concrete code mappings resolved (D-032 Batch 2, family-scoped) |
 | 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |
 | 8 | Price/discount model | Resolved: D-024 / D-025 **Approved** — see §8 |
 | 9 | Provenance mechanism | Resolved: D-026 **Approved** — see §8a; physical storage deferred to implementation |
 | 10 | Import idempotency | Resolved: D-027 **Approved** (event-level, §8b) + D-017 (identifier-based, §9.2); Excel import contract per D-028 (§6.4) |
 | 11 | Product/publication status state machines | Resolved: D-022 / D-023 **Approved** — see §3.1 / §3.2 |
-| 12 | Excel import scope | Resolved: D-028 **Approved** — see §6.4; physical sheet/column mapping pending the owner workbook (open dependency, see the phase-02 import specification) |
+| 12 | Excel import scope | Resolved: D-028 **Approved** — see §6.4; physical sheet/column mapping resolved by D-033 (physical contract in `docs/phases/phase-02-5-excel-master-template.md`) |
 | 13 | Registry v1 structure / values | Structure resolved: D-029 **Approved** — see §6.3; concrete values remain OPEN and owner-gated |
-| 14 | Size-code governance / mappings | Governance resolved: D-030 **Approved** — see §6.2/§6.3; concrete mappings remain an open owner sub-decision |
+| 14 | Size-code governance / mappings | Governance resolved: D-030 **Approved** — see §6.2/§6.3; concrete mappings **resolved via D-032 Batch 2** (owner-approved, O/I/L-safe, family-scoped) |
 
 ## 13. Consolidated logical model (Phase 2 — implementation-ready)
 
@@ -762,7 +769,10 @@ from this model:
 - Price-change-log physical shape (D-024 rule 9)
 - Provenance physical storage (D-026)
 - Event-record retention period (D-027 rule 7)
-- Physical Excel sheet/column mapping (pending the owner workbook,
-  D-028 rule 1)
-- Concrete vocabulary values (D-029) and concrete size-code mappings
-  (D-030)
+- Physical Excel sheet/column mapping ~~(D-028 rule 1)~~ — resolved
+  via D-033 (owner-approved physical contract;
+  `docs/phases/phase-02-5-excel-master-template.md`); the template
+  **file** is produced at the implementation task
+- Concrete size-code mappings ~~(D-030)~~ — resolved via D-032
+  (owner-approved); color/size aliases and any further vocabulary
+  promotions remain open (D-029/D-031)

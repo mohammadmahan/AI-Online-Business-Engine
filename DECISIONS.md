@@ -52,6 +52,9 @@ major decisions (PROJECT_RULES §3).
 | D-028 | Excel import contract | **Approved** |
 | D-029 | Controlled-vocabulary registry v1 (structure) | **Approved** (concrete values open) |
 | D-030 | Size-code governance (O/I/L-safe) | **Approved** (concrete mappings open) |
+| D-031 | Business data configuration — Batch 1 (store structure) | **Approved** (2026-09-12, owner) |
+| D-032 | Business data configuration — Batch 2 (color/size SKU-code mappings) | **Approved** (2026-09-12, owner; incl. O/I/L-safe code corrections) |
+| D-033 | Product Master Excel template — physical workbook contract | **Approved** (2026-09-12, owner) |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -320,8 +323,8 @@ major decisions (PROJECT_RULES §3).
     (2026-09-12; event-level) with D-017 (identifier-based) and D-028
     (import contract).
   - L. **Excel import scope** — RESOLVED: D-028 **Approved**
-    (2026-09-12; specification + reusable template; physical mapping
-    pending the owner workbook).
+    (2026-09-12; specification + reusable template); physical
+    sheet/column mapping resolved by D-033 (Batch 3).
   - M. **SEO slug language** — OPEN/deferred; no URL slug
     implementation now.
 - **Rationale:** Prevents silent decisions (PROJECT_RULES §4) and gives
@@ -505,8 +508,9 @@ major decisions (PROJECT_RULES §3).
 - **Source:** Phase 2 Task 5 design; MASTER_PLAN §4; PROJECT_RULES
   §6, §8; D-014 rule 7, D-018, D-019; human owner approval
   (2026-09-11).
-- **Open sub-gate:** Size-code convention avoiding O/I/L (new owner
-  approval required before any size-code mapping is finalized).
+- **Open sub-gate:** ~~Size-code convention avoiding O/I/L~~ —
+  resolved by D-032 (owner-approved concrete mappings, incl.
+  O/I/L-safe alpha codes); size-equivalence mappings remain open.
 
 ## D-021 — Required-field policy
 
@@ -1101,7 +1105,206 @@ major decisions (PROJECT_RULES §3).
 - **Source:** D-014 rules 5/7/10/12/14; D-017; D-018 rule 6; D-019,
   D-020; PROJECT_RULES §10, §32; human owner approval (2026-09-12).
 
+## D-031 — Business data configuration — Batch 1 (store structure)
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The owner-approved concrete business configuration,
+  recorded in full in
+  `docs/phases/phase-02-5-business-data-configuration.md`:
+  1. **Category structure:** 2 primary categories (پوشاک زنانه،
+      پوشاک مردانه) with 12 women's and 8 men's subcategories as
+      listed in the Phase 2.5 document. Category is a controlled
+      vocabulary (Registry v1) and is **NOT variant-defining**. No
+      category may be added, removed, renamed, merged, or
+      reorganized; future category changes require a new explicit
+      owner decision.
+  2. **Variant model unchanged:** variant-defining attributes remain
+      exactly {Color, Size} (D-018); per-axis applicability; zero
+      active axes = simple product; inseam remains deferred; no
+      other attribute creates variants.
+  3. **Registry v1 composition unchanged:** exactly `color`, `size`,
+      `category` (D-029). Brand, material, pattern, style, season,
+      usage, collar, sleeve, length, closure, and fit remain outside
+      Registry v1; promotion is a separate owner decision each.
+  4. **Color vocabulary:** 25 owner-approved canonical Persian terms
+      (مشکی، سفید، طوسی، ذغالی، طوسی روشن، کرم، بژ، قهوه‌ای،
+      نسکافه‌ای، سرمه‌ای، آبی، آبی روشن، آبی نفتی، سبز، سبز زیتونی،
+      سبز تیره، قرمز، زرشکی، صورتی، صورتی روشن، بنفش، نارنجی، زرد،
+      خاکی، شتری). No English labels invented; no aliases invented;
+      **no SKU codes assigned** — the color-code mapping remains an
+      explicit owner-gated task (D-030/D-014 rule 7).
+  5. **Size families:** owner-approved terms in three families —
+      Alpha (XS, S, M, L, XL, XXL, 3XL, 4XL); Numeric (34–54 step 2,
+      11 values); Pants Waist (28–44 step 2, 9 values). Shoe size
+      excluded (footwear outside initial scope). No size-code
+      mappings; no equivalence links; no cross-family conversion.
+      Family-scoped semantics per D-020/D-030.
+  6. **Approved product attributes:** 8 general/product-level
+      (برند/Brand, جنس/Material, رنگ/Color, سایز/Size, طرح/Pattern,
+      مدل/Style, فصل/Season, کاربرد/Usage) and 5 garment-specific
+      (نوع یقه/Collar, نوع آستین/Sleeve, قد لباس/Length,
+      نوع بسته‌شدن/Closure, نوع فیت/Fit). Color and Size remain the
+      only variant-defining axes; all others are product-level
+      unless a future owner decision changes this. Fit is recorded
+      as a product-level attribute, not promoted into Registry v1.
+      The approved list covers attribute names only — no concrete
+      value lists for non-registry attributes are approved or
+      invented.
+  7. **Data-entry principle:** the human seller enters human-readable
+      values (e.g., مشکی، XL); the future deterministic system may
+      resolve term → approved SKU code. The mapping is **not**
+      implemented or invented now; AI must never assign or invent
+      SKU codes; D-014/D-015 identifier rules are unchanged.
+  8. **AI authority unchanged:** all Phase 2 restrictions preserved
+      (propose/recommend/draft/enrich/summarize/suggest only —
+      never create/activate/modify/delete terms, assign codes or
+      identifiers, execute transitions, publish, import, or resolve
+      exceptions).
+- **Resolves:** the concrete **category values**, **color terms**
+  (display values), and **size terms** portions of the Registry v1
+  concrete-values gate (register items 3 and 15). The color/size
+  **SKU-code mappings**, size equivalence mappings, color/size
+  aliases, physical Excel mapping, general data-entry language,
+  SEO slug, inventory constraints, and Phase 3+ decisions remain
+  **OPEN**.
+- **Rationale:** Owner-supplied configuration closes the value-gates
+  that Phase 2 deliberately left owner-gated, without inventing any
+  code mapping, alias, English label, or new rule; all D-014–D-030
+  governance applies unchanged to the approved values.
+- **Source:** Human owner approval of the Batch 1 Business Data
+  Configuration proposal (2026-09-12); D-014–D-030;
+  `docs/phases/phase-02-5-business-data-configuration.md`.
+
 ---
+
+## D-032 — Business data configuration — Batch 2 (color/size SKU-code mappings)
+
+- **Status:** **Approved** (2026-09-12, human owner) — a concrete,
+  owner-approved **realization** of the D-014/D-030 governance rules;
+  no governance rule is altered.
+- **Decision:**
+  1. **Color codes (25):** owner-approved one-to-one canonical color
+     term → SKU code — BK, WHT, GRY, CHR, GY1, CRM, BEG, BRN, NCF,
+     NVY, BU, BU1, PTB, GRN, VGR, DGN, RED, BRG, PNK, PK1, PRP, RNG,
+     YW, KHK, CAM (order follows the D-031 color list).
+  2. **Owner O/I/L correction:** the owner's initial proposal used
+     `BLK`, `BLU`, `YLW` (each containing `L`, forbidden by D-014
+     rule 7). The owner reviewed the conflict and approved the
+     O/I/L-safe replacements `BK`, `BU`, `YW`. D-014 and D-030 remain
+     fully intact — **no exception or deviation was created**.
+  3. **Size codes (family-scoped):** Alpha — XS→XS, S→S, M→M,
+     L→LG, XL→XG, XXL→XXG, 3XL→3XG, 4XL→4XG (separate O/I/L-safe
+     codes per D-020 rule 9; display labels remain `L`, `XL`, per
+     D-020 rule 4); Numeric — 34→34 … 54→54; Pants Waist — 28→28 …
+     44→44 (canonical value = code; digits permitted via an
+     owner-approved mapping, D-030 rule 2). Numeric 42 and Pants
+     Waist 42 remain **distinct terms in distinct families**.
+  4. **No aliases and no equivalence links** are created; the alias
+     registry stays empty and cross-family conversion stays
+     human-curated only (D-019 rule 5, D-020 rule 7).
+  5. **SKU examples are illustrative only** (P00001-BK-M,
+     P00001-WHT-XG, P00002-BRN-42, P00003-BK, P00004); no products,
+     SKUs, or runtime generation are created.
+  6. **Governance unchanged (D-014/D-030):** codes immutable once
+     referenced; one code per active term; family-scoped namespace;
+     collisions rejected; the D-014 `-2` valve is the only collision
+     mechanism; AI may validate but never assign/create/change/delete
+     an approved code; approved deterministic tooling may derive SKU
+     strings from approved Product ID + approved codes and validate
+     uniqueness.
+- **Resolves:** the color and size **SKU-code mappings** portions of
+  register items 3 and 15. **Remaining open:** color/size aliases,
+  size-equivalence mappings, physical Excel mapping, general
+  data-entry language, SEO slug, inventory constraints, promotion of
+  non-v1 attributes, Phase 3+ decisions.
+- **Rationale:** Closes the last value-gates of the product-data
+  vocabulary with owner-approved, rule-compliant codes; the L
+  conflicts in the initial proposal were caught by the batch's own
+  validation and resolved by the owner rather than silently deviating
+  from D-014/D-030.
+- **Source:** Human owner approval of Batch 2 (2026-09-12), including
+  the explicit O/I/L-safe replacement decision; D-014, D-020, D-030,
+  D-031; `docs/phases/phase-02-5-business-data-configuration.md`.
+
+---
+
+## D-033 — Product Master Excel template (physical workbook contract)
+
+- **Status:** **Approved** (2026-09-12, human owner) — the concrete
+  physical realization of the D-028 semantic import contract; no
+  semantic rule is altered.
+- **Decision:** the Product Master workbook is `product-master.xlsx`
+  with exactly four sheets — `محصولات` (one row per product),
+  `تنوع‌ها` (one row per variant), `راهنما` (Persian seller guide,
+  never imported), `گزینه‌ها` (approved controlled values + dropdown
+  backing, never imported). The **normative column list, order, data
+  types, required/optional status, canonical value mappings,
+  validation behavior, import mapping, and provenance behavior are
+  specified in full in
+  `docs/phases/phase-02-5-excel-master-template.md`** (owner-approved
+  via this decision) and summarized here:
+  1. **Products sheet (28 columns):** Product ID (`P00001`, human
+     input, required), name (required), optional name/brand/material/
+     pattern/style/season/usage/collar/sleeve/length/closure/fit/
+     descriptions/SEO (deferred optional), primary category + leaf
+     category (both controlled, required — two columns because
+     identical leaf names exist under both primaries as separate
+     Batch 1 terms), D-024 product price fields (list price required-
+     if, product sale price + validity optional), media references
+     (`|`-separated; ≥1 required for publication), product status +
+     publication status (exact Persian→canonical mapping), created
+     date (required). **Color/Size are not product-level columns**
+     (variant axes live on the variants sheet only).
+  2. **Variants sheet (10 columns):** Variant ID (blank at input →
+     approved deterministic tooling generates canonical UUIDv4 after
+     human promotion; if present, validated, never reused), Product
+     ID (required, must match a product row), SKU (blank → tooling
+     derives per D-014/D-032; if present, validated, never
+     auto-corrected), Color term, Size family + Size term (exact
+     active-term matching; size must belong to the selected family),
+     D-024 variant override + D-025 variant sale + validity, variant
+     status (mirrors product lifecycle, D-022 rule 7).
+  3. **Active axes are read from the rows deterministically** (D-018):
+     an axis is active iff at least one variant row fills it, and then
+     every row of the product must fill it consistently; zero variant
+     rows = simple product; duplicate active-axis combinations are
+     rejected (D-014 rule 11).
+  4. **Blank = `NOT_PROVIDED`; exact `نامشخص` = `UNKNOWN`; invalid
+     content = rejected** — the D-028/D-021 three-state semantics,
+     preserved exactly.
+  5. **Prices:** numeric Toman only (D-010); formatted strings
+     rejected; sale < applicable base enforced; precedence per
+     D-024/D-025 unchanged.
+  6. **Statuses:** exact Persian↔canonical mapping (پیش‌نویس/فعال/
+     بایگانی; منتشرنشده/در بررسی/منتشرشده/برداشته‌شده); no new
+     statuses; publication honored only through the D-023 path with
+     the human dry-run promotion as the human-approved transition.
+  7. **Vocabularies:** exact Batch 1 values only (categories
+     primary-scoped; 25 colors with D-032 codes; 3 size families with
+     D-032 codes); no aliases, no equivalence mappings, no fuzzy
+     matching, no automatic vocabulary creation.
+  8. **No inventory/stock column exists.** D-016.I stays open.
+  9. **Import:** one run = one D-027 event; per-row D-017 identifier
+     idempotency (distinct mechanisms); every value gets `IMPORTED`
+     provenance (D-026) with workbook/sheet/row/column reference;
+     dry-run first; human promotion; partial failure writes nothing.
+- **Resolves:** the **physical Excel sheet/column mapping** (the last
+  open portion of D-016.L / register item 22; previously pending the
+  owner workbook). **Not resolved:** aliases, size-equivalence
+  mappings, SEO slug language, general data-entry language (the
+  Persian workbook UI is batch-scoped, not a project-wide decision),
+  inventory constraints, promotion of non-v1 attributes, Phase 3+
+  decisions.
+- **Rationale:** Makes the D-028 contract concretely implementable
+  without inventing the owner's original column names: the owner
+  approved this Persian/RTL-first physical layout as the authoritative
+  template contract. The two-column category encoding is the faithful
+  physical representation of the approved Batch 1 tree (separate terms
+  per primary), not a new concept.
+- **Source:** Human owner approval of Batch 3 (2026-09-12); D-028 and
+  its import specification; D-010, D-014, D-015, D-017–D-022, D-024,
+  D-025, D-031, D-032;
+  `docs/phases/phase-02-5-excel-master-template.md`.
 
 ## Open decision register
 
@@ -1109,7 +1312,7 @@ major decisions (PROJECT_RULES §3).
 | --- | --- | --- | --- | --- |
 | 1 | ~~Final SKU convention~~ — resolved: D-014 **Approved** | Resolved | — | 2 (done) |
 | 2 | ~~Truly required product fields~~ — resolved: D-021 **Approved** | Resolved | — | 2 (done) |
-| 3 | Controlled-vocabulary registry v1 — structure resolved: D-029 **Approved**; concrete registry v1 values (colors, sizes, categories) remain OPEN and owner-gated | Open (partially resolved) | Product data entry | 2 |
+| 3 | Controlled-vocabulary registry v1 — structure resolved (D-029); concrete values **owner-approved via D-031 Batch 1** (2+12+8 categories; 25 color terms; size terms in 3 families); color/size SKU-code mappings **resolved via D-032 Batch 2** (O/I/L-safe); **aliases remain open** | Open (partially resolved) | Aliases | 2 |
 | 4 | Data-entry language for product data | Open | Product data entry | 2 |
 | 5 | WooCommerce field mapping (conceptual → WooCommerce) | Open | WooCommerce foundation | 3 |
 | 6 | WooCommerce hosting / VPS | Open | Store setup | 3–4 |
@@ -1121,20 +1324,21 @@ major decisions (PROJECT_RULES §3).
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
 | 13 | ~~Variant-defining attributes~~ — resolved: D-018 **Approved** ({color, size}, per-axis applicability) | Resolved | — | 2 (done) |
 | 14 | ~~Variant ID generation mechanism~~ — resolved: D-017 **Approved** (UUIDv4) | Resolved | — | 2 (done) |
-| 15 | Size system — architecture resolved: D-020 **Approved** (multi-family); size-code governance resolved: D-030 **Approved**; concrete size-code mappings remain an open owner sub-decision | Open (partially resolved) | Vocabulary registry v1 values; size-code mappings | 2 |
+| 15 | Size system — architecture (D-020), size-code governance (D-030), size **terms** (D-031 Batch 1), and concrete size-code mappings (D-032 Batch 2, O/I/L-safe, family-scoped) **Approved**; size-equivalence mappings remain an open owner sub-decision | Open (partially resolved) | Size-equivalence mappings (if ever needed) | 2 |
 | 16 | ~~Product status state machine~~ — resolved: D-022 **Approved** (draft/active/archived) | Resolved | — | 2 (done) |
 | 17 | ~~Publication status values~~ — resolved: D-023 **Approved** (unpublished/in_review/published/withdrawn) | Resolved | — | 2 (done) |
 | 18 | ~~Price model~~ — resolved: D-024 **Approved** (list price + variant override + sale price; effective price precedence) | Resolved | — | 2 (done) |
 | 19 | ~~Discount model~~ — resolved: D-025 **Approved** (sale-price-based; no engine; no coupons) | Resolved | — | 2 (done) |
 | 20 | ~~Provenance mechanism~~ — resolved: D-026 **Approved** (per-value provenance tuple; append-only; storage deferred) | Resolved | — | 2 (done) |
 | 21 | ~~Import idempotency strategy~~ — resolved: D-027 **Approved** (event-level) + D-017 (identifier-based) | Resolved | — | 2 (done) |
-| 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel) | Resolved | — | 2 (done) |
+| 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
 D-019 (governance), D-020 (architecture), D-021, D-022, D-023, D-024,
-D-025, D-026, D-027, D-028, D-029 (structure), and D-030 (governance)
-are approved; D-016 and every item not marked Resolved above remain
-open — including registry v1 concrete values (item 3) and concrete
-size-code mappings (item 15).
+D-025, D-026, D-027, D-028, D-029 (structure), D-030 (governance),
+D-031 (business data configuration, Batch 1), and D-032 (business
+data configuration, Batch 2) are approved; D-016 and
+every item not marked Resolved above remain open — including the
+color/size aliases (item 3) and size-equivalence mappings (item 15).
