@@ -39,24 +39,36 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(d["زرد"], "YW")    # not YLW
 
     def test_alpha_codes_match_d032(self):
+        # D-057 (2026-09-13): the Alpha-L code is LRG — the original
+        # D-032 `LG` violated D-030 rule 1 and was superseded (row 24).
         self.assertEqual(dict(vocab.SIZE_TERMS["alpha"]),
-                         {"XS": "XS", "S": "S", "M": "M", "L": "LG",
+                         {"XS": "XS", "S": "S", "M": "M", "L": "LRG",
                           "XL": "XG", "XXL": "XXG", "3XL": "3XG",
                           "4XL": "4XG"})
 
-    def test_code_conflicts_tracked_not_hidden(self):
-        # D-032's LG vs D-030 rule 1 must be explicitly tracked and
-        # blocked at the seed gate — never silently resolved.
-        blocked = vocab.blocked_seed_terms()
-        self.assertEqual([(f, t, c) for f, t, c, _ in blocked],
-                         [("alpha", "L", "LG")])
-        # every non-blocked size code is genuinely O/I/L-safe
-        blocked_codes = {(f, t) for f, t, _, _ in blocked}
+    def test_no_conflicts_after_d057(self):
+        # The D-030 ↔ D-032 conflict (L→LG, register row 24) was
+        # RESOLVED by owner decision D-057 (LRG): the conflict ledger
+        # is empty and every size code is seedable.
+        self.assertEqual(vocab.blocked_seed_terms(), ())
+        self.assertEqual(vocab.CODE_CONFLICTS, {})
         for family, terms in vocab.SIZE_TERMS.items():
             for term, code in terms:
-                if (family, term) not in blocked_codes:
-                    self.assertTrue(vocab.code_is_oil_safe(code),
-                                    (family, term, code))
+                self.assertTrue(vocab.is_seedable(code),
+                                (family, term, code))
+
+    def test_d057_sanction_is_explicit_not_silent(self):
+        # D-030 rule 1 forbids L in ANY position; LRG contains L.
+        # The strict validator must still reject it, and the code may
+        # pass only through the explicit owner-sanction ledger —
+        # never by weakening the validator.
+        self.assertFalse(vocab.code_is_oil_safe("LRG"))
+        self.assertIn("LRG", vocab.OWNER_SANCTIONED_CODES)
+        self.assertIn("D-057", vocab.OWNER_SANCTIONED_CODES["LRG"])
+        self.assertTrue(vocab.is_seedable("LRG"))
+        # an unsafe code WITHOUT a sanction stays blocked
+        self.assertFalse(vocab.is_seedable("BLO"))
+        self.assertTrue(vocab.blocked_seed_terms() == ())  # no term uses one
 
     def test_oil_safe_all_colors(self):
         # Colors: 25/25 genuinely safe (incl. the owner-corrected
@@ -98,7 +110,7 @@ class TestIdentifiers(unittest.TestCase):
 
     def test_sku_format(self):
         for ok in ("P00001-BK-M", "P00002-BRN-42", "P00003-BK", "P00004",
-                   "P00005-BK-LG", "P00006-BU-3XG"):
+                   "P00005-BK-LRG", "P00006-BU-3XG"):
             self.assertTrue(ident.is_valid_sku(ok), ok)
         for bad in ("P1-BK", "P00001-bk", "p00001-BK", "P00001-BLK",
                     "P00001-BK-M-", "X00001-BK"):

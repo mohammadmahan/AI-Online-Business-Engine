@@ -79,10 +79,11 @@ def verify() -> int:
     }
     expected = {
         "size_families": vocab.EXPECTED_COUNTS["size_families"],
-        # size_terms: approved count MINUS blocked-conflict terms held
-        # at the D-030 gate pending owner clarification.
-        "size_terms": (vocab.EXPECTED_COUNTS["size_terms"]
-                       - len(vocab.blocked_seed_terms())),
+        # size_terms: exactly the terms the D-030 seed gate admits
+        # (strict O/I/L-safe + explicit owner-sanctioned codes, D-057).
+        "size_terms": sum(
+            1 for f in vocab.SIZE_TERMS
+            for _, c in vocab.SIZE_TERMS[f] if vocab.is_seedable(c)),
         "colors": vocab.EXPECTED_COUNTS["colors"],
         "category_pairs": vocab.EXPECTED_COUNTS["category_pairs"],
         "primaries": vocab.EXPECTED_COUNTS["primary_categories"],
@@ -94,21 +95,31 @@ def verify() -> int:
             ok = False
         print(f"  [{mark}] {k}: {counts[k]} (expected {expected[k]})")
 
-    # O/I/L audit directly in the database (D-030).
+    # O/I/L audit directly in the database (D-030). Codes carrying
+    # an explicit owner sanction (D-057: LRG) are audited separately
+    # — they are allowed by decision, not by validator weakness.
+    sanctioned = tuple(vocab.OWNER_SANCTIONED_CODES)
+    exempt = "".join(
+        " AND code <> '{}'".format(c) for c in sanctioned)
     bad = int(q(
         "SELECT count(*) FROM seed.color_term "
-        "WHERE code ~ '[OIL]' OR code <> upper(code);"))
+        "WHERE (code ~ '[OIL]' OR code <> upper(code))" + exempt + ";"))
     bad += int(q(
         "SELECT count(*) FROM seed.size_term "
-        "WHERE code ~ '[OIL]' OR code <> upper(code);"))
+        "WHERE (code ~ '[OIL]' OR code <> upper(code))" + exempt + ";"))
     print(f"  [{'OK ' if bad == 0 else 'FAIL'}] O/I/L-safe codes in DB: "
           f"{bad} violations")
     if bad:
         ok = False
-    blocked = vocab.blocked_seed_terms()
-    for family, term, code, reason in blocked:
-        print(f"  [GATE] BLOCKED at seed: {family}/{term} → {code}")
-        print(f"         {reason}")
+    blocked = [
+        (f, t, c)
+        for f in vocab.SIZE_TERMS
+        for t, c in vocab.SIZE_TERMS[f]
+        if not vocab.is_seedable(c)
+    ]
+    for family, term, code in blocked:
+        print(f"  [GATE] BLOCKED at seed: {family}/{term} → {code} "
+              f"(no owner sanction)")
     if blocked:
         ok = False  # seed is intentionally incomplete until resolved
     return 0 if ok else 1
@@ -123,15 +134,14 @@ def main() -> int:
     sql.append(
         "INSERT INTO seed.size_family (family_key,label_fa,sort_order) VALUES "
         + ", ".join(rows) + ";")
-    # D-030 seed gate: tracked code conflicts (approved D-032 value vs
-    # D-030 rule 1) are NOT inserted — they wait for owner
-    # clarification. Surfaced here, never silently resolved.
-    blocked = {(f, t) for f, t, _, _ in vocab.blocked_seed_terms()}
+    # D-030 seed gate: a term seeds only if its code is strictly
+    # O/I/L-safe or carries an explicit owner sanction (D-057).
+    # Surfaced here, never silently resolved.
     allowed = [
         (f, t, c)
         for f in vocab.SIZE_TERMS
         for t, c in vocab.SIZE_TERMS[f]
-        if (f, t) not in blocked
+        if vocab.is_seedable(c)
     ]
     vals = ", ".join(f"('{f}','{t}','{c}')" for f, t, c in allowed)
     sql.append(

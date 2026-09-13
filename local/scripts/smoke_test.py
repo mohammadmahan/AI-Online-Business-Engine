@@ -69,21 +69,22 @@ def t_vocab():
     assert len(vocab.SIZE_TERMS["numeric"]) == 11
     assert len(vocab.SIZE_TERMS["pants_waist"]) == 9
     assert all(vocab.code_is_oil_safe(c) for _, c in vocab.COLOR_TERMS)
-    # D-030 gate: all size codes O/I/L-safe EXCEPT the tracked D-032
-    # conflict (L→LG), which is blocked at the seed gate pending owner
-    # clarification — surfaced, never hidden.
+    # D-030 gate: every size code must be seedable — strictly
+    # O/I/L-safe OR explicitly owner-sanctioned (D-057: LRG). The
+    # strict validator itself is never weakened.
     blocked = {(f, t) for f, t, _, _ in vocab.blocked_seed_terms()}
-    assert blocked == {("alpha", "L")}
+    assert blocked == set(), f"unresolved seed-gate conflicts: {blocked}"
     for family, terms in vocab.SIZE_TERMS.items():
         for term, code in terms:
-            if (family, term) not in blocked:
-                assert vocab.code_is_oil_safe(code), (family, term, code)
+            assert vocab.is_seedable(code), (family, term, code)
+    assert not vocab.code_is_oil_safe("LRG")      # validator intact
+    assert "LRG" in vocab.OWNER_SANCTIONED_CODES   # sanction explicit
     # O/I/L spot checks on the owner-corrected codes
     assert dict(vocab.COLOR_TERMS)["مشکی"] == "BK"
     assert dict(vocab.COLOR_TERMS)["آبی"] == "BU"
     assert dict(vocab.COLOR_TERMS)["زرد"] == "YW"
-    return ("25 colors, 20 categories, 28 sizes; 24/28 size codes "
-            "O/I/L-safe + 1 tracked D-030/D-032 conflict (L→LG)")
+    return ("25 colors, 20 categories, 28 sizes; 28/28 size codes "
+            "seedable (D-057: L→LRG resolved the LG conflict)")
 
 
 # --- 3. Product ID representable ---------------------------------------------
@@ -116,8 +117,8 @@ def t_sku():
     assert ident.is_valid_sku("P00004")               # simple product
     assert not ident.is_valid_sku("P1-BK")            # bad product part
     assert not ident.is_valid_sku("P00001-bk")        # lowercase code
-    # D-032 alpha codes flow through (L→LG)
-    assert ident.is_valid_sku("P00005-BK-LG")
+    # D-032 alpha codes flow through (D-057: L→LRG)
+    assert ident.is_valid_sku("P00005-BK-LRG")
     return "P00001-BK-M style accepted; D-014 format enforced"
 
 
@@ -256,11 +257,12 @@ def t_db_seed():
     if n == 0:
         raise SkipTest("database reachable but not seeded")
     assert n == 25, f"expected 25 colors, found {n}"
-    # The blocked-conflict term must NOT be in the DB (seed gate).
+    # The historic D-030-blocked code must NOT be in the DB (seed
+    # gate worked before D-057 replaced it with LRG).
     lg = int(q("SELECT count(*) FROM seed.size_term "
                "WHERE code = 'LG';"))
-    assert lg == 0, "D-030-blocked code LG must not be seeded"
-    return f"seed.color_term={n}; blocked conflict (LG) absent — gate works"
+    assert lg == 0, "superseded code LG must not be seeded"
+    return f"seed.color_term={n}; superseded code (LG) absent — gate works"
 
 
 def t_db_constraints():

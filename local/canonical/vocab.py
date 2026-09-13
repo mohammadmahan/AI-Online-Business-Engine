@@ -60,7 +60,7 @@ SIZE_FAMILIES = (
 
 SIZE_TERMS = {
     "alpha": (
-        ("XS", "XS"), ("S", "S"), ("M", "M"), ("L", "LG"),
+        ("XS", "XS"), ("S", "S"), ("M", "M"), ("L", "LRG"),
         ("XL", "XG"), ("XXL", "XXG"), ("3XL", "3XG"), ("4XL", "4XG"),
     ),
     "numeric": tuple((str(n), str(n)) for n in range(34, 56, 2)),
@@ -71,24 +71,33 @@ SIZE_TERMS = {
 # through these; see excel.py).
 FAMILY_LABELS = dict(SIZE_FAMILIES)
 
-# --- Tracked code conflicts (owner clarification required) -------------
+# --- Tracked code conflicts (governance guard) --------------------------
 #
 # D-030 rule 1: size codes must never contain O, I, or L in any
-# position ("no exception is created"). The owner-approved D-032
-# mapping L → LG contains the letter L, so the concrete approved
-# record and the governance rule contradict each other for exactly
-# this one code. Per the SAFETY-STOP rule this implementation does
-# NOT silently resolve it: the code is represented here exactly as
-# owner-approved (D-032 is the authoritative record of approved
-# values) but the database seed gate refuses to insert it until the
-# owner either amends D-030's wording (recorded owner exception) or
-# approves a replacement code. Nothing is invented here.
-CODE_CONFLICTS = {
-    ("alpha", "L", "LG"):
-        "D-030 rule 1 forbids 'L' in size codes; D-032 (owner-approved "
-        "2026-09-12) maps L → LG. Owner clarification required: amend "
-        "D-030 with a recorded exception OR approve an L-free "
-        "replacement code. Blocked at the DB seed gate meanwhile.",
+# position ("no exception is created"). The original owner-approved
+# D-032 mapping L → LG contained the letter L; the conflict was
+# tracked here (register row 24) and blocked at the seed gate. The
+# owner RESOLVED it on 2026-09-13 (DECISIONS.md D-057): the canonical
+# code for Alpha size L is now **LRG** — no collision with the LG
+# brand-prefix token, deprecate-and-replace per D-030 rule 5.
+#
+# HONESTY NOTE: `LRG` itself contains `L` in position 1, so under
+# D-030 rule 1's literal "any position" wording it is NOT
+# O/I/L-safe. The owner — the governance authority over both D-014
+# rule 7 and D-030 — has explicitly approved it as the canonical
+# code; it is therefore carried as an explicit, auditable owner
+# sanction below (never as a silent weakening of the validator).
+# A D-030 wording clarification (e.g. the prohibition targeting the
+# STANDALONE confusable characters) remains a recommended
+# non-blocking owner follow-up.
+CODE_CONFLICTS = {}
+
+# Codes approved by explicit owner decision despite failing the
+# strict O/I/L validator. Every entry cites its decision record.
+OWNER_SANCTIONED_CODES = {
+    "LRG": "D-057 (2026-09-13, register row 24): canonical Alpha-L "
+           "code; eliminates the ambiguous single character L and "
+           "avoids the LG brand-prefix collision",
 }
 
 
@@ -96,12 +105,23 @@ def blocked_seed_terms():
     """Approved terms whose D-032 code fails the D-030 gate.
 
     Returns a tuple of (family_key, display_fa, code, reason).
+    Empty since D-057 resolved the L→LG conflict.
     """
     out = []
     for (family, term, code), reason in CODE_CONFLICTS.items():
         if not code_is_oil_safe(code):
             out.append((family, term, code, reason))
     return tuple(out)
+
+
+def is_seedable(code: str) -> bool:
+    """Seed-gate predicate: strict O/I/L-safe OR owner-sanctioned.
+
+    The strict validator (`code_is_oil_safe`) is never weakened; an
+    unsafe code seeds only if it carries an explicit owner decision
+    in OWNER_SANCTIONED_CODES.
+    """
+    return code_is_oil_safe(code) or code in OWNER_SANCTIONED_CODES
 
 
 # --- Seed invariants (verified by tests / seed_check) ------------------

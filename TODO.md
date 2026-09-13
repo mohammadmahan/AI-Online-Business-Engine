@@ -148,7 +148,10 @@ values in `docs/phases/phase-02-5-business-data-configuration.md`.
       L/XL per D-020 rule 4), Numeric 34→34 … 54→54 and Pants Waist
       28→28 … 44→44 (canonical value = code); no aliases created,
       no equivalence links, no runtime SKU generation; AI may
-      validate but never assign codes.
+      validate but never assign codes. *(Historical note: the Alpha-L
+      code `LG` later conflicted with D-030; resolved 2026-09-13 by
+      owner decision **D-057** — the canonical code is now `LRG`,
+      no D-030 exception created.)*
 - [x] Batch 3 — Physical Excel contract **(2026-09-12,
       owner-approved; recorded as decision D-033 + the new
       `docs/phases/phase-02-5-excel-master-template.md`)**:
@@ -330,9 +333,9 @@ D-056 owner-approved; implementation per phase-03-3 §22 boundary B):
       active-combo uniqueness; D-046 bidirectional 1:1; D-027 key;
       D-026 append-only trigger)
 - [x] Owner-approved vocabulary seed script + verification (D-031/
-      D-032; idempotent; O/I/L audit; **D-030 gate: the D-032 code
-      LG for size L is blocked at the seed gate — see the open
-      decision below**)
+      D-032; idempotent; O/I/L audit; **D-030 gate clear since
+      D-057**: the historic LG conflict was resolved — 28/28 size
+      terms seed)
 - [x] Canonical logic layer + 31 unit tests (vocab, identifiers,
       D-046 second guard, D-027 repeats, D-024/D-025/D-048 11-case
       matrix, provenance)
@@ -398,16 +401,50 @@ against the real canonical DB once Docker exists):
       container (the ladder's live DB layers activate with Docker;
       logic is unchanged — storage swap only)
 
+Phase 4 (owner-sequenced 2026-09-13: "Data Entry & Verification
+Engine" runs locally first; official Phase 4 "Infrastructure" gates
+run in parallel and stay owner-gated):
+
+- [x] Import runner CLI (`local/scripts/import_runner.py`): dry-run →
+      report (exit 2 on invalid rows); promotion ONLY with explicit
+      `--authorize` (D-028 human boundary); D-027 event per run
+      (identical workbook → skipped_duplicate); D-017 identifier
+      idempotency (same ID + changed values → CONFLICTING_UPDATE
+      review item, canonical preserved); D-026 IMPORTED provenance +
+      linkages; SKU-as-data uniqueness; optional mock-Woo sync verb
+      (hidden records only; publish stays RED)
+- [x] Pipeline verified on the D-033 fixture: dry-run 16-error
+      profile; promote → 7 products + 5 variants; re-promote →
+      skipped_duplicate; sync → 6 created_hidden (2/2/2 variations
+      incl. both D-048 price cases) + 1 skipped_draft; re-sync → all
+      idempotent
+- [x] Persistence fixes surfaced by the run (in `sync_engine.py`):
+      registry keys JSON-serializable (`type\x1fkey`) + one-time
+      tuple-key migration; `_as_date` guard for JSON-round-tripped
+      dates (D-024/D-025 sale-validity comparisons)
+- [x] Phase 4 Infrastructure decision brief (design-only):
+      `docs/phases/phase-04-infrastructure-brief.md` — G1 hosting,
+      G2 instance model, G3 media provider (D-049 gate), G4 backups,
+      G5 domain/SSL, G6 observability, G7 promotion gates — ALL OPEN
+- [ ] Owner: decide G1–G7 (suggested order in the brief) to open the
+      official Infrastructure phase
+- [x] Owner: ~~resolve register row 24 (alpha/L LG code)~~ —
+      **RESOLVED 2026-09-13 via D-057 (`LRG`)**; full vocabulary
+      seed and alpha-size sync unblocked
+- [ ] Verification-queue tooling for the 16 fixture error rows
+      (human review workflow — the queue currently reports; it does
+      not yet provide an interactive review UI)
+
 Batch 4 — findings and open items:
 
-- [ ] **Owner decision (BLOCKER for full vocabulary seed):** D-032's
-      owner-approved size code **LG** (for size L) contains the letter
-      L, which D-030 rule 1 forbids ("no exception is created"). The
-      conflict is tracked in `local/canonical/vocab.py` (CODE_CONFLICTS),
-      excluded from the seed, and surfaced by every verification —
-      resolve by amending D-030 with a recorded owner exception OR
-      approving an L-free replacement code (deprecate+recreate per
-      D-030 rule 5). **24/28 size codes seed today; alpha L cannot**
+- [x] ~~**Owner decision (BLOCKER for full vocabulary seed):**
+      D-032's owner-approved size code **LG** (for size L) contains
+      the letter L, which D-030 rule 1 forbids~~ — **RESOLVED
+      2026-09-13, owner decision D-057**: the canonical Alpha-L code
+      is now **`LRG`** (O/I/L-safe, no D-030 exception created;
+      deprecate+replace per D-030 rule 5 — `LG` was never referenced
+      by real data). Conflict ledger (`CODE_CONFLICTS`) is empty;
+      the seed gate stays armed; **28/28 size codes seed**
 - [ ] Install Docker Desktop on the development machine
       (`brew install --cask docker`), then run
       `python3 local/scripts/local_env.py up` and re-run the smoke

@@ -188,7 +188,8 @@ def build_variant_rows():
         "شناسه محصول": "P90002", "رنگ": "مشکی",
         "خانواده سایز": "حروفی", "سایز": "42", "وضعیت تنوع": "فعال",
     }))
-    # SKU mismatch vs active axes (SKU says M but size is L → LG)
+    # SKU mismatch vs active axes (SKU says M but size is L → LRG per
+    # D-057)
     rows.append(v_row(**{
         "شناسه محصول": "P90002", "کد کالا (SKU)": "P90002-BK-M",
         "رنگ": "مشکی", "خانواده سایز": "حروفی", "سایز": "L",
@@ -211,7 +212,7 @@ def build_variant_rows():
         "شناسه محصول": "P99999", "رنگ": "مشکی", "وضعیت تنوع": "فعال",
     }))
     # invalid SKU (GRY approved, but L is not an approved code —
-    # the D-032 alpha code for L is LG)
+    # the alpha code for L is LRG per D-057)
     rows.append(v_row(**{
         "شناسه محصول": "P90002", "کد کالا (SKU)": "P90002-GRY-L",
         "رنگ": "طوسی", "خانواده سایز": "حروفی", "سایز": "XL",
@@ -244,7 +245,7 @@ def expected_codes():
         "UNKNOWN_SIZE_FAMILY": 1,      # کفشی
         "SIZE_FAMILY_MISMATCH": 1,     # alpha 42
         "INVALID_SKU": 1,              # P90002-GRY-L (L not a code)
-        "SKU_MISMATCH": 1,             # SKU says M, size is L→LG
+        "SKU_MISMATCH": 1,             # SKU says M, size is L→LRG
         "DUPLICATE_SKU": 1,            # exact repeat of P90002-BK-M
         "DUPLICATE_VARIANT_COMBINATION": 1,
         "ORPHAN_VARIANT": 1,

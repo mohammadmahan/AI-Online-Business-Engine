@@ -142,12 +142,17 @@ class TestL2VocabularySeed(unittest.TestCase):
         self.assertEqual((d["مشکی"], d["آبی"], d["زرد"]), ("BK", "BU", "YW"))
         self.assertEqual(dict(vocab.SIZE_TERMS["alpha"])["XL"], "XG")
 
-    def test_seed_gate_blocks_only_the_tracked_conflict(self):
-        blocked = vocab.blocked_seed_terms()
-        self.assertEqual([(f, t, c) for f, t, c, _ in blocked],
-                         [("alpha", "L", "LG")])
-        for f, t, c, reason in blocked:
-            self.assertTrue(reason)  # surfaced with explanation, never hidden
+    def test_seed_gate_clear_after_d057(self):
+        # D-057 resolved the D-030 ↔ D-032 conflict (register row 24):
+        # Alpha L now carries the owner-sanctioned code LRG, the
+        # conflict ledger is empty, the gate holds nothing.
+        self.assertEqual(vocab.blocked_seed_terms(), ())
+        for f, terms in vocab.SIZE_TERMS.items():
+            for t, c in terms:
+                self.assertTrue(vocab.is_seedable(c), (f, t, c))
+        # the sanction is explicit, auditable, never a validator change
+        self.assertIn("LRG", vocab.OWNER_SANCTIONED_CODES)
+        self.assertFalse(vocab.code_is_oil_safe("LRG"))
 
     def test_live_seed(self):
         if not _pg_reachable():
@@ -438,8 +443,8 @@ class TestL8Sync(unittest.TestCase):
         s1 = self.eng.seed_taxonomy()
         self.assertEqual(s1["categories"], 22)      # 2 primaries + 20 leaves
         self.assertEqual(s1["color_terms"], 25)
-        self.assertEqual(s1["size_terms"], 27)      # 28 minus blocked LG
-        self.assertEqual(s1["blocked"], ["alpha/L→LG"])
+        self.assertEqual(s1["size_terms"], 28)      # full seed (D-057)
+        self.assertEqual(s1["blocked"], [])
         s2 = self.eng.seed_taxonomy()               # idempotent
         self.assertEqual(s2["categories"], 0)
         self.assertEqual(s2["color_terms"], 0)

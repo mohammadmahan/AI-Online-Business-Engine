@@ -1989,6 +1989,40 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Source:** D-033, D-040, D-049, D-053, D-054; PROJECT_RULES §35,
   §16; batch design (2026-09-13); owner approval (2026-09-13).
 
+## D-057 — Size-code conflict resolution: Alpha L → `LRG`
+
+- **Status:** **Approved** (2026-09-13, human owner) — formal
+  resolution of the D-030 ↔ D-032 conflict tracked as register
+  row 24; supersedes the D-032 Alpha-L **code only** (the display
+  label stays `L` per D-020 rule 4; every other D-032 mapping is
+  unchanged).
+- **Decision:** The canonical SKU code for Alpha size **L** is
+  **`LRG`** — uppercase Latin ASCII, one code per the active term,
+  deprecate-and-replace per D-030 rule 5.
+- **Owner rationale:** `LRG` eliminates the ambiguous single
+  character `L` while avoiding collision with the `LG` brand prefix
+  or variant tokens.
+- **Honest governance note (recorded by implementation, 2026-09-13):**
+  D-030 rule 1 forbids `O`, `I`, or `L` **in any position** ("no
+  exception is created"), and `LRG` itself contains `L` in position
+  1 — so under the rule's literal wording this code is **not**
+  O/I/L-safe. It is implemented as an **explicit, auditable owner
+  sanction** (`OWNER_SANCTIONED_CODES` in `local/canonical/vocab.py`,
+  citing this decision) — the strict validator is untouched and
+  nothing was silently rewritten. A **D-030 wording clarification**
+  (e.g. the prohibition targeting the standalone confusable
+  characters) is recommended as a non-blocking owner follow-up;
+  until then D-057 and D-030 coexist exactly as recorded here.
+- **Mechanism:** D-030 rule 5 (deprecate + replace). The superseded
+  code `LG` was never referenced by any real product/SKU (no
+  production data exists), so the replacement is clean — no
+  migration, no alias, no equivalence link. The governance guard in
+  `local/canonical/vocab.py` (`CODE_CONFLICTS`) is now empty and the
+  O/I/L seed gate remains armed for any future conflict. The full
+  **28/28 size vocabulary now seeds**; Alpha-L sync is unblocked.
+- **Source:** D-014 rule 7, D-020 rule 4, D-030 rules 1 & 5, D-032;
+  owner instruction (2026-09-13).
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
@@ -2016,7 +2050,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 21 | ~~Import idempotency strategy~~ — resolved: D-027 **Approved** (event-level) + D-017 (identifier-based) | Resolved | — | 2 (done) |
 | 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
-| 24 | **D-030 ↔ D-032 conflict — size code `LG`** (discovered during Batch 4 implementation, 2026-09-13): the owner-approved D-032 code for Alpha size L (`LG`) contains the letter L, which D-030 rule 1 forbids ("must never contain O, I, or L in any position; no exception is created"). **Both decisions stand; neither may be silently amended.** Resolution options: (a) owner amends D-030 with a recorded exception for `LG`, or (b) owner approves an L-free replacement code with deprecate+recreate per D-030 rule 5. Tracked in `local/canonical/vocab.py` (CODE_CONFLICTS), excluded from the seed by the O/I/L gate, surfaced by every verification; **24/28 size terms seed today — alpha L cannot until resolved** | **Open — owner decision** | Full alpha size seed / alpha-size sync | 3 (now) |
+| 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

@@ -28,7 +28,7 @@ import hashlib
 import json
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 try:                       # package mode
     from . import media_store
@@ -315,6 +315,13 @@ class ProvenanceEngine:
                 + ([self.linkages[key]] if key in self.linkages else []))
 
 
+def _as_date(v):
+    """Normalize a possibly-JSON-round-tripped date back to date."""
+    if v is None or isinstance(v, datetime):
+        return v if isinstance(v, datetime) else None
+    return date.fromisoformat(str(v)[:10])
+
+
 # =========================================================================
 # D-046 — Mapping registry
 # =========================================================================
@@ -344,7 +351,23 @@ class MappingRegistry:
     def __init__(self, path: str = None):
         self._store = _JsonStore(path, {"entries": {}, "history": [],
                                         "next_woo": 1})
-        self.entries = self._store.data["entries"]   # (type, ckey) → entry
+        self.entries = self._store.data["entries"]   # "type\x1fkey" → entry
+        self._migrate_keys()
+
+    def _migrate_keys(self):
+        """One-time migration: tuple-key entries (an in-memory pattern
+        that broke json persistence) → the "type\x1fkey" string form."""
+        for k in [k for k in self.entries if isinstance(k, list)]:
+            entry = self.entries.pop(k)
+            self.entries[self._k(entry["entry_type"],
+                                 entry["canonical_key"])] = entry
+
+    @staticmethod
+    def _k(entry_type: str, canonical_key: str) -> str:
+        """JSON-serializable dict key ("type\x1fcanonical_key") — same
+        semantics as the previous tuple keys; the tuple form broke
+        persistence (TypeError on json.dump)."""
+        return f"{entry_type}\x1f{canonical_key}"
 
     def _archive(self, entry):
         """Superseded entries are kept (never deleted, D-046 §2.7)."""
@@ -355,11 +378,11 @@ class MappingRegistry:
     # -- lookups (GREEN) ------------------------------------------------
 
     def lookup(self, entry_type: str, canonical_key: str):
-        e = self.entries.get((entry_type, canonical_key))
+        e = self.entries.get(self._k(entry_type, canonical_key))
         return dict(e) if e and e["status"] == "active" else None
 
     def lookup_any(self, entry_type: str, canonical_key: str):
-        e = self.entries.get((entry_type, canonical_key))
+        e = self.entries.get(self._k(entry_type, canonical_key))
         return dict(e) if e else None
 
     def lookup_by_woo_id(self, entry_type: str, woo_id: str):
@@ -420,7 +443,7 @@ class MappingRegistry:
             "created_at": _now(),
             "last_verified_at": _now(),
         }
-        self.entries[(entry_type, canonical_key)] = entry
+        self.entries[self._k(entry_type, canonical_key)] = entry
         self._store.save()
         return dict(entry)
 
@@ -448,7 +471,7 @@ class MappingRegistry:
             "last_verified_at": _now(),
             "relinked_by": reviewer,
         }
-        self.entries[(entry_type, canonical_key)] = entry
+        self.entries[self._k(entry_type, canonical_key)] = entry
         self._store.save()
         return dict(entry)
 
@@ -457,7 +480,7 @@ class MappingRegistry:
     @staticmethod
     def _set_status(entries: dict, entry_type: str, canonical_key: str,
                     status: str) -> dict:
-        e = entries.get((entry_type, canonical_key))
+        e = entries.get(MappingRegistry._k(entry_type, canonical_key))
         if e is None:
             raise KeyError(f"no entry: {canonical_key}")
         e["status"] = status      # mutate the stored entry, not a copy
@@ -573,9 +596,9 @@ class SyncEngine:
             list_price=product.get("list_price"),
             variant_override=v.get("price_override"),
             product_sale=product.get("product_sale"),
-            product_sale_until=product.get("product_sale_until"),
+            product_sale_until=_as_date(product.get("product_sale_until")),
             variant_sale=v.get("variant_sale"),
-            variant_sale_until=v.get("variant_sale_until"),
+            variant_sale_until=_as_date(v.get("variant_sale_until")),
         ), today)
         if not proj["resolved"]:
             raise SyncError(
@@ -649,9 +672,11 @@ class SyncEngine:
                 self._register_taxonomy("size_term", attr_key,
                                         fam_attr["id"])
             for term, code in vocab.SIZE_TERMS[fam_key]:
-                if (fam_key, term, code) in vocab.CODE_CONFLICTS:
+                if not vocab.is_seedable(code):
+                    # D-030 gate: strictly unsafe AND not covered by an
+                    # explicit owner sanction (D-057 mechanism).
                     summary["blocked"].append(f"{fam_key}/{term}→{code}")
-                    continue                      # D-030 gate
+                    continue
                 key = f"pa_size-{fam_key}|{code}"
                 if self.registry.lookup("size_term", key) is None:
                     t = self.mock.create_term(
