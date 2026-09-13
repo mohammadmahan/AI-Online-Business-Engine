@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>داشبورد وضعیت و سلامت سیستم — موتور کسب‌وکار هوشمند</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  /* Persian typography: make Vazirmatn the default sans stack so the
+     Play-CDN preflight itself applies it everywhere. */
+  tailwind.config = {
+    theme: { extend: { fontFamily: {
+      sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+    } } }
+  };
+</script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html { font-family: 'Vazirmatn', system-ui, sans-serif; }
+  body {
+    background-color: #0f172a;               /* slate-900 base */
+    background-image:
+      radial-gradient(60rem 40rem at 110% -10%, rgba(56,189,248,.07), transparent 60%),
+      radial-gradient(50rem 35rem at -10% 110%, rgba(52,211,153,.05), transparent 60%);
+    background-attachment: fixed;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); opacity: 1; }
+    70%      { box-shadow: 0 0 0 9px rgba(52,211,153,0); opacity: .85; }
+  }
+  .live-dot { animation: pulse-dot 1.8s ease-out infinite; }
+  .fade-in  { animation: fade .35s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .kpi:hover, .mod:hover, tbody tr:hover { transform: translateY(-1px); }
+  .kpi, .mod { transition: transform .18s ease, border-color .18s ease; }
+  tbody tr { transition: background-color .15s ease; }
+  .num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="text-slate-200 min-h-screen antialiased">
+
+<!-- ================= HEADER ================= -->
+<header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2.5 order-1">
+      <span id="live-dot" class="live-dot inline-block h-3 w-3 rounded-full bg-emerald-400" title="وضعیت پایدار"></span>
+      <span class="text-sm font-medium text-emerald-300" id="status-label">وضعیت پایدار</span>
+    </div>
+    <div class="order-2 sm:order-3 mr-auto">
+      <button id="refresh-btn" title="دریافت مجدد state_summary.json بدون بارگذاری مجدد صفحه"
+              class="text-sm px-3.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/70 hover:bg-slate-700 hover:border-slate-600 transition">
+        بارگذاری مجدد داده‌ها <span aria-hidden="true">⟳</span>
+      </button>
+    </div>
+    <div class="w-full sm:w-auto order-3 sm:order-2 basis-full sm:basis-auto">
+      <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-100">
+        موتور کسب‌وکار هوشمند
+        <span class="block sm:inline text-xs sm:text-sm font-medium text-slate-400" dir="ltr">(AI-First Online Business Engine)</span>
+      </h1>
+      <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+        داشبورد وضعیت و سلامت سیستم — <span class="text-sky-300 font-semibold">فاز ۴: ورود و راستی‌آزمایی داده</span>
+      </p>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- ================= KPI GRID ================= -->
+  <section aria-label="شاخص‌های کلیدی" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+      <p class="text-sm text-slate-400">کل محصولات</p>
+      <p class="mt-2 text-3xl font-extrabold text-slate-100 num" id="kpi-products">—</p>
+      <p class="mt-1 text-xs text-slate-500"><span id="kpi-skus" class="num">—</span> شناسه کالا فعال</p>
+    </div>
+    <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+      <p class="text-sm text-slate-400">نرخ قبولی تست‌ها</p>
+      <p class="mt-2 text-3xl font-extrabold text-emerald-400 num" id="kpi-rate">—</p>
+      <p class="mt-1 text-xs text-slate-500"><span id="kpi-tests" class="num">—</span> (<span id="kpi-skipped" class="num">—</span> رد‌شده نیازمند Docker)</p>
+    </div>
+    <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+      <p class="text-sm text-slate-400">تداخل‌های باز</p>
+      <p class="mt-2 text-3xl font-extrabold text-amber-400 num" id="kpi-conflicts">—</p>
+      <p class="mt-1 text-xs text-slate-500">در مانیتور تداخل و حسابرسی</p>
+    </div>
+    <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+      <p class="text-sm text-slate-400">آخرین همگام‌سازی</p>
+      <p class="mt-2 text-xl sm:text-2xl font-extrabold text-slate-100" id="kpi-sync">—</p>
+      <p class="mt-1 text-xs text-slate-500 num" dir="ltr" id="kpi-sync-iso">—</p>
+    </div>
+  </section>
+
+  <!-- ================= ENGINE MODULES ================= -->
+  <section aria-labelledby="mods-h">
+    <div class="flex items-center justify-between mb-3">
+      <h2 id="mods-h" class="text-base font-bold text-slate-200">ماژول‌های موتور</h2>
+      <span class="text-xs text-slate-500">نسخه <span id="sys-version" class="num" dir="ltr">—</span></span>
+    </div>
+    <div id="modules" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+  </section>
+
+  <!-- ================= CONFLICT & AUDIT MONITOR ================= -->
+  <section aria-labelledby="conf-h">
+    <div class="flex items-center justify-between mb-3">
+      <h2 id="conf-h" class="text-base font-bold text-slate-200">مانیتور تداخل و حسابرسی</h2>
+      <span class="text-xs text-slate-500">موارد رد‌شده در لِـدر تست‌ها نیازمند Docker Desktop هستند</span>
+    </div>
+    <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/70">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-right text-xs text-slate-400 border-b border-slate-800">
+            <th class="px-4 py-3 font-semibold">شناسه</th>
+            <th class="px-4 py-3 font-semibold">شدت</th>
+            <th class="px-4 py-3 font-semibold">حوزه</th>
+            <th class="px-4 py-3 font-semibold">شرح</th>
+            <th class="px-4 py-3 font-semibold">وضعیت</th>
+          </tr>
+        </thead>
+        <tbody id="conflicts" class="divide-y divide-slate-800/80"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-t border-slate-800/80 mt-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500">
+    <span>آخرین کامیت: <code id="sys-commit" class="text-slate-400 font-mono" dir="ltr">—</code></span>
+    <span>نسخه: <span id="sys-version-2" class="num" dir="ltr">—</span></span>
+    <span>زمان نمایش: <span id="render-time" class="num" dir="ltr">—</span></span>
+    <span id="data-source" class="mr-auto text-slate-600"></span>
+  </div>
+</footer>
+
+<script>
+/* =========================================================================
+   داشبورد وضعیت — داده از state_summary.json خوانده می‌شود.
+   جداسازی داده (§2.3): در حالت file:// ممکن است fetch مسدود شود؛
+   یک شیء پیش‌فرض جاسازی‌شده به‌عنوان جایگزین ایمن استفاده می‌شود.
+   ========================================================================= */
+const EMBEDDED_FALLBACK = {
+  system_info: {
+    engine_name: "AI-First Online Business Engine",
+    version: "0.4.0-alpha",
+    current_phase: "Phase 4 - Data Entry & Verification Engine",
+    last_commit: "f24240e",
+    system_status: "Operational",
+    last_sync_timestamp: "2026-09-13T12:00:00Z",
+    jalali_timestamp: "۱۴۰۵/۰۶/۲۳ - ۱۵:۳۰"
+  },
+  metrics: {
+    total_products: 142,
+    active_skus: 380,
+    verified_items: 138,
+    pending_conflicts: 4,
+    sync_ladder_tests: { total: 77, passed: 74, skipped: 3, failed: 0 }
+  },
+  conflict_monitor: [
+    { id: "C-030", severity: "Warning", scope: "Size L Collision (D-030 vs D-032)",
+      description: "تداخل کد سایز L با پیشوند برند LG - مستثنی شده در داده‌های Seed",
+      status: "در حال بررسی" },
+    { id: "C-031", severity: "Info", scope: "Tax Calculation (D-048 Option A)",
+      description: "پروژکشن قیمت با احتساب ۱۰٪ مالیات بر ارزش افزوده تایید شد",
+      status: "حل شده" }
+  ],
+  engine_modules: [
+    { name: "موتور هماهنگ‌سازی (Sync Engine)", status: "فعال", type: "هسته اجرایی" },
+    { name: "لایه پایداری و عدم تکرار (Idempotency D-027)", status: "فعال", type: "یکپارچگی داده" },
+    { name: "ردیابی اصالت و تغییرات (Provenance D-026)", status: "فعال", type: "حسابرسی" },
+    { name: "موتور محاسبات قیمت (Pricing Engine D-048)", status: "فعال", type: "محاسباتی" },
+    { name: "موتور راستی‌آزمایی (Verification Engine)", status: "در انتظار فاز ۴", type: "دریافت داده" }
+  ]
+};
+
+/* --- helpers --- */
+const $ = (id) => document.getElementById(id);
+const fa = (n) => String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+const setNum = (id, v) => { const el = $(id); el.textContent = fa(v); };
+
+/* --- rendering --- */
+function render(data, source) {
+  const si = data.system_info || {}, m = data.metrics || {},
+        t = (m.sync_ladder_tests || {});
+
+  $("status-label").textContent = "وضعیت پایدار";
+  setNum("kpi-products", m.total_products ?? "—");
+  setNum("kpi-skus", m.active_skus ?? "—");
+
+  if (t.total > 0) {
+    const pct = Math.round((t.passed / t.total) * 1000) / 10;
+    setNum("kpi-rate", fa(pct) + "٪");
+    $("kpi-tests").textContent = fa(t.passed) + " از " + fa(t.total) + " تست";
+    setNum("kpi-skipped", t.skipped ?? 0);
+  }
+
+  setNum("kpi-conflicts", m.pending_conflicts ?? "—");
+  $("kpi-sync").textContent = si.jalali_timestamp || "—";
+  $("kpi-sync-iso").textContent = si.last_sync_timestamp || "—";
+
+  $("sys-version").textContent = si.version || "—";
+  $("sys-version-2").textContent = si.version || "—";
+  $("sys-commit").textContent = si.last_commit || "—";
+  $("render-time").textContent = new Date().toLocaleTimeString("fa-IR");
+  $("data-source").textContent = source;
+
+  /* engine modules */
+  const mods = $("modules"); mods.replaceChildren();
+  (data.engine_modules || []).forEach((mod) => {
+    const active = (mod.status || "").includes("فعال");
+    const waiting = (mod.status || "").includes("در انتظار");
+    const badge = active
+      ? '<span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-semibold">● فعال</span>'
+      : waiting
+        ? '<span class="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 text-xs font-semibold">◐ در انتظار فاز ۴</span>'
+        : '<span class="inline-flex items-center gap-1 rounded-full bg-slate-500/10 text-slate-300 border border-slate-500/30 px-2.5 py-0.5 text-xs font-semibold">' + mod.status + '</span>';
+    const card = document.createElement("article");
+    card.className = "mod fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-4";
+    card.innerHTML =
+      '<h3 class="font-bold text-slate-100 text-sm leading-6">' + mod.name + '</h3>' +
+      '<p class="text-xs text-slate-500 mt-1">نوع: ' + (mod.type || "—") + '</p>' +
+      '<div class="mt-3">' + badge + '</div>';
+    mods.appendChild(card);
+  });
+
+  /* conflict monitor */
+  const sevBadge = (s) => {
+    if (s === "Warning") return ['هشدار', 'bg-amber-500/10 text-amber-300 border-amber-500/30'];
+    if (s === "Info")    return ['اطلاعات', 'bg-sky-500/10 text-sky-300 border-sky-500/30'];
+    if (s === "Critical") return ['بحرانی', 'bg-rose-500/10 text-rose-300 border-rose-500/30'];
+    return [s || '—', 'bg-slate-500/10 text-slate-300 border-slate-500/30'];
+  };
+  const stBadge = (st) => (st || "").includes("حل")
+    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+    : 'bg-slate-700/40 text-slate-300 border-slate-600/40';
+  const tb = $("conflicts"); tb.replaceChildren();
+  (data.conflict_monitor || []).forEach((c) => {
+    const [label, cls] = sevBadge(c.severity);
+    const tr = document.createElement("tr");
+    tr.className = "hover:bg-slate-800/40";
+    tr.innerHTML =
+      '<td class="px-4 py-3 font-mono text-xs text-slate-400" dir="ltr">' + c.id + '</td>' +
+      '<td class="px-4 py-3"><span class="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ' + cls + '">' + label + '</span></td>' +
+      '<td class="px-4 py-3 text-slate-300 text-xs" dir="ltr">' + (c.scope || "—") + '</td>' +
+      '<td class="px-4 py-3 text-slate-300 leading-6">' + (c.description || "—") + '</td>' +
+      '<td class="px-4 py-3"><span class="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ' + stBadge(c.status) + '">' + (c.status || "—") + '</span></td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* --- data loading with embedded fallback (§2.3) --- */
+async function load() {
+  let data = EMBEDDED_FALLBACK, source = "منبع داده: شیء جاسازی‌شده (حالت file://)";
+  try {
+    const res = await fetch("state_summary.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    data = await res.json();
+    source = "منبع داده: state_summary.json ✓";
+  } catch (e) {
+    source = "منبع داده: شیء جاسازی‌شده — دریافت JSON ممکن نشد (" + e.message + ")";
+  }
+  render(data, source);
+}
+
+$("refresh-btn").addEventListener("click", load);
+window.addEventListener("DOMContentLoaded", load);
+</script>
+</body>
+</html>

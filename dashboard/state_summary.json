@@ -1,0 +1,46 @@
+{
+  "system_info": {
+    "engine_name": "AI-First Online Business Engine",
+    "version": "0.4.0-alpha",
+    "current_phase": "Phase 4 - Data Entry & Verification Engine",
+    "last_commit": "f24240e",
+    "system_status": "Operational",
+    "last_sync_timestamp": "2026-09-13T12:00:00Z",
+    "jalali_timestamp": "۱۴۰۵/۰۶/۲۳ - ۱۵:۳۰"
+  },
+  "metrics": {
+    "total_products": 142,
+    "active_skus": 380,
+    "verified_items": 138,
+    "pending_conflicts": 4,
+    "sync_ladder_tests": {
+      "total": 77,
+      "passed": 74,
+      "skipped": 3,
+      "failed": 0
+    }
+  },
+  "conflict_monitor": [
+    {
+      "id": "C-030",
+      "severity": "Warning",
+      "scope": "قانون عدم استفاده از کاراکترهای مبهم (D-030 ↔ D-032)",
+      "description": "تداخل کاراکتر سایز L بر اساس قانون D-030 (حذف O, I, L) در شناسه LG — استثنا شده در داده‌های Seed",
+      "status": "در حال بررسی"
+    },
+    {
+      "id": "C-031",
+      "severity": "Info",
+      "scope": "موتور پروژکشن قیمت (D-048 Option A)",
+      "description": "محاسبه متمرکز قیمت بر مبنای قوانین مصوب D-048 بدون مالیات مضاعف تایید شد",
+      "status": "حل شده"
+    }
+  ],
+  "engine_modules": [
+    { "name": "موتور هماهنگ‌سازی (Sync Engine)", "status": "فعال", "type": "هسته اجرایی" },
+    { "name": "لایه پایداری و عدم تکرار (Idempotency D-027)", "status": "فعال", "type": "یکپارچگی داده" },
+    { "name": "ردیابی اصالت و تغییرات (Provenance D-026)", "status": "فعال", "type": "حسابرسی" },
+    { "name": "موتور محاسبات قیمت (Pricing Engine D-048)", "status": "فعال", "type": "محاسباتی" },
+    { "name": "موتور راستی‌آزمایی (Verification Engine)", "status": "در انتظار فاز ۴", "type": "دریافت داده" }
+  ]
+}
