@@ -1,0 +1,40 @@
+# --- Local environment secrets (never commit real values) --------------------
+.env
+.env.local
+.env.staging
+.env.production
+*.env
+!*.env.example
+
+# --- Local runtime volumes (data, media binaries, logs) ----------------------
+local/volumes/
+*.log
+logs/
+
+# --- Local tooling state (never commit) ----------------------------------------
+.freebuff/
+
+# --- OS / editor noise ---------------------------------------------------------
+.DS_Store
+docs/.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Python ----------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# --- Node / n8n local artifacts ---------------------------------------------------
+node_modules/
+
+# --- Never ignore project documentation or infra definitions ---------------------
+!local/infra/docker-compose.yml
+!local/db/schema.sql

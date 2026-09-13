@@ -1,0 +1,51 @@
+{
+  "generated_for": "product-master.xlsx (D-033)",
+  "sheets": [
+    "محصولات",
+    "تنوع‌ها",
+    "راهنما",
+    "گزینه‌ها"
+  ],
+  "today": "2026-09-13",
+  "product_rows": 10,
+  "variant_rows": 13,
+  "validation_errors": {
+    "UNKNOWN_CATEGORY": 1,
+    "INVALID_PRICE": 5,
+    "DUPLICATE_PRODUCT_ID": 1,
+    "INVALID_PRODUCT_ID": 1,
+    "UNKNOWN_VOCABULARY": 1,
+    "UNKNOWN_SIZE_FAMILY": 1,
+    "SIZE_FAMILY_MISMATCH": 1,
+    "SKU_MISMATCH": 1,
+    "DUPLICATE_SKU": 1,
+    "DUPLICATE_VARIANT_COMBINATION": 1,
+    "ORPHAN_VARIANT": 1,
+    "INVALID_SKU": 1
+  },
+  "expected_profile": {
+    "INVALID_PRODUCT_ID": 1,
+    "DUPLICATE_PRODUCT_ID": 1,
+    "UNKNOWN_CATEGORY": 1,
+    "INVALID_PRICE": 5,
+    "UNKNOWN_VOCABULARY": 1,
+    "UNKNOWN_SIZE_FAMILY": 1,
+    "SIZE_FAMILY_MISMATCH": 1,
+    "INVALID_SKU": 1,
+    "SKU_MISMATCH": 1,
+    "DUPLICATE_SKU": 1,
+    "DUPLICATE_VARIANT_COMBINATION": 1,
+    "ORPHAN_VARIANT": 1
+  },
+  "all_expected_matched": true,
+  "valid_products": [
+    "P90001",
+    "P90002",
+    "P90003",
+    "P90004",
+    "P90005",
+    "P90006",
+    "P90007"
+  ],
+  "valid_variants": 5
+}

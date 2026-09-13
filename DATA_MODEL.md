@@ -11,10 +11,22 @@ status state machines approved via D-022 / D-023; price, discount,
 provenance, and event-idempotency models approved via D-024 / D-025 /
 D-026 / D-027; the Excel import contract, registry v1 structure, and
 size-code governance approved via D-028 / D-029 / D-030 in
-`DECISIONS.md`.
-This is a **conceptual** model only: it does not define a physical
-schema, a database engine, or a WooCommerce field mapping. Those are
-Phase 2 / Phase 3 work and remain open decisions.
+`DECISIONS.md`; the WooCommerce foundation mapping and integration
+contract approved via D-034–D-045 (design in
+`docs/phases/phase-03-1-woocommerce-foundation.md`), the sync
+architecture approved via D-046–D-052 (design in
+`docs/phases/phase-03-2-woocommerce-sync-architecture.md`, incl. the
+owner-approved D-048 Option A canonical-layer price projection), and
+the local-first development environment approved via D-053 (design in
+`docs/phases/phase-03-3-local-development-environment.md`; local
+runtime D-054, canonical storage D-055, and local media D-056 are
+also **Approved** (2026-09-13, owner), and the initial local
+implementation exists under `local/` — schema `local/db/schema.sql`,
+seed `local/canonical/vocab.py`, guide `local/README.md`).
+This document remains the **conceptual** model: physical schemas are
+implementation artifacts (`local/db/schema.sql` locally; staging/
+production schemas follow the same logical model). The WooCommerce
+field mapping is specified in the D-034–D-045 foundation design.
 
 ---
 
@@ -625,7 +637,7 @@ D-016: open-decision register).
 | 1 | ~~Final SKU convention~~ | Resolved: D-014 **Approved** — see §9.1 |
 | 2 | Truly required product fields | Resolved: D-021 **Approved** — creation/publication minimums; AI enrichment bounds |
 | 3 | Taxonomy value lists | Governance (D-019) + v1 structure (D-029) **Approved**; concrete terms **owner-approved via D-031 Batch 1**; SKU-code mappings **resolved via D-032 Batch 2** (O/I/L-safe); aliases open (D-016.C) |
-| 4 | WooCommerce field mapping | Open (Phase 3): conceptual model → WooCommerce concrete mapping |
+| 4 | WooCommerce field mapping | Resolved (design + operational level): **D-034–D-045 Approved** (identity mapping + registry model, simple/variable types, category/attribute/size-family mapping, price, lifecycle/publication projection, media, inventory boundary, API/n8n/sync/idempotency/error/security contracts; `docs/phases/phase-03-1-woocommerce-foundation.md`) and **D-046–D-052 Approved** (registry design, field-level sync + CRUD contracts, Woo-operation authority matrix, media storage direction, non-registry attribute representation, test strategy; `docs/phases/phase-03-2-woocommerce-sync-architecture.md`). Open: ~~D-048 price-sync proposal~~ resolved (owner-approved 2026-09-13, Option A canonical-layer projection); media provider (Phase 4) |
 | 5 | Data-entry language | Open (Phase 2): Persian / English / bilingual for product data |
 | 6 | Size system | Architecture (D-020) + size-code governance (D-030) **Approved**; size terms owner-approved (D-031 Batch 1); concrete code mappings resolved (D-032 Batch 2, family-scoped) |
 | 7 | Variant-defining attributes | Resolved: D-018 **Approved** — {Color, Size}, per-axis applicability |

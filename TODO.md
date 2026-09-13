@@ -172,13 +172,250 @@ values in `docs/phases/phase-02-5-business-data-configuration.md`.
       decisions; D-019/D-029 governance)
 - [ ] Phase 3+ integration decisions (blocked until their phase)
 
+## Phase 3 — WooCommerce Foundation (current)
+
+Scope from MASTER_PLAN §13: WooCommerce foundation. The owner opened
+Phase 3 (2026-09-12); Batch 1 is the complete **design/specification
+batch** (decisions D-034–D-045; normative design in
+`docs/phases/phase-03-1-woocommerce-foundation.md`). No production
+integration, no connection to a real instance, no credentials, no
+n8n workflows, no implementation code.
+
+Batch 1 — completed design (do not treat implementation as done):
+
+- [x] WooCommerce foundation architecture design (architectural
+      role, two-layer canonical/projection contract) — **D-034–D-045
+      Approved** (2026-09-12)
+- [x] Product/Variant identity mapping design — **D-034 Approved**
+      (five distinct identifiers; mapping-registry model; Woo numeric
+      IDs are technical, never our identity)
+- [x] Simple vs variable product-type mapping design — **D-035
+      Approved** (deterministic from D-018 active axes; no third type)
+- [x] Category mapping design — **D-036 Approved** (two-level
+      hierarchy; duplicate leaf names stay distinguishable)
+- [x] Attribute/size-family mapping design — **D-037 Approved**
+      (pa_color; one size attribute per family; Size Family is
+      internal context; non-registry attributes not created)
+- [x] Price mapping design — **D-038 Approved** (D-024/D-025 →
+      regular/sale price fields; price-divergence resolution sub-gate
+      OPEN)
+- [x] Lifecycle/publication mapping design — **D-039 Approved**
+      (canonical D-022/D-023 states; Woo projection; never deleted)
+- [x] Media mapping design — **D-040 Approved** (featured + gallery
+      order; storage sub-decision OPEN)
+- [x] Inventory boundary design — **D-041 Approved** (D-016.I stays
+      open; no stock fields/sync in this batch)
+- [x] API boundary design — **D-043 Approved** (conceptual resource
+      contract; implementation-time verification points)
+- [x] n8n boundary design — **D-042 Approved** (explicit per-field
+      sync directions; no default bidirectional field sync)
+- [x] Security/credentials boundary design — **D-045 Approved** (no
+      secrets exist or requested; least privilege; per-environment)
+
+Batch 2 — sync architecture (2026-09-12; design/specification only;
+normative design in `docs/phases/phase-03-2-woocommerce-sync-architecture.md`):
+
+- [x] D-038 sub-gate analysis + price-sync architecture proposal —
+      **D-048 Approved** (2026-09-13, owner — Option A: canonical-
+      layer projection; options A/B/C compared; consequences
+      recorded)
+- [x] Mapping-registry complete conceptual design — **D-046
+      Approved** (entry types, authoritative side, uniqueness both
+      directions, immutable/write-once/mutable classes, creation/
+      update/lookup rules, missing/stale/conflicting/orphaned
+      states, recovery, review conditions, provenance,
+      D-017/D-027 relationship)
+- [x] Field-level sync contract — **D-047 Approved** (every field
+      group: canonical owner, Woo projection, direction, write
+      actor, Woo-manual-edit/divergence behavior, UNKNOWN/
+      NOT_PROVIDED behavior, AI propose / tooling execute,
+      approval tier; no default bidirectional sync)
+- [x] Product/variation CRUD contract — **D-047 Approved**
+      (create/update/read product + variation, hide/withdraw/
+      archive, no destructive delete by default; preconditions,
+      validation, registry lookup, idempotency key, read-back
+      verification, failure handling, compensation concept,
+      provenance)
+- [x] Idempotency + duplicate prevention operational model — within
+      **D-044/D-046** (D-017 identifier level + D-027 event level;
+      ambiguous-response read-back reconciliation; SKU never the
+      identity)
+- [x] Conflict-detection classes — within **D-044** (11 deterministic
+      classes with severity, automatic action, review requirement,
+      recovery path; AI never silently resolves)
+- [x] Woo-side divergence handling — within **D-047** (detection,
+      canonical preservation, review queue, optional controlled
+      re-projection, no silent overwrite)
+- [x] Green/Yellow/Red authority matrix for Woo operations — **D-050
+      Approved**
+- [x] Media storage direction — **D-049 Approved** (external/object
+      storage + Woo references; provider decision deferred to
+      Phase 4)
+- [x] Non-registry attribute representation — **D-051 Approved**
+      (canonical free-text fields + Woo product meta; no automatic
+      vocabularies; Color/Size untouched)
+- [x] Test/sandbox strategy — **D-052 Approved** (unit validation,
+      mocks, isolated staging, failure/duplicate/conflict/price-
+      divergence simulations, compensation tests, production-
+      readiness gate; execution in Batch 3+)
+- [x] Credential/secret structure (conceptual) — within **D-045**
+      (environment separation, Woo base URL handling, reference-
+      based credentials for Woo/n8n/AI-provider, rotation concept,
+      least privilege, log redaction, Git exclusion, Freebuff
+      prompt exclusion)
+
+Batch 3 — local development environment (2026-09-13; design only;
+normative design in `docs/phases/phase-03-3-local-development-
+environment.md`; owner directive: **LOCAL-FIRST**):
+
+- [x] Local-first architecture + Local → Staging → Production
+      promotion contract — **D-053 Approved** (owner directive;
+      change-configuration-not-business-logic model; local stack =
+      development tooling, Phase 4 stays blocked)
+- [x] Local component architecture (WordPress+Woo, Woo DB, canonical
+      DB, registry, event store, n8n, mock adapter, local media,
+      logging) — designed in phase-03-3 §2
+- [x] Local runtime technology evaluation — **D-054 Approved**
+      (2026-09-13, owner; Docker Compose recommended; native macOS
+      and remote-VPS rejected)
+- [x] Environment configuration strategy (.env.example committed;
+      real env files gitignored; reference-based credentials) —
+      extends D-045
+- [x] Local WordPress + WooCommerce design (permalinks/REST/webhooks/
+      cron/timezone/Toman/RTL; D-035/D-036/D-037 seeds only; local
+      Woo never canonical)
+- [x] Local database responsibility split + canonical storage
+      analysis — **D-055 Approved** (2026-09-13, owner; relational
+      app DB — PostgreSQL; files rejected; Woo-as-canonical
+      forbidden)
+- [x] Mapping-registry local implementation plan — D-046 realized
+      (schema, bidirectional uniqueness, lifecycle, orphan/conflict,
+      SKU-as-data)
+- [x] Event/idempotency store design — D-027 realized (composite key,
+      payload-hash conflict detection, terminal states, test reset)
+- [x] Mock WooCommerce adapter architecture — same interface as the
+      real adapter (D-043/D-047); all D-044 failure classes; no real
+      connection
+- [x] Price-projection test environment — **D-048 Option A verified
+      as approved** (11-case matrix incl. the divergence case;
+      canonical inputs never modified)
+- [x] Local media design — **D-056 Approved** (2026-09-13, owner;
+      S3-compatible emulator behind the D-049 adapter boundary; real
+      provider stays Phase 4)
+- [x] n8n local boundaries — conceptual workflows only; deterministic
+      /AI-proposal/human-approval/Woo-execution stages separated; AI
+      never executes Red operations
+- [x] AI runtime boundary (local stubbing; unchanged authority) —
+      D-050/RULES §32 preserved
+- [x] Excel import local test matrix (approved sheets/values only;
+      D-028/D-033 semantics)
+- [x] Testing strategy (10 layers per D-052) + reset strategy
+- [x] Deterministic fictional test dataset (P90001–P90010; approved
+      vocabulary only)
+- [x] Observability design (structured logs; D-027/D-044 fields; no
+      secrets logged)
+- [x] Local security baseline (.gitignore plan, localhost-only,
+      least privilege, throwaway credentials)
+
+Batch 4 — local environment scaffolding (2026-09-13; D-054/D-055/
+D-056 owner-approved; implementation per phase-03-3 §22 boundary B):
+
+- [x] Local project structure (local/{infra,db,canonical,services,
+      scripts,fixtures}; guide in `local/README.md`)
+- [x] Docker Compose stack (D-054: wordpress+woo, mysql, postgres
+      canonical, n8n, minio media, deferred mock service; named
+      volumes; 127.0.0.1-only ports; healthchecks)
+- [x] Canonical PostgreSQL schema (D-055: seed/canonical/registry/
+      events/provenance schemas; identifier separation; sale rules;
+      active-combo uniqueness; D-046 bidirectional 1:1; D-027 key;
+      D-026 append-only trigger)
+- [x] Owner-approved vocabulary seed script + verification (D-031/
+      D-032; idempotent; O/I/L audit; **D-030 gate: the D-032 code
+      LG for size L is blocked at the seed gate — see the open
+      decision below**)
+- [x] Canonical logic layer + 31 unit tests (vocab, identifiers,
+      D-046 second guard, D-027 repeats, D-024/D-025/D-048 11-case
+      matrix, provenance)
+- [x] Mock Woo adapter (D-043/D-047 interface; D-044 failure
+      injection: 401/403/429/5xx/timeout/ambiguous-timeout/
+      malformed/duplicate/partial; inventory read-only per D-041)
+- [x] Media abstraction + local object store (D-056; content-hash
+      dedupe; metadata/alt text; provider swap = env-only change)
+- [x] D-033 Excel fixture generator — 12/12 deterministic error-code
+      profile (products P90001–P90010 + variants; approved values
+      only); .xlsx rendering deferred (openpyxl not installed)
+- [x] Reset tooling (`local_env.py reset-volumes`; explicit
+      RESET-LOCAL confirmation; volumes enumerated; local-only by
+      construction)
+- [x] .env.example (committed, dummy local values) + .gitignore
+      (env secrets, volumes, noise)
+- [x] Smoke test (§17): **9 passed / 3 skipped / 0 failed** — the 3
+      skipped checks need the running containers (Docker not
+      installed on this machine yet)
+
+Batch 4 — findings and open items:
+
+- [ ] **Owner decision (BLOCKER for full vocabulary seed):** D-032's
+      owner-approved size code **LG** (for size L) contains the letter
+      L, which D-030 rule 1 forbids ("no exception is created"). The
+      conflict is tracked in `local/canonical/vocab.py` (CODE_CONFLICTS),
+      excluded from the seed, and surfaced by every verification —
+      resolve by amending D-030 with a recorded owner exception OR
+      approving an L-free replacement code (deprecate+recreate per
+      D-030 rule 5). **24/28 size codes seed today; alpha L cannot**
+- [ ] Install Docker Desktop on the development machine
+      (`brew install --cask docker`), then run
+      `python3 local/scripts/local_env.py up` and re-run the smoke
+      test to convert the 3 skipped checks to passes
+- [ ] Install openpyxl to render the .xlsx fixture
+      (`pip install openpyxl`, then re-run `make_fixtures.py`)
+- [ ] WooCommerce plugin activation + store configuration inside the
+      local instance (implementation-time verification points per
+      phase-03-3 §5)
+
+Batch 3+ — remaining Phase 3 work (OPEN, in order):
+
+- [x] ~~Owner decision: D-048 price-sync architecture proposal~~ —
+      **Resolved 2026-09-13: Option A (canonical-layer projection)
+      owner-approved** (alternatives B/C not chosen)
+- [x] ~~Owner decisions: D-054 (Docker Compose local stack), D-055
+      (relational canonical database), D-056 (local media emulator)~~ —
+      **Resolved 2026-09-13: all three owner-approved**
+- [x] ~~Local scaffolding after approval~~ — **done in Batch 4**
+      (Compose stack, .gitignore, .env.example, canonical schema +
+      registry/vocabulary seeding, mock Woo adapter, media emulator,
+      price-projection harness, Excel fixtures, reset tooling — see the
+      Batch 4 section above)
+- [ ] WooCommerce environment selection/setup (hosting/VPS —
+      register row 6; environment separation per RULES §18;
+      production/staging only — the local stack is separate)
+- [ ] Media storage provider selection (D-049 direction approved;
+      provider deferred to Phase 4)
+- [ ] API credential configuration (after environment exists;
+      secrets never in this repository — D-045/RULES §16)
+- [ ] Mapping registry implementation (D-034/D-046 — required before
+      any sync implementation)
+- [ ] Controlled-vocabulary seed into Woo (categories D-036;
+      pa_color + family size attributes D-037 — one-time,
+      owner-approved data)
+- [ ] Product/variation synchronization implementation (D-048 now
+      approved; prerequisites: environment, credentials, registry
+      seed)
+- [ ] Automated tests for the sync flows per the D-052 strategy
+      (unit + mock + staging; RULES §23 failure cases)
+- [ ] Sandbox/test environment verification
+- [ ] Inventory implementation (blocked — D-016.I open)
+- [ ] Media implementation (blocked — D-040 sub-decision open)
+- [ ] n8n workflows (blocked — Phase 5)
+
 ## Blocked / do-not-start
 
 Forbidden until their phase begins (MASTER_PLAN §16). Do not start
 these even if they seem helpful:
 
-- [ ] Phase 3 — WooCommerce foundation (no WordPress/WooCommerce work,
-      no field mapping, no configuration)
+- [x] ~~Phase 3 — WooCommerce foundation~~ — **unblocked (2026-09-12,
+      owner opened Phase 3)**; Batch 1 design recorded via
+      D-034–D-045 (see below)
 - [ ] Phase 4 — Infrastructure (no hosting, DNS, backups setup)
 - [ ] Phase 5 — n8n foundation (no workflows, no credentials)
 - [ ] Phase 6 — Notion Business OS (no Notion workspace automation)

@@ -17,6 +17,9 @@ supporting material: shared vocabulary and per-phase working documents.
 | [phases/phase-02-product-data-system.md](phases/phase-02-product-data-system.md) | Phase 2 — Product Data System (closed; decision set D-014–D-030). |
 | [phases/phase-02-5-business-data-configuration.md](phases/phase-02-5-business-data-configuration.md) | Phase 2.5 — Business Data Configuration (owner-approved store structure, Batches 1–3). |
 | [phases/phase-02-5-excel-master-template.md](phases/phase-02-5-excel-master-template.md) | Phase 2.5 — Product Master Excel template: physical workbook contract (D-033). |
+| [phases/phase-03-1-woocommerce-foundation.md](phases/phase-03-1-woocommerce-foundation.md) | Phase 3 — WooCommerce Foundation: identity/type/category/attribute/price/lifecycle/media/inventory mapping, API/n8n/security/idempotency contracts (D-034–D-045). |
+| [phases/phase-03-2-woocommerce-sync-architecture.md](phases/phase-03-2-woocommerce-sync-architecture.md) | Phase 3 — WooCommerce Sync Architecture: mapping registry, field-level sync + CRUD contracts, price-sync resolution (D-048 Option A, approved), authority matrix, media direction, non-registry attributes, test strategy (D-046–D-052). |
+| [phases/phase-03-3-local-development-environment.md](phases/phase-03-3-local-development-environment.md) | Phase 3 — Local Development Environment: local-first architecture (D-053), Docker Compose runtime (D-054), canonical PostgreSQL database (D-055), local media emulator (D-056) — all owner-approved; D-048 price-projection test matrix, Excel test matrix, promotion contract. Batch 4 scaffolding implemented under `local/` (guide: `local/README.md`). |
 
 ## Conventions
 

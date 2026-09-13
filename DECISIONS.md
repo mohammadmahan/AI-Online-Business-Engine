@@ -55,6 +55,29 @@ major decisions (PROJECT_RULES §3).
 | D-031 | Business data configuration — Batch 1 (store structure) | **Approved** (2026-09-12, owner) |
 | D-032 | Business data configuration — Batch 2 (color/size SKU-code mappings) | **Approved** (2026-09-12, owner; incl. O/I/L-safe code corrections) |
 | D-033 | Product Master Excel template — physical workbook contract | **Approved** (2026-09-12, owner) |
+| D-034 | WooCommerce identity mapping & mapping registry | **Approved** (2026-09-12, owner) |
+| D-035 | Simple vs variable product-type mapping | **Approved** (2026-09-12, owner) |
+| D-036 | WooCommerce category mapping | **Approved** (2026-09-12, owner) |
+| D-037 | WooCommerce attribute architecture & size-family strategy | **Approved** (2026-09-12, owner) |
+| D-038 | WooCommerce price mapping | **Approved** (divergence sub-gate resolved via D-048) |
+| D-039 | Lifecycle & publication projection | **Approved** (2026-09-12, owner) |
+| D-040 | Media mapping | **Approved** (storage sub-decision open) |
+| D-041 | Inventory boundary (Phase 3) | **Approved** (D-016.I remains open) |
+| D-042 | Synchronization boundary & n8n responsibility split | **Approved** (2026-09-12, owner) |
+| D-043 | WooCommerce API contract (conceptual) | **Approved** (implementation-time verification points) |
+| D-044 | Sync idempotency & error handling | **Approved** (2026-09-12, owner) |
+| D-045 | Security & credentials boundary | **Approved** (2026-09-12, owner) |
+| D-046 | WooCommerce mapping registry (conceptual design) | **Approved** (2026-09-12, owner) |
+| D-047 | Field-level sync contract & CRUD contract | **Approved** (2026-09-12, owner) |
+| D-048 | Price-sync architecture — canonical-layer projection (D-038 sub-gate resolution) | **Approved** (2026-09-13, owner — Option A) |
+| D-049 | Media storage direction | **Approved** (provider deferred to Phase 4) |
+| D-050 | Green/Yellow/Red authority matrix for Woo operations | **Approved** (2026-09-12, owner) |
+| D-051 | Non-registry attribute representation | **Approved** (2026-09-12, owner) |
+| D-052 | Test/sandbox strategy | **Approved** (2026-09-12, owner; execution in Batch 3+) |
+| D-053 | Local-first development environment + Local → Staging → Production promotion model | **Approved** (2026-09-13, owner directive) |
+| D-054 | Local runtime technology — Docker Compose stack | **Approved** (2026-09-13, owner) |
+| D-055 | Canonical project data storage — relational application database (PostgreSQL) | **Approved** (2026-09-13, owner) |
+| D-056 | Local media — S3-compatible object-storage emulator (D-049 local equivalent) | **Approved** (2026-09-13, owner) |
 
 ## D-001 — Reusable AI-first engine direction
 
@@ -1306,6 +1329,666 @@ major decisions (PROJECT_RULES §3).
   D-025, D-031, D-032;
   `docs/phases/phase-02-5-excel-master-template.md`.
 
+## D-034 — WooCommerce identity mapping & mapping registry
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The five identifiers are mapped, never conflated
+  (extends D-014/D-015/D-017 to the WooCommerce context; normative
+  design in `docs/phases/phase-03-1-woocommerce-foundation.md` §2):
+  1. **Product ID** (`P00001`) — ours, business-facing, immutable;
+     stored in Woo for reference; **not** the Woo product ID.
+  2. **Variant ID** (UUIDv4) — ours, internal identity, immutable;
+     **not** the SKU and **not** the Woo variation ID.
+  3. **SKU** — ours, business/inventory identifier; stored in Woo's
+     `sku` field; never Woo's internal identity.
+  4. **WooCommerce product ID** — platform-owned numeric, generated
+     by Woo at creation.
+  5. **WooCommerce variation ID** — platform-owned numeric, generated
+     by Woo at creation.
+  A conceptual **mapping registry** connects them one-to-one:
+  Product ID ↔ Woo product ID; Variant ID ↔ Woo variation ID; color
+  term ↔ `pa_color` term ID; family-scoped size term ↔
+  `pa_size-{family}` term ID; category term (primary + leaf) ↔ Woo
+  category ID. The registry is written only by approved deterministic
+  tooling at first successful creation/read-back; conflicts route to
+  human review; it is never hand-maintained, never fuzzy-matched, and
+  **does not exist yet** — it is a Phase 3 implementation requirement.
+  Woo numeric IDs are internal technical identifiers, never our
+  business identity, never renumbered/reassigned; lost linkages are
+  repaired by human decision, not silently.
+- **Rationale:** Preserves D-015/D-017 identity separation at the
+  WooCommerce boundary; the registry is the smallest deterministic
+  mechanism that prevents duplicate creation and identity drift.
+- **Source:** D-003, D-014, D-015, D-017; PROJECT_RULES §13, §25;
+  human owner approval (2026-09-12).
+
+## D-035 — Simple vs variable product-type mapping
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Exactly two WooCommerce product types, mapped
+  deterministically from the D-018 active axes (foundation doc §3):
+  1. **Zero active axes** → Woo type `simple`; SKU = Product ID.
+  2. **≥ 1 active axis** (Color only, Size only, or Color + Size) →
+     Woo type `variable` with the corresponding attribute(s) and one
+     variation per active-axis combination.
+  A single-variation variable product stays `variable` (no demotion
+  heuristic). Each of our variants maps 1:1 to a Woo variation,
+  keyed through the D-034 registry. Product-level-only differences
+  are separate products (D-018 rule 4) and separate Woo products. No
+  third product type exists; non-Color/Size attributes never create
+  variations.
+- **Rationale:** Faithful, deterministic realization of D-018/D-031
+  in WooCommerce's native model without new concepts.
+- **Source:** D-018, D-031; MASTER_PLAN §4; human owner approval
+  (2026-09-12).
+
+## D-036 — WooCommerce category mapping
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The exact Batch 1 tree (D-031) maps to a two-level
+  WooCommerce product-category hierarchy (foundation doc §4): the two
+  primaries (پوشاک زنانه، پوشاک مردانه) are top-level categories;
+  each of the 12 women's and 8 men's leaves is a child category under
+  its own primary. **Duplicate leaf names stay distinguishable**
+  (تیشرت زنانه vs تیشرت مردانه) — separate child categories under
+  separate parents; no leaf is merged or shared across primaries. The
+  D-033 columns map 1:1 (دسته‌بندی اصلی → parent; زیردسته →
+  primary-scoped child); a leaf under the wrong primary is INVALID.
+  No extra categories; no runtime category creation (the seed is the
+  owner-approved D-031 tree). Category is not a variant-defining axis
+  and creates no Woo attribute.
+- **Rationale:** The simplest faithful mapping that preserves the
+  owner-approved term structure exactly.
+- **Source:** D-031, D-018, D-033; human owner approval (2026-09-12).
+
+## D-037 — WooCommerce attribute architecture & size-family strategy
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** WooCommerce attribute architecture (foundation doc
+  §5):
+  1. **Color:** one global attribute `pa_color` with the 25
+     owner-approved terms (D-031); variation-defining; term display
+     name = Persian canonical value; term slug = lowercase D-032
+     code; the D-032 code remains our canonical code; the Woo term ID
+     is a mapped technical id (registry).
+  2. **Size:** **one global attribute per approved family** —
+     `pa_size-alpha`, `pa_size-numeric`, `pa_size-waist` — because a
+     single shared size attribute would collapse Numeric 42 and Pants
+     Waist 42 into one term and destroy the D-020/D-032 family-scoped
+     semantics. A product uses exactly the attribute of its declared
+     family (product-level context, D-020 rule 3); Numeric 42 and
+     Pants Waist 42 remain distinct Woo terms; no merge, no
+     equivalence, no automatic conversion. Alpha slugs are the
+     lowercase D-032 codes (`lg`, `xg`, …); display names stay
+     conventional (`L`, `XL`) per D-020 rule 4.
+  3. **Size Family** is **not** a customer-facing attribute — it
+     remains internal mapping/context that selects which size
+     attribute a product uses.
+  4. **All other approved attributes** (Brand, Material, Pattern,
+     Style, Season, Usage, Collar, Sleeve, Length, Closure, Fit) are
+     **not** created as Woo global attributes now — their Woo
+     representation is an **OPEN** decision, because promotion into
+     controlled vocabularies is a separate owner decision (D-019/
+     D-031); only Color and Size are variation attributes (D-018).
+  5. Latin slugs are internal identifiers, **not** the SEO URL
+     decision (D-016.M stays open). Runtime term creation does not
+     exist; terms are seeded from the owner-approved registries
+     (D-019: humans create, AI proposes only).
+- **Rationale:** Preserves family-scoped size semantics in a platform
+  whose attributes are flat; keeps variation-defining and
+  informational attributes strictly separated; invents no vocabulary.
+- **Source:** D-018, D-020, D-029, D-031, D-032; D-014 rule 7;
+  human owner approval (2026-09-12).
+
+## D-038 — WooCommerce price mapping
+
+- **Status:** **Approved** — the price-divergence sub-gate is now
+  **resolved via D-048** (Option A, owner-approved 2026-09-13);
+  D-024/D-025 semantics are untouched.
+- **Decision:** Field mapping (foundation doc §6; numeric Toman,
+  D-010): our list price → Woo `regular_price` (product); variant
+  override → variation `regular_price`; sale price (+ validity end) →
+  `sale_price` (+ sale-end field; no start-date field is used —
+  D-025 has no start scheduling). Pre-write validation: numeric
+  integers only, formatted strings rejected; sale < applicable base;
+  sale ≥ base rejected, never clamped; zero/negative effective price
+  invalid; expired sales ignored; unresolved base price never written
+  or guessed; AI never creates/changes a production price (Red tier).
+  **Known divergence (documented, not hidden):** our D-024 effective
+  precedence is *valid variant sale → valid product sale → variant
+  override → product list price*; Woo's native fallback for a
+  variation commonly does not cascade a parent-level sale onto
+  variations carrying their own prices, so the case "product-level
+  sale + variant override + no variant sale" can display differently.
+  Candidate resolutions — ~~OPEN owner sub-gate~~ **resolved via
+  D-048 (owner-approved 2026-09-13): A** — approved tooling
+  materializes the canonical resolution into the displayed fields at
+  each affected change (base fields never mutated); **B)** config
+  constraint and **C)** accept Woo-native display were the
+  alternatives, not chosen. The divergence case is now resolved
+  deterministically per D-048. Exact Woo native behavior is an
+  implementation-time verification point.
+- **Rationale:** Maps D-024/D-025 1:1 without changing them; names
+  the real platform conflict instead of hiding it.
+- **Source:** D-010, D-024, D-025; PROJECT_RULES §11, §32; human
+  owner approval (2026-09-12).
+
+## D-039 — Lifecycle & publication projection
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Our D-022/D-023 state machines **remain canonical**;
+  WooCommerce's single post `status` field cannot represent both, so
+  Woo receives a **projection** (foundation doc §7):
+  `draft` → no Woo record yet (creation at entry to `active`);
+  `active` + `unpublished`/`in_review` → hidden record;
+  `active` + `published` → published (only after the Red-tier human
+  approval, executed by approved tooling);
+  `active` + `withdrawn` → hidden, preserved;
+  `archived` (any publication) → hidden, preserved, **never
+  deleted** (deletion is destructive, RULES §22). No new business
+  state is invented; a native Woo status is never claimed equivalent
+  to a D-022/D-023 state — it is a projection of one. Woo transitions
+  execute only after the corresponding human-approved canonical
+  transition; forbidden canonical transitions are impossible in the
+  projection. AI never executes transitions. Field-level projection
+  (status vs visibility fields per Woo version) is an
+  implementation-time verification point; the contract above is
+  normative.
+- **Rationale:** Keeps the approved state machines authoritative
+  while producing a deterministic, human-gated rendering into Woo.
+- **Source:** D-022, D-023, D-021; PROJECT_RULES §22, §32; human
+  owner approval (2026-09-12).
+
+## D-040 — Media mapping
+
+- **Status:** **Approved** — media **storage sub-decision OPEN**.
+- **Decision:** D-033 media references map to WooCommerce product
+  images (foundation doc §8): first reference → primary/featured
+  image; remaining references → gallery in the given
+  (`|`-separated) order. Alt text: deterministic default = product
+  name; richer alt text may come from Media records/AI suggestions
+  (Yellow tier, provenance-tagged); nothing invented. References
+  stay **references, not binaries**: whether the implementation
+  uploads binaries into the Woo media library or attaches external
+  URLs is an **OPEN storage decision** (no provider chosen, nothing
+  uploaded, no media infrastructure in this batch). Media sync runs
+  via approved tooling after human promotion, like all writes. The
+  D-021 publication minimum (≥ 1 image) is unaffected.
+- **Rationale:** Completes the publication-minimum path to the
+  storefront without choosing storage prematurely.
+- **Source:** D-021, D-026, D-033; human owner approval (2026-09-12).
+
+## D-041 — Inventory boundary (Phase 3)
+
+- **Status:** **Approved** (the boundary) — **D-016.I remains OPEN**;
+  no inventory architecture is designed here.
+- **Decision:** Phase 3 establishes only (foundation doc §9):
+  1. **Where inventory will eventually be read:** WooCommerce
+     (transactional inventory Source of Truth, D-003, RULES §12).
+  2. **What may eventually write it:** only approved deterministic
+     tooling through idempotent, auditable flows (future phase);
+     never AI; never Excel (the D-033 workbook has no stock columns).
+  3. **What Phase 3 Batch 1 does NOT implement:** stock
+     synchronization, stock fields at sync time, stock writes,
+     order/stock event handling. No stock field is added to the Excel
+     contract; D-016.I is not closed.
+- **Rationale:** Fixes the boundary without pre-empting the still-
+  open inventory design.
+- **Source:** D-003, D-016.I, D-028, D-033; PROJECT_RULES §12; human
+  owner approval (2026-09-12).
+
+## D-042 — Synchronization boundary & n8n responsibility split
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** Responsibility split unchanged (D-003/D-004/D-005):
+  Product Master = canonical business data; n8n = orchestration only
+  (triggers, sequencing, retries, event records, error routing,
+  notifications — never a data store, never a source of truth);
+  WooCommerce = transactional execution; AI = proposal/enrichment
+  (Yellow tier); Human = business-critical authority. Sync directions
+  are **explicit per field — no default bidirectional field sync**
+  (foundation doc §11):
+  1. **Product Master → Woo:** identity, taxonomy, attributes,
+     prices, descriptions/SEO, media refs, publication projection —
+     authoritative source = Product Master; trigger = human-promoted
+     sync run (D-027 event); full pre-write validation; Red tier for
+     publish and price-affecting writes; conflicts → human review,
+     never silent overwrite.
+  2. **Woo → Product Master:** created Woo IDs only (registry
+     write-back) — technical facts, automatic and logged; duplicates
+     → human review.
+  3. **Woo → operational views (future):** stock, orders, customers
+     as read-only references (minimization, RULES §28).
+  4. **Woo → Product Master field sync of PM-owned fields:** **not
+     permitted**; Woo-side manual edits of PM-owned fields are
+     divergences — detected on read-back comparison and routed to
+     human review; no silent overwrite in either direction.
+  Woo-owned transactional fields (stock, orders, customers, coupons)
+  are never written by Product Master flows (D-041, D-016.I open).
+- **Rationale:** Prevents silent bidirectional drift; keeps each
+  system's authority exactly where the approved architecture put it.
+- **Source:** D-003–D-007, D-017, D-027, D-041; PROJECT_RULES §13,
+  §14, §25, §28; human owner approval (2026-09-12).
+
+## D-043 — WooCommerce API contract (conceptual)
+
+- **Status:** **Approved** as a conceptual contract — exact endpoint
+  versions and field-level API details are **implementation-time
+  verification points**; no API is called and no code is written in
+  this batch.
+- **Decision:** Required resource areas and their contracts (official
+  WooCommerce REST API family, D-012 ladder; foundation doc §10):
+  products (create/update/read), variations (batch create/update/
+  read), product categories (one-time seed/read), product attributes
+  (one-time seed/read), attribute terms (one-time seed/read), media
+  (upload or reference per D-040). Every write is idempotent under
+  D-027 (one event per operation) and keyed by the D-034 registry
+  (create only if the registry shows no linkage, with deterministic
+  lookup as second guard). Source-of-truth direction per D-042
+  (business fields ours → Woo; Woo IDs back to the registry). Human
+  approval: record creation follows human-promoted flows; **delete is
+  Red tier / destructive (RULES §22)** — prefer hide/archive over
+  delete. Error behavior per D-044. **No credentials exist and none
+  are requested in this batch.**
+- **Rationale:** Fixes the integration surface and its guarantees
+  without writing code or inventing provider specifics.
+- **Source:** D-012, D-017, D-027, D-034, D-042; PROJECT_RULES §15,
+  §22, §25; human owner approval (2026-09-12).
+
+## D-044 — Sync idempotency & error handling
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:**
+  1. **Identifier-level (D-017):** Product ID / Variant ID / SKU stay
+     the identity keys of our data; Woo identifiers are mapped via
+     the D-034 registry; creates run only when the registry shows no
+     existing linkage; duplicates are flagged, never merged; SKU is
+     never Woo's internal identity and never a fuzzy-match key.
+  2. **Event-level (D-027):** every sync operation is an event with a
+     (source system, event ID) key; identical repeats skipped and
+     logged; conflicting repeats are integrity errors → human review;
+     terminal states never re-entered. The two mechanisms remain
+     distinct and complementary.
+  3. **Error classification (foundation doc §12):** retryable —
+     Woo/network unavailability, timeout-before-response, ambiguous
+     timeout (retry only after read-back reconciliation, never blind
+     re-create), rate limiting (respect provider backoff), partial
+     response; non-retryable — authentication failure (halt, human
+     fixes credentials), our validation failure (human corrects the
+     data), duplicate/conflicting resource (human review, no silent
+     adoption), malformed response, immutable identifier mismatch
+     (integrity error, never silently relinked). Retry counts/backoff
+     are set per workflow at Phase 5 — no arbitrary numbers invented
+     here. Human review exists for every data-integrity conflict;
+     errors are never hidden (RULES §24, §41).
+- **Rationale:** Extends the approved idempotency decisions to the
+  WooCommerce boundary with deterministic, honest failure behavior.
+- **Source:** D-017, D-027, D-034; PROJECT_RULES §24–§25, §41; human
+  owner approval (2026-09-12).
+
+## D-045 — Security & credentials boundary
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The credential boundary for the WooCommerce/n8n
+  integration (no secrets exist yet; none requested in this batch;
+  RULES §16–§18, §27 restated for this context):
+  1. Future secrets — WooCommerce API credentials, n8n credentials,
+     hosting credentials (Phase 4), external API credentials — are
+     **never** stored in Git, Markdown/docs, Excel, AI prompts, logs,
+     or hard-coded workflow nodes.
+  2. Stored only via environment/secret-management at implementation
+     time; the secret-management tooling selection remains register
+     row 8 (OPEN).
+  3. **Least privilege:** read-only credentials where possible;
+     write credentials only for approved flows; Freebuff and AI
+     agents never receive unrestricted production credentials.
+  4. Separate credentials per environment (development/staging/
+     production; RULES §18); no experimental code against production.
+  5. Exposure → STOP and report immediately; rotate when appropriate.
+  No secret-management implementation happens in this batch.
+- **Rationale:** Applies the project's standing security rules to the
+  Phase 3 integration surface before any credential exists.
+- **Source:** PROJECT_RULES §16–§18, §27; SECURITY.md §1–§3; human
+  owner approval (2026-09-12).
+
+## D-046 — WooCommerce mapping registry (conceptual design)
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The complete conceptual design of the D-034 mapping
+  registry (normative in
+  `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §2):
+  1. **Entry types / authority:** Product (Product ID ↔ Woo product
+     ID); Variation (Variant ID ↔ Woo variation ID); Category
+     (primary+leaf term ↔ Woo category ID); Color term (↔ `pa_color`
+     term ID); Size term (family-scoped pair ↔ `pa_size-{family}`
+     term ID); Media reference (↔ Woo attachment ID). The canonical
+     side is always authoritative; Woo IDs are technical facts
+     written back after creation; entries are never derived by fuzzy
+     name matching.
+  2. **Uniqueness:** one active entry per canonical key, and a Woo ID
+     in at most one active entry per type (both directions enforced;
+     violations are MAPPING_CONFLICT integrity errors). The SKU is
+     stored as **data, not identity** — the SKU→Variant ID
+     association is derived and validated, never the lookup key
+     (D-015/D-017 unchanged).
+  3. **Field classes:** immutable (canonical key, creation
+     timestamp); write-once (Woo ID/slug at creation — changed only
+     through the stale-recovery flow); mutable metadata (status
+     active/stale/orphaned, last-verified, notes).
+  4. **Creation:** approved deterministic tooling only, inside a
+     human-promoted sync flow; categories/terms pre-seeded from the
+     owner-approved registries (D-031/D-032) by create-if-absent on
+     exact keys; products/variations create only on registry miss;
+     D-027 event per creation; D-026 provenance per entry.
+  5. **Updates:** Woo IDs never updated in place — replacement goes
+     through stale + human review + a new entry; metadata maintained
+     by tooling, logged.
+  6. **Lookup:** exact key → single active entry; no fuzzy matching,
+     no name search, no confidence scoring; deterministic second
+     guard (read Woo by stored external reference) before any create;
+     a hit without a registry entry = duplicate-resource conflict →
+     human review, never silent adoption.
+  7. **Missing/stale/conflicting/orphaned states:** missing = normal
+     pre-create path; stale = entry marked (never deleted), re-link
+     after human review; conflicting = integrity error → human
+     review, never silently re-linked; orphaned = flagged for human
+     decision (hide/preserve by default; destructive cleanup needs
+     explicit approval, RULES §22).
+  8. **Provenance/idempotency:** entries carry D-026 provenance
+     (append-only); the registry is the identifier-level (D-017) half
+     of operational idempotency — distinct from D-027 event-level.
+- **Rationale:** The complete deterministic linkage model that makes
+  duplicate prevention and safe reconciliation possible; physical
+  storage technology remains implementation-deferred.
+- **Source:** D-014, D-015, D-017, D-026, D-027, D-034, D-042, D-044;
+  PROJECT_RULES §10, §22, §25; human owner approval (2026-09-12).
+
+## D-047 — Field-level sync contract & CRUD contract
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The field-level synchronization contract and the
+  product/variation CRUD contract, as specified in full in
+  `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §3–§4
+  and §7:
+  1. **Field-level rules** for every synced field group (identity,
+     names, descriptions, categories, Color, Size, prices/sale
+     prices, lifecycle, publication, media, inventory, SEO,
+     non-registry attributes): canonical owner, Woo projection,
+     direction (always PM → Woo; Woo IDs back to the registry),
+     allowed write actor (approved deterministic tooling), Woo-side
+     manual edits not allowed (divergence → review queue, canonical
+     value preserved, optional human-authorized re-projection —
+     never silent overwrite, never Woo-as-truth), UNKNOWN/
+     NOT_PROVIDED behavior preserved per field, AI may
+     propose/draft/suggest only (Yellow, provenance-tagged),
+     deterministic tooling executes only within human-promoted flows,
+     approval = run promotion (Red tier where the field is
+     publication- or price-affecting). **No default bidirectional
+     sync anywhere** (D-042). Inventory is Woo-owned; PM never
+     writes stock (D-041). SEO slug stays unprojected while the
+     language gate is open (D-016.M).
+  2. **CRUD contract:** Create/Update/Read Product, Create/Update/
+     Read Variation, hide/withdraw/archive behavior — each with
+     preconditions, canonical validation, registry lookup, D-027
+     idempotency key, payload validation, post-write read-back
+     verification, failure handling per D-044, compensation concept
+     (hide + flag; **no destructive delete by default**, RULES §22),
+     and audit/provenance. `draft` products have no Woo record (D-039);
+     reads are verification/reconciliation only — never a source of
+     business truth.
+- **Rationale:** One deterministic, per-field operational contract
+  implementing D-042's direction rules without opening any
+  bidirectional drift surface.
+- **Source:** D-021–D-023, D-026, D-027, D-034–D-045; PROJECT_RULES
+  §22, §24–§25, §32; human owner approval (2026-09-12).
+
+## D-048 — Price-sync architecture (D-038 sub-gate resolution)
+
+- **Status:** **Approved** (2026-09-13, human owner) — **Option A:
+  canonical-layer projection.**
+- **Decision:** Resolves the D-038 open sub-gate with
+  **Option A — canonical-layer projection ("materialize at sync")**:
+  approved deterministic tooling computes the D-024/D-025 effective
+  price resolution and writes it into the WooCommerce fields Woo
+  actually displays (variation `sale_price`/`regular_price`) at every
+  affected change; base/list and override fields are never mutated;
+  sale-expiry is handled by deterministic scheduled re-projection
+  (surfaced, logged, bounded — never silent). Full problem analysis,
+  candidate comparison (A/B/C), and consequences:
+  `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §1.
+- **Why this is a technical consequence, not a new business rule**
+  (stated explicitly per the batch instruction): D-003 + D-024/D-025
+  already fix the canonical price resolution as ours, and D-042
+  already fixes the direction (PM → Woo projection, never Woo → PM
+  for PM-owned fields). Option A changes no price value, no
+  precedence, and no approval tier — it only chooses *where* the
+  approved resolution is rendered. Option B would invent a new
+  business restriction (owner-gated); Option C would knowingly
+  display a price contradicting D-024 (a hidden failure on a Red-tier
+  value, RULES §24/§41). The owner gate is limited to confirming this
+  architectural reading.
+- **Consequences if approved:** Woo price fields for PM-owned
+  products become projections (never canonical, never hand-edited as
+  truth — Woo-side price edits are Red-tier divergences); canonical
+  inputs unchanged; every price-affecting write stays Red tier inside
+  human-promoted flows; AI never executes; D-038's pre-write
+  validation unchanged; exact Woo sale-date field semantics verified
+  at implementation.
+- **Owner approval (2026-09-13):** Option A approved as recorded;
+  alternatives B (config constraint) and C (accept Woo-native display
+  with human review) were not chosen. D-024/D-025 remain untouched.
+- **Source:** D-010, D-024, D-025, D-038, D-042, D-044; PROJECT_RULES
+  §11, §24, §32, §41; batch design (2026-09-12); owner approval of
+  Option A (2026-09-13).
+
+## D-049 — Media storage direction
+
+- **Status:** **Approved** (2026-09-12, human owner) — architectural
+  direction approved; the concrete **provider/hosting decision remains
+  OPEN** (Phase 4, register row 6).
+- **Decision:** Architectural direction = **external/object storage +
+  Woo references** (options and analysis:
+  `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §9).
+  Media binaries live in dedicated object storage independent of the
+  WordPress install; WooCommerce holds references (featured + gallery
+  per D-040). Rationale: media stays portable across store
+  migrations/rebuilds (D-001 reusability, RULES §35), the backup/
+  restore story stays clean (MASTER_PLAN §10), and image-heavy
+  catalogs do not burden WP-instance disk/bandwidth (relevant for
+  Iranian hosting constraints). Woo Media Library was rejected as the
+  primary store (media entangled with the WP instance; migration/
+  restore burden), and the hybrid option was rejected (two sources of
+  truth for media). No storage is set up in this batch; file identity
+  and duplicate prevention (content-hash dedupe), alt text (D-040),
+  and CDN choices are implementation-phase decisions under Phase 4.
+- **Source:** D-001, D-040, D-033; MASTER_PLAN §10; PROJECT_RULES §35;
+  human owner approval of the direction (2026-09-12).
+
+## D-050 — Green/Yellow/Red authority matrix for WooCommerce operations
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The operational tier classification for Woo
+  operations (`docs/phases/phase-03-2-woocommerce-sync-architecture.md`
+  §8):
+  1. **Green (autonomous):** reads; deterministic validation;
+     registry/safe lookups; dry-run computation; conflict/diff
+     detection and reconciliation *reporting*.
+  2. **Yellow (monitored):** reversible non-destructive projections
+     (hidden-record creation/updates; category/attribute/metadata
+     data on hidden records); low-risk metadata updates; alt-text and
+     AI-proposed enrichments queued for human review.
+  3. **Red (explicit human authorization):** publication projection
+     (`published`); withdrawal; **any price-affecting write** (list/
+     override/sale projections); inventory-changing operations
+     (future); destructive delete; archive/reactivate execution; any
+     operation resolving a critical conflict.
+  Rules: media attachment to *hidden* records = Yellow; media changes
+  affecting a `published` record = Red. When an operation spans
+  tiers, the highest tier applies. AI remains propose/prepare-only;
+  approved tooling executes Red operations only inside human-promoted
+  flows.
+- **Rationale:** Makes the abstract RULES §32 tiers concrete and
+  checkable per WooCommerce operation without granting AI or tooling
+  any new authority.
+- **Source:** MASTER_PLAN §9; PROJECT_RULES §32–§33; D-022, D-023,
+  D-039, D-042; human owner approval (2026-09-12).
+
+## D-051 — Non-registry attribute representation
+
+- **Status:** **Approved** (2026-09-12, human owner)
+- **Decision:** The Woo representation of the product-level attributes
+  outside Registry v1 — Brand, Material, Pattern, Style, Season,
+  Usage, Collar, Sleeve, Length, Closure, Fit:
+  1. **Canonical:** each remains a canonical structured product field
+     (free text, outside Registry v1 — D-029/D-031 unchanged; **no
+     new controlled vocabulary is created automatically**).
+  2. **Woo representation: product meta** (meta/custom fields on the
+     product record) — **not** global attributes (that would imply
+     store-wide vocabularies and D-019 term governance the owner has
+     not granted) and **not** per-product custom attributes (would
+     scatter representation); one deterministic meta representation
+     with provenance-tagged values.
+  3. **Promotion path unchanged:** a future owner decision promoting
+     an attribute into a controlled vocabulary can then move its Woo
+     representation to a global attribute (D-019/D-029 governance
+     applies).
+  4. **Color and Size unchanged:** exactly the D-037 variation-
+     defining global attributes; nothing here touches them.
+  5. Values never invented: NOT_PROVIDED = field omitted; AI may
+     suggest values (Yellow, provenance-tagged).
+- **Rationale:** Closes the representation question without creating
+  vocabularies or expanding variation semantics.
+- **Source:** D-018, D-019, D-029, D-031, D-037; human owner approval
+  (2026-09-12).
+
+## D-052 — Test/sandbox strategy
+
+- **Status:** **Approved** (2026-09-12, human owner) — the strategy is
+  approved; **execution belongs to Batch 3+** and precedes any real
+  connection.
+- **Decision:** The safe testing strategy before any real Woo
+  connection
+  (`docs/phases/phase-03-2-woocommerce-sync-architecture.md` §11):
+  1. Local/unit validation of canonical data and payload builders
+     (D-021/D-024/D-025/D-033 rules) — no network.
+  2. Deterministic mock Woo responses covering the D-043 resource
+     areas with deliberate success/failure/duplicate/timeout/malformed
+     cases per the D-044 classes.
+  3. A separate isolated staging Woo instance (RULES §18) with
+     throwaway credentials — never production.
+  4. Clearly-named test fixtures inside staging only; never real
+     business data.
+  5. Failure simulation: unavailable, auth failure, validation
+     failure, timeout-before-response, ambiguous timeout (read-back
+     reconciliation), rate limiting, partial batch, malformed
+     response.
+  6. Duplicate-event simulation: identical (source, event ID) →
+     skipped_duplicate; conflicting payload → integrity error;
+     double-create attempts blocked by the registry.
+  7. Conflict simulation across the D-044 classes (§6) → correct
+     review-queue routing, no silent resolution.
+  8. Price-divergence simulation: the D-048 case + expiry
+     re-projection window.
+  9. Rollback/compensation tests: hide-and-flag compensation;
+     registry stale/recreate flows.
+  10. **Production-readiness gate:** all of the above green + human
+      review of the test report before any production credential
+      exists (RULES §23, §43).
+- **Source:** PROJECT_RULES §18, §23, §43; D-043, D-044; human owner
+  approval (2026-09-12).
+
+## D-053 — Local-first development environment & promotion model
+
+- **Status:** **Approved** (2026-09-13, owner directive: the project is
+  now explicitly LOCAL-FIRST).
+- **Decision:** All Phase 3 implementation and testing happens first in
+  a **local development environment** (macOS development machine:
+  WordPress + WooCommerce, database, n8n, project services, mock/test
+  services), then promotes along **Local → Staging → Production**
+  without redesign ("change configuration, not business logic").
+  Normative design: `docs/phases/phase-03-3-local-development-
+environment.md`. Business rules, canonical schemas/contracts, sync/
+  CRUD/idempotency/conflict contracts (incl. **D-048 Option A**
+  projection behaviour), validation, authority tiers, adapter
+  interfaces, and log format are **identical across environments**;
+  URLs, credentials, storage provider, seed/test data, observability
+  settings, and sizing are **per-environment**. A local development
+  stack is development tooling (D-007, RULES §18/§43, MASTER_PLAN
+  §11) — it does **not** open Phase 4: no hosting/VPS selection, no
+  production infrastructure, and staging/production env files are
+  created only in their own phases.
+- **Rationale:** Directly implements the owner directive and the
+  approved environment-separation ladder; makes promotion a
+  configuration change rather than a redesign.
+- **Source:** D-001, D-007, D-012, D-013, D-042, D-047, D-050, D-052;
+  MASTER_PLAN §11/§16; PROJECT_RULES §18, §43; owner directive
+  (2026-09-13).
+
+## D-054 — Local runtime technology (Docker Compose)
+
+- **Status:** **Approved** (2026-09-13, human owner).
+- **Decision:** **Docker Compose** is the default local
+  runtime: one declarative stack for `wordpress` (with WooCommerce),
+  `woodb` (MySQL/MariaDB), `canonical-db` (per D-055), `n8n`, the
+  media store (per D-056), and the `mock-woo` adapter; named volumes
+  (`woo_data`, `canonical_data`, `n8n_data`, `media_data`); shared
+  internal network; **localhost-only** published ports; documented
+  destroy/recreate reset. Alternatives analyzed and rejected: native
+  macOS installs (host drift, manual version pinning, poor reset/
+  portability for 6+ cooperating services) and a remote dev VPS
+  (Phase 4 hosting territory; violates local-first). Optimizes for
+  reproducibility, easy reset, portability, similarity to future
+  server deployment, and low operational complexity (RULES §44).
+  The Compose stack and local scaffolding were implemented in Phase 3
+  Batch 4 (`local/infra/docker-compose.yml`; `local/README.md`) after
+  this approval.
+- **Source:** D-007, D-013, D-053; PROJECT_RULES §18, §44; batch
+  design (2026-09-13); owner approval (2026-09-13).
+
+## D-055 — Canonical project data storage (relational application
+ database)
+
+- **Status:** **Approved** (2026-09-13, human owner; database
+  architecture per RULES §4 approval flow).
+- **Decision:** Canonical project data (Product Master
+  entities, mapping registry, event/idempotency store, provenance)
+  is stored in a **relational application database — PostgreSQL** —
+  locally, as **logically separate schemas in one physical local
+  instance** (staging/production may separate instances later without
+  schema change). Rejected alternatives: structured local files
+  (cannot enforce the approved D-046 bidirectional uniqueness, D-027
+  atomic (source, event ID) keying, or D-026 append-only semantics
+  without hand-building a database — RULES §5) and WooCommerce as
+  canonical (**forbidden** — contradicts D-003/D-042: Woo is the
+  projection target, never our canonical store). The approved
+  uniqueness/idempotency/provenance constraints are enforced natively
+  by the database. This choice changes no business rule — it only
+  fixes the physical mechanism for the already-approved logical
+  model (DATA_MODEL §13); the initial physical schema was implemented
+  in Phase 3 Batch 4 (`local/db/schema.sql`).
+- **Source:** D-015, D-017, D-026, D-027, D-034, D-046; DATA_MODEL
+  §13; PROJECT_RULES §4, §5, §21; batch design (2026-09-13); owner
+  approval (2026-09-13).
+
+## D-056 — Local media storage (S3-compatible emulator)
+
+- **Status:** **Approved** (2026-09-13, human owner).
+- **Decision:** The local equivalent of the approved
+  D-049 media direction is an **S3-compatible object-storage emulator
+  (e.g. MinIO)** inside the local stack, behind the same adapter
+  boundary the real Phase 4 provider will use — swapping emulator →
+  real provider later changes only endpoint/credential configuration,
+  never business logic (RULES §35). Woo holds references (featured +
+  gallery per D-040); binaries never enter Git. Rejected: direct Woo
+  media library even locally (would contradict the approved D-049
+  direction and bake in a second pattern) and a plain filesystem
+  (loses the object-API surface). Content-hash dedupe and file
+  identity are implementation details (D-049 notes); the **real
+  production media provider remains OPEN/Phase 4 (owner-gated)** —
+  this decision covers the local emulator only.
+- **Source:** D-033, D-040, D-049, D-053, D-054; PROJECT_RULES §35,
+  §16; batch design (2026-09-13); owner approval (2026-09-13).
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
@@ -1314,10 +1997,10 @@ major decisions (PROJECT_RULES §3).
 | 2 | ~~Truly required product fields~~ — resolved: D-021 **Approved** | Resolved | — | 2 (done) |
 | 3 | Controlled-vocabulary registry v1 — structure resolved (D-029); concrete values **owner-approved via D-031 Batch 1** (2+12+8 categories; 25 color terms; size terms in 3 families); color/size SKU-code mappings **resolved via D-032 Batch 2** (O/I/L-safe); **aliases remain open** | Open (partially resolved) | Aliases | 2 |
 | 4 | Data-entry language for product data | Open | Product data entry | 2 |
-| 5 | WooCommerce field mapping (conceptual → WooCommerce) | Open | WooCommerce foundation | 3 |
+| 5 | ~~WooCommerce field mapping (conceptual → WooCommerce)~~ — resolved via D-034–D-043 (identity/type/category/attribute/price/lifecycle/media mapping + API contract; foundation design in `docs/phases/phase-03-1-woocommerce-foundation.md`) and operationalized via D-046–D-052 (registry design, sync/CRUD contracts, authority matrix, media direction, non-registry representation, test strategy — `docs/phases/phase-03-2-woocommerce-sync-architecture.md`); remaining sub-gate ~~D-048 price-sync proposal~~ resolved (owner-approved 2026-09-13, Option A); media provider (Phase 4) | Open (partially resolved) | Media provider (Phase 4) | 3 (design done) |
 | 6 | WooCommerce hosting / VPS | Open | Store setup | 3–4 |
 | 7 | n8n deployment model (cloud vs self-hosted) | Open | n8n foundation | 5 |
-| 8 | Secret-management tooling | Open | First credential | 5 |
+| 8 | Secret-management tooling | Concept resolved: D-045 + Batch 2 extension (environment separation, reference-based credentials, rotation concept, redaction, Git/prompt exclusion — `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §12); concrete tooling selection **Open** | First credential | 5 |
 | 9 | AI provider(s) | Open | AI Runtime | 7 |
 | 10 | Iranian payment provider | Open | Payment go-live | 12 |
 | 11 | Iranian shipping provider | Open | Shipping go-live | 13 |
@@ -1333,12 +2016,23 @@ major decisions (PROJECT_RULES §3).
 | 21 | ~~Import idempotency strategy~~ — resolved: D-027 **Approved** (event-level) + D-017 (identifier-based) | Resolved | — | 2 (done) |
 | 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
+| 24 | **D-030 ↔ D-032 conflict — size code `LG`** (discovered during Batch 4 implementation, 2026-09-13): the owner-approved D-032 code for Alpha size L (`LG`) contains the letter L, which D-030 rule 1 forbids ("must never contain O, I, or L in any position; no exception is created"). **Both decisions stand; neither may be silently amended.** Resolution options: (a) owner amends D-030 with a recorded exception for `LG`, or (b) owner approves an L-free replacement code with deprecate+recreate per D-030 rule 5. Tracked in `local/canonical/vocab.py` (CODE_CONFLICTS), excluded from the seed by the O/I/L gate, surfaced by every verification; **24/28 size terms seed today — alpha L cannot until resolved** | **Open — owner decision** | Full alpha size seed / alpha-size sync | 3 (now) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
 D-019 (governance), D-020 (architecture), D-021, D-022, D-023, D-024,
 D-025, D-026, D-027, D-028, D-029 (structure), D-030 (governance),
-D-031 (business data configuration, Batch 1), and D-032 (business
-data configuration, Batch 2) are approved; D-016 and
-every item not marked Resolved above remain open — including the
-color/size aliases (item 3) and size-equivalence mappings (item 15).
+D-031 (business data configuration, Batch 1), D-032 (business data
+configuration, Batch 2), D-033 (physical Excel contract),D-034–D-045 (Phase 3 Batch 1 — WooCommerce foundation mapping and
+integration contract), D-046, D-047, D-049, D-050, D-051, D-052
+(Phase 3 Batch 2 — sync architecture), and D-053 (Phase 3 Batch 3 —
+local-first development environment and promotion model) are approved,
+including
+**D-048 — Option A: canonical-layer price projection (owner-approved
+2026-09-13)**; **D-054 (local runtime), D-055 (canonical database),
+D-056 (local media emulator) are owner-approved (2026-09-13)**;
+D-016 and every item not marked
+Resolved above remains open — including the color/size aliases
+(item 3), the size-equivalence mappings
+(item 15), and the media
+provider selection (Phase 4).

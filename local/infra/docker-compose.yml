@@ -1,0 +1,140 @@
+services:
+  wordpress:
+    image: wordpress:6.5-php8.3-apache
+    container_name: engine-local-wordpress
+    depends_on:
+      woodb:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:80"        # localhost only (D-054/§18)
+    environment:
+      WORDPRESS_DB_HOST: woodb:3306
+      WORDPRESS_DB_USER: wp_local
+      WORDPRESS_DB_PASSWORD: wp-local-only        # throwaway local value
+      WORDPRESS_DB_NAME: wordpress_local
+      WORDPRESS_DEBUG: "1"
+    volumes:
+      - woo_data:/var/www/html
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  woodb:
+    image: mysql:8.0
+    container_name: engine-local-mysql
+    environment:
+      MYSQL_DATABASE: wordpress_local
+      MYSQL_USER: wp_local
+      MYSQL_PASSWORD: wp-local-only             # throwaway local value
+      MYSQL_ROOT_PASSWORD: root-local-only      # throwaway local value
+      # Local store semantics: Tehran time, D-010 currency configured
+      # inside WooCommerce at setup (implementation-time verification
+      # point per phase-03-3 §5 — no business rule invented here).
+      TZ: Asia/Tehran
+    volumes:
+      - woo_data_db:/var/lib/mysql
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot",
+             "-proot-local-only"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  canonical-db:
+    image: postgres:16-alpine
+    container_name: engine-local-postgres
+    environment:
+      POSTGRES_DB: business_engine_local
+      POSTGRES_USER: engine_local
+      POSTGRES_PASSWORD: engine-local-only       # throwaway local value
+      TZ: Asia/Tehran
+    ports:
+      - "127.0.0.1:55432:5432"      # localhost only
+    volumes:
+      - canonical_data:/var/lib/postgresql/data
+      # Schema is applied by scripts/apply_schema.py (idempotent);
+      # seeding by scripts/seed_registry.py. Kept out of
+      # /docker-entrypoint-initdb.d so resets are explicit.
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engine_local -d business_engine_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: engine-local-n8n
+    depends_on:
+      canonical-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:15678:5678"      # localhost only
+    environment:
+      - N8N_ENCRYPTION_KEY=engine-local-encryption-only
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_SECURE_COOKIE=false     # required for loopback HTTP locally
+      - GENERIC_TIMEZONE=Asia/Tehran
+      - DB_TYPE=sqlite
+      - DB_SQLITE_POOL_SIZE=5
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  media:
+    # D-056: S3-compatible emulator; the production provider (Phase 4)
+    # is a drop-in behind services/media_store.py.
+    image: minio/minio:latest
+    container_name: engine-local-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:19000:9000"      # S3 API, localhost only
+      - "127.0.0.1:19001:9001"      # console, localhost only
+    environment:
+      MINIO_ROOT_USER: engine-local-media
+      MINIO_ROOT_PASSWORD: engine-local-media-only   # throwaway local
+    volumes:
+      - media_data:/data
+    restart: "no"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mock-woo:
+    # D-052 layer 2: the deterministic mock adapter service. This is
+    # NOT WooCommerce; state comes from services/mock_woo.py fixtures
+    # (local/mock-woo/state.json). No image exists for it yet — the
+    # service wrapper (FastAPI) is deferred with the sync-adapter
+    # implementation, so this entry stays disabled by profile until
+    # then. See docs/phases/phase-03-3 §22 boundary.
+    image: python:3.12-alpine
+    container_name: engine-local-mockwoo
+    entrypoint: ["sh", "-c", "echo 'mock-woo service wrapper deferred (phase 3.2 §22); use services/mock_woo.py in-process for now' && sleep infinity"]
+    profiles: ["deferred"]
+    volumes:
+      - mock_state:/state
+    restart: "no"
+
+volumes:
+  woo_data: {}          # WordPress/Woo files
+  woo_data_db: {}       # MySQL data
+  canonical_data: {}    # PostgreSQL data (canonical/registry/events/provenance)
+  n8n_data: {}
+  media_data: {}        # object storage (emulator)
+  mock_state: {}
+
+# No top-level networks block needed: Compose creates an isolated
+# per-project default bridge network; only 127.0.0.1 ports are
+# published (§18: no public exposure).
