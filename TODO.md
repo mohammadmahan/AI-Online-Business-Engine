@@ -353,6 +353,51 @@ D-056 owner-approved; implementation per phase-03-3 §22 boundary B):
       skipped checks need the running containers (Docker not
       installed on this machine yet)
 
+Batch 4b — local executable architecture (2026-09-13; D-042/D-044/
+D-046/D-047/D-048/D-050/D-026/D-027 as approved; runs offline today,
+against the real canonical DB once Docker exists):
+
+- [x] Sync engine (D-042/D-047): canonical → mapping → projection →
+      mock Woo; D-048 Option A price materialization at sync; D-039
+      projection table (draft = no Woo record; publish = RED-gated);
+      D-014 SKU derivation (Color then Size, approved D-032 codes);
+      D-051 attribute meta; SEO slug NOT projected (D-016.M open);
+      post-write read-back verification
+- [x] D-027 event store (executable): (source_system, event_id) key;
+      identical repeat → skipped_duplicate; conflicting payload →
+      integrity error (human review); terminal states never re-entered;
+      non-terminal retry under the same ID; sync and re-projection
+      kept in separate event namespaces (drift must be re-writable)
+- [x] D-026 provenance engine (executable): five source types;
+      append-only records; review_state only advances; per-field
+      value linkages supersede with full history retained
+- [x] D-046 mapping registry (executable): bidirectional 1:1 active
+      uniqueness; deterministic second guard; Woo IDs write-once;
+      stale/superseded entries archived (never deleted); replacement
+      only via reviewed relink; SKU stored as data, never a key
+- [x] D-050 Green/Yellow/Red operational gate (executable):
+      require_authority() enforces RED = explicit human authorization
+      (publish/withdraw/price-write/conflict-resolution); AI never
+      passes the gate
+- [x] Taxonomy seed into Woo (D-031/D-032/D-036/D-037): 2 primaries +
+      20 leaves, pa_color (25 terms), 3 family-scoped size attributes;
+      idempotent; alpha/L blocked at the D-030 gate (24/28 size terms
+      seeded)
+- [x] Divergence detection (GREEN) + controlled re-projection (RED
+      when price-affecting or published; own D-027 namespace) — Woo
+      hand-edits never silently adopted or overwritten
+- [x] D-044 failure classes (executable): 6 injected classes fail
+      cleanly (event = failed, nothing adopted); ambiguous timeout
+      recovered deterministically via the _pm_pid marker lookup with
+      provenance (never blind re-create, never fuzzy name matching)
+- [x] Compensation: hide-and-flag; no destructive delete (RULES §22)
+- [x] Full test ladder (local/tests/test_ladder.py): **46 tests —
+      43 passed / 3 skipped (need Docker) / 0 failed**; originals:
+      31/31 unit + smoke 9/3/0
+- [ ] Same engine against the REAL canonical PostgreSQL + mock-Woo
+      container (the ladder's live DB layers activate with Docker;
+      logic is unchanged — storage swap only)
+
 Batch 4 — findings and open items:
 
 - [ ] **Owner decision (BLOCKER for full vocabulary seed):** D-032's

@@ -13,9 +13,14 @@ transformed into one another.
 from datetime import date, datetime
 from typing import Optional
 
-from . import identifiers as ident
-from . import prices as pricing
-from . import vocab
+try:                       # package mode (local.canonical.excel)
+    from . import identifiers as ident
+    from . import prices as pricing
+    from . import vocab
+except ImportError:        # flat mode (tests.py / scripts)
+    import identifiers as ident
+    import prices as pricing
+    import vocab
 
 UNKNOWN_TOKEN = "نامشخص"          # explicit UNKNOWN (D-028/D-033)
 PRODUCT_STATUS_MAP = {            # exact canonical mapping (D-033)

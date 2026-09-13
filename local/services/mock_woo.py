@@ -67,7 +67,7 @@ class MockWooAdapter:
         sc = self.failure_scenario
         self.failure_scenario = None  # single-shot, deterministic
         if sc is None:
-            return
+            return None
         if sc == "woo_unavailable":
             raise MockWooError(503, "woocommerce_api_unavailable",
                                "mock: service unavailable")
@@ -77,10 +77,10 @@ class MockWooAdapter:
         if sc == "timeout_before_response":
             raise TimeoutError("mock: timeout before response")
         if sc == "ambiguous_timeout":
-            # Simulate: write happened, response was lost. The caller
-            # must reconcile by read-back (never blind re-create).
-            self._commit(op)
-            raise TimeoutError("mock: ambiguous timeout (write committed)")
+            # The write WILL be committed by the op; only the response
+            # is lost. The caller must reconcile by deterministic
+            # lookup (never blind re-create).
+            return sc
         if sc == "rate_limited":
             raise MockWooError(429, "rate_limited", "mock: slow down")
         if sc == "malformed_response":
@@ -89,6 +89,13 @@ class MockWooAdapter:
             raise MockWooError(400, "rest_invalid_param",
                                "mock: invalid payload")
         # All other scenarios are handled per-op (duplicate/partial).
+        return None
+
+    def _after_write(self, sc):
+        """Deferred ambiguous-timeout: the write committed, the
+        response is lost (deterministic single-shot)."""
+        if sc == "ambiguous_timeout":
+            raise TimeoutError("mock: ambiguous timeout (write committed)")
 
     def _persist(self):
         if self.state_path:
@@ -108,7 +115,7 @@ class MockWooAdapter:
     # ------------------------------------------------------------- --
 
     def create_product(self, payload: dict) -> dict:
-        self._maybe_fail("create_product")
+        sc = self._maybe_fail("create_product")
         with self._lock:
             sku = payload.get("sku")
             if sku:
@@ -119,11 +126,13 @@ class MockWooAdapter:
                                        f"mock: SKU {sku} already exists "
                                        "as product " + str(hit["id"]))
             pid = str(next(self._counter))
+            status = payload.get("status", "draft")
             product = {"id": int(pid), "sku": sku,
-                       "payload": payload, "status": "draft",
+                       "payload": payload, "status": status,
                        "variations": []}
             self._products[pid] = product
             self._persist()
+            self._after_write(sc)
             return dict(product)
 
     def read_product(self, woo_id: int) -> dict:
@@ -135,7 +144,7 @@ class MockWooAdapter:
             return dict(p)
 
     def update_product(self, woo_id: int, changes: dict) -> dict:
-        self._maybe_fail("update_product")
+        sc = self._maybe_fail("update_product")
         with self._lock:
             p = self._products.get(str(woo_id))
             if not p:
@@ -144,10 +153,11 @@ class MockWooAdapter:
             p["payload"].update(changes)
             p["status"] = changes.get("status", p["status"])
             self._persist()
+            self._after_write(sc)
             return dict(p)
 
     def create_variation(self, product_woo_id: int, payload: dict) -> dict:
-        self._maybe_fail("create_variation")
+        sc = self._maybe_fail("create_variation")
         with self._lock:
             p = self._products.get(str(product_woo_id))
             if not p:
@@ -163,6 +173,7 @@ class MockWooAdapter:
             self._variations[vid] = variation
             p["variations"].append(int(vid))
             self._persist()
+            self._after_write(sc)
             return dict(variation)
 
     def read_variation(self, variation_woo_id: int) -> dict:
@@ -176,7 +187,7 @@ class MockWooAdapter:
 
     def update_variation(self, variation_woo_id: int,
                          changes: dict) -> dict:
-        self._maybe_fail("update_variation")
+        sc = self._maybe_fail("update_variation")
         with self._lock:
             v = self._variations.get(str(variation_woo_id))
             if not v:
@@ -185,7 +196,16 @@ class MockWooAdapter:
                                    "mock: no such variation")
             v["payload"].update(changes)
             self._persist()
+            self._after_write(sc)
             return dict(v)
+
+    def find_products_by_meta(self, key: str, value) -> list:
+        """Deterministic reconciliation search by canonical marker
+        (used by failure recovery — never fuzzy name matching)."""
+        with self._lock:
+            return [dict(p) for p in self._products.values()
+                    if any(m.get("key") == key and m.get("value") == value
+                           for m in p["payload"].get("meta_data", []))]
 
     def _find_by_sku(self, sku: str):
         for p in self._products.values():

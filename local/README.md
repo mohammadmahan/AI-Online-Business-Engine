@@ -22,8 +22,12 @@ local/
 │   └── tests.py                #   unit tests (stdlib unittest)
 ├── services/
 │   ├── mock_woo.py             # D-052 layer-2 mock adapter (D-043 iface)
-│   └── media_store.py          # D-049/D-056 abstraction + local backend
-├── scripts/
+│   ├── media_store.py          # D-049/D-056 abstraction + local backend
+│   └── sync_engine.py          # D-042/D-044/046/047/048/050 executable
+│                               #   sync: event store, provenance,
+│                               #   registry, projection, divergence
+├── tests/
+│   └── test_ladder.py          # Batch 4 full test ladder (11 layers)
 │   ├── local_env.py            # up / stop / down / status / reset-volumes
 │   ├── apply_schema.py         # idempotent schema application
 │   ├── seed_registry.py        # owner-approved vocabulary seed + verify
