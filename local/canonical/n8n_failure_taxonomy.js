@@ -127,6 +127,10 @@ function buildErrorLog(errData, executionId) {
   };
 }
 
-module.exports = { D052: D052, CLASSIFIER_RULES: CLASSIFIER_RULES,
-                   classifyD052: classifyD052, REDACTIONS: REDACTIONS,
-                   redactSecrets: redactSecrets, buildErrorLog: buildErrorLog };
+// Export under Node (tests/bridge); harmless no-op inside the n8n Code-node
+// sandbox, where `module` is not defined.
+if (typeof module !== 'undefined' && module && module.exports) {
+  module.exports = { D052: D052, CLASSIFIER_RULES: CLASSIFIER_RULES,
+                     classifyD052: classifyD052, REDACTIONS: REDACTIONS,
+                     redactSecrets: redactSecrets, buildErrorLog: buildErrorLog };
+}

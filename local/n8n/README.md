@@ -48,13 +48,18 @@ Start/stop/reset are handled by the stack tooling
    both inactive by default):
    - `GREEN-OPS-MANUAL-CANONICAL_DB_SMOKE` — M2 sandbox smoke
      (manual trigger → read-only D-055 query → `engine.log.v1` line).
-   - `GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER` — M3 global error router
-     (Error Trigger → D-052 classification + D-045 redaction →
+   - `GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER` — M3/M4 global error
+     router (Error Trigger → D-052 classification + D-045 redaction →
      `engine.log.v1` failure line). Designate it in **Settings →
      Error workflows** so every failed execution routes through it;
      Class A is retryable, B/C/E dead-letter to the HITL queue,
-     D quarantines.
-   The taxonomy logic both workflows may rely on lives in the canonical
-   module `local/canonical/n8n_failure_taxonomy.js` (CI-executed;
-   embedded byte-identically in the router's Code node — the M3 test
-   suite enforces the parity).
+     D quarantines. Terminal classes also emit a tagged
+     `<<<DEADLETTER>>>` stdout line — run
+     `python3 local/scripts/dead_letter_bridge.py --since 24h` to
+     materialize them into the HITL verification queue (D-026
+     provenance attached; enqueue-only, decisions stay human).
+   The shared logic lives in the canonical modules
+   `local/canonical/n8n_failure_taxonomy.js` (classify + redact) and
+   `local/canonical/n8n_dead_letter_sink.js` (terminal routes) — both
+   CI-executed and embedded byte-identically in the router's Code node
+   (the M3/M4 test suites enforce the parity).

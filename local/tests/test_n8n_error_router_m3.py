@@ -146,7 +146,10 @@ class TestN8nErrorRouterM3(unittest.TestCase):
 
     def test_tags_present(self):
         tags = {t.get("name") for t in self.data.get("tags", [])}
-        self.assertTrue({"GREEN", "OPS", "ERROR-ROUTER", "PHASE5-M3"} <= tags)
+        self.assertTrue({"GREEN", "OPS", "ERROR-ROUTER"} <= tags)
+        # milestone tag advances with the workflow's evolution (M3 -> M4)
+        self.assertTrue(any(t.startswith("PHASE5-M") for t in tags),
+                        "workflow must carry its phase-5 milestone tag")
 
     def test_workflow_has_required_id(self):
         self.assertTrue(self.data.get("id"), "workflow-level id required "
@@ -161,7 +164,9 @@ class TestN8nErrorRouterM3(unittest.TestCase):
         conns = self.data.get("connections", {})
         targets = [t["node"] for t in
                    conns.get("Error Trigger", {}).get("main", [[]])[0]]
-        self.assertIn("Classify & Redact Error Payload", targets)
+        self.assertEqual(len(targets), 1)
+        self.assertTrue(targets[0].startswith("Classify"),
+                        "trigger must feed the classify/redact/route node")
 
     def test_no_credential_nodes(self):
         for node in self.data.get("nodes", []):

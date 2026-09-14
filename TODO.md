@@ -523,9 +523,11 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
 - [ ] Sandbox/test environment verification
 - [ ] Inventory implementation (blocked — D-016.I open)
 - [ ] Media implementation (blocked — D-040 sub-decision open)
-- [ ] n8n sync workflows — foundation shipped (Phase 5 M1–M3:
-      standards, sandbox, error router); production sync workflows
-      still await the real WooCommerce connection
+- [ ] n8n sync workflows — foundation **closed** (Phase 5 M1–M4,
+      gate report `docs/reports/phase-5-n8n-foundation-gate-report.md`):
+      standards, sandbox, error router with D-052 dead-letter → HITL
+      bridge (D-026 provenance); production sync workflows still await
+      the real WooCommerce connection
 
 ## Blocked / do-not-start
 
@@ -536,9 +538,11 @@ these even if they seem helpful:
       owner opened Phase 3)**; Batch 1 design recorded via
       D-034–D-045 (see below)
 - [ ] Phase 4 — Infrastructure (no hosting, DNS, backups setup)
-- [x] ~~Phase 5 — n8n foundation~~ — **unblocked (2026-09-14,
-      D-059 Option A approved)**; M1 standards, M2 sandbox workflow,
-      M3 global error router shipped — local-only (D-053); production
-      n8n deployment and real credentials remain forbidden (D-045)
+- [x] ~~Phase 5 — n8n foundation~~ — **unblocked and CLOSED at
+      foundation level (2026-09-14, D-059 Option A; M1–M4 shipped,
+      gate report passed)** — local-only (D-053); owner activation
+      steps (credential + error-workflow designation) pending per the
+      gate report §5; production n8n and real credentials remain
+      forbidden (D-045)
 - [ ] Phase 6 — Notion Business OS (no Notion workspace automation)
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations
