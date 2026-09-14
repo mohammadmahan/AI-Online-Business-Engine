@@ -192,6 +192,9 @@ def main(argv=None) -> int:
         description="Verification queue — HITL review CLI (D-028)")
     ap.add_argument("verb", choices=["report", "review"])
     ap.add_argument("--queue", default=DEFAULT_QUEUE_PATH)
+    ap.add_argument("--no-provenance", action="store_true",
+                    help="skip the D-026 engine (NOT recommended; "
+                         "decisions then exist only in queue history)")
     ap.add_argument("--index", type=int, default=None)
     ap.add_argument("--approve", dest="approved", action="store_true")
     ap.add_argument("--reject", dest="approved", action="store_false")
@@ -200,7 +203,15 @@ def main(argv=None) -> int:
                     help="identity of the deciding human (required)")
     args = ap.parse_args(argv)
 
-    q = VerificationQueue(queue_path=args.queue)
+    # The CLI attaches the D-026 engine by default: a decision made
+    # through the real-world path must carry provenance, not only
+    # queue history (gap caught by the 2026-09-14 decision-round probe).
+    provenance = None
+    if not args.no_provenance:
+        from sync_engine import ProvenanceEngine
+        provenance = ProvenanceEngine(path=os.path.join(
+            os.path.dirname(args.queue), "prov.json"))
+    q = VerificationQueue(queue_path=args.queue, provenance=provenance)
     if args.verb == "report":
         pending = q.pending_items()
         print(json.dumps({"pending": len(pending),
