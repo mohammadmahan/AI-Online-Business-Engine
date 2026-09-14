@@ -178,11 +178,16 @@ def validate_workbook(product_rows, variant_rows, today: date,
             product_sale_until=_date(row.get("تاریخ پایان فروش ویژه")),
         )
         # Product-level check (variants validate their own full inputs).
+        # INVALID_PRICE excludes the row from the validated set — invalid
+        # values are rejected, never promoted with a recorded error
+        # (D-028; gap closed by the Phase 4 edge-case suite).
+        price_errors = list(pricing.validate_price(p, today))
         if product_sale is not None and list_price is None:
-            wb.err("محصولات", i, "INVALID_PRICE",
-                   "sale price requires قیمت پایه")
-        for e in pricing.validate_price(p, today):
+            price_errors.insert(0, "sale price requires قیمت پایه")
+        for e in price_errors:
             wb.err("محصولات", i, "INVALID_PRICE", e)
+        if price_errors:
+            continue
 
         status = PRODUCT_STATUS_MAP.get(
             _cell_or_none(row.get("وضعیت محصول")) or "")
@@ -344,8 +349,14 @@ def validate_workbook(product_rows, variant_rows, today: date,
             variant_sale_until=_date(
                 row.get("تاریخ پایان فروش ویژه تنوع")),
         )
-        for e in pricing.validate_price(vp, today):
+        # INVALID_PRICE excludes the variant from the validated set —
+        # an invalid row is rejected, never promoted with a recorded
+        # error (D-028; gap closed by the Phase 4 edge-case suite).
+        variant_price_errors = list(pricing.validate_price(vp, today))
+        for e in variant_price_errors:
             wb.err("تنوع‌ها", i, "INVALID_PRICE", e)
+        if variant_price_errors:
+            continue
 
         vstatus = PRODUCT_STATUS_MAP.get(
             _cell_or_none(row.get("وضعیت تنوع")) or "")

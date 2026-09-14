@@ -49,6 +49,22 @@ EVENT_SOURCE = "excel-import"
 DEFAULT_FIXTURE = os.path.join(LOCAL, "fixtures", "product-master.json")
 DEFAULT_STORE = os.path.join(LOCAL, "volumes", "canonical", "store.json")
 
+# --- Invented-rule refusal ledger (Phase 4 audit, executable) -----------
+# Proposed-but-NOT-approved business rules are deliberately absent from
+# the engine; each entry cites the approved decision that governs the
+# area instead. A new rule requires its own decision record and belongs
+# in the canonical layer — never silently here (PROJECT_RULES §4).
+NO_INVENTED_RULES = {
+    "rounding_to_1000_toman": "refused — not an approved rule "
+    "(D-010/D-024 keep exact numeric Toman); needs an owner decision "
+    "record first",
+    "negative_margin_check": "refused — not an approved rule; D-025 "
+    "governs sale-vs-base validity only",
+    "provenance_update_on_identical_reimport": "refused — D-027 makes "
+    "an identical re-import a skipped_duplicate with zero writes; "
+    "provenance is append-only (D-026)",
+}
+
 
 class CanonicalStore:
     """Local canonical data store (JSON) — D-055 semantics, file-backed.

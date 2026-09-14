@@ -414,10 +414,26 @@ run in parallel and stay owner-gated):
       linkages; SKU-as-data uniqueness; optional mock-Woo sync verb
       (hidden records only; publish stays RED)
 - [x] Pipeline verified on the D-033 fixture: dry-run 16-error
-      profile; promote → 7 products + 5 variants; re-promote →
-      skipped_duplicate; sync → 6 created_hidden (2/2/2 variations
-      incl. both D-048 price cases) + 1 skipped_draft; re-sync → all
-      idempotent
+      profile across all 12 error codes; promote → 5 products +
+      3 variants (price-invalid rows are now EXCLUDED from promotion —
+      validator gap closed, see edge-case suite below); re-promote →
+      skipped_duplicate; sync → 5 created_hidden (P90002 ×2 variations
+      incl. the D-048 divergence case, P90006 ×1 variant-sale case);
+      re-sync → all skipped_duplicate
+- [x] Phase 4 edge-case suite (`local/tests/test_phase4_edge_cases.py`,
+      16 tests): D-027 zero-write identical re-import + conflicting-
+      payload integrity error; D-024/D-025/D-048 full precedence
+      matrix incl. expiry boundaries; D-030/D-031/D-032/D-057 registry
+      + sanction-ledger invariants; D-019/D-020 no-auto-vocabulary and
+      family scoping through the validator; D-026 append-only
+      provenance + advancing review state; executable refusal ledger
+      (`NO_INVENTED_RULES` in import_runner.py) documenting that
+      1,000-Toman rounding, negative-margin checks and provenance
+      rewriting on re-import were REFUSED as unapproved rules
+- [x] Validator gap closed (`local/canonical/excel.py`):
+      INVALID_PRICE rows were previously reported AND retained in the
+      valid set (promotable with a recorded error); they are now
+      rejected per D-028 — invalid = rejected
 - [x] Persistence fixes surfaced by the run (in `sync_engine.py`):
       registry keys JSON-serializable (`type\x1fkey`) + one-time
       tuple-key migration; `_as_date` guard for JSON-round-tripped
