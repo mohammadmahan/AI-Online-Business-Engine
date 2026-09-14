@@ -126,14 +126,16 @@ def verify() -> int:
 
 
 def main() -> int:
-    rows = []
-    for i, (key, label) in enumerate(sorted(vocab.SIZE_FAMILIES)):
-        rows.append(
-            f"('{key}','{label}',{i}) ON CONFLICT (family_key) DO NOTHING")
+    # One statement, one trailing ON CONFLICT (a per-row clause inside
+    # VALUES is a syntax error — caught on the first live seed run).
+    rows = [
+        f"('{key}','{label}',{i})"
+        for i, (key, label) in enumerate(sorted(vocab.SIZE_FAMILIES))
+    ]
     sql = ["BEGIN;"]
     sql.append(
         "INSERT INTO seed.size_family (family_key,label_fa,sort_order) VALUES "
-        + ", ".join(rows) + ";")
+        + ", ".join(rows) + " ON CONFLICT (family_key) DO NOTHING;")
     # D-030 seed gate: a term seeds only if its code is strictly
     # O/I/L-safe or carries an explicit owner sanction (D-057).
     # Surfaced here, never silently resolved.

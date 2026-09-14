@@ -282,6 +282,10 @@ def t_db_constraints():
       VALUES ('مشکی','BK') ON CONFLICT DO NOTHING;
     INSERT INTO seed.category_term (primary_fa,leaf_fa)
       VALUES ('پوشاک زنانه','مانتو') ON CONFLICT DO NOTHING;
+    -- self-cleaning: smoke data from a previous run must never break
+    -- the next run (deterministic on every execution)
+    DELETE FROM canonical.variant WHERE product_id = 'P00001';
+    DELETE FROM canonical.product WHERE product_id = 'P00001';
     INSERT INTO canonical.product (product_id,name,primary_category,
       leaf_category,list_price,status,publication_status,created_date)
       VALUES ('P00001','تست','پوشاک زنانه','مانتو',100000,'active',
@@ -289,7 +293,7 @@ def t_db_constraints():
     INSERT INTO canonical.variant (variant_id,product_id,sku,color_code,
       size_family,size_code,status)
       VALUES ('11111111-4c1d-4b9a-8c2e-000000000001','P00001',
-              'P00001-BK-M','مشکی','alpha','M','active');
+              'P00001-BK-M','BK','alpha','M','active');
     COMMIT;
     """)
     dup = False

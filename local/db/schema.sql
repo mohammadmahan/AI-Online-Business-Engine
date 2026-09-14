@@ -40,9 +40,14 @@ CREATE TABLE IF NOT EXISTS seed.size_term (
     family_key   text NOT NULL REFERENCES seed.size_family(family_key),
     display_fa   text NOT NULL,
     code         text NOT NULL
+                 -- D-014 rule 7 / D-030 strict charset, plus the ONE
+                 -- explicit owner-sanctioned exception: LRG (D-057,
+                 -- register row 24). Any further exception requires its
+                 -- own decision record added here — never silently.
                  CHECK (code ~ '^[A-Z0-9]+$'
-                        AND code NOT LIKE '%O%' AND code NOT LIKE '%I%'
-                        AND code NOT LIKE '%L%'),
+                        AND ((code NOT LIKE '%O%' AND code NOT LIKE '%I%'
+                              AND code NOT LIKE '%L%')
+                             OR code = 'LRG')),
     PRIMARY KEY (family_key, display_fa),
     UNIQUE (family_key, code)
 );
@@ -164,7 +169,11 @@ CREATE TABLE IF NOT EXISTS canonical.product (
 -- D-021 publication minimum (enforced structurally): published ⇒ name,
 -- resolvable price, ≥1 media reference, and — for products without a
 -- list price — at least one priced variant.
-ALTER TABLE canonical.product ADD CONSTRAINT product_publication_minimum
+-- Idempotent: PostgreSQL has no ADD CONSTRAINT IF NOT EXISTS, so the
+-- guard lives in a DO block (re-apply = silent no-op, verified by the
+-- live migration test).
+DO $$ BEGIN
+    ALTER TABLE canonical.product ADD CONSTRAINT product_publication_minimum
     CHECK (
         publication_status <> 'published'
         OR (
@@ -176,6 +185,7 @@ ALTER TABLE canonical.product ADD CONSTRAINT product_publication_minimum
             )
         )
     );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS canonical.variant (
     variant_id         uuid PRIMARY KEY,          -- UUIDv4 (D-017)

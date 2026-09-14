@@ -397,9 +397,17 @@ against the real canonical DB once Docker exists):
 - [x] Full test ladder (local/tests/test_ladder.py): **46 tests —
       43 passed / 3 skipped (need Docker) / 0 failed**; originals:
       31/31 unit + smoke 9/3/0
-- [ ] Same engine against the REAL canonical PostgreSQL + mock-Woo
-      container (the ladder's live DB layers activate with Docker;
-      logic is unchanged — storage swap only)
+- [x] Same engine against the REAL canonical PostgreSQL (live, D-055):
+      **DONE 2026-09-14** — colima stack up (5 services healthy,
+      127.0.0.1-only), schema applied + re-apply verified idempotent
+      (DO-block guard for `product_publication_minimum`), full
+      vocabulary seeded 28/28 sizes incl. D-057 `LRG` (seed-script
+      per-row ON CONFLICT bug fixed; `size_term_code_check` aligned
+      with the approved sanction), ladder **0 skipped — 105/105 pass**
+      with live schema+seed layers, smoke **12/12** (live-DB checks;
+      self-cleaning + code-not-display-value fixes). Mock-Woo runs
+      in-process; its container service wrapper stays deferred
+      (phase-03-3 §22)
 
 Phase 4 (owner-sequenced 2026-09-13: "Data Entry & Verification
 Engine" runs locally first; official Phase 4 "Infrastructure" gates
@@ -469,23 +477,10 @@ Batch 4 — findings and open items:
       deprecate+replace per D-030 rule 5 — `LG` was never referenced
       by real data). Conflict ledger (`CODE_CONFLICTS`) is empty;
       the seed gate stays armed; **28/28 size codes seed**
-- [ ] **BLOCKED (2026-09-14): host disk full** — stack cannot start.
-      Tooling IS installed and configured (docker 29.8.0 + compose
-      5.5.1 + colima 0.10.3 via Homebrew; libpq for host psql;
-      registry mirrors docker.arvancloud.ir + docker.iranserver.com
-      configured for the regional Docker Hub restriction — namespaced
-      images fail without them, library/* unaffected). Disk had only
-      ~141 Mi free; the colima VM footprint (~5 GB) hit the wall
-      (containerd I/O errors) and was deleted to restore 4.9 Gi.
-      **Unblock:** free ≥ 25 GB on the host, then `colima start
-      --cpu 4 --memory 8 --disk 60` → `docker compose -f
-      local/infra/docker-compose.yml up -d` → `python3
-      local/scripts/apply_schema.py` → `python3
-      local/scripts/seed_registry.py` → re-run ladder (3 skips → live)
-      and smoke test. (Docker Desktop NOT required — colima is the
-      lighter, scriptable equivalent; all 6 images verified pullable
-      through the mirrors; n8n pull was interrupted at ~largest layer,
-      resumes with cached layers.)
+- [x] ~~BLOCKED (2026-09-14): host disk full~~ — **RESOLVED same
+      day**: owner freed disk space (34 Gi available); colima restart
+      with registry mirrors → full stack up, schema+seed live, all
+      skips converted to passes (see live-DB record above)
 - [ ] Install openpyxl to render the .xlsx fixture
       (`pip install openpyxl`, then re-run `make_fixtures.py`)
 - [ ] WooCommerce plugin activation + store configuration inside the
