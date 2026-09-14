@@ -447,7 +447,15 @@ run in parallel and stay owner-gated):
 - [x] Owner: ~~resolve register row 24 (alpha/L LG code)~~ —
       **RESOLVED 2026-09-13 via D-057 (`LRG`)**; full vocabulary
       seed and alpha-size sync unblocked
-- [ ] Verification-queue tooling for the 16 fixture error rows
+- [x] Verification-queue tooling (`local/canonical/`
+      `verification_tool.py` + `local/tests/`
+      `test_verification_queue.py`, 11 tests): append-only HITL review
+      (D-026) — decisions stamped in place with reviewer identity +
+      provenance, never popped; deduplicated enqueue of runner review
+      items; D-050: decisions are human-only (`--reviewer` required;
+      no auto-resolve path exists); queue state lives under gitignored
+      `local/volumes/verification/`; 16 fixture error rows materialize
+      end-to-end (report → queue → decision)
       (human review workflow — the queue currently reports; it does
       not yet provide an interactive review UI)
 
