@@ -1,0 +1,66 @@
+{
+  "name": "GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER",
+  "id": "e4d7a12b-8c43-4f91-b630-1d89e5a7c001",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e4d7a12b-8c43-4f91-b630-1d89e5a7c002",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "'use strict';\n// === BEGIN canonical failure taxonomy (byte-identical embed) ===\n// n8n failure taxonomy — canonical D-052 classifier + D-045 redactor.\n// ============================================================================\n// Authority: docs/standards/n8n-idempotency-and-retries.md §2 (D-052 matrix),\n//            docs/standards/n8n-logging-and-redaction.md §1–2 (log schema,\n//            redaction mandate). Traceability: D-052, D-045, D-026, D-027.\n//\n// Single source of truth: this exact file content is embedded BYTE-IDENTICAL\n// into the M3 global error-router workflow's Code node\n// (local/n8n/workflows/GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER.json). The test\n// suite (local/tests/test_n8n_error_router_m3.py) executes THIS file with the\n// real Node binary and asserts parity with the embedded copy — the workflow\n// therefore runs the same logic CI tests, not a drifted inline copy.\n//\n// Self-contained on purpose: no imports/exports, plain `module.exports` —\n// runnable under Node and inside an n8n Code node (both are V8/Node).\n//\n// D-052 retry policy encoded here (do not change without a decision record):\n//   A — transient/network ............ retryable (exponential backoff,\n//                                      3 attempts: 2s → 8s → 30s)\n//   B — data invariant/schema ........ NEVER retried → dead-letter + HITL\n//                                      verification queue (D-026 provenance)\n//   C — authentication/secrets ....... NEVER retried → halt + infra flag\n//   D — authority violation (RED w/o human approval marker) → abort +\n//                                      quarantine, never auto-resolved\n//   E — unknown/ambiguous ............ NEVER blindly retried → deterministic\n//                                      marker reconciliation (at most one\n//                                      re-execution), then human review\n// ============================================================================\n\n'use strict';\n\nvar D052 = {\n  A: { name: 'Transient/network',      retry_policy: 'exponential_backoff', max_attempts: 3, backoff_seconds: [2, 8, 30], retryable: true  },\n  B: { name: 'Data invariant/schema',  retry_policy: 'never_retry',         max_attempts: 0, backoff_seconds: [],         retryable: false },\n  C: { name: 'Authentication/secrets', retry_policy: 'never_retry',         max_attempts: 0, backoff_seconds: [],         retryable: false },\n  D: { name: 'Authority violation',    retry_policy: 'abort',               max_attempts: 0, backoff_seconds: [],         retryable: false },\n  E: { name: 'Unknown/ambiguous',      retry_policy: 'deterministic_reconciliation', max_attempts: 1, backoff_seconds: [], retryable: false }\n};\n\n// Deterministic keyword table (first match wins, evaluated in order).\n// Grounded in D-052 §2 examples; extended conservatively.\nvar CLASSIFIER_RULES = [\n  { cls: 'D', patterns: ['authority', 'red tier', 'red-tier', 'without approval',\n                         'hitl approval required', 'quarantine'] },\n  { cls: 'C', patterns: ['credential', 'authentication', 'unauthorized', 'auth',\n                         '401', '403', 'expired token', 'api key', 'apikey',\n                         'signature'] },\n  { cls: 'B', patterns: ['schema', 'syntax error', 'invariant', 'invalid vocabulary',\n                         'integrity error', 'not null', 'foreign key',\n                         'duplicate key', 'check constraint', 'validation'] },\n  { cls: 'A', patterns: ['timeout', 'timed out', 'etimedout', 'econnrefused',\n                         'econnreset', 'connection reset', 'eai_again',\n                         'socket hang up', '502', '503', '504', '429',\n                         'rate limit', 'temporarily unavailable'] }\n];\n\nfunction classifyD052(rawMessage) {\n  var msg = String(rawMessage || '').toLowerCase();\n  if (!msg) { return 'E'; }\n  for (var i = 0; i < CLASSIFIER_RULES.length; i++) {\n    var rule = CLASSIFIER_RULES[i];\n    for (var j = 0; j < rule.patterns.length; j++) {\n      if (msg.indexOf(rule.patterns[j]) !== -1) { return rule.cls; }\n    }\n  }\n  return 'E';\n}\n\n// Redacts secret-bearing material per the M1 logging standard §2\n// (\"Strictly redacted\"): connection strings with credentials, bearer/API\n// tokens, URL query tokens (api_key/access_token/token), passwords in\n// query-string or key=value form, and Authorization headers.\nvar REDACTIONS = [\n  // scheme://user:password@host…  → scheme://[REDACTED]@host…\n  { re: /([a-z][a-z0-9+.-]*:\\/\\/)[^@\\/\\s]+@/gi, sub: '$1[REDACTED]@' },\n  // Authorization: Bearer xyz / Basic xyz / Token xyz\n  { re: /(authorization\\s*[:=]\\s*)(bearer|basic|token)\\s+[A-Za-z0-9._~+/=-]+/gi, sub: '$1$2 [REDACTED]' },\n  // URL query tokens: api_key=…, access_token=…, token=…, key=…\n  { re: /(api[_-]?key|access[_-]?token|token|key)=(?!%5B)\\S+/gi, sub: '$1=[REDACTED]' },\n  // Standalone bearer tokens not preceded by \"authorization\"\n  { re: /bearer\\s+[A-Za-z0-9._~+/=-]{8,}/gi, sub: 'Bearer [REDACTED]' },\n  // password / secret / passwd in key=value or key: value forms\n  { re: /((?:password|passwd|secret)[a-z0-9_]{0,20}\\s*[:=]\\s*)\\S+/gi, sub: '$1[REDACTED]' }\n];\n\nfunction redactSecrets(text) {\n  var out = String(text == null ? '' : text);\n  for (var i = 0; i < REDACTIONS.length; i++) {\n    out = out.replace(REDACTIONS[i].re, REDACTIONS[i].sub);\n  }\n  return out;\n}\n\n// Builds the engine.log.v1 error line (logging standard §1) from an n8n\n// error-trigger payload. `errData` = the raw error-trigger item;\n// `executionId` = safe execution identifier ('' when unavailable).\nfunction buildErrorLog(errData, executionId) {\n  errData = errData || {};\n  var exec = errData.execution || {};\n  var wf = errData.workflow || {};\n  var err = exec.error || {};\n  var rawMessage = err.message || err.description || 'Unknown error';\n\n  var failureClass = classifyD052(rawMessage);\n  var safeMessage = redactSecrets(rawMessage);\n\n  return {\n    schema: 'engine.log.v1',\n    workflow_id: 'GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER',\n    execution_id: String(executionId || 'unknown'),\n    timestamp_utc: new Date().toISOString(),\n    trigger_event: { source_system: 'n8n', event_id: String(exec.id || executionId || 'unknown'), type: 'WORKFLOW_ERROR' },\n    idempotency_key: '',\n    actor: 'N8N_ERROR_HOOK',\n    tier_reached: 'GREEN',\n    status: 'FAILED',\n    error_class: failureClass,\n    entity_refs: [{ type: 'workflow', id: String(wf.name || wf.id || 'unknown') }],\n    error_details: {\n      origin_workflow_id: String(wf.id || 'unknown'),\n      origin_workflow_name: String(wf.name || 'unknown'),\n      failure_class: failureClass,\n      error_message: safeMessage,\n      retryable: D052[failureClass].retryable,\n      retry_policy: D052[failureClass].retry_policy\n    }\n  };\n}\n\nmodule.exports = { D052: D052, CLASSIFIER_RULES: CLASSIFIER_RULES,\n                   classifyD052: classifyD052, REDACTIONS: REDACTIONS,\n                   redactSecrets: redactSecrets, buildErrorLog: buildErrorLog };\n\n// === END canonical failure taxonomy — source: local/canonical/n8n_failure_taxonomy.js ===\nconst __errData = $input.first().json;\nconst __executionId = (typeof $execution !== 'undefined' && $execution && $execution.id) ? String($execution.id) : '';\nconst __line = buildErrorLog(__errData, __executionId);\nreturn [{ json: __line }];\n"
+      },
+      "id": "e4d7a12b-8c43-4f91-b630-1d89e5a7c003",
+      "name": "Classify & Redact Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify & Redact Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f9b8c23d-4190-4a82-9e23-7a19d854e120",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    {
+      "name": "GREEN"
+    },
+    {
+      "name": "OPS"
+    },
+    {
+      "name": "ERROR-ROUTER"
+    },
+    {
+      "name": "PHASE5-M3"
+    }
+  ]
+}

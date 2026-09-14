@@ -44,5 +44,17 @@ Start/stop/reset are handled by the stack tooling
 4. Credentials: reference n8n's credential store only; the store
    itself must be configured from environment variables at setup time
    and is never exported or committed (D-045).
-5. M2 sandbox workflow (`GREEN-OPS-MANUAL-CANONICAL_DB_SMOKE`) is the
-   first and only workflow until M2's spec is executed.
+5. Workflows shipped so far (both imported into the local instance,
+   both inactive by default):
+   - `GREEN-OPS-MANUAL-CANONICAL_DB_SMOKE` — M2 sandbox smoke
+     (manual trigger → read-only D-055 query → `engine.log.v1` line).
+   - `GREEN-OPS-ERROR-GLOBAL_FAILURE_ROUTER` — M3 global error router
+     (Error Trigger → D-052 classification + D-045 redaction →
+     `engine.log.v1` failure line). Designate it in **Settings →
+     Error workflows** so every failed execution routes through it;
+     Class A is retryable, B/C/E dead-letter to the HITL queue,
+     D quarantines.
+   The taxonomy logic both workflows may rely on lives in the canonical
+   module `local/canonical/n8n_failure_taxonomy.js` (CI-executed;
+   embedded byte-identically in the router's Code node — the M3 test
+   suite enforces the parity).

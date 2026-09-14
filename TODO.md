@@ -523,7 +523,9 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
 - [ ] Sandbox/test environment verification
 - [ ] Inventory implementation (blocked — D-016.I open)
 - [ ] Media implementation (blocked — D-040 sub-decision open)
-- [ ] n8n workflows (blocked — Phase 5)
+- [ ] n8n sync workflows — foundation shipped (Phase 5 M1–M3:
+      standards, sandbox, error router); production sync workflows
+      still await the real WooCommerce connection
 
 ## Blocked / do-not-start
 
@@ -534,6 +536,9 @@ these even if they seem helpful:
       owner opened Phase 3)**; Batch 1 design recorded via
       D-034–D-045 (see below)
 - [ ] Phase 4 — Infrastructure (no hosting, DNS, backups setup)
-- [ ] Phase 5 — n8n foundation (no workflows, no credentials)
+- [x] ~~Phase 5 — n8n foundation~~ — **unblocked (2026-09-14,
+      D-059 Option A approved)**; M1 standards, M2 sandbox workflow,
+      M3 global error router shipped — local-only (D-053); production
+      n8n deployment and real credentials remain forbidden (D-045)
 - [ ] Phase 6 — Notion Business OS (no Notion workspace automation)
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations
