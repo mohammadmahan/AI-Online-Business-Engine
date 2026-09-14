@@ -469,10 +469,23 @@ Batch 4 — findings and open items:
       deprecate+replace per D-030 rule 5 — `LG` was never referenced
       by real data). Conflict ledger (`CODE_CONFLICTS`) is empty;
       the seed gate stays armed; **28/28 size codes seed**
-- [ ] Install Docker Desktop on the development machine
-      (`brew install --cask docker`), then run
-      `python3 local/scripts/local_env.py up` and re-run the smoke
-      test to convert the 3 skipped checks to passes
+- [ ] **BLOCKED (2026-09-14): host disk full** — stack cannot start.
+      Tooling IS installed and configured (docker 29.8.0 + compose
+      5.5.1 + colima 0.10.3 via Homebrew; libpq for host psql;
+      registry mirrors docker.arvancloud.ir + docker.iranserver.com
+      configured for the regional Docker Hub restriction — namespaced
+      images fail without them, library/* unaffected). Disk had only
+      ~141 Mi free; the colima VM footprint (~5 GB) hit the wall
+      (containerd I/O errors) and was deleted to restore 4.9 Gi.
+      **Unblock:** free ≥ 25 GB on the host, then `colima start
+      --cpu 4 --memory 8 --disk 60` → `docker compose -f
+      local/infra/docker-compose.yml up -d` → `python3
+      local/scripts/apply_schema.py` → `python3
+      local/scripts/seed_registry.py` → re-run ladder (3 skips → live)
+      and smoke test. (Docker Desktop NOT required — colima is the
+      lighter, scriptable equivalent; all 6 images verified pullable
+      through the mirrors; n8n pull was interrupted at ~largest layer,
+      resumes with cached layers.)
 - [ ] Install openpyxl to render the .xlsx fixture
       (`pip install openpyxl`, then re-run `make_fixtures.py`)
 - [ ] WooCommerce plugin activation + store configuration inside the

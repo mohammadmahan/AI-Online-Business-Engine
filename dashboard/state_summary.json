@@ -2,7 +2,7 @@
   "system_info": {
     "engine_name": "AI-First Online Business Engine",
     "version": "0.4.0-alpha",
-    "current_phase": "Phase 4 - Data Entry & Verification Engine (HITL Review Tooling Ready)",
+    "current_phase": "Phase 4 - Data Entry & Verification Engine (Local Stack Pending Disk Space)",
     "last_commit": "1dd0107",
     "system_status": "Operational",
     "last_sync_timestamp": "2026-09-14T12:00:00Z",
@@ -12,7 +12,7 @@
     "total_products": 142,
     "active_skus": 380,
     "verified_items": 138,
-    "pending_conflicts": 4,
+    "pending_conflicts": 5,
     "sync_ladder_tests": {
       "total": 105,
       "passed": 102,
@@ -34,6 +34,13 @@
       "scope": "موتور پروژکشن قیمت (D-048 Option A)",
       "description": "محاسبه متمرکز قیمت بر مبنای قوانین مصوب D-048 بدون مالیات مضاعف تایید شد",
       "status": "حل شده"
+    },
+    {
+      "id": "C-032",
+      "severity": "Warning",
+      "scope": "استک محلی Docker (D-054) — ظرفیت دیسک میزبان",
+      "description": "ابزار Docker/colima نصب و آینه‌های رجیستری تنظیم شد، اما دیسک میزبان پر است (≈۵ گیگابایت آزاد)؛ استک تا آزادسازی ظرفیت بالا نمی‌آید",
+      "status": "در حال بررسی"
     }
   ],
   "engine_modules": [
