@@ -450,8 +450,11 @@ run in parallel and stay owner-gated):
       `docs/phases/phase-04-infrastructure-brief.md` — G1 hosting,
       G2 instance model, G3 media provider (D-049 gate), G4 backups,
       G5 domain/SSL, G6 observability, G7 promotion gates — ALL OPEN
-- [ ] Owner: decide G1–G7 (suggested order in the brief) to open the
-      official Infrastructure phase
+- [x] Owner: ~~decide G1–G7~~ — **DEFERRED via D-058 (2026-09-14,
+      owner)**: all seven gates deferred until product operational
+      validation concludes; local-first strategy continues; closure
+      evidence in `docs/reports/phase-4-infrastructure-gates-status.md`.
+      Reopening any gate requires its own owner decision record
 - [x] Owner: ~~resolve register row 24 (alpha/L LG code)~~ —
       **RESOLVED 2026-09-13 via D-057 (`LRG`)**; full vocabulary
       seed and alpha-size sync unblocked

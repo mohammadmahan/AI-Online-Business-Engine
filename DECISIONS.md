@@ -2023,6 +2023,33 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Source:** D-014 rule 7, D-020 rule 4, D-030 rules 1 & 5, D-032;
   owner instruction (2026-09-13).
 
+## D-058 — Phase 4 infrastructure gates: formal owner deferral
+
+- **Status:** **Approved** (2026-09-14, human owner, via System
+  Architecture Strategy instruction) — overall disposition
+  **DEFERRED (local-first development strategy)**.
+- **Decision:** All seven Phase 4 infrastructure gates (G1 hosting/VPS,
+  G2 WP/Woo instance model, G3 media provider, G4 backups, G5
+  domain/DNS/SSL, G6 observability, G7 environment promotion — as
+  defined in `docs/phases/phase-04-infrastructure-brief.md`) are
+  **deferred until product operational validation concludes**. No
+  production infrastructure is provisioned; nothing local closes a
+  production gate (D-053: the local stack is not staging).
+- **Rationale (owner):** the core engine, live-DB integration, and the
+  HITL verification loop with D-026 provenance are 100% operational
+  locally; hosting procurement adds no value until the product is
+  operationally validated.
+- **Consequences:** register items 6 (hosting/VPS), the media-provider
+  sub-gate of item 5, and item 8 (secret tooling) remain **Open** —
+  deferral is scheduling, not resolution. Reopening trigger: owner
+  concludes operational validation; the brief's suggested order then
+  applies (G1+G2 → G5 → G3 → G4 → G6/G7). Each reopened gate still
+  requires its own decision record.
+- **Closure evidence:** `docs/reports/
+  phase-4-infrastructure-gates-status.md` (exit criteria all PASSED
+  2026-09-14: stack 5/5 healthy, smoke 12/12, 105+32 tests with 0
+  skipped, queue 0 pending of 16 with attributed provenance).
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
