@@ -1,0 +1,78 @@
+{
+  "id": "3f2c9b74-6a11-4d8e-9c2f-5b7a1e9d4a01",
+  "name": "GREEN-OPS-MANUAL-CANONICAL_DB_SMOKE",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b001",
+      "name": "When clicking ‘Execute Workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT count(*) AS size_families FROM seed.size_family;"
+      },
+      "id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b002",
+      "name": "Postgres Read-Only Smoke Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-canonical-local",
+          "name": "Postgres Canonical Local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst logPayload = {\n  schema: 'engine.log.v1',\n  workflow_id: 'GREEN-OPS-MANUAL-CANONICAL_DB_SMOKE',\n  execution_id: $execution.id || 'manual-local-exec',\n  timestamp_utc: new Date().toISOString(),\n  trigger_event: { source_system: 'n8n-manual', event_id: $execution.id || 'manual-local-exec', type: 'MANUAL' },\n  tier_reached: 'GREEN',\n  status: 'SUCCESS',\n  actor: 'USER:local-engineer',\n  entity_refs: [{ type: 'size_family', id: 'count' }],\n  metrics: {\n    size_families: Number(item.size_families || 0)\n  }\n};\nreturn [{ json: logPayload }];"
+      },
+      "id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b003",
+      "name": "Format engine.log.v1 Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute Workflow’": {
+      "main": [
+        [
+          {
+            "node": "Postgres Read-Only Smoke Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Read-Only Smoke Query": {
+      "main": [
+        [
+          {
+            "node": "Format engine.log.v1 Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    { "name": "GREEN" },
+    { "name": "OPS" },
+    { "name": "PHASE5-M2" }
+  ]
+}
