@@ -2050,6 +2050,29 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   2026-09-14: stack 5/5 healthy, smoke 12/12, 105+32 tests with 0
   skipped, queue 0 pending of 16 with attributed provenance).
 
+## D-059 — Phase 5 naming & sequencing: n8n Foundation vs content platform
+
+- **Status:** **Proposed** (2026-09-14, recorded by implementation
+  from the owner's Phase 5 kickoff instruction) — requires owner
+  approval; nothing is closed by this record.
+- **Situation:** MASTER_PLAN §13 defines **Phase 5 = n8n Foundation**.
+  The kickoff instruction titled Phase 5 "Content Creation & Posting
+  Automation Platform" — a real workstream that per the plan belongs
+  to Phase 15 (Marketing Automation) with Phase 9 surfaces, and which
+  **depends on the n8n foundation** (TODO: "n8n workflows — blocked,
+  Phase 5").
+- **Recorded:** kickoff roadmap at `docs/reports/
+  phase-5-kickoff-and-roadmap.md` — Phase 5 (n8n foundation, M1–M4,
+  design-first, local-only) plus the content platform as
+  **Workstream B (PROPOSED)** with its five pillars and four
+  milestones preserved verbatim in intent.
+- **Owner options:** A (recommended) — plan's Phase 5 first,
+  Workstream B opens Phase 15; B — run Workstream B's schema/template
+  work in parallel, deferring its orchestration/adapters; C — amend
+  MASTER_PLAN §13 renumbering (not recommended).
+- **Constraints:** local-only, no credentials, no external
+  connections; AI authority boundaries unchanged.
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
