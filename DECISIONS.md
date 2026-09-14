@@ -2052,9 +2052,10 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-059 — Phase 5 naming & sequencing: n8n Foundation vs content platform
 
-- **Status:** **Proposed** (2026-09-14, recorded by implementation
-  from the owner's Phase 5 kickoff instruction) — requires owner
-  approval; nothing is closed by this record.
+- **Status:** **Approved — Option A** (2026-09-14, human owner):
+  execute the plan's **Phase 5 = n8n Foundation first**; Workstream B
+  (content creation & posting automation) remains **deferred to its
+  proper later phases** (Phase 15, with Phase 9 surfaces).
 - **Situation:** MASTER_PLAN §13 defines **Phase 5 = n8n Foundation**.
   The kickoff instruction titled Phase 5 "Content Creation & Posting
   Automation Platform" — a real workstream that per the plan belongs
@@ -2065,11 +2066,13 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   phase-5-kickoff-and-roadmap.md` — Phase 5 (n8n foundation, M1–M4,
   design-first, local-only) plus the content platform as
   **Workstream B (PROPOSED)** with its five pillars and four
-  milestones preserved verbatim in intent.
-- **Owner options:** A (recommended) — plan's Phase 5 first,
-  Workstream B opens Phase 15; B — run Workstream B's schema/template
-  work in parallel, deferring its orchestration/adapters; C — amend
-  MASTER_PLAN §13 renumbering (not recommended).
+  milestones preserved verbatim in intent; M1 execution spec at
+  `docs/reports/phase-5-m1-n8n-foundation-spec.md`.
+- **Owner options:** ~~A (recommended)~~ **APPROVED** — plan's
+  Phase 5 first, Workstream B opens Phase 15; B — run Workstream B's
+  schema/template work in parallel, deferring its
+  orchestration/adapters (not chosen); C — amend MASTER_PLAN §13
+  renumbering (not chosen).
 - **Constraints:** local-only, no credentials, no external
   connections; AI authority boundaries unchanged.
 
