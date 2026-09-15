@@ -545,4 +545,9 @@ these even if they seem helpful:
       gate report §5; production n8n and real credentials remain
       forbidden (D-045)
 - [ ] Phase 6 — Notion Business OS (no Notion workspace automation)
+      — kickoff recorded 2026-09-15 (`docs/reports/
+      phase-6-kickoff-and-roadmap.md`): design/contract-first roadmap
+      (M1–M4), D-027-corrected Notion idempotency, D-050 authority
+      matrix; **D-060 Proposed** (HITL system of record + integration
+      boundaries) awaits owner ruling before Phase 6 M1
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations

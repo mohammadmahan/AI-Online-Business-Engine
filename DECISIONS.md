@@ -2076,6 +2076,39 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Constraints:** local-only, no credentials, no external
   connections; AI authority boundaries unchanged.
 
+## D-060 — HITL/incident system of record & Notion integration boundaries
+
+- **Status:** **Proposed** (2026-09-15, recorded from the Phase 6
+  kickoff instruction) — requires owner approval; nothing is closed
+  by this record.
+- **Situation:** Phase 6 (Notion Business OS) kickoff draft proposed
+  Notion as "the single source of truth for business state" and a
+  `Notion Page ID + Last Updated Timestamp` idempotency key. Both
+  conflict with approved architecture: canonical business data is
+  PostgreSQL (D-055; D-048 Option A), and a last-updated timestamp in
+  a D-027 key makes the key different on every edit — dedupe silently
+  fails (same defect class fixed in the Phase 5 M1 review).
+- **Proposed disposition (Option A, recommended):** Notion = Business
+  OS / knowledge layer (SOPs, ideas, calendar, dashboards, review
+  *surfaces*); canonical PostgreSQL remains the durable system of
+  record for HITL/incidents and their D-026 provenance; Notion
+  receives a mirror/view. Idempotency follows the M1 grammar
+  `SHA256('notion' + page_id + event_type)`; `last_edited_time` is
+  change-detection metadata only, never key material. No n8n
+  write-back to Notion by default — any future write-back carries its
+  own D-050 tier classification and human-approval marker.
+- **Option B (not recommended):** the Notion database itself is the
+  HITL/incident record with sync-back into canonical tooling — weaker
+  integrity guarantees, split provenance, added sync-conflict surface.
+- **Recorded:** kickoff roadmap at `docs/reports/
+  phase-6-kickoff-and-roadmap.md` (entity sketches, authority matrix,
+  milestones M1–M4, corrected gates).
+- **Owner gates:** ruling on Option A vs B; approval of the proposed
+  content-idea lifecycle (Backlog → Researching → Draft → Review →
+  Approved → Published); any future Notion workspace/credential
+  creation remains owner-gated (D-045/D-053) — no workspace
+  automation in this phase until explicitly opened.
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
