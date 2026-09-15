@@ -134,14 +134,28 @@ amendment (same discipline as the D-060 key serialization).
 
 ## 5. Milestone plan (M1–M4)
 
-- **M1 — Architecture, contracts, routing (this milestone):** blueprint
-  (this document), JSON Schema contract module + validator, mock AI
-  provider, model router, usage ledger + budget guardrails, D-062+
-  decision drafts, offline test suite. Zero network.
-- **M2 — Proposal pipeline integration:** AiProposal → VerificationQueue
-  end-to-end on the live local stack; provenance linkage into canonical
-  D-026 store; HITL decision round-trip tests (approve → provenance
-  HUMAN_REVIEWED; reject → HITL record immutable).
+- **M1 — Architecture, contracts, routing — DONE (2026-09-15, commit
+  `6916e04`):** blueprint (this document), JSON Schema contract module
+  + validator, mock AI provider, model router, usage ledger + budget
+  guardrails, D-062+ decision drafts, offline test suite. Zero network.
+- **M2 — Proposal pipeline integration — DONE (2026-09-15):**
+  `local/canonical/ai_proposal_lifecycle.py`: PROPOSED → IN_REVIEW →
+  ACCEPTED / REJECTED / MODIFIED_BY_HUMAN, every transition a durable
+  D-027 event (JSON store offline, live PostgreSQL store in
+  integration tests), D-026 provenance per human decision, the
+  AI_GENERATED record advanced exactly once at the terminal decision
+  (provenance id carried inside the durable submit ref —
+  restart-safe), terminal decisions immutable (identical re-decision
+  = idempotent skip; changed re-decision refused), submit() accepts
+  only router-validated AiProposal envelopes, `|applied` execution
+  bookkeeping kept out of lifecycle history, applier runs on both
+  accept and modify_accept. Authority boundary test-enforced:
+  reviewer is keyword-only required, provider surface carries no
+  decision verbs, module strings contain no Woo/Notion/publication
+  integration. Suite: `local/tests/test_phase7_ai_runtime_m2.py`
+  (25 tests: 14 offline state machine, 4 authority boundary, 7 live
+  PostgreSQL round-trips incl. restart reconstruction, retry
+  idempotency, and Class-B refusal of contract-violating payloads).
 - **M3 — Task implementations on the contracts:** content-idea
   proposal, caption generation, product-description enrichment as
   deterministic local flows against MockAiProvider; batch/dry-run
@@ -188,4 +202,4 @@ amendment (same discipline as the D-060 key serialization).
 | Credentials | D-045 (none exist; owner-gated) |
 | Local-first | D-053 (mock providers until owner opens connectivity) |
 | Canonical storage | D-055 (ledger mirrors into PostgreSQL later) |
-| Open register rows | D-062 (router + contracts), D-063 (cost guardrails), D-064 (proposal pipeline) — **Proposed** |
+| Open register rows | D-062 (router + contracts), D-063 (cost guardrails), D-064 (proposal pipeline) — **Approved 2026-09-15** |

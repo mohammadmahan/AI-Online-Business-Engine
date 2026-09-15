@@ -2154,8 +2154,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-062 — AI runtime: provider-neutral router + strict output contracts
 
-- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
-  approval required)
+- **Status:** **Approved** (2026-09-15, owner-approved; drafted 2026-09-15
+  Freebuff Phase 7 M1)
 - **Situation:** Phase 7 needs a model/AI-provider integration layer
   (MASTER_PLAN §13). Without a boundary, vendor SDKs would leak into
   canonical code, model output would flow unvalidated into business
@@ -2177,8 +2177,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-063 — AI cost accounting and budget guardrails
 
-- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
-  approval required)
+- **Status:** **Approved** (2026-09-15, owner-approved; drafted 2026-09-15
+  Freebuff Phase 7 M1)
 - **Situation:** AI calls cost money and can runaway; the project has
   no mechanism yet to meter or cap them.
 - **Proposal:** static tariff table per (provider, model); unknown
@@ -2196,8 +2196,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-064 — AI proposals: authority pipeline and HITL integration
 
-- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
-  approval required)
+- **Status:** **Approved** (2026-09-15, owner-approved; drafted 2026-09-15
+  Freebuff Phase 7 M1)
 - **Situation:** D-050 defines tiers for actions; Phase 7 needs the
   concrete pipeline that keeps AI output proposal-only.
 - **Proposal:** AI output leaves the runtime ONLY as an `AiProposal`
@@ -2240,7 +2240,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 | 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
-| 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — drafted: **D-062 / D-063 / D-064 (Proposed)**, implemented as safe local scaffolding (mock provider only); owner approval pending | Proposed | Owner approval of D-062–D-064 | 7 (M1 done) |
+| 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**, implemented as safe local scaffolding (mock provider only); live credentials still gated by D-045 | Approved | — | 7 (M1+M2) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

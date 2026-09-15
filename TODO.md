@@ -586,7 +586,17 @@ these even if they seem helpful:
       provider-neutral router + MockAiProvider + budget/rate
       guardrails + usage ledger (`local/canonical/ai_runtime.py`);
       D-050 boundary test-enforced (import-graph no-Red-path);
-      **D-062/D-063/D-064 Proposed — owner approval pending**;
-      no credentials exist or requested (D-045) — M2 next: proposal
-      → HITL round-trip on the live stack
+      **D-062/D-063/D-064 APPROVED (2026-09-15)**; no credentials
+      exist or requested (D-045).
+      **M2 done (2026-09-15)**: proposal lifecycle & HITL round-trip
+      (`local/canonical/ai_proposal_lifecycle.py`) — PROPOSED →
+      IN_REVIEW → ACCEPTED/REJECTED/MODIFIED_BY_HUMAN, every
+      transition a D-027 event on the live PostgreSQL store,
+      D-026 provenance per human decision + AI record advanced once
+      at terminal decision, terminal decisions immutable (identical
+      re-decision idempotent, changed re-decision refused),
+      submit() refuses non-AiProposal envelopes, `|applied`
+      bookkeeping excluded from lifecycle history, no-auto-advance
+      API-shape tests. M3 next: task implementations (content idea,
+      caption, product-description enrichment) on the live stack.
 - [ ] Phase 7+ — Instagram, payment, shipping integrations
