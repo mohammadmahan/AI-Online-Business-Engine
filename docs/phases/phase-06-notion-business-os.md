@@ -33,29 +33,53 @@ Business Operations, Content Pipeline, Knowledge Management.
 - All external Notion events MUST be mapped to canonical internal
   formats before ingestion (mock-adapter boundary, RULES §35 pattern).
 - Idempotency follows the M1 grammar exactly
-  (`docs/standards/n8n-idempotency-and-retries.md`):
+  (`docs/standards/n8n-idempotency-and-retries.md`), refined by
+  **D-060 (Approved, amended 2026-09-15)**:
 
   ```
-  idempotency_key = SHA256(source_system + event_id + event_type)
-                  = SHA256('notion' + notion_page_id + event_type)
+  idempotency_key = SHA256(source_system + event_id + event_type
+                           + revision_marker)
+                  = SHA256('notion' + notion_page_id + event_type
+                           + revision_marker)
   ```
 
-  Retries reuse the same key; Notion `last_edited_time` is
-  change-detection metadata **only**, never key material. Duplicate
-  → `skipped_duplicate`; conflicting payload → 409 integrity error /
-  human review (D-027 verdicts, canonical event store).
+  - `revision_marker` is the **source-provided revision identifier
+    carried in the event payload — NOT wall-clock time**. The plain
+    `(page_id, event_type)` key collapsed legitimate repeated
+    transitions (Draft → Review → Draft → Review: the second Review
+    event would be silently dropped as a duplicate).
+  - Retry deduplication stays intact: a retry of the **same
+    delivery** yields the same marker (same key →
+    `skipped_duplicate`); distinct revisions yield distinct keys
+    (distinct logical events).
+  - **The marker's concrete source field is UNVERIFIED until the
+    Notion API connectivity verification runs** (owner-gated,
+    D-045/D-053). Do not implement against a guessed field.
+  - Notion `last_edited_time` remains change-detection metadata
+    **only**, never key material.
+  - Duplicate → `skipped_duplicate`; conflicting payload → 409
+    integrity error / human review (D-027 verdicts, canonical event
+    store).
 
-## 4. Lifecycle (Content Idea) — approved via D-060
+## 4. Lifecycle (Content Idea) — approved via D-060 (extended 2026-09-15)
 
 ```
-Backlog → Researching → Draft → Review → Approved → Published
+Backlog → Researching → Draft → Review → Approved → Scheduled → Published
+
+Terminal states:
+  Rejected  — reachable from any pre-Approved state
+  Archived  — reachable from Published or Rejected
 ```
 
-Becomes a controlled vocabulary only when implemented against the
-canonical seed/tooling; the lifecycle above is the approved semantic
-sequence. Trigger contract: a status move into the automation-ready
-state is a *request* consumed by n8n — never an authority to execute
-RED-tier effects without the D-050 human-approval marker.
+- `Approved` is not time-bound; `Scheduled` exists so a publishing
+  queue acts only on scheduled items (owner rationale, D-060).
+- Terminal `Rejected` / `Archived` prevent unbounded HITL-queue
+  growth (items can no longer accumulate in Review indefinitely).
+- Becomes a controlled vocabulary only when implemented against the
+  canonical seed/tooling; the sequence above is the approved semantic
+  model. Trigger contract: a status move into the automation-ready
+  state is a *request* consumed by n8n — never an authority to
+  execute RED-tier effects without the D-050 human-approval marker.
 
 ## 5. Security & Provenance
 

@@ -2078,12 +2078,12 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-060 — HITL/incident system of record & Notion integration boundaries
 
-- **Status:** **Approved — Option A** (2026-09-15, human owner): the
-  canonical PostgreSQL layer remains the durable system of record for
-  HITL/incidents and their D-026 provenance; Notion receives a
-  mirror/view. The proposed content-idea lifecycle (Backlog →
-  Researching → Draft → Review → Approved → Published) is approved as
-  the Phase 6 content-idea lifecycle.
+- **Status:** **Approved — Option A** (2026-09-15, human owner;
+  amended same day — lifecycle extension + idempotency-key
+  refinement): the canonical PostgreSQL layer remains the durable
+  system of record for HITL/incidents and their D-026 provenance;
+  Notion receives a mirror/view. The content-idea lifecycle is
+  approved in its extended form (see Owner gates below).
 - **Situation:** Phase 6 (Notion Business OS) kickoff draft proposed
   Notion as "the single source of truth for business state" and a
   `Notion Page ID + Last Updated Timestamp` idempotency key. Both
@@ -2095,9 +2095,19 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   OS / knowledge layer (SOPs, ideas, calendar, dashboards, review
   *surfaces*); canonical PostgreSQL remains the durable system of
   record for HITL/incidents and their D-026 provenance; Notion
-  receives a mirror/view. Idempotency follows the M1 grammar
-  `SHA256('notion' + page_id + event_type)`; `last_edited_time` is
-  change-detection metadata only, never key material. No n8n
+  receives a mirror/view. Idempotency key (refined 2026-09-15):
+  `SHA256('notion' + page_id + event_type + revision_marker)` where
+  `revision_marker` is the source-provided revision identifier
+  carried in the event payload — NOT wall-clock time. The plain
+  `(page_id, event_type)` key collapsed legitimate repeated
+  transitions (Draft → Review → Draft → Review: the second Review
+  event would be silently dropped); the marker keeps retry dedupe
+  intact (a retry of the same delivery yields the same marker, while
+  distinct revisions yield distinct keys). The marker's concrete
+  source field is **owner-gated pending Notion API connectivity
+  verification** and unverified until that check runs;
+  `last_edited_time` remains change-detection metadata only, never
+  key material. No n8n
   write-back to Notion by default — any future write-back carries its
   own D-050 tier classification and human-approval marker.
 - **Option B (not chosen):** the Notion database itself is the
@@ -2107,8 +2117,16 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   phase-6-kickoff-and-roadmap.md` (entity sketches, authority matrix,
   milestones M1–M4, corrected gates).
 - **Owner gates:** ~~ruling on Option A vs B~~ **APPROVED (Option A,
-  2026-09-15)**; ~~content-idea lifecycle approval~~ **APPROVED as
-  proposed**; any future Notion workspace/credential creation remains
+  2026-09-15)**; ~~content-idea lifecycle~~ **APPROVED — extended
+  form**: `Backlog → Researching → Draft → Review → Approved →
+  Scheduled → Published`, plus terminal `Rejected` (reachable from
+  any pre-Approved state) and terminal `Archived` (reachable from
+  Published or Rejected). Rationale: Approved is not time-bound, so
+  `Scheduled` is required before a publishing queue can act; without
+  terminal Rejected/Archived, items accumulate in Review indefinitely
+  and the HITL queue grows without bound. Revision-marker source
+  field: owner-gated pending Notion API connectivity verification.
+  Any future Notion workspace/credential creation remains
   owner-gated (D-045/D-053) — no workspace automation in this phase
   until explicitly opened.
 
@@ -2128,10 +2146,11 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   for genuine data-invariant violations. No change to the
   parity-embedded workflow logic (byte-identical embeds and their
   tests remain untouched).
-- **Revisit condition:** if live-router telemetry later shows
-  undefined_table volume that justifies Class-B routing, propose a
-  classifier extension as a new decision record (with parity tests
-  and embed regeneration).
+- **Candidate extension (future batch only):** logged as a candidate
+  Class-B extension for a future batch; no shipped-logic change now.
+  If live-router telemetry later shows undefined_table volume that
+  justifies Class-B routing, propose the classifier extension as a
+  new decision record (with parity tests and embed regeneration).
 
 ## Open decision register
 
