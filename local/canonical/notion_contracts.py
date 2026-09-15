@@ -201,7 +201,8 @@ class RevisionMarkerResolver:
         )
 
 
-def validate_mock_payload(payload: Dict, *, resolver: Optional[RevisionMarkerResolver] = None) -> str:
+def validate_mock_payload(payload: Dict, *, resolver: Optional[RevisionMarkerResolver] = None,
+                          check_transition: bool = True) -> str:
     """Validate a mock Notion event payload; return its idempotency key.
 
     Contract (mirror of the fixtures in local/tests/fixtures/notion/):
@@ -248,7 +249,12 @@ def validate_mock_payload(payload: Dict, *, resolver: Optional[RevisionMarkerRes
             raise PayloadContractError(
                 "status_changed payloads require current_state and target_state"
             )
-        validate_transition(str(current), str(target))
+        if check_transition:
+            # The ingestion path (canonical.notion_ingest) calls with
+            # check_transition=False: payload SHAPE is a pre-key contract
+            # concern (Class B); state-machine LEGALITY is validated after
+            # the event is opened in the D-027 store (Class B/E, LIFECYCLE).
+            validate_transition(str(current), str(target))
 
     return notion_idempotency_key(page_id, event_type, marker)
 

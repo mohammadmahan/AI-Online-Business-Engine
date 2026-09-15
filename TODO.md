@@ -555,5 +555,10 @@ these even if they seem helpful:
       owner-gated pending Notion API verification) — M1 blueprint
       scaffolded at
       `docs/phases/phase-06-notion-business-os.md`; **D-061 Accepted**
-      (undefined_table stays Class E, no logic change)
+      (undefined_table stays Class E, no logic change); **M2 contracts
+      + D-027 ingestion path implemented** (`local/canonical/
+      notion_contracts.py`, `local/canonical/notion_ingest.py`: 9-state
+      machine, revision-marker key, live-PostgreSQL event store with
+      dedupe/conflict/HITL semantics, D-026 provenance; 16 live
+      integration tests, 0 skips)
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations

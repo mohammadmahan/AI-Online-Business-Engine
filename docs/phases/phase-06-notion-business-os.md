@@ -1,6 +1,11 @@
 # Phase 6 Specification: Notion Business OS (M1 — The Blueprint)
 
-- Status: **Scaffold (M1 in progress)** — 2026-09-15
+- Status: **M1 blueprint ✓ · M2 contracts ✓ · D-027 ingestion path ✓** — 2026-09-15
+- Ingestion wiring (M2+): `local/canonical/notion_ingest.py` — contracts →
+  D-060 key → D-027 dedupe → lifecycle validation → `events.event_record`
+  (live PostgreSQL, D-055) → D-026 provenance; failures persist durable rows
+  + HITL items (D-028); 16 live integration tests in
+  `local/tests/test_phase6_notion_ingest.py`
 - Authority: MASTER_PLAN §13 (Phase 6 = Notion Business OS);
   D-059 Option A sequencing; **D-060 Approved — Option A**.
 - Scope discipline: **specification only** — no Notion workspace,
