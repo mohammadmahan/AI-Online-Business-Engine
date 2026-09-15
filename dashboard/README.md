@@ -20,7 +20,11 @@ http://localhost:8080/
 Notes:
 
 - No build step, no npm, no Node.js — plain HTML5 + vanilla JS +
-  Tailwind CSS (CDN) + Vazirmatn font (CDN).
+  Tailwind CSS + Vazirmatn font.
+- The Tailwind Play engine is **vendored locally** at
+  `assets/tailwind-play.js` (local-first: the dashboard renders fully
+  styled with no network access; the font CSS remains CDN-linked with
+  a system-ui fallback).
 - The **بارگذاری مجدد داده‌ها** button refetches
   `state_summary.json` without a full page reload.
 - The engine's local Docker stack deliberately uses ports

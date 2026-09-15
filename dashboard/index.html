@@ -4,15 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>داشبورد وضعیت و سلامت سیستم — موتور کسب‌وکار هوشمند</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind Play engine is vendored locally (local-first: zero runtime
+     external dependencies — environments without CDN egress render fully
+     styled). The font CSS below stays on CDN but is cosmetic-only: when
+     unreachable, the system-ui fallback applies. -->
+<script src="assets/tailwind-play.js"></script>
 <script>
   /* Persian typography: make Vazirmatn the default sans stack so the
-     Play-CDN preflight itself applies it everywhere. */
-  tailwind.config = {
-    theme: { extend: { fontFamily: {
-      sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
-    } } }
-  };
+     Play engine's preflight itself applies it everywhere. Guarded: if the
+     script ever fails to load, the page renders with system fonts instead
+     of throwing `tailwind is not defined`. */
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = {
+      theme: { extend: { fontFamily: {
+        sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+      } } }
+    };
+  }
 </script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
