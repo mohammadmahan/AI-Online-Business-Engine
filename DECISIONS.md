@@ -2152,6 +2152,66 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   justifies Class-B routing, propose the classifier extension as a
   new decision record (with parity tests and embed regeneration).
 
+## D-062 — AI runtime: provider-neutral router + strict output contracts
+
+- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
+  approval required)
+- **Situation:** Phase 7 needs a model/AI-provider integration layer
+  (MASTER_PLAN §13). Without a boundary, vendor SDKs would leak into
+  canonical code, model output would flow unvalidated into business
+  flows, and credentials would sprawl.
+- **Proposal:** adopt the RULES §35 provider-neutral pattern for AI:
+  an `AiProvider` interface with `MockAiProvider` as the local
+  implementation (D-053); a deterministic pure-data routing policy
+  (task → provider/model/schema/budget); and strict, versioned JSON
+  Schema contracts for every AI output that may enter a canonical flow
+  (`additionalProperties:false` everywhere; unknown schema keywords
+  are load-time errors — contract drift cannot silently widen).
+  Initial contracts: `content_idea_proposal.v1`, `caption_proposal.v1`,
+  `product_description_enrichment.v1` (frozen fixture parity-pinned).
+  Validation failure of model output = D-052 Class B (never silently
+  repaired). No credentials exist or are requested (D-045).
+- **Consequences:** real OpenAI/Anthropic/local-model adapters become
+  drop-in `AiProvider` implementations with zero structural rewrites;
+  contract changes require fixture + amendment.
+
+## D-063 — AI cost accounting and budget guardrails
+
+- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
+  approval required)
+- **Situation:** AI calls cost money and can runaway; the project has
+  no mechanism yet to meter or cap them.
+- **Proposal:** static tariff table per (provider, model); unknown
+  tariff ⇒ cost 0 + explicit `unknown_tariff` flag (never guessed);
+  append-only usage ledger (every call: tokens, cost estimate,
+  latency, status, correlation id — local JSON now, PostgreSQL mirror
+  later, D-055); per-task budgets with deterministic pre-dispatch
+  enforcement: ≥80% soft ⇒ `budget_warning` on the response, 100% hard
+  ⇒ refusal BEFORE the provider call (Class-B guardrail); local
+  token-bucket rate limiter, refusals Class A (retryable) per D-052's
+  429 mapping. Spend tracking is always active (tested), never
+  ledger-gated.
+- **Consequences:** overrun becomes structurally impossible without a
+  budget change; tariff updates are config changes, not code.
+
+## D-064 — AI proposals: authority pipeline and HITL integration
+
+- **Status:** **Proposed** (2026-09-15, Freebuff Phase 7 M1 — owner
+  approval required)
+- **Situation:** D-050 defines tiers for actions; Phase 7 needs the
+  concrete pipeline that keeps AI output proposal-only.
+- **Proposal:** AI output leaves the runtime ONLY as an `AiProposal`
+  envelope (schema id + validated payload + provider/model + usage +
+  cost + D-026 `AI_GENERATED` provenance id + correlation id);
+  proposals enqueue into the existing HITL VerificationQueue
+  (D-028/D-060 surface); approval is a human review-state advance;
+  no Red operation (Woo projection, price, publication, vocabulary
+  mutation) is reachable from the AI runtime module — asserted by an
+  import-graph test in `test_phase7_ai_runtime_m1.py` that fails the
+  battery if the boundary erodes.
+- **Consequences:** prompt injection / model misbehavior blast radius
+  is one rejected HITL item; M2 wires the approve/reject round-trip.
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
@@ -2164,7 +2224,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 6 | WooCommerce hosting / VPS | Open | Store setup | 3–4 |
 | 7 | n8n deployment model (cloud vs self-hosted) | Open | n8n foundation | 5 |
 | 8 | Secret-management tooling | Concept resolved: D-045 + Batch 2 extension (environment separation, reference-based credentials, rotation concept, redaction, Git/prompt exclusion — `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §12); concrete tooling selection **Open** | First credential | 5 |
-| 9 | AI provider(s) | Open | AI Runtime | 7 |
+| 9 | AI provider(s) — concrete vendor/model selection (OpenAI / Anthropic / local) + credentials; D-062 makes selection a drop-in `AiProvider`, D-045 gates credentials | Open | Owner selection + connectivity milestone | 7 |
 | 10 | Iranian payment provider | Open | Payment go-live | 12 |
 | 11 | Iranian shipping provider | Open | Shipping go-live | 13 |
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
@@ -2180,6 +2240,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 | 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
+| 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — drafted: **D-062 / D-063 / D-064 (Proposed)**, implemented as safe local scaffolding (mock provider only); owner approval pending | Proposed | Owner approval of D-062–D-064 | 7 (M1 done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

@@ -21,6 +21,7 @@ supporting material: shared vocabulary and per-phase working documents.
 | [phases/phase-03-2-woocommerce-sync-architecture.md](phases/phase-03-2-woocommerce-sync-architecture.md) | Phase 3 — WooCommerce Sync Architecture: mapping registry, field-level sync + CRUD contracts, price-sync resolution (D-048 Option A, approved), authority matrix, media direction, non-registry attributes, test strategy (D-046–D-052). |
 | [phases/phase-03-3-local-development-environment.md](phases/phase-03-3-local-development-environment.md) | Phase 3 — Local Development Environment: local-first architecture (D-053), Docker Compose runtime (D-054), canonical PostgreSQL database (D-055), local media emulator (D-056) — all owner-approved; D-048 price-projection test matrix, Excel test matrix, promotion contract. Batch 4 scaffolding implemented under `local/` (guide: `local/README.md`). |
 | [phases/phase-06-notion-business-os.md](phases/phase-06-notion-business-os.md) | Phase 6 — Notion Business OS (closed at foundation level; D-060 Approved — Option A, D-061): lifecycle machine, revision-marker idempotency, D-027 ingestion, provider-neutral adapter/poller, conformance matrix A–H; live Notion connectivity owner-gated/deferred. |
+| [phases/phase-07-ai-runtime.md](phases/phase-07-ai-runtime.md) | Phase 7 — AI Runtime (M1): provider-neutral model router, strict JSON-Schema output contracts, cost/budget guardrails, D-050 proposal pipeline; D-062–D-064 Proposed; mock providers only, credentials owner-gated. |
 
 ## Conventions
 

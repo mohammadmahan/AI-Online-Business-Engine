@@ -580,6 +580,13 @@ these even if they seem helpful:
       connectivity verification = separate owner-gated milestone.
 - [ ] Phase 7 — AI Runtime (model routing, structured outputs,
       validation, cost control, provenance, logging, approval gates)
-      — not started; local-first (D-053): design/contracts before any
-      external API integration
+      — **M1 done (2026-09-15)**: blueprint
+      `docs/phases/phase-07-ai-runtime.md`; strict v1 output contracts
+      + validator (`local/canonical/ai_contracts.py`, fixture-pinned);
+      provider-neutral router + MockAiProvider + budget/rate
+      guardrails + usage ledger (`local/canonical/ai_runtime.py`);
+      D-050 boundary test-enforced (import-graph no-Red-path);
+      **D-062/D-063/D-064 Proposed — owner approval pending**;
+      no credentials exist or requested (D-045) — M2 next: proposal
+      → HITL round-trip on the live stack
 - [ ] Phase 7+ — Instagram, payment, shipping integrations
