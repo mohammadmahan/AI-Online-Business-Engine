@@ -368,15 +368,18 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
     is provided) enqueues one HITL incident item.
     """
     store = store or PgEventStore()
+    # D-027 interface parity: stores MAY expose source_system (PgEventStore
+    # does); the JSON local store takes it per call — default to 'notion'.
+    src = getattr(store, "source_system", SOURCE_SYSTEM)
     resolver = RevisionMarkerResolver()
     raw = payload if isinstance(payload, dict) else {}
 
     def record_failure(op_type: str, failure_class: str, error_class: str,
                        message: str) -> dict:
         eid = _pre_key(raw)
-        store.receive(store.source_system, eid, op_type, raw)
+        store.receive(src, eid, op_type, raw)
         try:
-            store.fail(store.source_system, eid, error_class)
+            store.fail(src, eid, error_class)
         except IntegrityError:
             pass  # terminal pre-key row already failed identically
         _enqueue_incident(
@@ -391,10 +394,12 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
     #    is a post-receive concern) + key derivation
     try:
         marker = resolver.resolve(raw)
-        eid = validate_mock_payload(
+        validate_mock_payload(
             raw, resolver=resolver, check_transition=False)
         page_id = str(raw.get("page_id", "")).strip()
         event_type = str(raw.get("event_type", "")).strip()
+        eid = notion_idempotency_key(page_id, event_type, marker,
+                                     source_system=src)
     except (PayloadContractError, ValueError) as exc:
         failure_class = getattr(exc, "failure_class", "B")
         return record_failure(OP_PRE_KEY_CHECK, failure_class,
@@ -412,7 +417,7 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
 
     # 2) D-027 dedupe against the canonical store
     try:
-        rec = store.receive(store.source_system, eid, OP_CONTENT_IDEA,
+        rec = store.receive(src, eid, OP_CONTENT_IDEA,
                             record_event)
     except IntegrityError as exc:
         # First sighting of the conflict in this delivery: record the
@@ -448,14 +453,14 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
                 "page_id": page_id, "event_type": event_type}
 
     # 3) lifecycle validation (inside the open event — failures durably failed)
-    store.begin(store.source_system, eid)
+    store.begin(src, eid)
     if event_type == "status_changed":
         current = record_event["current_state"]
         target = record_event["target_state"]
         try:
             validate_transition(current, target)
         except LifecycleViolation as exc:
-            store.fail(store.source_system, eid, _ERROR_LIFECYCLE)
+            store.fail(src, eid, _ERROR_LIFECYCLE)
             _enqueue_incident(
                 queue, raw, code="NOTION_LIFECYCLE", message=str(exc),
                 failure_class=exc.failure_class,
@@ -468,7 +473,7 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
 
     # 4) D-026 provenance linkage (best-effort) + terminal success
     pr = record_provenance(provenance, store, eid, actor, record_event)
-    store.succeed(store.source_system, eid, result_reference=json.dumps(
+    store.succeed(src, eid, result_reference=json.dumps(
         record_event, ensure_ascii=False, sort_keys=True))
     return {"status": "succeeded", "event_id": eid,
             "verdict": rec["verdict"], "page_id": page_id,
@@ -489,8 +494,13 @@ def rebuild_state(store: PgEventStore, page_id: str) -> dict:
     step is its own psql transaction, so timestamps never tie; event_id
     breaks any theoretical tie deterministically). The target state
     travels INSIDE each event's result_reference.
-    Pages with no succeeded events are at the lifecycle root (Backlog) —
-    the ingestion assumption documented above and in the M2 fixtures.
+
+    History base (honesty rule): the chain starts at the first
+    OBSERVED current_state — for pages onboarded mid-lifecycle (first
+    poll of an existing workspace) the system never saw the earlier
+    transitions and must not fabricate them; the Backlog root applies
+    only to pages with no succeeded events (documented ingestion
+    assumption above, mirroring the M2 fixtures).
     """
     rows = _exec(
         "SELECT result_reference FROM events.event_record "
@@ -500,6 +510,7 @@ def rebuild_state(store: PgEventStore, page_id: str) -> dict:
         {"src": store.source_system},
     )
     targets: List[str] = []
+    base: Optional[str] = None
     for line in rows.splitlines():
         line = line.strip()
         if not line:
@@ -511,10 +522,13 @@ def rebuild_state(store: PgEventStore, page_id: str) -> dict:
         if not isinstance(ref, dict) or ref.get("page_id") != page_id:
             continue
         if ref.get("event_type") == "status_changed":
+            if base is None:
+                cur = ref.get("current_state")
+                base = cur if isinstance(cur, str) and cur else BACKLOG
             target = ref.get("target_state")
             if isinstance(target, str) and target:
                 targets.append(target)
-    history = [BACKLOG] + targets if targets else []
+    history = [base or BACKLOG] + targets if targets else []
     current = targets[-1] if targets else BACKLOG
     for a, b in zip(history, history[1:]):
         validate_transition(a, b)  # store contents must be self-consistent
