@@ -1,0 +1,10 @@
+{
+  "page_id": "c3d5e7f9-1b2d-4f5a-9b0c-d1e3f5a7b9c1",
+  "object": "incident",
+  "event_type": "incident_updated",
+  "revision_marker": "inc-rev-0042",
+  "last_edited_time": "2026-09-15T07:55:00Z",
+  "incident_ref": "HITL-2026-0915-01",
+  "summary": "dead-letter: Class C credential refusal during Woo projection",
+  "note": "Mock Incident fixture. The mock revision_marker is the dedupe identity; last_edited_time stays change-detection metadata only and is NEVER key material (D-060). The verified real source field remains owner-gated pending Notion API connectivity verification."
+}

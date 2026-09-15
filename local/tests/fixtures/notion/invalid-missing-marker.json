@@ -1,0 +1,9 @@
+{
+  "page_id": "d4e6f8a0-2c3d-4a5b-8c9d-e2f4a6b8c0d2",
+  "object": "content_idea",
+  "event_type": "status_changed",
+  "current_state": "Draft",
+  "target_state": "Review",
+  "last_edited_time": "2026-09-15T11:00:00Z",
+  "note": "Negative fixture: no revision marker on any candidate field — payload can never be safely deduplicated; must fail Class B, never silently processed."
+}

@@ -1,0 +1,11 @@
+{
+  "page_id": "b2c4d6f8-0a1c-4e5f-8a9b-c0d2e4f6a8b0",
+  "object": "campaign",
+  "event_type": "campaign_updated",
+  "revision_marker": "camp-rev-0007",
+  "title": "پاییز ۱۴۰۵ — کمپین کت و جلیقه",
+  "goal": "autumn outerwear feature push",
+  "tier": "YELLOW",
+  "last_edited_time": "2026-09-14T18:20:00Z",
+  "note": "Mock Campaign fixture (D-060 §2 entity sketch). Tier is informational metadata here — any automation effect stays tier-classified per D-050."
+}

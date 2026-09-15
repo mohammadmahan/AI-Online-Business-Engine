@@ -1,0 +1,10 @@
+{
+  "page_id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b100",
+  "object": "content_idea",
+  "event_type": "status_changed",
+  "revision_marker": "rev-0003",
+  "current_state": "Draft",
+  "target_state": "Review",
+  "last_edited_time": "2026-09-15T10:05:00Z",
+  "note": "Mock fixture: second Review event of the repeated-transition scenario. Under the pre-amendment key it would be silently dropped as a duplicate of rev-0001; the D-060 refined key keeps it a distinct logical event."
+}

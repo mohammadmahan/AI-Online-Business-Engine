@@ -1,0 +1,10 @@
+{
+  "page_id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b100",
+  "object": "content_idea",
+  "event_type": "status_changed",
+  "revision_marker": "rev-0002",
+  "current_state": "Review",
+  "target_state": "Draft",
+  "last_edited_time": "2026-09-15T09:45:00Z",
+  "note": "Mock fixture: loop-back Review -> Draft in the repeated-transition scenario (Draft -> Review -> Draft -> Review). Distinct revision marker => distinct D-027 key."
+}

@@ -1,0 +1,10 @@
+{
+  "page_id": "8f5a34e0-7d32-4e9a-9e1b-3f0a7114b100",
+  "object": "content_idea",
+  "event_type": "status_changed",
+  "revision_marker": "rev-0001",
+  "current_state": "Draft",
+  "target_state": "Review",
+  "last_edited_time": "2026-09-15T09:30:00Z",
+  "note": "Mock fixture. last_edited_time is change-detection metadata only — never key material (D-060). The verified revision_marker source field is owner-gated pending Notion API connectivity verification."
+}

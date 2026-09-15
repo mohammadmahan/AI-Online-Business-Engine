@@ -1,0 +1,10 @@
+{
+  "page_id": "e5f7a9b1-3d4e-4b6c-9d0e-f3a5b7c9d1e3",
+  "object": "content_idea",
+  "event_type": "status_changed",
+  "revision_marker": "rev-x001",
+  "current_state": "Approved",
+  "target_state": "Published",
+  "last_edited_time": "2026-09-15T11:30:00Z",
+  "note": "Negative fixture: unauthorized jump Approved -> Published (must pass through Scheduled). Deterministic Class-B failure; publishing effects are RED-tier per D-050 regardless."
+}
