@@ -544,8 +544,10 @@ these even if they seem helpful:
       steps (credential + error-workflow designation) pending per the
       gate report §5; production n8n and real credentials remain
       forbidden (D-045)
-- [ ] Phase 6 — Notion Business OS (no Notion workspace automation)
-      — kickoff recorded 2026-09-15 (`docs/reports/
+- [x] ~~Phase 6 — Notion Business OS~~ — **CLOSED at foundation level
+      (2026-09-15, M1–M4 shipped; final commit `9ab29e5`; gate:
+      conformance matrix A–H green against both D-027 stores)** —
+      kickoff recorded 2026-09-15 (`docs/reports/
       phase-6-kickoff-and-roadmap.md`): design/contract-first roadmap
       (M1–M4), D-027-corrected Notion idempotency, D-050 authority
       matrix; **D-060 Approved — Option A, amended 2026-09-15**
@@ -558,7 +560,7 @@ these even if they seem helpful:
       (undefined_table stays Class E, no logic change); **M2 contracts
       + D-027 ingestion path implemented** (`local/canonical/
       notion_contracts.py`, `local/canonical/notion_ingest.py`: 9-state
-      machine, revision-marker key,      live-PostgreSQL event store with
+      machine, revision-marker key, live-PostgreSQL event store with
       dedupe/conflict/HITL semantics, D-026 provenance; 16 live
       integration tests, 0 skips); **M3 adapter + polling engine
       implemented** (`local/services/notion_adapter.py`:
@@ -573,5 +575,11 @@ these even if they seem helpful:
       provenance on failed deliveries, wall-clock excluded from
       pre-key identity, store-neutral conflict re-raise, psql
       trailing-field sentinel; **Notion connectivity explicitly
-      deferred, owner-gated — no credentials used or created**)
-- [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations
+      deferred, owner-gated — no credentials used or created**).
+      Standing owner gate: no Notion workspace automation; live
+      connectivity verification = separate owner-gated milestone.
+- [ ] Phase 7 — AI Runtime (model routing, structured outputs,
+      validation, cost control, provenance, logging, approval gates)
+      — not started; local-first (D-053): design/contracts before any
+      external API integration
+- [ ] Phase 7+ — Instagram, payment, shipping integrations
