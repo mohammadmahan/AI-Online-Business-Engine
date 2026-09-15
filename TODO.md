@@ -566,5 +566,12 @@ these even if they seem helpful:
       per-page cursor — unchanged pages emit nothing, changed markers
       yield new D-027 events; error boundary captures malformed
       adapter output without crashing; 17 adapter/engine tests,
-      live + offline)
+      live + offline); **M4 integrity audit + conformance proof
+      complete** (frozen matrix `local/tests/fixtures/notion/
+      conformance_matrix.json` rows A–H executed against BOTH stores;
+      fixes: failed-marker suppression stops D-052 auto-retry loops,
+      provenance on failed deliveries, wall-clock excluded from
+      pre-key identity, store-neutral conflict re-raise, psql
+      trailing-field sentinel; **Notion connectivity explicitly
+      deferred, owner-gated — no credentials used or created**)
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations

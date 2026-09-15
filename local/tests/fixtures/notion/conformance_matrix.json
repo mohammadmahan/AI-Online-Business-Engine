@@ -1,0 +1,107 @@
+{
+  "_meta": {
+    "title": "Phase 6 M4 — D-027/D-060 idempotency conformance matrix",
+    "authority": "D-060 (Approved, amended 2026-09-15), D-027, D-026, D-052, D-061",
+    "note": "Frozen expected outcomes. test_phase6_notion_m4_conformance.py executes EVERY row against BOTH the local JSON EventStore and the live PostgreSQL canonical store. Changing an expected value here is a contract change and must ship with a decision-record amendment.",
+    "executed_stores": ["json_local", "postgres_canonical"]
+  },
+  "rows": [
+    {
+      "id": "A",
+      "scenario": "same_page_same_type_same_marker_same_content",
+      "given": "one status_changed delivery ingested successfully; the byte-identical delivery arrives again",
+      "expected": {
+        "first_status": "succeeded",
+        "repeat_status": "skipped_duplicate",
+        "succeeded_rows": 1,
+        "hitl_items": 0
+      }
+    },
+    {
+      "id": "B",
+      "scenario": "same_page_same_type_changed_marker",
+      "given": "one status_changed delivery ingested; the page's revision marker changes (new revision, same transition semantics)",
+      "expected": {
+        "second_status": "succeeded",
+        "distinct_event_ids": 2,
+        "succeeded_rows": 2,
+        "hitl_items": 0
+      }
+    },
+    {
+      "id": "C",
+      "scenario": "same_computed_key_changed_payload_content",
+      "given": "one delivery ingested; a delivery with the SAME key (page+type+marker) but different transition content arrives",
+      "expected": {
+        "first_status": "succeeded",
+        "conflict_status": "failed",
+        "conflict_error_class": "CONFLICTING_DUPLICATE",
+        "conflict_failure_class": "B",
+        "succeeded_rows_unchanged": true,
+        "hitl_items": 1,
+        "repeat_raises_integrity_error": true
+      }
+    },
+    {
+      "id": "D",
+      "scenario": "repeated_transitions_draft_review_draft_review",
+      "given": "the page moves Draft -> Review -> Draft -> Review with a distinct revision marker per revision",
+      "expected": {
+        "statuses": ["succeeded", "succeeded", "succeeded"],
+        "distinct_event_ids": 3,
+        "succeeded_rows": 3,
+        "final_state": "Review",
+        "hitl_items": 0
+      }
+    },
+    {
+      "id": "E",
+      "scenario": "retry_after_failed_ingestion",
+      "given": "a delivery fails (illegal transition); the SAME marker is offered again next cycle; then the source is corrected (new marker, legal transition)",
+      "expected": {
+        "first_cycle_status": "failed",
+        "same_marker_next_cycle": "suppressed_no_auto_retry",
+        "corrected_retry_status": "succeeded",
+        "final_state": "Published",
+        "hitl_items": 1
+      }
+    },
+    {
+      "id": "F",
+      "scenario": "process_restart_cursor_and_reconstruction",
+      "given": "a cycle ingests an event; the engine process restarts (fresh engine, same durable cursor file); the page is unchanged",
+      "expected": {
+        "restart_cycle": "unchanged_no_reingest",
+        "store_rows_after_restart": 1,
+        "rebuild_source": "durable_store_only",
+        "rebuild_history": ["Backlog", "Researching"]
+      }
+    },
+    {
+      "id": "G",
+      "scenario": "unknown_state_class_e",
+      "given": "a status_changed delivery references a state outside the D-060 machine",
+      "expected": {
+        "status": "failed",
+        "failure_class": "E",
+        "error_class": "LIFECYCLE",
+        "hitl_items": 1,
+        "no_success_row": true,
+        "same_marker_next_cycle": "suppressed_no_auto_retry"
+      }
+    },
+    {
+      "id": "H",
+      "scenario": "missing_revision_marker_class_b",
+      "given": "a status_changed delivery with NO revision marker on any candidate field, delivered twice with different last_edited_time metadata",
+      "expected": {
+        "status": "failed",
+        "failure_class": "B",
+        "error_class": "PAYLOAD_CONTRACT",
+        "hitl_items": 1,
+        "same_event_id_despite_different_last_edited_time": true,
+        "no_key_from_wall_clock": true
+      }
+    }
+  ]
+}

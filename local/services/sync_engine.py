@@ -157,6 +157,21 @@ class EventStore:
     def key(source_system: str, event_id: str) -> str:
         return f"{source_system}::{event_id}"
 
+    def get_record(self, source_system: str, event_id: str):
+        """Full event record (status, payload_hash, retry_count,
+        last_error_class, result_reference) or None — D-027 interface
+        parity with the PostgreSQL store (M4 audit addition)."""
+        rec = self.records.get(self.key(source_system, event_id))
+        return dict(rec) if rec else None
+
+    def succeeded_references(self, source_system: str) -> list:
+        """result_reference of every succeeded event, in deterministic
+        insertion order (D-027 interface parity with the PostgreSQL
+        store; consumed by canonical.notion_ingest.rebuild_state)."""
+        return [r["result_reference"] for r in self.records.values()
+                if r["processing_status"] == "succeeded"
+                and r.get("result_reference")]
+
     def receive(self, source_system: str, event_id: str,
                 operation_type: str, payload) -> dict:
         """Register/refresh an event. Returns the event record.

@@ -90,8 +90,15 @@ def _payload_hash(payload) -> str:
 
 def _pre_key(payload) -> str:
     """Deterministic pre-key event id for payloads that never reach the
-    D-027 key derivation (contract failures, conflicts)."""
-    return "prekey|" + _payload_hash(payload)[:32]
+    D-027 key derivation (contract failures, conflicts).
+
+    Wall-clock metadata (last_edited_time) is EXCLUDED — M4 audit: no
+    idempotency identity, not even the failure-record identity, may
+    derive from change-detection metadata (D-060)."""
+    normalized = {k: v for k, v in payload.items()
+                  if k != "last_edited_time"} if isinstance(payload, dict) \
+        else payload
+    return "prekey|" + _payload_hash(normalized)[:32]
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +189,57 @@ class PgEventStore:
         status, payload_hash, retry_count = _split_row(row)
         return {"processing_status": status, "payload_hash": payload_hash,
                 "retry_count": int(retry_count)}
+
+    def succeeded_references(self, source_system: str) -> list:
+        """result_reference of every succeeded event, in deterministic
+        received_at order (D-027 interface parity with the JSON store;
+        consumed by rebuild_state)."""
+        rows = _exec(
+            "SELECT coalesce(result_reference, '') || chr(31) || 'END' "
+            f"FROM events.event_record WHERE source_system = {_txt('src')} "
+            "AND processing_status = 'succeeded' "
+            "ORDER BY received_at, event_id",
+            {"src": source_system},
+        )
+        refs = []
+        for line in rows.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\x1f")
+            if len(parts) >= 2 and parts[-1] == "END":
+                refs.append(parts[0])
+        return refs
+
+    def get_record(self, source_system: str, event_id: str) -> Optional[dict]:
+        """Full event record (D-027 interface parity with the JSON store):
+        status, payload_hash, retry_count, last_error_class,
+        result_reference.
+
+        The concat ends with an 'END' sentinel: psql -A -t output is
+        whitespace-stripped on read and chr(31) counts as whitespace in
+        Python, so trailing EMPTY fields would otherwise be truncated
+        (M4 audit fix).
+        """
+        row = _exec(
+            "SELECT processing_status || chr(31) || payload_hash "
+            "|| chr(31) || retry_count || chr(31) || "
+            "coalesce(last_error_class, '') || chr(31) || "
+            "coalesce(result_reference, '') || chr(31) || 'END' "
+            f"FROM events.event_record WHERE {self._where()}",
+            self._params(event_id),
+        ).strip()
+        if not row:
+            return None
+        parts = _split_row(row)
+        if len(parts) < 5 or parts[-1] != "END":
+            raise RuntimeError(
+                f"malformed event_record row for {event_id}: {parts!r}")
+        status, payload_hash, retry_count, err_cls, ref = parts[:5]
+        return {"processing_status": status, "payload_hash": payload_hash,
+                "retry_count": int(retry_count),
+                "last_error_class": err_cls or None,
+                "result_reference": ref or None}
 
     # -- D-027 interface ------------------------------------------------------
 
@@ -294,13 +352,16 @@ class PgEventStore:
 
 
 def record_provenance(provenance, store: PgEventStore, event_id: str,
-                      actor: str, payload_ref: dict) -> Optional[int]:
+                      actor: str, payload_ref: dict,
+                      *, outcome: str = "succeeded") -> Optional[int]:
     """Attach a D-026 provenance record + linkage (best-effort).
 
-    Provenance is an audit layer, not the ingestion transaction: if the
-    provenance store is unavailable the event still persists. Any error
-    other than an unavailable store propagates (programming errors must
-    not be swallowed).
+    Attached to BOTH outcomes: accepted (succeeded) events and failed
+    deliveries — the audit trail must explain rejected data too (M4
+    integrity audit). Provenance is an audit layer, not the ingestion
+    transaction: if the provenance store is unavailable the event still
+    persists. Any error other than an unavailable store propagates
+    (programming errors must not be swallowed).
     """
     if provenance is None:
         return None
@@ -315,7 +376,9 @@ def record_provenance(provenance, store: PgEventStore, event_id: str,
         return None  # provenance store unavailable — audit skipped
     try:
         provenance.link_value(
-            "events.event_record", store.key(store.source_system, event_id),
+            "events.event_record",
+            store.key(getattr(store, "source_system", SOURCE_SYSTEM),
+                      event_id),
             "payload_hash", pr)
     except RuntimeError:
         return None
@@ -382,13 +445,15 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
             store.fail(src, eid, error_class)
         except IntegrityError:
             pass  # terminal pre-key row already failed identically
+        pr = record_provenance(provenance, store, eid, actor, raw,
+                               outcome="failed")
         _enqueue_incident(
             queue, raw, code=f"NOTION_{error_class}",
             message=message, failure_class=failure_class,
             item_key=f"notion|{eid}", actor=actor)
         return {"status": "failed", "event_id": eid,
                 "error_class": error_class, "failure_class": failure_class,
-                "error": message}
+                "error": message, "provenance_id": pr}
 
     # 1) payload-contract validation (shape only — state-machine legality
     #    is a post-receive concern) + key derivation
@@ -420,32 +485,36 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
         rec = store.receive(src, eid, OP_CONTENT_IDEA,
                             record_event)
     except IntegrityError as exc:
-        # First sighting of the conflict in this delivery: record the
-        # failed delivery durably (pre-key) + HITL item. A repeat
-        # sighting (conflict already on record) re-raises so callers
-        # never mistake an unprocessed conflict for success.
+        # Store-neutral repeat-sighting detection (works for ANY D-027
+        # store): the first sighting durably records the pre-key failure
+        # row; a re-delivery of the SAME conflicting payload then classifies
+        # as skipped_duplicate against that terminal row — only then does
+        # the conflict re-raise, so callers never mistake an unprocessed
+        # conflict for success.
         eid2 = _pre_key(raw)
-        seen = _exec(
-            "SELECT 1 FROM events.event_record WHERE "
-            + store._where() + " "
-            "AND processing_status = 'failed' "
-            "AND last_error_class = " + _txt("ec"),
-            store._params(eid2, ec=_ERROR_CONFLICT),
-        ).strip()
-        if seen:
+        pre = store.receive(src, eid2, OP_CONFLICT, raw)
+        rec2 = store.get_record(src, eid2) or {}
+        already_on_record = (
+            pre["verdict"] == "skipped_duplicate"
+            or rec2.get("last_error_class") == _ERROR_CONFLICT)
+        if already_on_record:
+            # the conflict is durably recorded and review-routed; a repeat
+            # sighting must re-raise so it is never mistaken for success
             raise
-        store.receive(store.source_system, eid2, OP_CONFLICT, raw)
         try:
-            store.fail(store.source_system, eid2, _ERROR_CONFLICT)
+            store.fail(src, eid2, _ERROR_CONFLICT)
         except IntegrityError:
             pass
+        pr = record_provenance(provenance, store, eid2, actor, raw,
+                               outcome="failed")
         _enqueue_incident(
             queue, raw, code="NOTION_CONFLICTING_DUPLICATE",
             message=str(exc), failure_class="B",
             item_key=f"notion|conflict|{eid[:24]}", actor=actor)
         return {"status": "failed", "event_id": eid2,
                 "error_class": _ERROR_CONFLICT, "failure_class": "B",
-                "error": str(exc), "page_id": page_id}
+                "error": str(exc), "page_id": page_id,
+                "provenance_id": pr}
 
     if rec["verdict"] == "skipped_duplicate":
         return {"status": "skipped_duplicate", "event_id": eid,
@@ -461,6 +530,8 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
             validate_transition(current, target)
         except LifecycleViolation as exc:
             store.fail(src, eid, _ERROR_LIFECYCLE)
+            pr = record_provenance(provenance, store, eid, actor,
+                                   record_event, outcome="failed")
             _enqueue_incident(
                 queue, raw, code="NOTION_LIFECYCLE", message=str(exc),
                 failure_class=exc.failure_class,
@@ -469,7 +540,8 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
             return {"status": "failed", "event_id": eid,
                     "error_class": _ERROR_LIFECYCLE,
                     "failure_class": exc.failure_class,
-                    "error": str(exc), "page_id": page_id}
+                    "error": str(exc), "page_id": page_id,
+                    "provenance_id": pr}
 
     # 4) D-026 provenance linkage (best-effort) + terminal success
     pr = record_provenance(provenance, store, eid, actor, record_event)
@@ -485,14 +557,18 @@ def ingest_notion_event(payload: Dict, store: Optional[PgEventStore] = None,
 # ---------------------------------------------------------------------------
 
 
-def rebuild_state(store: PgEventStore, page_id: str) -> dict:
+def rebuild_state(store, page_id: str) -> dict:
     """Rebuild a page's lifecycle position from succeeded events in the
     canonical store (D-055: PostgreSQL is the SSOT — reconstruction uses
     ONLY persisted data, no in-process memory).
 
+    Store-neutral: works against any D-027 store exposing
+    succeeded_references() — PgEventStore (live, D-055) and the local
+    JSON EventStore (offline) both implement it. Reconstruction itself
+    stays read-only and store-agnostic.
+
     Deterministic: events are applied in received_at order (each ingest
-    step is its own psql transaction, so timestamps never tie; event_id
-    breaks any theoretical tie deterministically). The target state
+    step is its own transaction; event_id breaks any theoretical tie). The target state
     travels INSIDE each event's result_reference.
 
     History base (honesty rule): the chain starts at the first
@@ -502,17 +578,12 @@ def rebuild_state(store: PgEventStore, page_id: str) -> dict:
     only to pages with no succeeded events (documented ingestion
     assumption above, mirroring the M2 fixtures).
     """
-    rows = _exec(
-        "SELECT result_reference FROM events.event_record "
-        f"WHERE source_system = {_txt('src')} "
-        "AND processing_status = 'succeeded' "
-        "ORDER BY received_at, event_id",
-        {"src": store.source_system},
-    )
+    rows = store.succeeded_references(
+        getattr(store, "source_system", SOURCE_SYSTEM))
     targets: List[str] = []
     base: Optional[str] = None
-    for line in rows.splitlines():
-        line = line.strip()
+    for line in rows:
+        line = str(line).strip()
         if not line:
             continue
         try:

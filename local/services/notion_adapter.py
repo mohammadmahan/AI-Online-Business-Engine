@@ -273,23 +273,46 @@ class PollingEngine:
         self.actor = actor
         # page_id → last EMITTED marker (runtime state, gitignored)
         self._cursors: Dict[str, str] = {}
+        # page_id → marker whose ingestion FAILED (poison list): while a
+        # page's marker equals the failed marker it is NOT re-emitted —
+        # D-052: Class-B/E failures are never retried automatically; a
+        # genuinely corrected source (new marker) re-delivers. This is
+        # the M4 audit's row-G guarantee and preserves the M3 no-data-
+        # loss intent (the page is never marked "done" on failure).
+        self._failed: Dict[str, str] = {}
         if cursor_path and os.path.exists(cursor_path):
             try:
                 with open(cursor_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
-                    self._cursors = {
-                        k: str(v) for k, v in data.items()
-                        if isinstance(v, str)
-                    }
+                    if isinstance(data.get("emitted"), dict):
+                        # current format {"emitted": …, "failed": …}
+                        self._cursors = {
+                            k: str(v) for k, v in data["emitted"].items()
+                            if isinstance(v, str)
+                        }
+                        self._failed = {
+                            k: str(v) for k, v in (
+                                data.get("failed") or {}).items()
+                            if isinstance(v, str)
+                        }
+                    else:
+                        # legacy flat format {page_id: marker}
+                        self._cursors = {
+                            k: str(v) for k, v in data.items()
+                            if isinstance(v, str)
+                        }
             except (json.JSONDecodeError, OSError):
-                self._cursors = {}  # corrupt cursor → re-emit; store dedupes
+                self._cursors, self._failed = {}, {}  # corrupt → re-emit;
+                # the D-027 store dedupes any resulting repeats
 
     def _save_cursors(self) -> None:
         if self.cursor_path:
             os.makedirs(os.path.dirname(self.cursor_path), exist_ok=True)
             with open(self.cursor_path, "w", encoding="utf-8") as f:
-                json.dump(self._cursors, f, ensure_ascii=False, indent=2)
+                json.dump({"emitted": self._cursors,
+                           "failed": self._failed},
+                          f, ensure_ascii=False, indent=2)
 
     def poll(self, *, batch_size: int = 100) -> dict:
         """One polling cycle. Returns a structured result; never raises
@@ -298,7 +321,7 @@ class PollingEngine:
         """
         cycle = {
             "ingested": [], "skipped_duplicate": [], "failed": [],
-            "unchanged": [], "errors": [],
+            "unchanged": [], "suppressed": [], "errors": [],
         }
         try:
             events = self.provider.fetch_events(batch_size=batch_size)
@@ -325,17 +348,26 @@ class PollingEngine:
                 if self._cursors.get(ev.page_id) == marker:
                     cycle["unchanged"].append(ev.page_id)
                     continue
+                if self._failed.get(ev.page_id) == marker:
+                    # same failed marker re-offered: automatic retry is
+                    # forbidden (D-052 B/E) — suppressed, human review
+                    # owns the outcome via the HITL item
+                    cycle["suppressed"].append(ev.page_id)
+                    continue
                 result = ingest_notion_event(
                     ev.to_payload(), store=self.store, queue=self.queue,
                     provenance=self.provenance, actor=self.actor)
                 if result["status"] == "succeeded":
                     self._cursors[ev.page_id] = marker
+                    self._failed.pop(ev.page_id, None)
                     cycle["ingested"].append(
                         {"page_id": ev.page_id, "event_id": result["event_id"]})
                 elif result["status"] == "skipped_duplicate":
                     self._cursors[ev.page_id] = marker
+                    self._failed.pop(ev.page_id, None)
                     cycle["skipped_duplicate"].append(ev.page_id)
-                else:  # failed — do NOT advance the cursor
+                else:  # failed — record the poisoned marker, never auto-retry
+                    self._failed[ev.page_id] = marker
                     cycle["failed"].append(
                         {"page_id": ev.page_id, "error": result.get("error", "")})
             except AdapterErrorBoundary as exc:

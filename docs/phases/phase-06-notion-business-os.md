@@ -1,6 +1,6 @@
 # Phase 6 Specification: Notion Business OS (M1 — The Blueprint)
 
-- Status: **M1 blueprint ✓ · M2 contracts ✓ · D-027 ingestion path ✓ · M3 adapter + polling engine ✓** — 2026-09-15
+- Status: **M1 blueprint ✓ · M2 contracts ✓ · D-027 ingestion path ✓ · M3 adapter + polling engine ✓ · M4 integrity audit + conformance proof ✓** — 2026-09-15
 - Ingestion wiring (M2+): `local/canonical/notion_ingest.py` — contracts →
   D-060 key → D-027 dedupe → lifecycle validation → `events.event_record`
   (live PostgreSQL, D-055) → D-026 provenance; failures persist durable rows
@@ -113,7 +113,61 @@ Terminal states:
 3. Notion-source event contract mapped to the D-027 store.
 4. No connection, credentials, or workspace changes anywhere.
 
-## 7. Traceability
+## 7. M4 — data-integrity audit, conformance proof, deferred connectivity (2026-09-15)
+
+M4 is an **audit and proof milestone**, not a live integration.
+
+### 7.1 Audit findings (defects found → fixed in the same batch)
+1. **Automatic retry loop on Class-B/E failures (D-052 violation):** the
+   poller re-emitted a failed page every cycle (cursor intentionally not
+   advanced). Fixed with a failed-marker poison list: while a page's
+   marker equals the failed marker it is **suppressed** (no automatic
+   retry; the HITL item owns the outcome); a corrected source (new
+   marker) re-delivers. Cycle results gained a `suppressed` bucket.
+2. **Provenance only on success:** D-026 records now attach to FAILED
+   deliveries too (contract failures, lifecycle violations, conflicting
+   duplicates) — the audit trail must explain rejected data.
+3. **Wall-clock in failure identity:** `_pre_key` derived the failure-row
+   id from the full payload including `last_edited_time`. Excluded —
+   no idempotency identity (not even failure records) may derive from
+   change-detection metadata (D-060).
+4. **Store-neutral conflict repeat-sighting:** the re-raise check was
+   PgEventStore-SQL-only; now uses the D-027 record interface
+   (`get_record`, added to BOTH stores for parity), so the JSON store
+   satisfies row C identically.
+5. **psql trailing-empty-field truncation:** `get_record`'s chr(31)
+   concat lost trailing empty columns because chr(31) is Python
+   whitespace and `.strip()` ate them; rows now end with an `END`
+   sentinel and fail loudly on malformed output.
+
+### 7.2 Conformance matrix (frozen, machine-readable)
+- Location: `local/tests/fixtures/notion/conformance_matrix.json`
+- Executor: `local/tests/test_phase6_notion_m4_conformance.py` — every
+  row (A–H) executes against BOTH stores (json_local +
+  postgres_canonical) via subTest-style classes; expected outcomes are
+  frozen in the fixture; changing one is a contract change requiring a
+  decision-record amendment.
+- Commands: `python3 -m unittest local.tests.test_phase6_notion_m4_conformance -v`
+  · full battery: `python3 -m unittest discover -s local/tests -p "test_*.py"`
+  · canonical: `python3 local/canonical/tests.py` · live smoke:
+  `python3 local/scripts/smoke_test.py`
+
+### 7.3 Connectivity audit — EXPLICITLY DEFERRED (owner-gated)
+- **No real Notion API credential was used in M4.** None exists in this
+  repository, and none may be created without owner approval (D-045/D-053).
+- The real revision-marker source field remains **UNVERIFIED**;
+  `NOTION_REVISION_MARKER_FIELDS` still contains only the mock contract
+  field.
+- `last_edited_time` remains change-detection metadata only until
+  owner-approved verification runs; it is never idempotency-key
+  material (D-060).
+- Live Notion API connectivity verification is a **separate owner-gated
+  milestone** (requires an owner-approved workspace + credential).
+- **M4 passing does NOT prove live Notion compatibility.** All M4
+  conformance is proven against the mock provider and both local
+  canonical stores.
+
+## 8. Traceability
 
 | Rule | Anchor |
 | --- | --- |
