@@ -2078,9 +2078,12 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-060 — HITL/incident system of record & Notion integration boundaries
 
-- **Status:** **Proposed** (2026-09-15, recorded from the Phase 6
-  kickoff instruction) — requires owner approval; nothing is closed
-  by this record.
+- **Status:** **Approved — Option A** (2026-09-15, human owner): the
+  canonical PostgreSQL layer remains the durable system of record for
+  HITL/incidents and their D-026 provenance; Notion receives a
+  mirror/view. The proposed content-idea lifecycle (Backlog →
+  Researching → Draft → Review → Approved → Published) is approved as
+  the Phase 6 content-idea lifecycle.
 - **Situation:** Phase 6 (Notion Business OS) kickoff draft proposed
   Notion as "the single source of truth for business state" and a
   `Notion Page ID + Last Updated Timestamp` idempotency key. Both
@@ -2088,7 +2091,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   PostgreSQL (D-055; D-048 Option A), and a last-updated timestamp in
   a D-027 key makes the key different on every edit — dedupe silently
   fails (same defect class fixed in the Phase 5 M1 review).
-- **Proposed disposition (Option A, recommended):** Notion = Business
+- **Disposition (Option A, APPROVED):** Notion = Business
   OS / knowledge layer (SOPs, ideas, calendar, dashboards, review
   *surfaces*); canonical PostgreSQL remains the durable system of
   record for HITL/incidents and their D-026 provenance; Notion
@@ -2097,17 +2100,38 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   change-detection metadata only, never key material. No n8n
   write-back to Notion by default — any future write-back carries its
   own D-050 tier classification and human-approval marker.
-- **Option B (not recommended):** the Notion database itself is the
+- **Option B (not chosen):** the Notion database itself is the
   HITL/incident record with sync-back into canonical tooling — weaker
   integrity guarantees, split provenance, added sync-conflict surface.
 - **Recorded:** kickoff roadmap at `docs/reports/
   phase-6-kickoff-and-roadmap.md` (entity sketches, authority matrix,
   milestones M1–M4, corrected gates).
-- **Owner gates:** ruling on Option A vs B; approval of the proposed
-  content-idea lifecycle (Backlog → Researching → Draft → Review →
-  Approved → Published); any future Notion workspace/credential
-  creation remains owner-gated (D-045/D-053) — no workspace
-  automation in this phase until explicitly opened.
+- **Owner gates:** ~~ruling on Option A vs B~~ **APPROVED (Option A,
+  2026-09-15)**; ~~content-idea lifecycle approval~~ **APPROVED as
+  proposed**; any future Notion workspace/credential creation remains
+  owner-gated (D-045/D-053) — no workspace automation in this phase
+  until explicitly opened.
+
+## D-061 — Postgres undefined_table classification (D-052 taxonomy)
+
+- **Status:** **Accepted — observation registered, no logic change**
+  (2026-09-15, human owner via batch instruction).
+- **Situation:** Phase 5/6 drill observation: Postgres
+  `undefined_table` errors (e.g. `relation … does not exist`) carry
+  no D-052 Class-B keywords, so the canonical classifier
+  (`local/canonical/n8n_failure_taxonomy.js`) conservatively routes
+  them to Class E (unknown/ambiguous → deterministic reconciliation
+  → human review).
+- **Decision:** keep `undefined_table` in **Class E (human review)**.
+- **Rationale:** safe-by-default — Class E never blind-retries and
+  always surfaces for human review; Class-B keywords stay reserved
+  for genuine data-invariant violations. No change to the
+  parity-embedded workflow logic (byte-identical embeds and their
+  tests remain untouched).
+- **Revisit condition:** if live-router telemetry later shows
+  undefined_table volume that justifies Class-B routing, propose a
+  classifier extension as a new decision record (with parity tests
+  and embed regeneration).
 
 ## Open decision register
 

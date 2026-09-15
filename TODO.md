@@ -548,6 +548,9 @@ these even if they seem helpful:
       — kickoff recorded 2026-09-15 (`docs/reports/
       phase-6-kickoff-and-roadmap.md`): design/contract-first roadmap
       (M1–M4), D-027-corrected Notion idempotency, D-050 authority
-      matrix; **D-060 Proposed** (HITL system of record + integration
-      boundaries) awaits owner ruling before Phase 6 M1
+      matrix; **D-060 Approved — Option A** (2026-09-15: canonical
+      PostgreSQL = HITL/incident SSOT, Notion mirrors; content-idea
+      lifecycle approved) — M1 blueprint scaffolded at
+      `docs/phases/phase-06-notion-business-os.md`; **D-061 Accepted**
+      (undefined_table stays Class E, no logic change)
 - [ ] Phase 7+ — AI Runtime, Instagram, payment, shipping integrations
