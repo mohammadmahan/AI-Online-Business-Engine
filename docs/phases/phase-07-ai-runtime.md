@@ -179,13 +179,28 @@ amendment (same discipline as the D-060 key serialization).
   surface. Suite: `local/tests/test_phase7_ai_runtime_m3.py`
   (20 tests: 6 offline task semantics, 5 divergence, 3 batch/budget,
   3 authority boundary, 3 live PostgreSQL round-trips).
-- **M4 — Gate report + readiness review (remaining):** integrity audit
-  of the full AI path (task → router → provider → contract →
-  divergence → lifecycle → HITL), cost-ledger audit, authority-gate
-  conformance proof, and the **explicitly deferred live-provider
-  connectivity audit** (owner-gated; requires approved provider
-  selection + credentials per D-045). M4 passing does not prove live
-  provider compatibility.
+- **M4 — Gate report + readiness review (DONE 2026-09-16, commit
+  see git log):** static AST path audit (import roots ⊆ stdlib ∪
+  canonical/services; zero forbidden imports/integration references;
+  no execution verbs on proposer surfaces; no os.environ, credential
+  material, provider names, or production endpoints); dynamic
+  conformance (registry-scoped applier proves accepted proposals reach
+  only registered targets; forced provider failure = zero side
+  effects; conflicting re-delivery refused offline AND on live PG;
+  restart durability with terminal idempotency); cost-ledger audit
+  (all call statuses metered, append-only shape, budgets fire without
+  a ledger, hard refusal before dispatch with zero marginal calls);
+  D-045 boundary audit (unregistered provider = deterministic Class-B
+  config error, never a network attempt; policy ships mock-only).
+  **Hardening shipped:** `AiProposal` is now `frozen=True` —
+  tamper-evident envelope. Gate report:
+  `docs/reports/PHASE_7_GATE_REPORT.md`. Suite:
+  `local/tests/test_phase7_ai_runtime_m4.py` (23 tests: 6 static path,
+  5 dynamic conformance, 5 cost-ledger, 5 provider boundary, 2 live
+  PostgreSQL). **Explicitly deferred live-provider connectivity
+  audit** (owner-gated; requires approved provider selection +
+  credentials per D-045). M4 passing does not prove live provider
+  compatibility. **Phase 7 closed at foundation level.**
 
 ## 6. Security & credentials (unchanged posture)
 

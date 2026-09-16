@@ -578,8 +578,9 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
-- [ ] Phase 7 — AI Runtime (model routing, structured outputs,
+- [x] Phase 7 — AI Runtime (model routing, structured outputs,
       validation, cost control, provenance, logging, approval gates)
+      — **CLOSED at foundation level (2026-09-16), M1–M4 complete**
       — **M1 done (2026-09-15)**: blueprint
       `docs/phases/phase-07-ai-runtime.md`; strict v1 output contracts
       + validator (`local/canonical/ai_contracts.py`, fixture-pinned);
@@ -609,5 +610,18 @@ these even if they seem helpful:
       D-063); batch processing with hard-budget stop before dispatch;
       persist mode lands PROPOSED only via the M2 lifecycle (idempotent
       by deterministic tag; divergent output persists nothing).
-      M4 next: gate report + explicitly deferred connectivity audit.
+      **M4 done (2026-09-16) — Phase 7 CLOSED at foundation level**:
+      gate report `docs/reports/PHASE_7_GATE_REPORT.md`; M4 audit
+      suite `local/tests/test_phase7_ai_runtime_m4.py` (23 tests:
+      static AST path audit, dynamic conformance incl. conflicting
+      re-delivery refused offline+live, cost-ledger audit, D-045
+      provider-boundary audit, live-PG restart durability);
+      hardening: AiProposal frozen (tamper-evident envelope); M4 audit
+      also found + fixed a cross-cutting store defect (wall-clock
+      received_at not a safe ordering key on VMs — monotonic
+      ingest_seq/receive_seq ordering now, Phase 6 doc §7.1.6).
+      Phase 7 total 100/100, battery 294/294 zero-skip.
+      Standing owner gate: real AI provider selection + credentials
+      (register row 9, D-045) — none exist, none requested; live
+      provider compatibility NOT proven by Phase 7.
 - [ ] Phase 7+ — Instagram, payment, shipping integrations

@@ -25,6 +25,7 @@ the flows are executable before Docker is available.
 """
 
 import hashlib
+import itertools
 import json
 import os
 import threading
@@ -152,6 +153,12 @@ class EventStore:
     def __init__(self, path: str = None):
         self._store = _JsonStore(path, {})
         self.records = self._store.data   # key → record dict
+        # durable monotonic insertion counter (see succeeded_references
+        # — receive_seq is the ordering key; received_at is not trusted
+        # for ordering on VMs whose clock can step backward)
+        self._seq = itertools.count(
+            1 + max((int(r.get("receive_seq", 0))
+                     for r in self.records.values()), default=0))
 
     @staticmethod
     def key(source_system: str, event_id: str) -> str:
@@ -167,10 +174,18 @@ class EventStore:
     def succeeded_references(self, source_system: str) -> list:
         """result_reference of every succeeded event, in deterministic
         insertion order (D-027 interface parity with the PostgreSQL
-        store; consumed by canonical.notion_ingest.rebuild_state)."""
-        return [r["result_reference"] for r in self.records.values()
+        store; consumed by canonical.notion_ingest.rebuild_state).
+
+        Orders by the monotonic receive_seq assigned at receive() time
+        (M4 Phase-7 audit parity: the PG store orders by ingest_seq —
+        wall-clock timestamps are not safe ordering keys on VMs whose
+        clock can step backward)."""
+        rows = [r for r in self.records.values()
                 if r["processing_status"] == "succeeded"
                 and r.get("result_reference")]
+        rows.sort(key=lambda r: (r.get("receive_seq", 0),
+                                 r.get("event_id", "")))
+        return [r["result_reference"] for r in rows]
 
     def receive(self, source_system: str, event_id: str,
                 operation_type: str, payload) -> dict:
@@ -206,6 +221,11 @@ class EventStore:
             "event_id": event_id,
             "operation_type": operation_type,
             "received_at": _now(),
+            # monotonic insertion sequence — the durable ordering key
+            # (wall-clock received_at is audit metadata only; see
+            # succeeded_references — M4 Phase-7 audit parity with the
+            # PG store's ingest_seq)
+            "receive_seq": next(self._seq),
             "processing_status": "received",
             "payload_hash": ph,
             "result_reference": None,

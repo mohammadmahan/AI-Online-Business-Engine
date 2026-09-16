@@ -298,6 +298,12 @@ CREATE TABLE IF NOT EXISTS events.event_record (
     event_id          text NOT NULL,
     operation_type    text NOT NULL,
     received_at       timestamptz NOT NULL DEFAULT now(),
+    -- Monotonic INSERTION sequence (M4 Phase-7 audit finding): VM
+    -- wall-clock (now()) can step backward under NTP/host sync, so
+    -- received_at must never be an ordering key. Event-sourced
+    -- reconstruction orders by ingest_seq; received_at is audit
+    -- metadata only. bigserial assigns on INSERT when omitted.
+    ingest_seq        bigserial,
     processing_status text NOT NULL DEFAULT 'received' CHECK
         (processing_status IN ('received', 'processing', 'succeeded',
                                'failed', 'skipped_duplicate')),

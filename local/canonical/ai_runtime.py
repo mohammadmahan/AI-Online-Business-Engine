@@ -271,11 +271,15 @@ class UsageLedger:
 # --- runtime (routing + guardrails + proposals) -------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class AiProposal:
     """The ONLY way AI output leaves this module: a review-ready
     envelope (D-050). No execution path exists — approval happens in
-    the HITL VerificationQueue by a human (M2 wires the round-trip)."""
+    the HITL VerificationQueue by a human (M2 wires the round-trip).
+
+    Frozen (M4 audit hardening): once validated, an envelope is
+    tamper-evident — any post-validation mutation raises
+    FrozenInstanceError instead of silently changing reviewed content."""
     schema_id: str
     task_type: str
     payload: Dict

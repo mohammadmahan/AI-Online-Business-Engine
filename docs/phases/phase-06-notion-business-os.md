@@ -139,6 +139,17 @@ M4 is an **audit and proof milestone**, not a live integration.
    concat lost trailing empty columns because chr(31) is Python
    whitespace and `.strip()` ate them; rows now end with an `END`
    sentinel and fail loudly on malformed output.
+6. **(2026-09-16, Phase 7 M4 cross-audit) Non-monotonic reconstruction
+   ordering:** `rebuild_state` ordered by `received_at` (wall-clock);
+   on the local VM the clock stepped backward under rapid successive
+   ingests, reordering genuinely sequential events and breaking
+   lifecycle reconstruction (reproduced 2/60 rapid-ingest iterations;
+   symptom: intermittent `Review -> Review` in the row-D conformance
+   test). Fix: monotonic `events.event_record.ingest_seq bigserial`
+   (PG) + durable `receive_seq` (JSON store); `succeeded_references`
+   orders by the sequence; `received_at` demoted to audit metadata.
+   Verified 0/60 post-fix on both stores; regression test
+   `test_rapid_ingest_reconstruction_is_monotonic_on_live_store`.
 
 ### 7.2 Conformance matrix (frozen, machine-readable)
 - Location: `local/tests/fixtures/notion/conformance_matrix.json`

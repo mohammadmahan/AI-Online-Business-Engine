@@ -192,13 +192,29 @@ class PgEventStore:
 
     def succeeded_references(self, source_system: str) -> list:
         """result_reference of every succeeded event, in deterministic
-        received_at order (D-027 interface parity with the JSON store;
-        consumed by rebuild_state)."""
+        INSERTION order (D-027 interface parity with the JSON store;
+        consumed by rebuild_state).
+
+        Orders by ingest_seq — a monotonic insertion sequence (M4
+        Phase-7 audit finding): wall-clock received_at stepped backward
+        on the local VM (NTP sync), so ORDER BY received_at reordered
+        genuinely sequential events and broke lifecycle reconstruction
+        (reproduced 2/60 rapid-ingest iterations). received_at stays as
+        audit metadata, never an ordering key. Falls back to
+        received_at/event_id on stores predating ingest_seq.
+        """
+        has_seq = 'ingest_seq' in _exec(
+            "SELECT column_name || chr(31) || 'END' "
+            "FROM information_schema.columns "
+            "WHERE table_schema='events' AND table_name='event_record' "
+            "AND column_name='ingest_seq'")
+        order = ("ORDER BY ingest_seq, event_id" if has_seq
+                 else "ORDER BY received_at, event_id")
         rows = _exec(
             "SELECT coalesce(result_reference, '') || chr(31) || 'END' "
             f"FROM events.event_record WHERE source_system = {_txt('src')} "
             "AND processing_status = 'succeeded' "
-            "ORDER BY received_at, event_id",
+            + order,
             {"src": source_system},
         )
         refs = []
