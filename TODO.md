@@ -578,6 +578,45 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+- [x] Phase 11 — Cross-Platform Orchestration & Publication Fan-Out —
+      **CLOSED at foundation level (2026-09-16), D-077–D-080 all
+      owner-approved**:
+      D-077 fan-out contract (`local/canonical/orchestration_contracts.py`:
+      universal dispatch payload + strict local validation — job_id
+      regex, sha-256 media hash, aspect-ratio whitelist — Class-B
+      before any dispatch; destination matrix `KNOWN_TARGETS →
+      transform_for_{instagram,telegram}` delegating final authority
+      to the D-069/D-073 validators; deterministic truncation with
+      recorded warnings; independent fan-out — no cross-target
+      rollback anywhere); D-078 lifecycle + partial success
+      (`orchestration_engine.py`: ROUTED → DISPATCHING →
+      SUCCESS | PARTIAL_SUCCESS | FAILED, deterministic aggregation
+      from DURABLE per-target outcomes — duplicate_publish_blocked
+      counts as served, cancelled counts terminal; per-target receipt
+      events + sequenced aggregate events on the D-027 store);
+      D-079 coordinated schedule + anti-race (release_plan base +
+      per-target stagger arithmetic, no wall-clock reads;
+      `orchestration.fanout_lock` PG PK-as-lock — live-migrated + in
+      schema.sql — proven single-winner under 10 threads, losers get
+      already_claimed); D-080 resiliency (`orchestration_worker.py`:
+      reconciliation scan from durable data only — repairs missing
+      aggregates, re-dispatches ONLY failing targets, published
+      targets never re-triggered; HITL cancel never reverts published
+      platforms, rejected/unstarted targets abortable).
+      Phase 11 suite 50/50 (incl. live-PG E2E through the REAL
+      Phase 9/10 publishers + vaults, thread anti-race proof,
+      restart-safety reconstruction); battery 461/461 zero-skip;
+      ladder 46/46; AST audit clean (zero network imports, zero
+      Woo/price/publication refs, zero decision verbs, zero
+      os.environ access); secret scan clean; diff-check PASS.
+      Suite-found defects fixed in-batch: lowercase-stage vs
+      uppercase-vocabulary reconstruction bug (restart state wrongly
+      DISPATCHING/None), aggregate event id collision vs D-027
+      conflicting-duplicate (now sequenced per job, restart-safe),
+      lost no-publisher-bound receipt (continue before persist),
+      cancel semantics (terminal_reject targets are abortable).
+      Standing owner gate: live platform credentials (D-045) — none
+      exist, none requested.
 - [x] Phase 10 — Telegram Platform Integration — **CLOSED at
       foundation level (2026-09-16), D-073–D-076 all owner-approved**:
       D-073 contracts (`local/canonical/telegram_contracts.py`:

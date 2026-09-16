@@ -342,3 +342,14 @@ CREATE TABLE IF NOT EXISTS telegram.publish_lock (
     attempt_ref       jsonb NOT NULL,
     locked_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 11 (D-079): coordinated fan-out anti-race lock. PRIMARY KEY
+-- IS the lock: INSERT-once per fanout_key; never deleted on success
+-- (double-trigger protection must outlive the attempt).
+CREATE SCHEMA IF NOT EXISTS orchestration;
+
+CREATE TABLE IF NOT EXISTS orchestration.fanout_lock (
+    fanout_key        text PRIMARY KEY,
+    claimant          text NOT NULL,
+    locked_at         timestamptz NOT NULL DEFAULT now()
+);

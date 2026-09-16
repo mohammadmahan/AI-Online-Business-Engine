@@ -420,8 +420,20 @@ docs/
 > (A backoff / B terminal DLQ / C retry_after cooldown / E freeze +
 > HITL alert) — end-to-end proven on the live store incl. 10-thread
 > concurrency and restart safety. Live Telegram credentials remain
-> owner-gated (D-045). Next: **Phase 11**. Details and exact closure
-> gates: `TODO.md`.
+> owner-gated (D-045). **Phase 11 closed at foundation level
+> (Cross-Platform Orchestration & Publication Fan-Out, D-077–D-080
+> all owner-approved):** universal fan-out payload with a
+> destination-matrix transform pipeline into the real platform
+> contracts, the FanOutLifecycle state machine with deterministic
+> partial-success aggregation from durable per-target outcomes,
+> coordinated release windows (base + per-target stagger), a PG
+> PK-as-lock anti-race lock (`orchestration.fanout_lock`) proven
+> single-winner under 10 threads, retry coordination that never
+> re-triggers served targets, HITL cancellation that never reverts
+> published platforms, and a reconciliation worker that rebuilds
+> job state from durable event-store data alone. Live platform
+> credentials remain owner-gated (D-045). Next: **Phase 12**.
+> Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation
 

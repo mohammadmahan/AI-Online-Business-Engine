@@ -2378,6 +2378,93 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
+## D-077 — Cross-platform fan-out contract and destination matrix
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** Phases 9–10 each publish to one platform through
+  their own adapter/vault/outbox; campaigns need one universal
+  content representation dispatched to an arbitrary target set
+  (e.g. `["instagram", "telegram"]`) without the orchestrator
+  re-implementing platform rules.
+- **Decision:** a single `fanout_dispatch` payload carries the
+  universal representation (campaign/content ids, media descriptor,
+  text, hashtag plan, schedule window, target list). A per-target
+  **destination matrix** binds each target to its Phase 9/10
+  transform + validation + publish entry points. Target transforms
+  are platform-conforming and local: Instagram keeps its D-069
+  validators (aspect ratio, caption ≤ 2200, hashtags ≤ 30);
+  Telegram keeps its D-073 validators (MarkdownV2/HTML escaping,
+  caption ≤ 1024 / text ≤ 4096, album ≤ 10). A target that cannot
+  be adapted fails **locally, before any dispatch**, without
+  affecting sibling targets.
+- **Consequences:** independent fan-out — one platform's failure
+  never rolls back or corrupts another's publication; adding a
+  future platform = one matrix row, no engine change.
+
+## D-078 — Orchestration lifecycle, partial-success model and receipts
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** multi-target dispatch cannot reuse the single-
+  platform state machines; the aggregate needs its own deterministic
+  lifecycle with a partial-success semantics that never loses the
+  per-platform truth.
+- **Decision:** `FanOutLifecycle` state machine
+  `PENDING → ROUTED → DISPATCHING → SUCCESS | PARTIAL_SUCCESS |
+  FAILED`, with `CANCELLED` reachable from PENDING/ROUTED via
+  explicit human action (D-080). Sub-publications stay in their own
+  Phase 9/10 machines; the aggregate derives its state **only**
+  from durable sub-task terminal states (strict deterministic
+  aggregation: all published → SUCCESS; ≥1 published and ≥1
+  failed/terminal-rejected → PARTIAL_SUCCESS; none published and ≥1
+  terminal failure with nothing pending → FAILED). Every sub-task
+  outcome is a D-027 event (`fanout|<job>|<target>`); the job record
+  carries sub-task ids, target receipts and outcome events — full
+  D-026 provenance on every transition.
+- **Consequences:** aggregate state is always reconstructible from
+  durable data (restart-safe); partial success is a first-class
+  outcome, never silently upgraded or downgraded.
+
+## D-079 — Coordinated publishing schedule and cross-platform anti-race lock
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** simultaneous or staggered multi-channel release
+  windows invite double-triggering across workers, which platform
+  vaults alone cannot prevent (they guard one platform's key, not
+  the campaign-level dispatch).
+- **Decision:** each fan-out job carries a coordinated release
+  window (`release_at` + optional per-target stagger seconds);
+  dispatch is gated on the window per target. A campaign-level
+  **anti-race lock** (`orchestration.fanout_lock`, PK-as-lock on
+  the canonical PostgreSQL instance, same semantics as the D-070/
+  D-074 platform locks) guarantees exactly one dispatcher claim per
+  job, while each platform keeps its own idempotency vault
+  isolation (D-070/D-074 unchanged). Orchestration state updates
+  are written transactionally through the canonical D-027 store.
+- **Consequences:** no cross-worker duplicate fan-out; staggered
+  windows are deterministic; platform-level idempotency remains
+  independently enforced beneath the campaign lock.
+
+## D-080 — Fan-out resiliency, HITL cancellation and reconciliation worker
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** partial failures and restarts demand retry that is
+  surgical (never re-publish a succeeded target), human control
+  over not-yet-started targets, and a recovery path that repairs
+  the aggregate view from durable state after crashes.
+- **Decision:** retry coordination is platform-aware — retry
+  re-dispatches **only** targets whose sub-task is retryable
+  (failed / terminal-rejected-but-retriggerable per that platform's
+  rules) and never re-triggers a PUBLISHED target (its receipt is
+  the skip proof). `cancel(job_id, targets)` is a HITL action
+  (D-026 provenance, actor recorded) that marks unstarted targets
+  CANCELLED; started/published targets cannot be cancelled. A
+  reconciliation worker scans in-flight jobs on boot/recovery and
+  re-derives aggregate state strictly from the durable sub-task
+  records — no in-process memory is authoritative.
+- **Consequences:** retries never duplicate published work;
+  cancellation is bounded and auditable; crash recovery is a
+  deterministic re-derivation, not a guess.
+
 ## D-069 — Instagram media & publishing contract and state machine
 
 - **Status:** **Approved** (2026-09-16, owner-approved)
@@ -2487,6 +2574,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
 | 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**; extended by **D-065–D-068 (Approved 2026-09-16)**: unified observability (D-065), owner-gated live adapters + budget quarantine (D-066), template versioning registry (D-067), HITL review inbox + bulk orchestrator (D-068); live credentials still gated by D-045 and register row 9 | Approved | — | 7–8 (done) |
 | 26 | ~~Instagram API surface / account setup~~ (see row 12) — publishing **architecture** resolved via **D-069–D-072 (Approved 2026-09-16)**: 2-step container workflow contract, anti-duplicate idempotency vault, owner-gated Graph API adapter + token redaction, outbox + DLQ error classifier; live Meta connectivity/credentials remain owner-gated (D-045) | Approved (architecture) | Meta account + credentials (owner) | 9 (architecture done) |
+| 27 | Cross-platform fan-out orchestration — **D-077–D-080 (Approved 2026-09-16)**: universal dispatch contract + destination matrix (D-077), `FanOutLifecycle` with partial-success model + receipts (D-078), coordinated release windows + campaign-level anti-race lock `orchestration.fanout_lock` (D-079), retry isolation, HITL cancellation, reconciliation worker (D-080); live platform connectivity remains owner-gated per D-045/D-071/D-075 | Approved | — | 11 (architecture done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
