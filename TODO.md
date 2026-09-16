@@ -597,6 +597,17 @@ these even if they seem helpful:
       re-decision idempotent, changed re-decision refused),
       submit() refuses non-AiProposal envelopes, `|applied`
       bookkeeping excluded from lifecycle history, no-auto-advance
-      API-shape tests. M3 next: task implementations (content idea,
-      caption, product-description enrichment) on the live stack.
+      API-shape tests.
+      **M3 done (2026-09-15)**: concrete task implementations + batch
+      execution (`local/canonical/ai_tasks.py`) — ContentIdeaTask /
+      CaptionTask / DescriptionTask on the M1 contracts via the
+      provider-neutral router (MockAiProvider, D-053); deterministic
+      divergence detection vs approved vocabulary (D-029/D-031/D-032
+      near-miss hashtags = Class B) and canonical records (unknown
+      product_id, scope widening); dry-run mode (zero pipeline
+      persistence; router metering stays ON so dry-runs cannot evade
+      D-063); batch processing with hard-budget stop before dispatch;
+      persist mode lands PROPOSED only via the M2 lifecycle (idempotent
+      by deterministic tag; divergent output persists nothing).
+      M4 next: gate report + explicitly deferred connectivity audit.
 - [ ] Phase 7+ — Instagram, payment, shipping integrations

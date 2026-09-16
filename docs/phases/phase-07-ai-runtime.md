@@ -156,14 +156,36 @@ amendment (same discipline as the D-060 key serialization).
   (25 tests: 14 offline state machine, 4 authority boundary, 7 live
   PostgreSQL round-trips incl. restart reconstruction, retry
   idempotency, and Class-B refusal of contract-violating payloads).
-- **M3 — Task implementations on the contracts:** content-idea
-  proposal, caption generation, product-description enrichment as
-  deterministic local flows against MockAiProvider; batch/dry-run
-  modes; divergence detection vs canonical data.
-- **M4 — Gate report + readiness review:** integrity audit of the full
-  AI path, cost-ledger audit, authority-gate conformance proof, and the
-  **explicitly deferred live-provider connectivity audit** (owner-gated;
-  requires approved provider selection + credentials per D-045).
+- **M3 — Task implementations on the contracts — DONE (2026-09-15):**
+  `local/canonical/ai_tasks.py`: ContentIdeaTask (propose_content_idea,
+  lifecycle-root Backlog re-checked deterministically in addition to
+  the schema enum), CaptionTask (hashtags checked against approved
+  D-029/D-031/D-032 vocabulary — a near-miss of an approved color/size
+  term is Class B divergence, never silently repaired), DescriptionTask
+  (product_id must exist in the canonical store; variant scope never
+  widens). All dispatch exclusively through the ModelRouter →
+  AiProvider boundary (MockAiProvider locally). Dry-run mode:
+  generate + validate + divergence-check with ZERO pipeline
+  persistence (no D-027 event, no provenance, no queue item) —
+  router-level usage metering deliberately stays ON so dry-runs
+  cannot evade D-063 budget accounting. Batch execution: per-entity
+  reports, hard-budget refusal stops the batch BEFORE dispatch
+  (provider called 0 times past the cap). Persist mode: valid output
+  lands as a PROPOSED record via the M2 ProposalLifecycle (durable
+  D-027 event + D-026 AI_GENERATED provenance + HITL queue item),
+  idempotent by deterministic task tag; divergent output persists
+  nothing and surfaces to HITL. Authority boundary: AST-scanned no
+  Woo/Notion/publication/price edges, no decision verbs on the task
+  surface. Suite: `local/tests/test_phase7_ai_runtime_m3.py`
+  (20 tests: 6 offline task semantics, 5 divergence, 3 batch/budget,
+  3 authority boundary, 3 live PostgreSQL round-trips).
+- **M4 — Gate report + readiness review (remaining):** integrity audit
+  of the full AI path (task → router → provider → contract →
+  divergence → lifecycle → HITL), cost-ledger audit, authority-gate
+  conformance proof, and the **explicitly deferred live-provider
+  connectivity audit** (owner-gated; requires approved provider
+  selection + credentials per D-045). M4 passing does not prove live
+  provider compatibility.
 
 ## 6. Security & credentials (unchanged posture)
 
