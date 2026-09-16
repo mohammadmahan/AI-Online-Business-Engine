@@ -68,7 +68,7 @@
         <span class="block sm:inline text-xs sm:text-sm font-medium text-slate-400" dir="ltr">(AI-First Online Business Engine)</span>
       </h1>
       <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
-        داشبورد وضعیت و سلامت سیستم — <span class="text-sky-300 font-semibold">فاز ۴: ورود و راستی‌آزمایی داده</span>
+        داشبورد وضعیت و سلامت سیستم — <span class="text-sky-300 font-semibold">فاز ۱۲: سیستم مدیریت سفارش (فازهای ۰ تا ۱۲ تکمیل)</span>
       </p>
     </div>
   </div>
@@ -86,7 +86,7 @@
     <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
       <p class="text-sm text-slate-400">نرخ قبولی تست‌ها</p>
       <p class="mt-2 text-3xl font-extrabold text-emerald-400 num" id="kpi-rate">—</p>
-      <p class="mt-1 text-xs text-slate-500"><span id="kpi-tests" class="num">—</span> (<span id="kpi-skipped" class="num">—</span> رد‌شده نیازمند Docker)</p>
+      <p class="mt-1 text-xs text-slate-500"><span id="kpi-tests" class="num">—</span> (<span id="kpi-skipped" class="num">—</span> رد‌شده)</p>
     </div>
     <div class="kpi fade-in rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
       <p class="text-sm text-slate-400">تداخل‌های باز</p>
@@ -113,7 +113,7 @@
   <section aria-labelledby="conf-h">
     <div class="flex items-center justify-between mb-3">
       <h2 id="conf-h" class="text-base font-bold text-slate-200">مانیتور تداخل و حسابرسی</h2>
-      <span class="text-xs text-slate-500">موارد رد‌شده در لِـدر تست‌ها نیازمند Docker Desktop هستند</span>
+      <span class="text-xs text-slate-500">ردیف‌های ۲۷–۲۸ دفتر تصمیمات: D-077–D-080 و D-081–D-084</span>
     </div>
     <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/70">
       <table class="w-full text-sm">
@@ -152,26 +152,26 @@
 const EMBEDDED_FALLBACK = {
   system_info: {
     engine_name: "AI-First Online Business Engine",
-    version: "0.4.0-alpha",
-    current_phase: "Phase 4 - Data Entry & Verification Engine",
-    last_commit: "f24240e",
+    version: "0.12.0-alpha",
+    current_phase: "Phase 12 - Order Management System (OMS) Closed — Phases 0-12 Complete",
+    last_commit: "f17a9a0",
     system_status: "Operational",
-    last_sync_timestamp: "2026-09-13T12:00:00Z",
-    jalali_timestamp: "۱۴۰۵/۰۶/۲۳ - ۱۵:۳۰"
+    last_sync_timestamp: "2026-09-16T21:30:00Z",
+    jalali_timestamp: "۱۴۰۵/۰۶/۲۵ - ۲۱:۳۰"
   },
   metrics: {
     total_products: 142,
     active_skus: 380,
     verified_items: 138,
-    pending_conflicts: 4,
-    sync_ladder_tests: { total: 77, passed: 74, skipped: 3, failed: 0 }
+    pending_conflicts: 0,
+    sync_ladder_tests: { total: 498, passed: 498, skipped: 0, failed: 0 }
   },
   conflict_monitor: [
-    { id: "C-030", severity: "Warning", scope: "Size L Collision (D-030 vs D-032)",
-      description: "تداخل کد سایز L با پیشوند برند LG - مستثنی شده در داده‌های Seed",
-      status: "در حال بررسی" },
-    { id: "C-031", severity: "Info", scope: "Tax Calculation (D-048 Option A)",
-      description: "پروژکشن قیمت با احتساب ۱۰٪ مالیات بر ارزش افزوده تایید شد",
+    { id: "C-030", severity: "Warning", scope: "قانون عدم استفاده از کاراکترهای مبهم (D-030 ↔ D-032)",
+      description: "تداخل کاراکتر L در کد سایز LG — با تصویب مالک، کد canonical اندازه L به LRG تغییر یافت (مصوبه D-057، بدون استثنا در D-030)",
+      status: "حل شده" },
+    { id: "C-031", severity: "Info", scope: "موتور پروژکشن قیمت (D-048 Option A)",
+      description: "محاسبه متمرکز قیمت بر مبنای قوانین مصوب D-048 بدون مالیات مضاعف تایید شد",
       status: "حل شده" }
   ],
   engine_modules: [
@@ -179,7 +179,16 @@ const EMBEDDED_FALLBACK = {
     { name: "لایه پایداری و عدم تکرار (Idempotency D-027)", status: "فعال", type: "یکپارچگی داده" },
     { name: "ردیابی اصالت و تغییرات (Provenance D-026)", status: "فعال", type: "حسابرسی" },
     { name: "موتور محاسبات قیمت (Pricing Engine D-048)", status: "فعال", type: "محاسباتی" },
-    { name: "موتور راستی‌آزمایی (Verification Engine)", status: "در انتظار فاز ۴", type: "دریافت داده" }
+    { name: "موتور راستی‌آزمایی (Verification Engine)", status: "فعال", type: "دریافت داده" },
+    { name: "زمان‌اجرای هوش مصنوعی و قراردادهای خروجی (AI Runtime D-062..D-064)", status: "فعال", type: "پیشنهاد و بازبینی انسانی" },
+    { name: "مشاهده‌پذیری یکپارچه و دفتر هزینه (Observability D-065)", status: "فعال", type: "نظارت" },
+    { name: "آداپتورهای زنده با گیت مالکیتی (Live Providers D-066/D-071/D-075)", status: "فعال", type: "مرز اتصال — غیرفعال تا اجازه مالک" },
+    { name: "رجیستری پرامپت نسخه‌بندی‌شده (Template Registry D-067)", status: "فعال", type: "عملیات پرامپت" },
+    { name: "کارتابل بازبینی انسانی (HITL Inbox D-068)", status: "فعال", type: "گردش کار انسانی" },
+    { name: "انتشار اینستاگرام و صندوق تکرار (Instagram D-069..D-072)", status: "فعال", type: "کانال انتشار" },
+    { name: "انتشار تلگرام و تنظیم‌گر نرخ (Telegram D-073..D-076)", status: "فعال", type: "کانال انتشار" },
+    { name: "هماهنگ‌سازی چندسکویی و Fan-Out (Orchestration D-077..D-080)", status: "فعال", type: "هماهنگ‌سازی انتشار" },
+    { name: "سیستم مدیریت سفارش (OMS D-081..D-084)", status: "فعال", type: "چرخه سفارش و موجودی" }
   ]
 };
 

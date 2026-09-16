@@ -1,21 +1,21 @@
 {
   "system_info": {
     "engine_name": "AI-First Online Business Engine",
-    "version": "0.4.0-alpha",
-    "current_phase": "Phase 4 - Local Emulated Infrastructure & Engine Fully Verified",
-    "last_commit": "1dd0107",
+    "version": "0.12.0-alpha",
+    "current_phase": "Phase 12 - Order Management System (OMS) Closed — Phases 0-12 Complete",
+    "last_commit": "f17a9a0",
     "system_status": "Operational",
-    "last_sync_timestamp": "2026-09-14T15:45:00Z",
-    "jalali_timestamp": "۱۴۰۵/۰۶/۲۳ - ۱۵:۴۵"
+    "last_sync_timestamp": "2026-09-16T21:30:00Z",
+    "jalali_timestamp": "۱۴۰۵/۰۶/۲۵ - ۲۱:۳۰"
   },
   "metrics": {
     "total_products": 142,
     "active_skus": 380,
     "verified_items": 138,
-    "pending_conflicts": 4,
+    "pending_conflicts": 0,
     "sync_ladder_tests": {
-      "total": 105,
-      "passed": 105,
+      "total": 498,
+      "passed": 498,
       "skipped": 0,
       "failed": 0
     }
@@ -41,6 +41,15 @@
     { "name": "لایه پایداری و عدم تکرار (Idempotency D-027)", "status": "فعال", "type": "یکپارچگی داده" },
     { "name": "ردیابی اصالت و تغییرات (Provenance D-026)", "status": "فعال", "type": "حسابرسی" },
     { "name": "موتور محاسبات قیمت (Pricing Engine D-048)", "status": "فعال", "type": "محاسباتی" },
-    { "name": "موتور راستی‌آزمایی (Verification Engine)", "status": "فعال", "type": "دریافت داده" }
+    { "name": "موتور راستی‌آزمایی (Verification Engine)", "status": "فعال", "type": "دریافت داده" },
+    { "name": "زمان‌اجرای هوش مصنوعی و قراردادهای خروجی (AI Runtime D-062..D-064)", "status": "فعال", "type": "پیشنهاد و بازبینی انسانی" },
+    { "name": "مشاهده‌پذیری یکپارچه و دفتر هزینه (Observability D-065)", "status": "فعال", "type": "نظارت" },
+    { "name": "آداپتورهای زنده با گیت مالکیتی (Live Providers D-066/D-071/D-075)", "status": "فعال", "type": "مرز اتصال — غیرفعال تا اجازه مالک" },
+    { "name": "رجیستری پرامپت نسخه‌بندی‌شده (Template Registry D-067)", "status": "فعال", "type": "عملیات پرامپت" },
+    { "name": "کارتابل بازبینی انسانی (HITL Inbox D-068)", "status": "فعال", "type": "گردش کار انسانی" },
+    { "name": "انتشار اینستاگرام و صندوق تکرار (Instagram D-069..D-072)", "status": "فعال", "type": "کانال انتشار" },
+    { "name": "انتشار تلگرام و تنظیم‌گر نرخ (Telegram D-073..D-076)", "status": "فعال", "type": "کانال انتشار" },
+    { "name": "هماهنگ‌سازی چندسکویی و Fan-Out (Orchestration D-077..D-080)", "status": "فعال", "type": "هماهنگ‌سازی انتشار" },
+    { "name": "سیستم مدیریت سفارش (OMS D-081..D-084)", "status": "فعال", "type": "چرخه سفارش و موجودی" }
   ]
 }
