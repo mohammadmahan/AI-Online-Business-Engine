@@ -2378,7 +2378,90 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
-## D-077 — Cross-platform fan-out contract and destination matrix
+## D-081 — OMS order lifecycle contract and state machine
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** Phase 12 introduces order management; orders need a
+  canonical schema (line items, customer ref, pricing, tax,
+  fulfillment status), a strict state machine, and duplicate-order
+  protection aligned with the D-014/D-015/D-017 identifier
+  discipline and the D-027 event store.
+- **Decision:** the canonical `Order` carries an owner-assigned
+  `order_id`, a caller-supplied `client_order_id`, line items bound
+  to canonical Product ID / Variant ID / SKU (D-017 — SKU is never
+  the internal identity), pricing per line and per order, tax, and
+  fulfillment status. Lifecycle: `PLACED → VALIDATED → FULFILLING →
+  COMPLETED`, with `CANCELLED` reachable from any pre-COMPLETED
+  state and `REFUNDED` reachable only from COMPLETED (terminal
+  states immutable). Duplicate protection: SHA-256 idempotency key
+  over `client_order_id` — the same client_order_id replays the
+  same order deterministically (skipped_duplicate), a conflicting
+  payload under the same key is an integrity error / human review
+  (D-027 semantics, never silently reprocessed).
+- **Consequences:** order state is reconstructible from the durable
+  event store alone; duplicate checkout traffic cannot create
+  duplicate orders; payment stays out of scope (D-083).
+
+## D-082 — Inventory abstraction and atomic reservation guardrails
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** over-selling must be impossible under concurrency;
+  stock lives behind an abstraction so the future WooCommerce stock
+  projection (Phase 3) or another provider can be swapped in
+  without changing order logic.
+- **Decision:** inventory is a provider-neutral boundary
+  (`InventoryStore`) tracking stock levels keyed by SKU, with
+  atomic **reservation on entry to `VALIDATED`** and release on
+  `CANCELLED`/`REFUNDED`. The live implementation uses PostgreSQL
+  row-level locking (`UPDATE ... WHERE stock >= qty` guarded
+  conditional write on `oms.inventory`) so concurrent reservations
+  serialize at the row: over-sell returns a deterministic
+  `insufficient_stock` outcome, never a partial reservation. A
+  JSON parity store covers offline tests. Reservation state is
+  durable and restart-safe.
+- **Consequences:** no oversell by construction; the Woo stock
+  projection remains a drop-in provider; reservation release is
+  explicit and audited (D-026).
+
+## D-083 — Payment-neutral boundary and fulfillment fan-out integration
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** no payment gateway exists or is authorized (D-045);
+  orders still need to flow to fulfillment and customer
+  notification today.
+- **Decision:** payment is a boundary, not a module: orders carry a
+  `payment_status` limited to `pending` / `unpaid` markers with NO
+  gateway logic, NO payment credentials, and NO payment webhooks —
+  any future provider is a drop-in behind the boundary. Fulfillment
+  notifications integrate with the Phase 11 `FanOutEngine`:
+  order-transition events may dispatch confirmation/status messages
+  through the same D-077 destination matrix and platform vaults;
+  the OMS never talks to a platform adapter directly and a
+  notification failure NEVER blocks or corrupts the order
+  transition (independent fan-out, D-077/D-078).
+- **Consequences:** payment can be added later without redesign;
+  order state and notification state are independently
+  reconstructible; the Phase 11 anti-race and vault isolation apply
+  unchanged.
+
+## D-084 — Order audit trail and TTL reconciliation vault
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** orders must have an immutable transition audit and
+  abandoned in-flight orders must not accumulate forever.
+- **Decision:** every order transition is a D-027 event
+  (`oms|transition|...`) with the D-026 provenance actor — append-
+  only, reconstructible, no in-place mutation. A reconciliation
+  worker scans `FULFILLING` orders whose fulfillment receipt is
+  missing past a configurable TTL (default owner-tunable, no
+  wall-clock in key material) and auto-cancels them deterministically
+  with `CANCELLED` + reason `fulfillment_ttl_expired`, releasing
+  reserved stock (D-082) and recording provenance. The worker never
+  touches COMPLETED orders and never invents fulfillment facts.
+- **Consequences:** the audit is tamper-evident by construction;
+  stuck orders converge to a bounded terminal state; stock is
+  returned to sellable inventory automatically.
+
 
 - **Status:** **Approved** (2026-09-16, owner-approved)
 - **Situation:** Phases 9–10 each publish to one platform through
@@ -2575,6 +2658,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**; extended by **D-065–D-068 (Approved 2026-09-16)**: unified observability (D-065), owner-gated live adapters + budget quarantine (D-066), template versioning registry (D-067), HITL review inbox + bulk orchestrator (D-068); live credentials still gated by D-045 and register row 9 | Approved | — | 7–8 (done) |
 | 26 | ~~Instagram API surface / account setup~~ (see row 12) — publishing **architecture** resolved via **D-069–D-072 (Approved 2026-09-16)**: 2-step container workflow contract, anti-duplicate idempotency vault, owner-gated Graph API adapter + token redaction, outbox + DLQ error classifier; live Meta connectivity/credentials remain owner-gated (D-045) | Approved (architecture) | Meta account + credentials (owner) | 9 (architecture done) |
 | 27 | Cross-platform fan-out orchestration — **D-077–D-080 (Approved 2026-09-16)**: universal dispatch contract + destination matrix (D-077), `FanOutLifecycle` with partial-success model + receipts (D-078), coordinated release windows + campaign-level anti-race lock `orchestration.fanout_lock` (D-079), retry isolation, HITL cancellation, reconciliation worker (D-080); live platform connectivity remains owner-gated per D-045/D-071/D-075 | Approved | — | 11 (architecture done) |
+| 28 | Order management system — **D-081–D-084 (Approved 2026-09-16)**: order contract + lifecycle `PLACED → VALIDATED → FULFILLING → COMPLETED` with CANCELLED/REFUNDED terminals and client_order_id SHA-256 idempotency (D-081), provider-neutral inventory with atomic PG row-lock reservation — no oversell (D-082), payment-neutral boundary + Phase 11 fan-out notification integration (D-083), immutable transition audit + TTL auto-cancel reconciliation vault (D-084); payment gateway and live credentials remain owner-gated per D-045 | Approved | — | 12 (architecture done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

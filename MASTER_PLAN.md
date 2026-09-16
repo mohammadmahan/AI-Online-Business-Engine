@@ -432,7 +432,19 @@ docs/
 > re-triggers served targets, HITL cancellation that never reverts
 > published platforms, and a reconciliation worker that rebuilds
 > job state from durable event-store data alone. Live platform
-> credentials remain owner-gated (D-045). Next: **Phase 12**.
+> credentials remain owner-gated (D-045). **Phase 12 closed at
+> foundation level (Order Management System, D-081–D-084 all
+> owner-approved):** canonical order contract with line items bound
+> to Product ID / Variant ID / SKU (D-017 discipline), lifecycle
+> `PLACED → VALIDATED → FULFILLING → COMPLETED` with CANCELLED/
+> REFUNDED terminals and `client_order_id` SHA-256 idempotency
+> (D-081), provider-neutral inventory with atomic PostgreSQL
+> row-lock reservation — oversell impossible by construction
+> (D-082), payment-neutral boundary with fulfillment notifications
+> riding the Phase 11 fan-out (D-083), and an immutable transition
+> audit with TTL auto-cancel reconciliation for orphaned FULFILLING
+> orders (D-084). Payment gateway and live store credentials remain
+> owner-gated (D-045). Next: **Phase 13**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

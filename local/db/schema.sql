@@ -353,3 +353,28 @@ CREATE TABLE IF NOT EXISTS orchestration.fanout_lock (
     claimant          text NOT NULL,
     locked_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 12 (D-082): OMS inventory. stock_key = SHA-256(variant_id, sku)
+-- per D-082; the guarded conditional UPDATE ... WHERE stock >= qty is
+-- the atomic row-level reservation (no oversell by construction).
+CREATE SCHEMA IF NOT EXISTS oms;
+
+CREATE TABLE IF NOT EXISTS oms.inventory (
+    stock_key         text PRIMARY KEY,
+    variant_id        text NOT NULL,
+    sku               text NOT NULL,
+    stock             integer NOT NULL CHECK (stock >= 0),
+    reserved          integer NOT NULL DEFAULT 0 CHECK (reserved >= 0),
+    updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+-- Reservation ledger (D-082/D-084): one row per reservation, released
+-- explicitly; reconciliation uses it to return abandoned stock.
+CREATE TABLE IF NOT EXISTS oms.reservation (
+    reservation_key   text PRIMARY KEY,
+    stock_key         text NOT NULL,
+    order_key         text NOT NULL,
+    quantity          integer NOT NULL CHECK (quantity > 0),
+    state             text NOT NULL,
+    created_at        timestamptz NOT NULL DEFAULT now()
+);

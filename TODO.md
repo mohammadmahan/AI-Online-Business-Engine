@@ -578,6 +578,47 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+- [x] Phase 12 — Order Management System — **CLOSED at foundation
+      level (2026-09-16), D-081–D-084 all owner-approved**:
+      D-081 order contract (`local/canonical/oms_contracts.py`:
+      canonical Order with line items bound to Product ID / Variant
+      ID / SKU — identities never derived from each other; money as
+      strict integer minor units with float rejection; lifecycle
+      `PLACED → VALIDATED → FULFILLING → COMPLETED` + CANCELLED from
+      any pre-COMPLETED state + REFUNDED from COMPLETED only;
+      CANCELLED/REFUNDED absolute terminals; `client_order_id`
+      SHA-256 idempotency — replay = skipped_duplicate, conflicting
+      payload = integrity error); D-082 inventory
+      (`oms_engine.py` + `oms.inventory`/`oms.reservation` schema:
+      provider-neutral InventoryStore; live PgInventory guarded
+      conditional UPDATE — the row lock — no read-modify-write
+      anywhere; deterministic insufficient_stock; in-call rollback on
+      multi-line partial failure; JSON parity store; reservation
+      ledger drives release on CANCELLED/REFUNDED/TTL-expiry);
+      D-083 payment-neutral boundary (markers pending/unpaid only,
+      no gateway module, no credentials) + fulfillment notifications
+      through the Phase 11 FanOutEngine with caller-configured
+      targets (the OMS never invents destinations; notification
+      failure never blocks the order — D-077 isolation proven);
+      D-084 audit + reconciliation (every transition a D-027 event
+      with D-026 provenance; OmsReconciliationWorker auto-cancels
+      orphaned FULFILLING orders past configurable TTL with reason
+      `fulfillment_ttl_expired`, returns reserved stock, never
+      touches COMPLETED, dry-audit mode).
+      Phase 12 suite 37/37 (incl. live-PG E2E: full lifecycle, real
+      row-lock oversell — single winner of 10 concurrent buyers —,
+      TTL reconciliation with stock return, restart-safety,
+      notification isolation); battery 498/498 zero-skip; ladder
+      46/46; AST audit clean (zero network imports, zero platform/
+      price/publication refs, zero payment-gateway paths, zero
+      os.environ access); secret scan clean; diff-check PASS.
+      Suite-found defects fixed in-batch: silent float truncation of
+      money (strict integer coercion), dead notification bridge
+      (targets now caller-configured), partial-reservation rollback
+      hole (in-call tracking), PG integer cast at boundary,
+      provenance-surface mismatch. Standing owner gate: payment
+      gateway and live store credentials (D-045) — none exist, none
+      requested.
 - [x] Phase 11 — Cross-Platform Orchestration & Publication Fan-Out —
       **CLOSED at foundation level (2026-09-16), D-077–D-080 all
       owner-approved**:
