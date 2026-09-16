@@ -1,0 +1,44 @@
+{
+  "template_id": "generate_caption",
+  "version": "v1.0.0",
+  "schema_id": "caption_proposal.v1",
+  "description": "تولید کپشن شبکه اجتماعی با هشتگ‌های واژگان تأییدشده؛ D-029/D-031/D-032.",
+  "prompt_text": "تو مدیر شبکه‌های اجتماعی یک فروشگاه پوشاک هستی. برای زمینه زیر یک کپشن فارسی بنویس. هشتگ‌ها فقط از واژگان تأییدشده رنگ/سایز/دسته یا واژگان عمومی موضوعی انتخاب شوند؛ خروجی فقط و فقط JSON معتبر مطابق قرارداد caption_proposal.v1 باشد؛ هیچ شناسه‌ای اختراع نکن.\n\nزمینه: {context}\n\nنکات: {notes}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "caption_proposal.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "caption_fa",
+      "hashtags",
+      "alt_text"
+    ],
+    "properties": {
+      "caption_fa": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 2200
+      },
+      "hashtags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "minItems": 0,
+        "maxItems": 30
+      },
+      "alt_text": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 500
+      },
+      "media_ref": {
+        "type": "string",
+        "maxLength": 200
+      }
+    }
+  }
+}

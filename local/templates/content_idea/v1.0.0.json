@@ -1,0 +1,40 @@
+{
+  "template_id": "content_idea",
+  "version": "v1.0.0",
+  "schema_id": "content_idea_proposal.v1",
+  "description": "پیشنهاد ایده محتوایی در ریشه چرخه عمر (Backlog)؛ D-060/D-064.",
+  "prompt_text": "تو دستیار محتوایی یک فروشگاه پوشاک هستی. بر اساس زمینه زیر، یک ایده محتوایی جدید پیشنهاد بده. خروجی فقط و فقط JSON معتبر مطابق قرارداد content_idea_proposal.v1 باشد؛ هیچ شناسه‌ای (شناسه محصول، شناسه تنوع، SKU) اختراع نکن؛ قیمت، موجودی یا واقعیت فروشگاهی از خودت نساز؛ وضعیت هدف فقط Backlog باشد.\n\nزمینه: {context}\n\nنکات: {notes}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "content_idea_proposal.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "title",
+      "target_lifecycle_state",
+      "rationale"
+    ],
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 200
+      },
+      "working_notes": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "target_lifecycle_state": {
+        "type": "string",
+        "enum": [
+          "Backlog"
+        ]
+      },
+      "rationale": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 1000
+      }
+    }
+  }
+}

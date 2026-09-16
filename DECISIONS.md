@@ -2212,6 +2212,92 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** prompt injection / model misbehavior blast radius
   is one rejected HITL item; M2 wires the approve/reject round-trip.
 
+## D-065 — Unified AI observability and audit trail
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** Phase 7 metered usage per call (D-063 ledger) but
+  there is no unified, correlation-keyed view across the proposal
+  lifecycle, and no cost reporting for HITL outcomes.
+- **Decision:** structured JSON observability records (schema
+  `ai.observe.v1`) keyed by one `correlation_id` end-to-end (provider
+  call → validation → divergence → lifecycle transition → HITL
+  decision → canonical apply); metrics: `prompt_tokens`,
+  `completion_tokens`, `latency_ms`, `estimated_cost_usd`,
+  `divergence_rate`, `hitl_decision` (approve / reject / edit / none);
+  collector is append-only and persisted in the local observability
+  store; a cost-report view aggregates per task/provider/day. The AI
+  surface gains NO write path to publication or Woo resources — the
+  collector is called BY the deterministic pipeline, never BY the
+  model output.
+- **Consequences:** every AI action is reconstructable and cost-
+  attributable from logs alone; observability is read-only for the AI
+  surface (battery-asserted); correlation ids ride inside AiProposal
+  envelopes and lifecycle events, not invented by the model.
+
+## D-066 — Owner-gated live provider connectivity and budget quarantine
+
+- **Status:** **Approved** (2026-09-16, owner-approved; connectivity
+  itself remains OFF until the owner supplies credentials)
+- **Situation:** D-062 left live providers as drop-in interfaces; row 9
+  of the register gates actual vendor selection. Phase 8 needs the
+  concrete adapters and the safe-enablement path WITHOUT touching
+  credentials (D-045: none exist, none requested).
+- **Decision:** official OpenAI/Anthropic adapters under the D-062
+  `AiProvider` interface; activation requires BOTH `AI_LIVE_ENABLED=true`
+  AND a valid API key present in the environment — otherwise the
+  adapter refuses to construct. Automatic isolation: missing key or a
+  401/429-style provider error causes graceful fallback to the local
+  MockAiProvider (observability records the fallback; tests never
+  stop). Budget quarantine: when daily spend reaches the configured
+  cap the router HALTS (BUDGET_EXCEEDED_HALT, Class-B guardrail
+  refusal) BEFORE any dispatch — already the D-063 property, now the
+  named production behavior. Network clients are injectable and are
+  mocked in tests: zero network leakage in the battery (D-053).
+- **Consequences:** enabling live AI is a configuration + owner
+  action, never a code change; fallback is observable and idempotent;
+  no secret ever enters Git, docs, prompts, or logs (D-045).
+
+## D-067 — Prompt and template versioning registry
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** prompts currently live inside task code; quality
+  regression and reproducibility need versioned, hashed templates
+  separate from executable code.
+- **Decision:** prompts/templates move to a versioned registry
+  (`local/templates/`, semver-tagged `vX.Y.Z` directories); the
+  registry enforces strict JSON-Schema templates (same D-062 subset),
+  monotonic semver (no overwrite of a shipped version), and content
+  hashes; every `AiRequest`/`AiProposal` carries `template_id` +
+  `template_hash` so any proposal is reproducible and quality
+  regressions are attributable to a template change. Template
+  activation (which version a task routes to) is deterministic
+  configuration, not model choice.
+- **Consequences:** changing a prompt is a registry commit with a new
+  version, never an edit to shipped logic; the router refuses
+  unregistered template ids (Class-B); hash mismatches fail loudly.
+
+## D-068 — HITL review inbox and bulk action orchestrator
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** M2–M3 Phase 7 decisions are one-at-a-time through
+  `ProposalLifecycle.decide()`; at proposal volume the owner needs a
+  review inbox with bulk operations that respect idempotency and the
+  divergence guardrails.
+- **Decision:** a centralized `HitlReviewService` over the existing
+  lifecycle + VerificationQueue (no new authority surface): lists a
+  deterministic review inbox; supports single AND bulk
+  approve/reject/edit with per-item idempotency (identical re-decision
+  = skipped_duplicate, conflicting re-decision refused — the M2
+  semantics, unchanged); bulk operations are all-or-nothing per item
+  (each item independently decided or left pending — never partially
+  applied state); human edits are re-validated through the D-062
+  contracts + divergence guardrails before acceptance; every decision
+  records D-026 provenance with the acting reviewer. No auto-advance:
+  the service can never decide without an explicit reviewer.
+- **Consequences:** bulk review is auditable and replayable; the M2
+  terminal-immutability guarantee is preserved verbatim; the service
+  is the single entry point used by M4 end-to-end integration.
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
@@ -2240,7 +2326,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 22 | ~~Excel import scope~~ — resolved: D-028 **Approved** (one workbook; dry-run; human-approved exceptions; no IDs/SKUs/inventory from Excel); physical mapping resolved by D-033 | Resolved | — | 2 (done) |
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 | 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
-| 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**, implemented as safe local scaffolding (mock provider only); live credentials still gated by D-045 | Approved | — | 7 (M1+M2) |
+| 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**; extended by **D-065–D-068 (Approved 2026-09-16)**: unified observability (D-065), owner-gated live adapters + budget quarantine (D-066), template versioning registry (D-067), HITL review inbox + bulk orchestrator (D-068); live credentials still gated by D-045 and register row 9 | Approved | — | 7–8 (done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
@@ -2255,6 +2341,8 @@ including
 **D-048 — Option A: canonical-layer price projection (owner-approved
 2026-09-13)**; **D-054 (local runtime), D-055 (canonical database),
 D-056 (local media emulator) are owner-approved (2026-09-13)**;
+**D-062, D-063, D-064 (2026-09-15) and D-065, D-066, D-067, D-068
+(2026-09-16) are owner-approved**;
 D-016 and every item not marked
 Resolved above remains open — including the color/size aliases
 (item 3), the size-equivalence mappings

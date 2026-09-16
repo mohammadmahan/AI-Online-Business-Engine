@@ -379,14 +379,24 @@ docs/
 
 ## 13. Project Phases
 
-> **Progress (2026-09-15):** Phases 0–2 closed; Phase 3 closed at
+> **Progress (2026-09-16):** Phases 0–2 closed; Phase 3 closed at
 > foundation level (local-first architecture + executable local stack,
 > D-053–D-056); Phase 4 infrastructure gates deferred by owner decision
 > (D-058); Phase 5 closed at foundation level (n8n standards, error
 > routing, HITL dead-letters — activation steps pending); Phase 6
 > closed at foundation level (Notion Business OS contracts, ingestion,
 > adapter/poller, conformance proof — live Notion connectivity
-> owner-gated/deferred). Next: **Phase 7 — AI Runtime**. Details and
+> owner-gated/deferred); **Phase 7 closed at foundation level** (AI
+> runtime M1–M4: contracts, proposal lifecycle, HITL round-trip,
+> tasks/batch, gate report — `docs/reports/PHASE_7_GATE_REPORT.md`);
+> **Phase 8 complete (AI Product Manager & Operational Observability,
+> D-065–D-068 all owner-approved):** unified observability collector
+> (`ai.observe.v1`), owner-gated live OpenAI/Anthropic adapters with
+> graceful mock fallback + BUDGET_EXCEEDED_HALT quarantine, versioned
+> prompt-template registry (`local/templates/`, hash-pinned), and the
+> HITL review inbox with idempotent bulk actions — end-to-end proven
+> on the live PostgreSQL store. Live AI credentials remain owner-gated
+> (D-045, register row 9). Next: **Phase 9 — Instagram**. Details and
 > exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

@@ -1,0 +1,61 @@
+{
+  "template_id": "enrich_description",
+  "version": "v1.0.0",
+  "schema_id": "product_description_enrichment.v1",
+  "description": "غنی‌سازی توضیحات محصول با لنگر شدن به شناسه محصول کانونی موجود؛ مدل هیچ محصولی نمی‌سازد.",
+  "prompt_text": "تو کارشناس محتوای سئو یک فروشگاه پوشاک هستی. توضیحات محصول را غنی کن. فقط و فقط JSON معتبر مطابق قرارداد product_description_enrichment.v1 برگردان. شناسه محصول داده‌شده را عیناً حفظ کن و هیچ شناسه یا تنوعی به آن اضافه نکن؛ قیمت، موجودی یا ویژگی جدید از خودت نساز.\n\nشناسه محصول: {product_id}\n\nزمینه محصول: {context}\n\nنکات: {notes}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "product_description_enrichment.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "product_id",
+      "variant_ids",
+      "description_fa",
+      "seo_title_fa",
+      "seo_keywords",
+      "rationale"
+    ],
+    "properties": {
+      "product_id": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F-]{8,64}$"
+      },
+      "variant_ids": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F-]{8,64}$"
+        },
+        "minItems": 0,
+        "maxItems": 100
+      },
+      "description_fa": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 5000
+      },
+      "seo_title_fa": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 70
+      },
+      "seo_keywords": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "minItems": 1,
+        "maxItems": 15
+      },
+      "rationale": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 1000
+      }
+    }
+  }
+}

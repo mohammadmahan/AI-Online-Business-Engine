@@ -578,6 +578,27 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+- [x] Phase 8 — AI Product Manager & Operational Observability
+      — **COMPLETE (2026-09-16), D-065–D-068 all owner-approved**:
+      D-065 unified observability (`local/canonical/`
+      `ai_observability.py`, schema `ai.observe.v1`, correlation_id
+      end-to-end, cost report by task/provider/day, D-045 redaction
+      guard); D-066 live OpenAI/Anthropic adapters
+      (`ai_providers_live.py`, injectable transport = zero network in
+      tests, AI_LIVE_ENABLED + API-key construction gate, graceful
+      fallback to MockAiProvider with observable D-065 record,
+      BUDGET_EXCEEDED_HALT pre-dispatch quarantine); D-067 template
+      registry (`ai_templates.py` + `local/templates/*/v1.0.0.json`,
+      strict contract validation, monotonic semver, hash-pinned,
+      drift fails loudly); D-068 HITL review inbox
+      (`ai_hitl_service.py`: deterministic inbox, single + bulk
+      approve/reject/edit, per-item independence, idempotent
+      re-decisions, contract-validated human edits, D-065
+      hitl_decision records). Phase 8 suite 42/42; battery 336/336
+      zero-skip; AST audit clean (no Woo/price/publication path);
+      E2E proven on live PostgreSQL. Standing owner gate: live AI
+      credentials (D-045, register row 9) — none exist, none
+      requested.
 - [x] Phase 7 — AI Runtime (model routing, structured outputs,
       validation, cost control, provenance, logging, approval gates)
       — **CLOSED at foundation level (2026-09-16), M1–M4 complete**
