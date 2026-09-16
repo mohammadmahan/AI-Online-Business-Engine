@@ -2298,6 +2298,86 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   terminal-immutability guarantee is preserved verbatim; the service
   is the single entry point used by M4 end-to-end integration.
 
+## D-073 — Telegram content & formatting contract
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** MASTER_PLAN Phase 10 calls for official Telegram
+  Bot API integration; Telegram's formatting and payload rules are
+  stricter and more heterogeneous than other channels (per-type
+  caption/text limits, album batching, MarkdownV2 escaping), so the
+  contract must be validated LOCALLY before dispatch.
+- **Decision:** implement Telegram Bot API media payload schemas for
+  Text, Photo, Video, Document, and MediaGroup (album ≤ 10 items);
+  strict local parsing/escaping for MarkdownV2 and HTML before any
+  network call; local constraint enforcement — caption ≤ 1024 chars
+  for media, text ≤ 4096 chars, album ≤ 10 items, file size ≤ 50 MB
+  (Bot API limit), chat_id and media required per type. Invalid
+  payloads are rejected locally as Class-B prevention — a payload
+  that cannot be valid never consumes Bot API quota.
+- **Consequences:** formatting regressions surface as local Class-B
+  errors instead of silent mojibake at Telegram; the contract is
+  testable end-to-end on the mock adapter; no credential exists and
+  none is requested (D-045).
+
+## D-074 — Telegram idempotency vault and rate-limit engine
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** double-posting to a Telegram chat (owner channel /
+  customer groups) is a public, visible failure; Telegram also
+  enforces hard rate limits (global ~30 msgs/sec, per-chat ~1 msg/sec
+  with 429 `retry_after`), so a dispatcher that ignores pacing gets
+  throttled and drops posts.
+- **Decision:** deterministic `telegram_publish_idempotency_key` =
+  SHA-256 over (chat_id, content_id, media_hash, text_hash,
+  scheduled_slot); atomic PostgreSQL-backed exclusive lock table
+  `telegram.publish_lock` (PK-as-lock, same semantics as D-070)
+  preventing double-dispatch under concurrency or dispatcher
+  restart; built-in rate pacer enforcing global 30 msgs/sec and
+  per-chat 1 msg/sec via token-bucket pacing BEFORE dispatch — the
+  pacer schedules, it never drops.
+- **Consequences:** absolute double-post protection across restarts
+  and concurrent dispatchers; bot never exceeds Telegram pacing;
+  retry dedup stays intact while deliberate re-publication remains
+  possible via a distinct scheduled_slot.
+
+## D-075 — Owner-gated Telegram Bot API adapter and token boundary
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** the Bot API token IS the credential and appears in
+  every Bot API URL (`bot<token>/…`); naive logging leaks it, so the
+  boundary must be structural, not advisory.
+- **Decision:** `MockTelegramAdapter` with deterministic test
+  controls (429 with retry_after, migrate-to-supergroup 400,
+  bot-kicked/blocked 403, chat-not-found 400, timeout); \
+  `LiveTelegramAdapter` behind `TELEGRAM_LIVE_ENABLED=true` + token
+  presence, with injectable HTTP transport (zero network in tests);
+  automatic redaction of `bot<token>` URL patterns, raw tokens, and
+  `Authorization` material from every log, URL, error trace, and
+  observability record (D-045/D-065).
+- **Consequences:** live sending is impossible without owner action;
+  all failure modes are reproducible locally; a token can never
+  reach a log through an adapter error path.
+
+## D-076 — Telegram publishing outbox and DLQ classifier
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** publishing must survive process restarts and
+  Telegram-side transients without duplicating or dropping posts;
+  Telegram's error taxonomy maps cleanly onto D-052.
+- **Decision:** transactional outbox on the canonical D-027 event
+  store (same pattern as D-072); error classification aligned with
+  D-052 — Class-A (network timeout / 5xx) exponential backoff retry;
+  Class-B (invalid parse mode, malformed payload, local contract
+  violation) terminal reject to DLQ without retry; Class-C (429 /
+  `retry_after`) dynamic pause honoring Telegram's exact value, then
+  requeue; Class-E (bot blocked/kicked, token revoked, chat not
+  found) queue freeze + HITL alert (D-026 provenance-linked). Every
+  outcome is durably recorded; unrecoverable failures land in the
+  DLQ with redacted audit entries.
+- **Consequences:** no silent drops; retry storms impossible;
+  Telegram pacing feedback (retry_after) is respected exactly;
+  recovery from Class-E requires a human decision.
+
 ## D-069 — Instagram media & publishing contract and state machine
 
 - **Status:** **Approved** (2026-09-16, owner-approved)

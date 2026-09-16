@@ -578,6 +578,39 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+- [x] Phase 10 — Telegram Platform Integration — **CLOSED at
+      foundation level (2026-09-16), D-073–D-076 all owner-approved**:
+      D-073 contracts (`local/canonical/telegram_contracts.py`:
+      Text/Photo/Video/Document/MediaGroup schemas, strict local
+      MarkdownV2/HTML parsing — escape_markdownv2/escape_html +
+      validators, constraints: caption ≤ 1024, text ≤ 4096, album
+      2..10 photo|video, file ≤ 50 MB, chat_id int|@channel,
+      parse_mode ∈ {"", MarkdownV2, HTML}); D-074 vault + pacer
+      (`telegram_publisher.py` + `telegram_adapter.py`:
+      SHA-256 key over (chat_id, content_id, media_hash, text_hash,
+      scheduled_slot), `telegram.publish_lock` PK-as-lock on live
+      PostgreSQL, durable terminal guard, token-bucket pacer 30/s
+      global + 1/s per-chat, reservations never drop); D-075 adapter
+      (`telegram_adapter.py`: MockTelegramAdapter deterministic
+      controls — 429+retry_after, blocked 403, chat-not-found 400,
+      migrate-to-supergroup, timeout, 5xx — plus LiveTelegramAdapter
+      with injectable transport behind TELEGRAM_LIVE_ENABLED + token
+      gate; redact() strips bot<token> URL patterns and bare tokens
+      from every error/DLQ/provenance string); D-076 outbox + DLQ
+      (transactional outbox on the D-027 store, D-052-aligned
+      classifier: A backoff / B terminal reject→DLQ / C
+      retry_after-honoring cooldown / E queue freeze + HITL alert,
+      D-026 provenance on every outcome).
+      Phase 10 suite 51/51 (incl. 10-thread single-winner concurrency,
+      live-PG E2E with restart safety, durable audit reconstruction);
+      battery 411/411 zero-skip; ladder 46/46; AST audit clean (no
+      Woo/price/publication path; env access only in the D-075 gate);
+      secret scan clean; diff-check PASS. Suite-found defects fixed
+      in-batch: unique blocked-dispatch event ids (concurrent loser
+      collision), durable terminal guard before dispatch, pacer
+      reservation only after vault claim. Standing owner gate: live
+      Telegram Bot API credentials (D-045) — none exist, none
+      requested.
 - [x] Phase 9 — Instagram Integration — **CLOSED at foundation level
       (2026-09-16), D-069–D-072 all owner-approved**:
       D-069 contracts (`local/canonical/instagram_contracts.py`:

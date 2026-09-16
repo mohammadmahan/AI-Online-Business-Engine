@@ -332,3 +332,13 @@ CREATE TABLE IF NOT EXISTS instagram.publish_lock (
     attempt_ref       jsonb NOT NULL,
     locked_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 10 (D-074): Telegram idempotency vault — same PK-as-lock
+-- semantics as instagram.publish_lock (D-070).
+CREATE SCHEMA IF NOT EXISTS telegram;
+
+CREATE TABLE IF NOT EXISTS telegram.publish_lock (
+    publish_key       text PRIMARY KEY,
+    attempt_ref       jsonb NOT NULL,
+    locked_at         timestamptz NOT NULL DEFAULT now()
+);

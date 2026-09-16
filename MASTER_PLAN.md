@@ -407,8 +407,21 @@ docs/
 > E freeze+alert) and DLQ — end-to-end proven on the live store,
 > including restart-safety and concurrency. A cross-batch store defect
 > was found and fixed in M4 (see `TODO.md` Phase 9). Live Instagram
-> credentials remain owner-gated (D-045). Next: **Phase 10**. Details
-> and exact closure gates: `TODO.md`.
+> credentials remain owner-gated (D-045). **Phase 10 closed at
+> foundation level (Telegram Platform Integration, D-073–D-076 all
+> owner-approved):** Bot API content contract with strict local
+> MarkdownV2/HTML parsing and payload constraints (caption ≤ 1024,
+> text ≤ 4096, album ≤ 10, file ≤ 50 MB), SHA-256 idempotency vault on
+> `telegram.publish_lock` with absolute double-post protection
+> (incl. durable terminal guard), token-bucket rate pacer (30/s
+> global, 1/s per chat), owner-gated live adapter behind
+> `TELEGRAM_LIVE_ENABLED` with `bot<token>` redaction everywhere, and
+> the transactional outbox with D-052-aligned classifier
+> (A backoff / B terminal DLQ / C retry_after cooldown / E freeze +
+> HITL alert) — end-to-end proven on the live store incl. 10-thread
+> concurrency and restart safety. Live Telegram credentials remain
+> owner-gated (D-045). Next: **Phase 11**. Details and exact closure
+> gates: `TODO.md`.
 
 ### Phase 0 --- Foundation
 
