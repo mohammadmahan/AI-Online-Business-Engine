@@ -578,6 +578,41 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+- [x] Phase 9 — Instagram Integration — **CLOSED at foundation level
+      (2026-09-16), D-069–D-072 all owner-approved**:
+      D-069 contracts (`local/canonical/instagram_contracts.py`:
+      PENDING → MEDIA_CREATE → CONTAINER_STATUS → MEDIA_PUBLISH →
+      PUBLISHED state machine, FAILED terminal; local Class-B
+      pre-dispatch validators — aspect ratio 1:1/4:5/16:9, caption
+      ≤ 2,200 chars, ≤ 30 hashtags — invalid payloads rejected with
+      ZERO network calls); D-070 idempotency vault
+      (`instagram_publisher.py`: deterministic SHA-256 key over
+      (content_id, media_hash, caption_hash, scheduled_slot),
+      exclusive `instagram.publish_lock` PK lock on live PostgreSQL,
+      absolute double-publish protection across restarts and
+      concurrent dispatchers — 10-thread proof); D-071 adapter
+      (`instagram_adapter.py`: MockInstagramAdapter zero-network +
+      LiveInstagramAdapter with injectable transport,
+      INSTAGRAM_LIVE_ENABLED + token construction gate, bounded
+      container-status poller, redact() strips access tokens from
+      every error/log/observability record); D-072 outbox + DLQ
+      (transactional outbox on the D-027 store, classifier aligned
+      with D-052: Class-A backoff retry / Class-B terminal reject /
+      Class-C cooldown / Class-E queue freeze + HITL alert,
+      dead-letter entries redacted + D-026 provenance-linked).
+      Phase 9 suite 24/24 (incl. live-PG E2E, concurrency, restart
+      safety); battery zero-skip; AST audit clean (no Woo/price/
+      publication path; env access only in the D-071 gate).
+      **M4 cross-batch fix:** PgEventStore pinned its constructor
+      `source_system` and silently re-keyed every operation, ignoring
+      the method-level argument — per-source isolation broke (rows
+      landed under `notion`, `succeeded_references("instagram")`
+      empty, event ids collided across sources). Fixed by threading
+      the method-level `source_system` through all store operations
+      (constructor value demoted to fallback); Phase 6/7 suites
+      re-verified green (122 tests). Standing owner gate: live
+      Instagram Graph API credentials (D-045) — none exist, none
+      requested.
 - [x] Phase 8 — AI Product Manager & Operational Observability
       — **COMPLETE (2026-09-16), D-065–D-068 all owner-approved**:
       D-065 unified observability (`local/canonical/`

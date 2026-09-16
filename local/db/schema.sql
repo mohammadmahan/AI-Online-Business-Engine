@@ -314,3 +314,21 @@ CREATE TABLE IF NOT EXISTS events.event_record (
     last_attempt_at   timestamptz,
     PRIMARY KEY (source_system, event_id)
 );
+
+-- ================================================================== --
+-- Instagram publishing (Phase 9, D-070)
+--    Exclusive double-publish lock: publish_key is the D-070
+--    deterministic idempotency key; the PRIMARY KEY constraint IS
+--    the lock — a second acquisition of the same key fails/reuses,
+--    protecting against network retries AND concurrent dispatchers.
+--    Locks are never released on success (protection outlives the
+--    attempt).
+-- ================================================================== --
+
+CREATE SCHEMA IF NOT EXISTS instagram;
+
+CREATE TABLE IF NOT EXISTS instagram.publish_lock (
+    publish_key       text PRIMARY KEY,
+    attempt_ref       jsonb NOT NULL,
+    locked_at         timestamptz NOT NULL DEFAULT now()
+);

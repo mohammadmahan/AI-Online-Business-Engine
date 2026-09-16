@@ -2298,6 +2298,85 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   terminal-immutability guarantee is preserved verbatim; the service
   is the single entry point used by M4 end-to-end integration.
 
+## D-069 — Instagram media & publishing contract and state machine
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** MASTER_PLAN Phase 9 calls for official Meta
+  integration; publishing needs a deterministic contract BEFORE any
+  network work, and Phase 3 D-051 media direction means Instagram
+  publishes media already handled by the media abstraction.
+- **Decision:** implement the Meta Graph API two-step async container
+  workflow as an explicit state machine:
+  `MEDIA_CREATE → CONTAINER_STATUS (poll until READY/ERROR) →
+  MEDIA_PUBLISH → PUBLISHED`, with `FAILED` reachable from any
+  non-terminal state and terminal states immutable. Media constraints
+  are validated LOCALLY before any network dispatch: aspect ratio ∈
+  {1:1, 4:5, 16:9}, caption ≤ 2200 chars, hashtags ≤ 30, media_ref
+  required. Invalid payloads are rejected locally as Class-B
+  prevention — no network call is ever made for a payload that cannot
+  be valid.
+- **Consequences:** the workflow is testable end-to-end on mock
+  adapters; contract violations never consume API quota; state is
+  reconstructable from the D-027 event store.
+
+## D-070 — Anti-duplicate publishing guard and idempotency vault
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** double-publishing to a live Instagram account is the
+  worst-case harm of this phase; network retries and concurrent
+  dispatchers can both trigger repeats.
+- **Decision:** a deterministic `publish_idempotency_key` =
+  SHA256(`content_id` + `media_hash` + `caption_hash` +
+  `scheduled_slot`) is computed for every publish attempt; an
+  EXCLUSIVE publishing lock on that key is acquired in the canonical
+  PostgreSQL store (D-055) BEFORE network initiation — the lock row is
+  created transactionally and a second acquirer of the same key is a
+  terminal `duplicate_publish_blocked` outcome, never a second
+  publish. The key lives in the D-027 event store so retries,
+  restarts, and concurrent dispatchers all resolve to the same
+  verdict. The scheduled_slot makes distinct deliberate re-publications
+  addressable without weakening retry dedup.
+- **Consequences:** absolute double-publish protection under retry OR
+  concurrency; the guard is enforced by the canonical store, not by
+  in-process memory; audit trail records every blocked duplicate.
+
+## D-071 — Owner-gated live Graph API adapter and token boundary
+
+- **Status:** **Approved** (2026-09-16, owner-approved; connectivity
+  itself remains OFF until the owner supplies credentials)
+- **Situation:** D-066 established the enablement pattern for AI
+  providers; Instagram requires the identical discipline for the Meta
+  Graph API.
+- **Decision:** `InstagramAdapter` interface with pluggable
+  transports (zero network in tests); a high-fidelity
+  `MockInstagramAdapter` (deterministic container lifecycle, scripted
+  failures); live `GraphApiAdapter` gated behind `INSTAGRAM_LIVE_ENABLED=true`
+  AND required env keys, else deterministic Class-B refusal. All
+  access tokens are redacted from logs, errors, and observability
+  records (D-045); no credential exists, none is requested.
+- **Consequences:** enabling live publishing is configuration + owner
+  action, never a code change; the mock exercises the full contract
+  including failure paths.
+
+## D-072 — Outbox publishing queue and DLQ error classifier
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** publish attempts must survive crashes between steps
+  and must never retry what can never succeed.
+- **Decision:** transactional Outbox pattern — queued posts are
+  durable rows/events in the canonical store before any dispatch; a
+  worker claims one item at a time and advances the D-069 state
+  machine. Error classification: Class-A transient network →
+  exponential backoff (retry budget bounded); Class-B schema/media
+  invalid → terminal reject WITHOUT retry; Class-C rate limit/429 →
+  cooldown queue (retry after cooldown, not immediately); Class-E
+  token expired → FREEZE the queue and alert (never loop). Unrecoverable
+  failures route to a Dead-Letter Queue with a full audit record
+  (D-026 provenance) and never silently disappear.
+- **Consequences:** crash-safe, quota-safe publishing; every terminal
+  failure is auditable in the DLQ; the classifier reuses the D-052
+  classes so operations stay uniform across phases.
+
 ## Open decision register
 
 | # | Decision | Status | Blocking | Target phase |
@@ -2327,6 +2406,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 23 | SEO slug language (D-016.M) | Open/deferred | Product URLs | 2 or 3 |
 | 24 | ~~D-030 ↔ D-032 conflict — size code `LG`~~ — **RESOLVED (2026-09-13, owner): D-057** — the canonical Alpha-L code is now `LRG` (explicit owner sanction; deprecate+replace per D-030 rule 5; `LG` was never referenced by real data; a D-030 wording clarification is recommended — see D-057's honest governance note). Seed gate clear: **28/28 size terms seed**; Alpha-L sync unblocked | Resolved (sanctioned) | D-030 wording clarification (non-blocking) | 3 (done) |
 | 25 | ~~AI runtime contracts (router, output schemas, cost guardrails, proposal pipeline)~~ — **D-062 / D-063 / D-064 (Approved 2026-09-15)**; extended by **D-065–D-068 (Approved 2026-09-16)**: unified observability (D-065), owner-gated live adapters + budget quarantine (D-066), template versioning registry (D-067), HITL review inbox + bulk orchestrator (D-068); live credentials still gated by D-045 and register row 9 | Approved | — | 7–8 (done) |
+| 26 | ~~Instagram API surface / account setup~~ (see row 12) — publishing **architecture** resolved via **D-069–D-072 (Approved 2026-09-16)**: 2-step container workflow contract, anti-duplicate idempotency vault, owner-gated Graph API adapter + token redaction, outbox + DLQ error classifier; live Meta connectivity/credentials remain owner-gated (D-045) | Approved (architecture) | Meta account + credentials (owner) | 9 (architecture done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

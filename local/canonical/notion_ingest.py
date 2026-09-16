@@ -168,21 +168,38 @@ class PgEventStore:
 
     # -- internal helpers ---------------------------------------------------
 
-    def _where(self) -> str:
+    def _src_for(self, source_system: Optional[str]) -> str:
+        """Method-level source_system wins; the constructor value is
+        only the fallback.
+
+        Phase 9 audit finding: the pinned constructor value silently
+        re-keyed every operation — callers that explicitly passed
+        source_system (e.g. the Instagram publisher) had their rows
+        written under the constructor's source, breaking per-source
+        isolation (succeeded_references returned the wrong set and
+        event ids collided across sources). D-027 identity is
+        (source_system, event_id); it must never be overridden by a
+        store-level default.
+        """
+        return source_system or self.source_system
+
+    def _where(self, source_system: Optional[str] = None) -> str:
         return (f"source_system = {_txt('src')} "
                 f"AND event_id = {_txt('eid')}")
 
-    def _params(self, event_id: str, **extra) -> Dict:
-        params = {"src": self.source_system, "eid": event_id}
+    def _params(self, event_id: str, source_system: Optional[str] = None,
+                **extra) -> Dict:
+        params = {"src": self._src_for(source_system), "eid": event_id}
         params.update(extra)
         return params
 
-    def _get(self, event_id: str) -> Optional[dict]:
+    def _get(self, event_id: str,
+             source_system: Optional[str] = None) -> Optional[dict]:
         row = _exec(
             "SELECT processing_status || chr(31) || payload_hash "
             "|| chr(31) || retry_count FROM events.event_record "
-            f"WHERE {self._where()}",
-            self._params(event_id),
+            f"WHERE {self._where(source_system)}",
+            self._params(event_id, source_system),
         ).strip()
         if not row:
             return None
@@ -274,7 +291,7 @@ class PgEventStore:
             f"VALUES ({_txt('src')}, {_txt('eid')}, {_txt('op')}, 'received', {_txt('ph')}) "
             "ON CONFLICT (source_system, event_id) DO NOTHING "
             "RETURNING processing_status",
-            self._params(event_id, op=operation_type, ph=ph),
+            self._params(event_id, source_system, op=operation_type, ph=ph),
         ).strip()
         if inserted:
             return {"record": {
@@ -286,7 +303,7 @@ class PgEventStore:
                 "retry_count": 0,
             }, "verdict": "new"}
 
-        existing = self._get(event_id)
+        existing = self._get(event_id, source_system)
         if existing is None:  # raced delete — treat as new
             return self.receive(source_system, event_id, operation_type, payload)
         verdict = classify_event_repeat(
@@ -301,8 +318,8 @@ class PgEventStore:
                 "UPDATE events.event_record SET processing_status = 'received', "
                 f"operation_type = {_txt('op')}, retry_count = retry_count + 1, "
                 "last_attempt_at = now() "
-                f"WHERE {self._where()}",
-                self._params(event_id, op=operation_type),
+                f"WHERE {self._where(source_system)}",
+                self._params(event_id, source_system, op=operation_type),
             )
             existing["retry_count"] += 1
             existing["processing_status"] = "received"
@@ -310,39 +327,45 @@ class PgEventStore:
         return {"record": existing, "verdict": verdict}  # skipped_duplicate
 
     def begin(self, source_system: str, event_id: str):
-        rec = self._get(event_id)
+        rec = self._get(event_id, source_system)
         if rec is None:
             raise KeyError(f"unknown event: {event_id}")
         if rec["processing_status"] in ("succeeded", "skipped_duplicate"):
             self._raise_terminal(event_id, "processing")
-        self._guarded_update(event_id, "processing")
-        return self._get(event_id)
+        self._guarded_update(event_id, "processing",
+                             source_system=source_system)
+        return self._get(event_id, source_system)
 
     def succeed(self, source_system: str, event_id: str,
                 result_reference: str):
         updated = self._guarded_update(
-            event_id, "succeeded", result_reference=result_reference)
+            event_id, "succeeded", result_reference=result_reference,
+            source_system=source_system)
         if not updated:
             self._raise_terminal(event_id, "succeeded")
 
-    def fail(self, source_system: str, event_id: str, error_class: str):
+    def fail(self, source_system: str, event_id: str,
+             error_class: str):
         updated = self._guarded_update(
-            event_id, "failed", error_class=error_class)
+            event_id, "failed", error_class=error_class,
+            source_system=source_system)
         if not updated:
             self._raise_terminal(event_id, "failed")
 
     def mark_skipped_duplicate(self, source_system: str, event_id: str):
-        if not self._guarded_update(event_id, "skipped_duplicate"):
+        if not self._guarded_update(event_id, "skipped_duplicate",
+                                    source_system=source_system):
             self._raise_terminal(event_id, "skipped_duplicate")
 
     # -- transitions ----------------------------------------------------------
 
     def _guarded_update(self, event_id: str, new_status: str,
                         result_reference: str = None,
-                        error_class: str = None) -> bool:
+                        error_class: str = None,
+                        source_system: Optional[str] = None) -> bool:
         sets = ["processing_status = " + _txt("st"),
                 "last_attempt_at = now()"]
-        params = self._params(event_id, st=new_status)
+        params = self._params(event_id, source_system, st=new_status)
         if result_reference is not None:
             sets.append("result_reference = " + _txt("ref"))
             params["ref"] = result_reference
@@ -353,7 +376,7 @@ class PgEventStore:
             params["ec"] = error_class
         out = _exec(
             "UPDATE events.event_record SET " + ", ".join(sets) +
-            f" WHERE {self._where()} AND processing_status "
+            f" WHERE {self._where(source_system)} AND processing_status "
             "NOT IN ('succeeded','skipped_duplicate') "
             "RETURNING event_id",
             params,

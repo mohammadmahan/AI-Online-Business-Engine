@@ -396,8 +396,19 @@ docs/
 > prompt-template registry (`local/templates/`, hash-pinned), and the
 > HITL review inbox with idempotent bulk actions — end-to-end proven
 > on the live PostgreSQL store. Live AI credentials remain owner-gated
-> (D-045, register row 9). Next: **Phase 9 — Instagram**. Details and
-> exact closure gates: `TODO.md`.
+> (D-045, register row 9). **Phase 9 closed at foundation level
+> (Instagram Integration, D-069–D-072 all owner-approved):** Graph API
+> two-step container workflow as a strict state machine with local
+> Class-B pre-dispatch validation, SHA-256 publish idempotency vault
+> with exclusive PostgreSQL locking (absolute double-publish
+> protection), owner-gated live adapter behind `INSTAGRAM_LIVE_ENABLED`
+> with token redaction, and the transactional outbox with
+> D-052-aligned classifier (A backoff / B terminal / C cooldown /
+> E freeze+alert) and DLQ — end-to-end proven on the live store,
+> including restart-safety and concurrency. A cross-batch store defect
+> was found and fixed in M4 (see `TODO.md` Phase 9). Live Instagram
+> credentials remain owner-gated (D-045). Next: **Phase 10**. Details
+> and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation
 
