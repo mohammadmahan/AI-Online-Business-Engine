@@ -433,3 +433,24 @@ CREATE TABLE IF NOT EXISTS analytics.report_audit (
     payload           jsonb NOT NULL,
     generated_at      timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 14 (D-090): exactly-once-per-channel delivery vault. The PRIMARY
+-- KEY on dedup_key IS the lock — a second claimer of the same key loses
+-- deterministically and records duplicate_blocked, never dispatches.
+CREATE SCHEMA IF NOT EXISTS notifications;
+CREATE TABLE IF NOT EXISTS notifications.delivery_lock (
+    dedup_key         text PRIMARY KEY,
+    claim_ref         jsonb NOT NULL,
+    locked_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- Phase 14 (D-091): dead-letter queue for permanently failing
+-- notifications; rows are the HITL review material (D-028/D-050).
+CREATE TABLE IF NOT EXISTS notifications.dead_letter (
+    dedup_key         text PRIMARY KEY,
+    reason            text NOT NULL,
+    failure_class     text NOT NULL,
+    attempts          integer NOT NULL,
+    event_ref         jsonb NOT NULL,
+    admitted_at       timestamptz NOT NULL DEFAULT now()
+);

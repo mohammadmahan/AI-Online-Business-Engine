@@ -2378,6 +2378,87 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
+## D-089 — Canonical notification contract and multi-channel schema
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** OMS fulfillment transitions, HITL queue movements,
+  and campaign fan-outs need user-facing alerts across several
+  channels; without a contract each producer would invent its own
+  payload shape and every channel adapter would re-implement
+  validation.
+- **Decision:** one universal `NotificationEvent` (recipient,
+  channel ∈ {IN_APP, EMAIL, SMS, WEBHOOK}, priority ∈ {LOW, NORMAL,
+  HIGH, CRITICAL}, template_id, payload variables, deduplication_key)
+  is validated LOCALLY before anything is queued — unknown channel,
+  unknown priority, missing template, or a variable that fails the
+  template's declared requirements is a Class-B rejection before any
+  dispatch (local prevention, D-052). Templates are versioned records
+  with declared required variables; recipients are opaque local user
+  references — no addresses are invented or harvested by the engine.
+  The event carries NO credentials and the contract never reads
+  environment state (D-045).
+- **Consequences:** producers depend only on the contract; adding a
+  channel = one template set + one adapter binding, no producer
+  changes.
+
+## D-090 — Idempotent delivery vault, policy guards and independent fan-out
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** the same logical alert must be delivered at most
+  once per channel even across worker restarts and concurrent
+  dispatchers, and quiet-hours / frequency-capping policies must be
+  enforced deterministically.
+- **Decision:** a `NotificationVault` keyed by
+  `deduplication_key` (SHA-256 over event identity + channel)
+  provides strict idempotency — the winner claims via a PostgreSQL
+  PK-as-lock (`notifications.delivery_lock`); losers record a
+  deterministic `duplicate_blocked` outcome and never dispatch.
+  Policy guards run BEFORE the vault claim: quiet hours and per-
+  recipient frequency caps are pure functions of the payload's own
+  timestamps plus the durable delivery ledger — never wall-clock.
+  Channel fan-out is INDEPENDENT (D-077 discipline): a failure in
+  SMS never blocks, rolls back, or marks IN_APP/WEBHOOK outcomes.
+- **Consequences:** restart-safe exactly-once-per-channel delivery;
+  policy violations surface as recorded deterministic outcomes
+  (`policy_deferred`), not silent drops.
+
+## D-091 — Notification outbox and queue worker with backoff and DLQ
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** dispatch must be reliable and non-blocking even
+  when a channel adapter is slow or down, mirroring the Phase 12
+  receipt model and the Phase 9/10 classification.
+- **Decision:** a transactional outbox on the D-027 event store —
+  enqueue is an event; the worker drains pending notifications with
+  per-channel adapters behind the provider-neutral boundary. Transient
+  errors (Class-A) retry with exponential backoff capped by a
+  configurable max-attempts; contract-invalid payloads (Class-B) go
+  straight to the dead-letter queue with the recorded reason; per-
+  recipient rate-limit backoff (Class-C semantics) honors the
+  indicated wait; permanently failing notifications end in the DLQ
+  and materialize a HITL review record (D-028/D-050) — no automatic
+  resolution.
+- **Consequences:** at-least-once enqueue + exactly-once-per-channel
+  claim = end-to-end exactly-once; no loss on restart; DLQ grows
+  only with genuine failures and is always human-actionable.
+
+## D-092 — Notification delivery audit and status tracking
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** alert delivery must be auditable and reconstructible
+  from durable state, like every other domain.
+- **Decision:** every dispatch attempt, receipt, and failure reason
+  is a D-027 event with D-026 provenance (actor = the dispatcher,
+  review state = system-generated). Delivery status aggregates over
+  the deterministic lifecycle `PENDING → QUEUED → DISPATCHED →
+  DELIVERED | FAILED | POLICY_DEFERRED | DUPLICATE_BLOCKED` with
+  FAILED terminal only after DLQ admission; every persisted string
+  passes through the established redaction discipline (D-045). The
+  status view is rebuilt from durable store data only — no in-process
+  cache is required for correctness.
+- **Consequences:** the full delivery story of any notification is
+  reconstructible after restart from the event store alone.
+
 ## D-085 — Canonical analytics model, CQRS boundary and deterministic aggregation
 
 - **Status:** **Approved** (2026-09-16, owner-approved)
@@ -2743,6 +2824,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 27 | Cross-platform fan-out orchestration — **D-077–D-080 (Approved 2026-09-16)**: universal dispatch contract + destination matrix (D-077), `FanOutLifecycle` with partial-success model + receipts (D-078), coordinated release windows + campaign-level anti-race lock `orchestration.fanout_lock` (D-079), retry isolation, HITL cancellation, reconciliation worker (D-080); live platform connectivity remains owner-gated per D-045/D-071/D-075 | Approved | — | 11 (architecture done) |
 | 28 | Order management system — **D-081–D-084 (Approved 2026-09-16)**: order contract + lifecycle `PLACED → VALIDATED → FULFILLING → COMPLETED` with CANCELLED/REFUNDED terminals and client_order_id SHA-256 idempotency (D-081), provider-neutral inventory with atomic PG row-lock reservation — no oversell (D-082), payment-neutral boundary + Phase 11 fan-out notification integration (D-083), immutable transition audit + TTL auto-cancel reconciliation vault (D-084); payment gateway and live credentials remain owner-gated per D-045 | Approved | — | 12 (architecture done) |
 | 29 | Analytics, reporting & metrics engine — **D-085–D-088 (Approved 2026-09-16)**: CQRS read-side projections over the D-027 store with deterministic windowing from recorded event timestamps, no wall-clock keys (D-085), incremental snapshots keyed by the monotonic ingest_seq cursor — exactly-once, rebuild-safe (D-086), cross-domain campaign→revenue correlator joined on shared campaign_id with zero domain imports (D-087), idempotent JSON/CSV export keyed by window hash + report audit vault, aggregates only — no customer data (D-088) | Approved | — | 13 (architecture done) |
+| 30 | Notification system & user alerts — **D-089–D-092 (Approved 2026-09-17)**: universal NotificationEvent contract with local Class-B validation before queueing (D-089); deduplication_key vault + PG PK-as-lock, pure-function quiet-hours/frequency guards, independent per-channel fan-out (D-090); transactional outbox worker with exponential backoff and HITL-materializing DLQ (D-091); full delivery audit on the D-027 store with restart-reconstructible status tracking (D-092). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

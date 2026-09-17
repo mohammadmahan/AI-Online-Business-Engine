@@ -619,6 +619,59 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 14 — Notification System & User Alerts — **CLOSED at
+      foundation level (2026-09-17), D-089–D-092 all owner-approved**:
+      D-089 contract (`local/canonical/notification_contracts.py`:
+      universal NotificationEvent — recipient, channel
+      IN_APP/EMAIL/SMS/WEBHOOK, priority LOW..CRITICAL, versioned
+      template registry with declared required variables + per-channel
+      requirements, SHA-256 dedup over (recipient, channel, template,
+      logical event_key) so reformatted retries collapse while
+      distinct alerts differ; strict LOCAL Class-B validation before
+      anything is queued — 15 rejection classes tested; quiet-hours
+      and frequency caps as pure functions of the event's own
+      timestamp + the durable ledger, CRITICAL bypass, no wall clock);
+      D-090 vault + engine (`notification_engine.py` +
+      `notifications.delivery_lock` schema: PK-as-lock exactly-once-
+      per-channel claims — losers record duplicate_blocked and never
+      dispatch; PG + JSON-parity backends; independent per-channel
+      fan-out; durable status view rebuilt from store data only);
+      D-091 outbox worker (`notification_worker.py` +
+      `notifications.dead_letter` schema: drain from the durable
+      queue view, exponential backoff = f(attempt_no) — 2/4/8/16/32/60
+      cap, deterministic, no clock; transient retries return to
+      QUEUED with every outcome advancing the lock row's attempt_no
+      (restart-safe ladder); attempts-exhausted and Class-B go to the
+      DLQ; rate-limit waits honored without consuming retry budget;
+      no-adapter-bound and adapter-exception carriers recorded, never
+      silent; reconciliation from durable data only);
+      D-092 audit (every attempt/receipt/failure a D-027 event with
+      redacted strings; status lifecycle PENDING → QUEUED →
+      DISPATCHED → DELIVERED | FAILED | POLICY_DEFERRED |
+      DUPLICATE_BLOCKED with terminal stickiness — late transient
+      receipts never demote DELIVERED/FAILED).
+      Phase 14 suite 26/26 zero-skip (22 offline + 4 live-PG E2E:
+      real PgEventStore + PG delivery_lock + PG dead_letter,
+      independent fan-out + delivery, same-key duplicate-block,
+      retry ladder → DLQ → restart parity, Class-B DLQ row = HITL
+      review material); battery 552/552 zero-skip; ladder 46/46;
+      AST audit clean (zero network imports in canonical modules,
+      zero decision verbs, zero os.environ — only the test-only
+      stack guard and a docstring hit); secret scan clean;
+      diff-check PASS.
+      Suite-found defects fixed in-batch: PG DLQ read-shape bug
+      (items() demanded 7 segments for 6-field rows — DLQ reads came
+      back empty while admits accumulated), retry-ladder stall
+      (transient outcomes parked at DISPATCHED, attempt counter
+      never advanced), terminal-stickiness hole (late transient
+      receipt demoted DELIVERED/FAILED), missing SMS-capable
+      template (added order.shipped.v1), register row 30 repair
+      (initial str_replace overwrote row 29's prefix — restored
+      byte-identical from git, then inserted properly).
+      Standing owner gate: no EMAIL/SMS/WEBHOOK endpoints or
+      provider credentials (D-045) — none exist, none requested;
+      nothing ever leaves the local stack; Phase 14 passing does
+      NOT prove live provider compatibility.
 - [x] Phase 13 — Analytics, Reporting & Metrics Engine — **CLOSED at
       foundation level (2026-09-17), D-085–D-088 all owner-approved**:
       D-085 canonical analytics model (`local/canonical/analytics_contracts.py`:

@@ -459,7 +459,22 @@ docs/
 > zero-skip (incl. live-PG E2E), battery 526/526, ladder 46/46; the
 > live layer exposed and fixed a real snapshot-shape defect plus a
 > CQRS write-orphan. Live store credentials remain owner-gated
-> (D-045). Next: **Phase 14**.
+> (D-045). Details and exact closure gates: `TODO.md`.
+>
+> **Phase 14 — Notification System & User Alerts — CLOSED at
+> foundation level (2026-09-17), D-089–D-092 all owner-approved.**
+> Universal NotificationEvent contract with strict local Class-B
+> validation before queueing (D-089), exactly-once-per-channel
+> delivery vault (SHA-256 dedup keys, PG PK-as-lock) with pure-
+> function quiet-hours/frequency guards and independent per-channel
+> fan-out (D-090), transactional outbox worker with deterministic
+> exponential backoff and a HITL-materializing DLQ (D-091), and a
+> fully durable delivery audit with terminal-sticky status tracking
+> (D-092). Suite 26/26 zero-skip incl. live-PG E2E, battery 552/552,
+> ladder 46/46; the suite exposed and fixed a DLQ read-shape defect,
+> a retry-ladder stall, and a terminal-stickiness hole. No provider
+> endpoints or credentials exist or are requested (D-045). Next:
+> **Phase 15**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation
