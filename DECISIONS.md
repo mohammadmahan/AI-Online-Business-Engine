@@ -2378,6 +2378,81 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
+## D-101 — Canonical insight contract and analyst state machine
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** Phases 12/13 produce durable metrics (orders,
+  revenue, publication outcomes) but nothing turns them into
+  decision-grade business insight; ad-hoc conclusions would lack
+  provenance and could bypass human authority.
+- **Decision:** a canonical `BusinessInsight` — insight_id,
+  category, severity, metric_refs, actionable_payload,
+  confidence_score, correlation_keys, status — plus a `Recommendation`
+  shape carried in the payload. Lifecycle GENERATED → EVALUATED →
+  then DISPATCHED_TO_HITL | AUTO_ACCEPTED | DISMISSED, with
+  SUPERSEDED as a marker reachable from any non-terminal state when
+  a later insight covers the same correlation keys. Every transition
+  is a D-027 event with full provenance. Derivation is deterministic:
+  rule evaluation over DURABLE metrics and snapshots only, injected
+  evaluators, zero wall-clock reads.
+- **Consequences:** every recommendation traceable to the exact
+  metric windows that produced it; the AI-analyst boundary stays
+  inside D-050 (the analyst proposes, only humans or explicitly
+  auto-accept-safe rules decide).
+
+## D-102 — Analyst engine and rule evaluation vault
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** insight evaluation must never mutate business state
+  in the same step that generates it, and duplicate insights over
+  the same evidence must collapse deterministically.
+- **Decision:** `AnalystEngine` with STRICT separation between rule
+  evaluation (pure: metrics in, insight proposal out) and decision
+  application (durable: dedup, status, audit). Insight idempotency =
+  SHA-256 over (category, correlation_keys, metric window refs);
+  atomic dedup via PostgreSQL `analytics.business_insight` unique
+  constraint with a JSON parity backend. Incomplete metric contexts
+  (missing refs, empty windows) and negative/over-unity confidence
+  scores are Class-B rejections BEFORE any durable write.
+- **Consequences:** evaluation is testable without storage;
+  re-deriving the same insight is idempotent, not a new row.
+
+## D-103 — Cross-domain correlator and anomaly detection worker
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** publishing engagement (Phase 9–11), scheduling
+  density (Phase 15) and order velocity (Phase 12) live in separate
+  event streams; anomalies spanning them need a reconciliation-style
+  worker that cannot silently fire business actions.
+- **Decision:** an `AnomalyScanner` aggregating durable multi-phase
+  metrics with INJECTED deterministic detectors and configurable
+  thresholds. A threshold breach is recorded STRICTLY as an immutable
+  D-027 audit event (insight GENERATED) — the worker NEVER invokes
+  notification or publishing modules; dispatch is delegated to the
+  Phase 14 contracts at a separate boundary. No wall clock: the scan
+  instant is injected; windows come from durable event data.
+- **Consequences:** the analyst observes and proposes only;
+  side-effectful channels stay behind their own contracts (AST-
+  verified import boundary).
+
+## D-104 — Recommendation auditing, HITL boundary and ledger parity
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** high-impact recommendations could alter business
+  state; the system must make human review structurally unavoidable
+  exactly where impact is high.
+- **Decision:** recommendations whose severity is HIGH or CRITICAL
+  (or whose actionable_payload mutates business state) MUST carry a
+  HITL review flag and can only reach DISPATCHED_TO_HITL — AUTO_ACCEPT
+  is structurally unreachable for them (enforced in code and
+  battery-asserted). Every generated insight, evaluation pass, and
+  status transition is an immutable D-027 event; the complete
+  decision ledger and historical rationale rebuild from durable
+  events alone (D-104 ledger parity with D-096/D-100 precedent).
+- **Consequences:** no business-altering logic executes without
+  human approval; the audit answers "why did the analyst propose
+  this?" from durable data.
+
 ## D-097 — Canonical media asset and content version contract
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -2978,6 +3053,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 30 | Notification system & user alerts — **D-089–D-092 (Approved 2026-09-17)**: universal NotificationEvent contract with local Class-B validation before queueing (D-089); deduplication_key vault + PG PK-as-lock, pure-function quiet-hours/frequency guards, independent per-channel fan-out (D-090); transactional outbox worker with exponential backoff and HITL-materializing DLQ (D-091); full delivery audit on the D-027 store with restart-reconstructible status tracking (D-092). |
 | 31 | Content calendar & scheduling engine — **D-093–D-096 (Approved 2026-09-17)**: canonical ScheduledPost lifecycle SCHEDULED → DUE → DISPATCHED (+CANCELLED/RESCHEDULED, full provenance) with the injectable clock as the only time source (D-093); per-platform PK-as-lock slot reservations with configurable minimum gap, slot_conflict = Class-B before dispatch (D-094); due scanner from durable data ordered by ingest_seq bridging to the Phase 11 FanOutEngine — scheduler never publishes (D-095); only pre-DISPATCHED posts mutable, slot ledger audits full reservation history, calendar view rebuilds from durable events alone (D-096). |
 | 32 | Content versioning & media assets — **D-097–D-100 (Approved 2026-09-17)**: canonical MediaAsset/ContentVersion with SHA-256 content-addressable dedup and append-only version chains (D-097); atomic PG-constraint registration (PK checksum, unique (content_id, version_number)) with Class-B pre-storage validation and JSON parity (D-098); deterministic idempotent variant derivation behind a provider-neutral bridge (D-099); quarantine with injected-clock retention cooldown, full D-027 audit and historical version reconstruction from durable events (D-100). |
+| 33 | AI business analyst & decision engine — **D-101–D-104 (Approved 2026-09-17)**: canonical BusinessInsight/Recommendation with GENERATED → EVALUATED → DISPATCHED_TO_HITL/AUTO_ACCEPTED/DISMISSED (+SUPERSEDED) lifecycle, deterministic pure rule evaluation over durable Phase 12/13 metrics, SHA-256 insight dedup over (category, correlation keys, window refs) in `analytics.business_insight`, injected anomaly detectors recorded strictly as D-027 audit events, and a structurally enforced HITL boundary for HIGH/CRITICAL severity (auto-accept unreachable; full ledger rebuildable from durable events alone). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

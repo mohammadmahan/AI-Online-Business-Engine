@@ -504,7 +504,26 @@ docs/
 > transcoder call (D-099); and quarantine-with-cooldown lifecycle
 > plus historical reconstruction from durable events alone (D-100).
 > Suite 20/20 zero-skip incl. live-PG E2E (8-thread single-creator
-> race), battery 596/596, ladder 46/46. Next: **Phase 17**.
+> race), battery 596/596, ladder 46/46.
+> Details and exact closure gates: `TODO.md`.
+>
+> **Phase 17 — AI Business Analyst & Decision Engine — CLOSED at
+> foundation level (2026-09-17), D-101–D-104 all owner-approved.**
+> Canonical BusinessInsight with deterministic SHA-256 evidence
+> identity and the GENERATED → EVALUATED → DISPATCHED_TO_HITL /
+> AUTO_ACCEPTED / DISMISSED (+ SUPERSEDED from any non-terminal
+> state) lifecycle (D-101); an AnalystEngine with strict
+> evaluation/application separation, evidence-only dedup audits and
+> the analytics.business_insight PK as the atomic dedup (D-102);
+> injected deterministic detectors over plain durable metric frames
+> whose threshold breaches are recorded STRICTLY as D-027 insight
+> events — no direct notifications, dispatch delegated through an
+> injected seam to the Phase 14 contracts (D-103); and a
+> structurally enforced HITL boundary where HIGH/CRITICAL severity
+> or state-mutating payloads can never auto-accept, with the full
+> decision ledger rebuildable from durable events alone (D-104).
+> Suite 27/27 zero-skip incl. live-PG E2E, battery 623/623, ladder
+> 46/46. Next: **Phase 18**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

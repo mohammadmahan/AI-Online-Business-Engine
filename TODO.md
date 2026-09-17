@@ -619,6 +619,59 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 17 — AI Business Analyst & Decision Engine — **CLOSED at
+      foundation level (2026-09-17), D-101–D-104 all owner-approved**:
+      D-101 contracts (`local/canonical/analyst_contracts.py`:
+      canonical BusinessInsight/Recommendation — insight identity =
+      SHA-256 over (category, sorted correlation keys, sorted metric
+      refs), identical evidence ⇒ identical insight; lifecycle
+      GENERATED → EVALUATED → DISPATCHED_TO_HITL / AUTO_ACCEPTED /
+      DISMISSED with SUPERSEDED reachable from any non-terminal
+      state incl. HITL-waiting; confidence_score ∈ [0,1]; Class-B
+      validation of incomplete metric contexts before any durable
+      write; D-104 boundary helpers requires_hitl/can_auto_accept);
+      D-102 engine (`analyst_engine.py` + `analytics.business_insight`
+      schema: strict evaluation/application separation — the injected
+      evaluator sees the durable row and mutates nothing; evidence-
+      only dedup audits (caller labels never create conflicting D-027
+      duplicates); PG PK dedup + JSON parity vault; every transition
+      an attempt-unique D-027 event; ledger() rebuilds the complete
+      decision rationale from durable events alone); D-103 worker
+      (`analyst_worker.py`: plain-data metric frame from D-085 rollup
+      cells + Phase 15 scheduling observations — zero domain-module
+      imports (AST-verified); four injected deterministic built-in
+      detectors (publication failure, order cancellation, order
+      drought, scheduling hotspot) with configurable thresholds;
+      breaches proposed as insights via the engine = immutable D-027
+      audit events only; HitlTriageBridge emits a Phase 14
+      contract-shaped hitl.review_required.v1 event through an
+      injected callable — never a direct notification call; re-scan
+      idempotent via evidence dedup); D-104 enforcement (auto_accept
+      structurally refuses HIGH/CRITICAL severity or state-mutating
+      payloads — battery-asserted unreachable).
+      Phase 17 suite 27/27 zero-skip (23 offline + 4 live-PG E2E:
+      real PgEventStore + PG vault, propose/dedup/evaluate/dispatch,
+      8-thread identical-proposal single-creator race, lifecycle +
+      ledger + restart parity, live scan E2E); battery 623/623
+      zero-skip; ladder 46/46; AST audit clean (0 network imports,
+      0 AI SDKs, 0 domain-module imports from analyst modules, 0
+      os.environ, 0 time/datetime imports in canonical modules);
+      secret scan clean; diff-check PASS.
+      Suite-found defects fixed in-batch: scan instant leaking into
+      the insight key (re-scan created new insights — now evidence-
+      only keys, instant is metadata), builtin hash() ids
+      (process-randomized — SHA-256 evidence digest), cancellation
+      ratio computed over the wrong denominator, build_frame
+      accepting incomplete cells, DISPATCHED_TO_HITL fully terminal
+      (SUPERSEDED unreachable from HITL — contradicted D-101), dedup
+      audit embedding caller insight_id (conflicting D-027
+      duplicates on identical evidence), and live fixtures not
+      run-scoped at the evidence level (shared durable table —
+      Phase 13–16 precedent).
+      Standing owner gate: no external AI APIs, no credentials
+      (D-045) — evaluators are injected deterministic functions;
+      Phase 17 passing does NOT prove live AI-provider or
+      notification compatibility.
 - [x] Phase 16 — Content Versioning & Media Asset Management —
       **CLOSED at foundation level (2026-09-17), D-097–D-100 all
       owner-approved**:

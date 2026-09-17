@@ -400,6 +400,25 @@ CREATE TABLE IF NOT EXISTS analytics.metric_rollup (
     PRIMARY KEY (window_kind, metric_kind, bucket)
 );
 
+-- D-101/D-102 business insight register: the unique insight_key IS
+-- the dedup (identical evidence ⇒ one insight); status carries the
+-- D-101 lifecycle; full provenance lives in the D-027 event store.
+CREATE TABLE IF NOT EXISTS analytics.business_insight (
+    insight_key       text PRIMARY KEY,
+    insight_id        text NOT NULL,
+    category          text NOT NULL,
+    severity          text NOT NULL,
+    status            text NOT NULL,
+    confidence_score  numeric NOT NULL,
+    metric_refs       jsonb NOT NULL,
+    correlation_keys  jsonb NOT NULL,
+    actionable_payload jsonb NOT NULL,
+    hitl_required     boolean NOT NULL DEFAULT false,
+    superseded_by     text,
+    created_seq       bigint,
+    updated_seq       bigint
+);
+
 -- D-086 materialized snapshots: a full serialized rollup state per
 -- (window, cursor) — heavy queries read this, not raw events.
 CREATE TABLE IF NOT EXISTS analytics.snapshot (
