@@ -619,6 +619,49 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 13 — Analytics, Reporting & Metrics Engine — **CLOSED at
+      foundation level (2026-09-17), D-085–D-088 all owner-approved**:
+      D-085 canonical analytics model (`local/canonical/analytics_contracts.py`:
+      metric vocabulary `publication_published` / `publication_failed` /
+      `order_placed` / `order_completed` / `order_cancelled` /
+      `revenue_minor`, deterministic hourly/daily/monthly windowing
+      from each event's own `occurred_at` — no wall-clock; rollup math
+      count-vs-sum per kind; merge = raw accumulator, finalize = the
+      single serialization edge); D-086 projection engine
+      (`analytics_engine.py` + `analytics` schema: ingest_seq cursor
+      with exactly-once consumption, atomic advance of cursor +
+      per-grain snapshots + metric_rollup cells in ONE statement,
+      JSON parity store, deterministic rebuild);
+      D-087 CampaignCorrelator (`analytics_worker.py`: publication ⟕
+      order join on source campaign id within an hours-after-
+      publication window, unattributed orders preserved — read-model
+      join, zero hard cross-domain dependency); D-088 exporter +
+      audit vault (JSON/CSV projections, SHA-256 window_hash
+      idempotent generation — same inputs ⇒ same hash ⇒
+      idempotent_hit, PgReportVault PK-as-hash on
+      `analytics.report_audit` + JSON parity, audit trail of every
+      request).
+      Phase 13 suite 28/28 zero-skip (24 offline + 4 live-PG E2E:
+      real PgEventStore → _PgCursorStore → PgReportVault, cursor
+      advance + exactly-once, revenue delta attribution, rebuild
+      byte-determinism over the full live history, fresh-engine
+      cursor parity); battery 526/526 zero-skip; ladder 46/46;
+      AST audit clean (zero network imports, zero platform/price/
+      publication module refs — `publication_*` is the D-085 metric
+      vocabulary, zero decision verbs, zero os.environ in canonical
+      modules); secret scan clean; diff-check PASS.
+      Suite-found defects fixed in-batch: PG snapshot shape bug
+      (whole 3-grain dict written into every per-grain row ⇒ live
+      incremental passes silently wiped rollups — live-only, JSON
+      store unaffected; now per-grain rows + stale rows cleared +
+      full live rebuild verified), CQRS write-orphan
+      (`analytics.metric_rollup` written by nobody — now upserted
+      inside the atomic advance), merge_rollups double-finalize +
+      lost last_seq, PgReportVault missing `import sys`, and two
+      live tests with invalid shared-store premises (rewritten to
+      rebuild↔rebuild determinism and per-run revenue delta).
+      Standing owner gate: live store credentials (D-045) — none
+      exist, none requested; analytics never leaves the local stack.
 - [x] Phase 11 — Cross-Platform Orchestration & Publication Fan-Out —
       **CLOSED at foundation level (2026-09-16), D-077–D-080 all
       owner-approved**:

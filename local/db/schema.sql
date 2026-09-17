@@ -378,3 +378,58 @@ CREATE TABLE IF NOT EXISTS oms.reservation (
     state             text NOT NULL,
     created_at        timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 13 (D-085/D-086): CQRS read model. The analytics schema owns
+-- ONLY projections — the transactional domains are never touched.
+CREATE SCHEMA IF NOT EXISTS analytics;
+
+-- D-086 incremental cursor: the highest consumed ingest_seq.
+CREATE TABLE IF NOT EXISTS analytics.cursor (
+    id                integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    last_seq          bigint NOT NULL DEFAULT 0,
+    updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+-- D-085 metric rollups: kind × window × bucket.
+CREATE TABLE IF NOT EXISTS analytics.metric_rollup (
+    window_kind       text NOT NULL,
+    bucket            text NOT NULL,
+    metric_kind       text NOT NULL,
+    value             bigint NOT NULL DEFAULT 0,
+    count             bigint NOT NULL DEFAULT 0,
+    PRIMARY KEY (window_kind, metric_kind, bucket)
+);
+
+-- D-086 materialized snapshots: a full serialized rollup state per
+-- (window, cursor) — heavy queries read this, not raw events.
+CREATE TABLE IF NOT EXISTS analytics.snapshot (
+    window_kind       text NOT NULL,
+    last_seq          bigint NOT NULL,
+    state             jsonb NOT NULL,
+    built_at          timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (window_kind, last_seq)
+);
+
+-- D-087 campaign attribution projection (read-model join).
+CREATE TABLE IF NOT EXISTS analytics.campaign_attribution (
+    campaign_id       text NOT NULL,
+    window_kind       text NOT NULL,
+    bucket            text NOT NULL,
+    publications      bigint NOT NULL DEFAULT 0,
+    orders            bigint NOT NULL DEFAULT 0,
+    revenue_minor     bigint NOT NULL DEFAULT 0,
+    PRIMARY KEY (campaign_id, window_kind, bucket)
+);
+
+-- D-088 report audit vault: one row per generated report.
+CREATE TABLE IF NOT EXISTS analytics.report_audit (
+    window_hash       text PRIMARY KEY,
+    report_kind       text NOT NULL,
+    window_grain      text NOT NULL,
+    window_start      text NOT NULL,
+    window_end        text NOT NULL,
+    source_cursor     bigint NOT NULL,
+    row_count         integer NOT NULL,
+    payload           jsonb NOT NULL,
+    generated_at      timestamptz NOT NULL DEFAULT now()
+);

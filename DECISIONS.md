@@ -2378,7 +2378,90 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
-## D-081 — OMS order lifecycle contract and state machine
+## D-085 — Canonical analytics model, CQRS boundary and deterministic aggregation
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** Phases 7–12 produce events across publishing,
+  orders, and HITL; the platform needs a read-side analytics model
+  decoupled from the transactional write path, with aggregation
+  that never depends on wall-clock reads.
+- **Decision:** analytics is a **read-side projection (CQRS)** over
+  the D-027 store: canonical metric events (publication reach /
+  engagement, order placement / conversion, revenue) are derived
+  ONLY from durable succeeded events — the projection never writes
+  back to domain tables. Aggregation windows (hourly / daily /
+  monthly) are computed deterministically from each event's OWN
+  recorded ISO timestamp field (`occurred_at` carried in the event
+  payload) — no wall-clock read enters any key or bucket. Money
+  stays strict integer minor units (D-081 discipline). The read
+  model lives in the `analytics` PG schema (JSON parity store for
+  offline tests) and may be discarded and rebuilt at any time
+  without losing canonical state.
+- **Consequences:** analytics queries can never corrupt the
+  transactional model; rebuilding the projection is a safe,
+  repeatable operation; window boundaries are reproducible.
+
+## D-086 — Snapshot engine and incremental projection via ingest_seq
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** re-aggregating the whole event history on every
+  query does not scale; snapshots must be consistent with the
+  durable event ordering and restart-safe.
+- **Decision:** the projection engine records a durable **cursor**
+  = the D-027 store's monotonic `ingest_seq` (the Phase-7 audit
+  ordering key; received_at is never trusted). Snapshots are
+  materialized projection states keyed by window; an incremental
+  pass consumes only events with `ingest_seq > cursor` and then
+  advances the cursor atomically with the snapshot write. Rebuild
+  = reset cursor to 0 and replay — deterministic, identical
+  output. A partial pass that fails before the snapshot write
+  leaves the cursor unchanged (no lost events, no double-count).
+- **Consequences:** snapshots are eventually consistent with the
+  store, exactly-once per event under retries, and safe across
+  restarts; heavy queries read snapshots, not raw events.
+
+## D-087 — Cross-domain correlator without hard domain coupling
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** connecting publication performance (Phases 9–11)
+  to order outcomes (Phase 12) must not couple the publishing and
+  OMS domains through direct calls.
+- **Decision:** correlation is computed **in the read model only**:
+  publication events carry an optional `campaign_id` and order
+  events carry an optional `source_campaign_id` — both populated by
+  their own domains at write time if the caller supplies one. The
+  correlator joins those two streams through the shared value
+  (campaign_id) over a configurable attribution window (events
+  after a publication, within N hours, deterministic from the
+  recorded timestamps). No publishing module ever calls OMS code
+  and vice versa; a missing campaign_id is simply an unattributed
+  row, never an error. Attribution output is a projection table,
+  recomputable by rebuild.
+- **Consequences:** domains stay decoupled (one shared string
+  field, zero imports); attribution is reproducible and auditable;
+  unattributed conversions remain visible instead of dropped.
+
+## D-088 — Analytics export surface and report audit vault
+
+- **Status:** **Approved** (2026-09-16, owner-approved)
+- **Situation:** reports must be reproducible, auditable, and safe
+  to re-generate; no credential or customer-identifying data may
+  leak through exports.
+- **Decision:** export renders a projection snapshot to **JSON or
+  CSV** deterministically; a report is identified by a SHA-256
+  `window_hash` over (report kind, window bounds, source cursor)
+  — identical inputs yield a byte-identical report, so generation
+  is idempotent (same hash returns the stored report; changed
+  inputs produce a new hash). Every generation/request is appended
+  to a report audit vault (D-026-aligned: actor, kind, window,
+  hash, row count, generated-from cursor). Exports contain only
+  aggregated metrics — no customer identifiers, no credentials,
+  no tokens (D-045); the CSV dialect is fixed (UTF-8, header row,
+  comma, RFC-quoted) so output is reproducible byte-for-byte.
+- **Consequences:** a report can be re-generated and verified
+  against its hash at any time; the audit trail proves what was
+  produced, when, and from which durable state.
+
 
 - **Status:** **Approved** (2026-09-16, owner-approved)
 - **Situation:** Phase 12 introduces order management; orders need a
@@ -2659,6 +2742,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 26 | ~~Instagram API surface / account setup~~ (see row 12) — publishing **architecture** resolved via **D-069–D-072 (Approved 2026-09-16)**: 2-step container workflow contract, anti-duplicate idempotency vault, owner-gated Graph API adapter + token redaction, outbox + DLQ error classifier; live Meta connectivity/credentials remain owner-gated (D-045) | Approved (architecture) | Meta account + credentials (owner) | 9 (architecture done) |
 | 27 | Cross-platform fan-out orchestration — **D-077–D-080 (Approved 2026-09-16)**: universal dispatch contract + destination matrix (D-077), `FanOutLifecycle` with partial-success model + receipts (D-078), coordinated release windows + campaign-level anti-race lock `orchestration.fanout_lock` (D-079), retry isolation, HITL cancellation, reconciliation worker (D-080); live platform connectivity remains owner-gated per D-045/D-071/D-075 | Approved | — | 11 (architecture done) |
 | 28 | Order management system — **D-081–D-084 (Approved 2026-09-16)**: order contract + lifecycle `PLACED → VALIDATED → FULFILLING → COMPLETED` with CANCELLED/REFUNDED terminals and client_order_id SHA-256 idempotency (D-081), provider-neutral inventory with atomic PG row-lock reservation — no oversell (D-082), payment-neutral boundary + Phase 11 fan-out notification integration (D-083), immutable transition audit + TTL auto-cancel reconciliation vault (D-084); payment gateway and live credentials remain owner-gated per D-045 | Approved | — | 12 (architecture done) |
+| 29 | Analytics, reporting & metrics engine — **D-085–D-088 (Approved 2026-09-16)**: CQRS read-side projections over the D-027 store with deterministic windowing from recorded event timestamps, no wall-clock keys (D-085), incremental snapshots keyed by the monotonic ingest_seq cursor — exactly-once, rebuild-safe (D-086), cross-domain campaign→revenue correlator joined on shared campaign_id with zero domain imports (D-087), idempotent JSON/CSV export keyed by window hash + report audit vault, aggregates only — no customer data (D-088) | Approved | — | 13 (architecture done) |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

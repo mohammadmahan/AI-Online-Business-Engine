@@ -444,7 +444,22 @@ docs/
 > riding the Phase 11 fan-out (D-083), and an immutable transition
 > audit with TTL auto-cancel reconciliation for orphaned FULFILLING
 > orders (D-084). Payment gateway and live store credentials remain
-> owner-gated (D-045). Next: **Phase 13**.
+> owner-gated (D-045). Details and exact closure gates: `TODO.md`.
+>
+> **Phase 13 — Analytics, Reporting & Metrics Engine — CLOSED at
+> foundation level (2026-09-17), D-085–D-088 all owner-approved.**
+> CQRS read model over the D-027 store (projection writes ONLY to the
+> `analytics` schema; transactional domains untouched, D-085),
+> incremental `ingest_seq` cursor with exactly-once consumption and
+> deterministic hourly/daily/monthly windows from each event's own
+> `occurred_at` — no wall-clock anywhere (D-086), campaign attribution
+> join between publication and OMS streams without any hard
+> cross-domain dependency (D-087), and idempotent window-hash report
+> generation with a PK-as-hash audit vault (D-088). Suite 28/28
+> zero-skip (incl. live-PG E2E), battery 526/526, ladder 46/46; the
+> live layer exposed and fixed a real snapshot-shape defect plus a
+> CQRS write-orphan. Live store credentials remain owner-gated
+> (D-045). Next: **Phase 14**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation
