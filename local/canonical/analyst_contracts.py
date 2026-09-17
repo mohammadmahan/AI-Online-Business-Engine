@@ -110,6 +110,15 @@ def validate_insight(insight: Dict) -> Dict:
     if not isinstance(insight["insight_id"], str) or \
             not insight["insight_id"]:
         raise AnalystContractError("insight_id must be a non-empty string")
+    if len(insight["insight_id"]) > MAX_INSIGHT_ID_LEN:
+        raise AnalystContractError(
+            f"insight_id exceeds {MAX_INSIGHT_ID_LEN} chars (D-114)")
+    payload = insight["actionable_payload"]
+    if isinstance(payload, dict) and \
+            len(json.dumps(payload, ensure_ascii=False)) > MAX_ACTIONABLE_PAYLOAD_JSON:
+        raise AnalystContractError(
+            f"actionable_payload exceeds {MAX_ACTIONABLE_PAYLOAD_JSON} "
+            "JSON chars (D-114)")
     if insight["category"] not in CATEGORIES:
         raise AnalystContractError(
             f"category must be one of {sorted(CATEGORIES)} (D-101)")
@@ -138,6 +147,9 @@ def validate_metric_refs(refs) -> List[Dict]:
         raise AnalystContractError(
             "metric_refs must be a non-empty list (incomplete metric "
             "context is a Class-B rejection, D-102)")
+    if len(refs) > MAX_METRIC_REFS:
+        raise AnalystContractError(
+            f"metric_refs exceeds {MAX_METRIC_REFS} entries (D-114)")
     for r in refs:
         if not isinstance(r, dict) or not r.get("metric_kind") \
                 or not r.get("window_ref"):
@@ -157,10 +169,20 @@ def validate_correlation_keys(keys) -> Tuple[str, ...]:
             raise AnalystContractError(
                 "correlation keys must be non-empty strings")
         out.append(k)
+    if len(out) > MAX_CORRELATION_KEYS:
+        raise AnalystContractError(
+            f"correlation_keys exceeds {MAX_CORRELATION_KEYS} "
+            "entries (D-114)")
     return tuple(out)
 
 
 # --- deterministic identity (D-101/D-102) -------------------------------------------
+
+# declared input bounds (D-114 hardening re-audit)
+MAX_INSIGHT_ID_LEN = 128
+MAX_METRIC_REFS = 64
+MAX_CORRELATION_KEYS = 32
+MAX_ACTIONABLE_PAYLOAD_JSON = 8192
 
 def insight_key(category: str, correlation_keys, metric_refs) -> str:
     """SHA-256 over (category, correlation_keys, metric_refs).

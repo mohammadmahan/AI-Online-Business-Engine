@@ -55,6 +55,8 @@ class AnalyticsContractError(ValueError):
 
 # --- windowing (D-085: from the event's own timestamp) ---------------------
 
+MAX_OCCURRED_AT_LEN = 64  # declared bound (D-114 hardening re-audit)
+
 def parse_occurred_at(value: str) -> Dict:
     """Parse an ISO-8601 timestamp recorded by the producing domain.
     Returns {iso, hour_key, day_key, month_key}. Raises Class-B when
@@ -62,6 +64,9 @@ def parse_occurred_at(value: str) -> Dict:
     if not isinstance(value, str):
         raise AnalyticsContractError(
             "occurred_at must be an ISO-8601 string (D-085)")
+    if len(value) > MAX_OCCURRED_AT_LEN:
+        raise AnalyticsContractError(
+            f"occurred_at exceeds {MAX_OCCURRED_AT_LEN} chars (D-114)")
     m = _ISO_RE.match(value.strip())
     if not m:
         raise AnalyticsContractError(

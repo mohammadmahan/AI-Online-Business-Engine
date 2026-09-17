@@ -619,6 +619,54 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 20 — Security Hardening & Threat Model — **CLOSED
+      (2026-09-17), D-113–D-116 all owner-approved**:
+      D-113 contracts (`local/canonical/security_contracts.py`:
+      six-category threat taxonomy mapped to phase surfaces —
+      credential leakage, replay attacks, ledger tampering, race
+      injection, oversized/malformed payloads, error-surface
+      enumeration; battery-backed control registry where every
+      control NAMES its test artifact (no untested claims);
+      HardeningPolicy numeric bounds + HardeningAuditRecord
+      validation); D-114 hardening (`security_engine.py`:
+      system-wide InputHardeningGate — payload/string size caps,
+      identifier charset, control-character, confusable-unicode and
+      invisible-codepoint rejection, NFC canonicalization, JSON
+      depth/width caps, duplicate-key rejection, uniform
+      reason-code-only error surfaces; ALL prior-phase validators
+      re-audited, six unbounded surfaces hardened with declared +
+      enforced bounds); D-115 ledger/replay defense (chain-head
+      attestation **v2** — position-weighted FULL-ROW SHA-256 fold
+      over the Phase 18/19 chains: interior mutation, swap,
+      truncation and append each detected, verified live-PG with
+      byte-exact restore; durable `security.hardening_audit` PK-dedup
+      vault + HardeningEngine facade; deterministic logical-clock
+      rate limiter with lockout arming/expiry and chain-anchored
+      replay-key burns); D-116 sweep worker (`security_worker.py`:
+      extended AST detectors — dynamic exec, process escape, unsafe
+      deserialization, network sockets, randomness, bare excepts —
+      subprocess confined to test tooling; secret-entropy scanner
+      with identifier discrimination + synthetic mock-token
+      allowlist; 11/11 bounds re-audit clean).
+      Phase 20 suite 33/33 zero-skip (28 offline + 5 live-PG E2E:
+      durable hardening-audit with re-report dedup, live
+      admin.control_audit attestation tamper detection + restore,
+      HITL ledger attestation, deterministic 8-thread lockout race,
+      8-thread audit-record dedup race → exactly one row); battery
+      702/702 zero-skip; ladder 46/46; extended AST sweep clean
+      (0 findings); entropy scan clean (0 flags / 92 files);
+      diff-check PASS; containers 5/5 healthy.
+      In-batch defects fixed: attestation v1 blind to interior-row
+      payload mutation (hash-only fold → full-row fold v2);
+      security.hardening_audit missing from schema (added + live);
+      missing vault import (`_json`) crashing PG audit writes;
+      `re.compile` flagged as dynamic compile; entropy scanner
+      flagging UPPER_SNAKE constants; layered-defense scope
+      clarified (validators = bounds, gate = charset/controls).
+      Standing owner gate: all controls local + deterministic; no
+      external security providers, auth backends, WAF/SIEM, or
+      network (D-045/D-116) — Phase 20 passing does NOT prove
+      compatibility with real security infrastructure.
 - [x] Phase 19 — Internal Tools, Operator Console & Admin Control
       Plane — **CLOSED at foundation level (2026-09-17), D-109–D-112
       all owner-approved**:

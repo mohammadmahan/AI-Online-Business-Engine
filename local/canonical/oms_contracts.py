@@ -97,6 +97,14 @@ def stock_key(variant_ref: Dict) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
+# --- declared input bounds (D-114 hardening re-audit) ----------------------
+
+MAX_QUANTITY_PER_LINE = 1_000_000
+MAX_UNIT_PRICE_MINOR = 10**12        # hard ceiling: 1e12 minor units
+MAX_LINE_ITEMS_PER_ORDER = 100
+MAX_CUSTOMER_REF_LEN = 128
+
+
 # --- line items -----------------------------------------------------------
 
 def _validate_line_item(raw, index: int) -> Dict:
@@ -124,12 +132,20 @@ def _validate_line_item(raw, index: int) -> Dict:
     if quantity < 1:
         raise OmsContractError(
             f"line_items[{index}] quantity must be >= 1 (D-081)")
+    if quantity > MAX_QUANTITY_PER_LINE:
+        raise OmsContractError(
+            f"line_items[{index}] quantity exceeds declared ceiling "
+            f"{MAX_QUANTITY_PER_LINE} (D-114)")
     unit_price = _strict_int(
         raw["unit_price_minor"],
         f"line_items[{index}] unit_price_minor")
     if unit_price < 0:
         raise OmsContractError(
             f"line_items[{index}] unit_price_minor must be >= 0 (D-081)")
+    if unit_price > MAX_UNIT_PRICE_MINOR:
+        raise OmsContractError(
+            f"line_items[{index}] unit_price_minor exceeds declared "
+            f"ceiling {MAX_UNIT_PRICE_MINOR} (D-114)")
     key = stock_key({"variant_id": variant_id, "sku": sku})
     return {"product_id": product_id, "variant_id": variant_id,
             "sku": sku, "quantity": quantity,
@@ -161,10 +177,17 @@ def validate_order(order) -> Dict:
     customer_ref = str(order["customer_ref"]).strip()
     if not customer_ref:
         raise OmsContractError("customer_ref must be non-empty (D-081)")
+    if len(customer_ref) > MAX_CUSTOMER_REF_LEN:
+        raise OmsContractError(
+            f"customer_ref exceeds {MAX_CUSTOMER_REF_LEN} chars (D-114)")
     raw_items = order["line_items"]
     if not isinstance(raw_items, (list, tuple)) or not raw_items:
         raise OmsContractError(
             "line_items must be a non-empty list (D-081)")
+    if len(raw_items) > MAX_LINE_ITEMS_PER_ORDER:
+        raise OmsContractError(
+            f"line_items exceeds {MAX_LINE_ITEMS_PER_ORDER} lines "
+            "(D-114)")
     items: List[Dict] = [_validate_line_item(x, i)
                          for i, x in enumerate(raw_items)]
     # duplicate variant lines collapse deterministically — same variant

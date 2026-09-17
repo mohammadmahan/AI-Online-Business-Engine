@@ -112,6 +112,12 @@ _REQUIRED = ("ticket_id", "queue_type", "payload_ref",
              "required_role", "resolution_status")
 
 
+# declared input bounds (D-114 hardening re-audit)
+MAX_TICKET_ID_LEN = 128
+MAX_PAYLOAD_REF_LEN = 256
+MAX_FEEDBACK_NOTES_LEN = 2000   # was an implicit slice cap — now declared & enforced
+
+
 def validate_ticket(ticket: Dict) -> Dict:
     if not isinstance(ticket, dict):
         raise HitlContractError("ticket must be a dict")
@@ -122,6 +128,9 @@ def validate_ticket(ticket: Dict) -> Dict:
     if not isinstance(ticket["ticket_id"], str) or \
             not ticket["ticket_id"]:
         raise HitlContractError("ticket_id must be a non-empty string")
+    if len(ticket["ticket_id"]) > MAX_TICKET_ID_LEN:
+        raise HitlContractError(
+            f"ticket_id exceeds {MAX_TICKET_ID_LEN} chars (D-114)")
     if ticket["queue_type"] not in QUEUE_TYPES:
         raise HitlContractError(
             f"queue_type must be one of {sorted(QUEUE_TYPES)} (D-105)")
@@ -135,6 +144,9 @@ def validate_ticket(ticket: Dict) -> Dict:
     if not isinstance(ticket["payload_ref"], str) or \
             not ticket["payload_ref"]:
         raise HitlContractError("payload_ref must be a non-empty string")
+    if len(ticket["payload_ref"]) > MAX_PAYLOAD_REF_LEN:
+        raise HitlContractError(
+            f"payload_ref exceeds {MAX_PAYLOAD_REF_LEN} chars (D-114)")
     reviewer = ticket.get("reviewer_actor_id")
     if ticket["resolution_status"] == ST_CLAIMED:
         if not isinstance(reviewer, str) or ":" not in reviewer:
@@ -173,6 +185,14 @@ def validate_action(action: Dict) -> Dict:
     if decision != ST_MODIFIED and "payload_override" in action:
         raise HitlContractError(
             "payload_override is only valid for MODIFIED")
+    notes = action.get("feedback_notes")
+    if notes is not None:
+        if not isinstance(notes, str):
+            raise HitlContractError("feedback_notes must be a string")
+        if len(notes) > MAX_FEEDBACK_NOTES_LEN:
+            raise HitlContractError(
+                f"feedback_notes exceeds {MAX_FEEDBACK_NOTES_LEN} "
+                "chars (D-114)")
     return action
 
 
@@ -183,5 +203,6 @@ def resolution_from_action(action: Dict) -> Dict:
         "decision": action["decision"],
         "reviewer_actor_id": action["reviewer_actor_id"],
         "payload_override": action.get("payload_override"),
-        "feedback_notes": str(action.get("feedback_notes", ""))[:2000],
+        "feedback_notes": str(action.get("feedback_notes", ""))[
+            :MAX_FEEDBACK_NOTES_LEN],
     }

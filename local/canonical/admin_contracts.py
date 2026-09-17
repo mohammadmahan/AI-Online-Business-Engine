@@ -98,6 +98,13 @@ _REQUIRED = ("action_id", "command", "target", "actor",
              "created_at_logical")
 
 
+# declared input bounds (D-114 hardening re-audit)
+MAX_ACTION_ID_LEN = 128
+MAX_TARGET_LEN = 256
+MAX_REASON_LEN = 2000
+MAX_QUEUE_NAME_LEN = 128
+
+
 def validate_action(action: Dict) -> Dict:
     if not isinstance(action, dict):
         raise AdminContractError("action must be a dict")
@@ -112,9 +119,15 @@ def validate_action(action: Dict) -> Dict:
     if not isinstance(action["action_id"], str) or \
             not action["action_id"]:
         raise AdminContractError("action_id must be a non-empty string")
+    if len(action["action_id"]) > MAX_ACTION_ID_LEN:
+        raise AdminContractError(
+            f"action_id exceeds {MAX_ACTION_ID_LEN} chars (D-114)")
     if not isinstance(action["target"], str) or \
             not action["target"]:
         raise AdminContractError("target must be a non-empty string")
+    if len(action["target"]) > MAX_TARGET_LEN:
+        raise AdminContractError(
+            f"target exceeds {MAX_TARGET_LEN} chars (D-114)")
     role = actor_role(action["actor"])          # validates the token
     actor_id(action["actor"])                   # validates the id
     if not is_permitted(action["actor"], action["command"]):
@@ -125,13 +138,15 @@ def validate_action(action: Dict) -> Dict:
             not action["created_at_logical"]:
         raise AdminContractError(
             "created_at_logical must be a non-empty logical value")
-    if action["command"] == CMD_REPLAY_EVENTS and \
-            not isinstance(action.get("reason"), str) or \
-            action["command"] == CMD_REPLAY_EVENTS and \
-            not action.get("reason"):
-        raise AdminContractError(
-            "REPLAY_EVENTS requires a non-empty written reason "
-            "(D-110)")
+    if action["command"] == CMD_REPLAY_EVENTS:
+        reason = action.get("reason")
+        if not isinstance(reason, str) or not reason:
+            raise AdminContractError(
+                "REPLAY_EVENTS requires a non-empty written reason "
+                "(D-110)")
+        if len(reason) > MAX_REASON_LEN:
+            raise AdminContractError(
+                f"reason exceeds {MAX_REASON_LEN} chars (D-114)")
     return action
 
 
@@ -151,6 +166,9 @@ def validate_control_command(cmd: Dict) -> Dict:
     if not isinstance(cmd.get("queue_name"), str) or \
             not cmd["queue_name"]:
         raise AdminContractError("queue_name must be a non-empty string")
+    if len(cmd["queue_name"]) > MAX_QUEUE_NAME_LEN:
+        raise AdminContractError(
+            f"queue_name exceeds {MAX_QUEUE_NAME_LEN} chars (D-114)")
     return cmd
 
 

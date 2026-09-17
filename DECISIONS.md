@@ -2538,6 +2538,102 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** a tripped breaker is a first-class durable
   state with deterministic recovery, not a silent config flip.
 
+## D-113 — Canonical threat model and security control registry
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** nineteen phases of controls exist, but the threat
+  assumptions behind them were implicit; controls without a mapped
+  threat and a named test are claims, not guarantees.
+- **Decision:** a canonical `ThreatModel` (threat_id, phase,
+  category, description, controls) and `SecurityControl` registry
+  mapping every threat category to the concrete module + test
+  artifact that neutralizes it. The canonical taxonomy: credential
+  leakage (D-045), replay attacks (Phase 19 confirmation keys),
+  ledger tampering (Phases 18/19 hash chains), race-condition
+  injection (Phases 12/15/17/18/19 exactly-once locks),
+  oversized/malformed payloads (all contract layers), enumeration
+  and probing via error surfaces. Rule: NO CONTROL WITHOUT A TEST —
+  the registry is battery-verified.
+- **Consequences:** security posture is a durable, inspectable,
+  test-backed artifact rather than folklore.
+- **Verification (M4, 2026-09-17):** registry battery-backed —
+  every threat category carries ≥1 control, every control names its
+  test artifact (asserted in the Phase 20 suite); threat→control→test
+  mapping table in `docs/phases/phase-20-security-hardening.md` §3.
+
+## D-114 — Input hardening and contract-level defense in depth
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** every contract layer validates shape and
+  vocabulary, but none enforces size/depth/charset bounds uniformly,
+  and JSON duplicate-key or unicode-confusable inputs could slip
+  semantic validation.
+- **Decision:** a system-wide `InputHardeningGate` applied at
+  contract entry points: strict size limits (payload bytes, id/ref
+  lengths), character-set and shape enforcement, JSON depth/width
+  limits, duplicate-key rejection, and unicode-confusable
+  (homoglyph) rejection with NFC canonicalization before validation.
+  All prior contract validators (Phases 9–19) are re-audited
+  against these bounds; discovered gaps are defects fixed in-batch
+  and recorded.
+- **Consequences:** malformed inputs are rejected deterministically
+  at the gate, before semantic validation or storage.
+- **Verification (M4, 2026-09-17):** re-audit found SIX unbounded
+  validator surfaces (oms, analytics, scheduling, analyst, hitl,
+  admin) — all hardened with declared + enforced bounds
+  (11/11 modules clean). Gate battery: size/charset/control/
+  confusable/depth/width/duplicate-key all proven; scope clarified —
+  module validators guarantee BOUNDS, the gate rejects
+  charset/controls at system entry points (layered defense).
+
+## D-115 — Ledger and replay defense escalation
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** the Phase 18/19 hash chains gain deterministic
+  chain-head ATTESTATIONS — a signed-style (hash) commitment over
+  (chain head hash, length, logical stamp) recomputed incrementally
+  and verifiable in O(1) against the full chain walk, readable
+  through the Phase 19 facade. Replay-key burn records are
+  chain-anchored (already burned keys cannot be forged unburned —
+  the burn evidence lives in the tamper-evident ledger).
+  Administrative rate limiting: deterministic budget counters on
+  repeated DLQ retries and repeated failed RBAC attempts with
+  configurable lockout thresholds and audited lockouts, all on the
+  injected logical clock.
+- **Consequences:** fast tamper detection, forge-proof burn
+  evidence, and deterministic abuse containment.
+- **Verification (M4, 2026-09-17):** attestation upgraded to **v2**
+  during verification — the v1 (head/length) fold was blind to
+  interior-row payload mutation (a vault edit keeps the stored
+  row_hash). v2 folds the FULL ROW of every position:
+  mutation/swap/truncate/append each detected, proven offline and
+  on live PG (`admin.control_audit` tamper test with byte-exact
+  restore). Burns chain-anchored (audited, forge-refusal tested);
+  lockout counters deterministic on the logical clock
+  (arming/expiry/race-tested).
+
+## D-116 — Security audit sweep and boundary re-verification
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** the standing AST audit is extended into a full
+  recursive sweep: every canonical module scanned for dynamic
+  `eval`/`exec`, `subprocess`/`os.system`, `pickle`/`marshal`
+  deserialization, `requests`/`urllib`/`socket` network imports,
+  `random` non-determinism, and bare `except:` swallowing — with
+  an explicit allowlist (test-only Docker guards, the established
+  patterns). Secret scanning gains Shannon-entropy analysis over
+  the full repository; D-045 re-verified: zero real credentials.
+  All controls local, deterministic, test-proven.
+- **Consequences:** the sweep is itself a test artifact — executed
+  in the battery, not a manual ritual.
+- **Verification (M4, 2026-09-17):** extended AST sweep CLEAN
+  (0 findings in canonical modules; 20 subprocess uses confirmed
+  confined to test harnesses); secret-entropy scan CLEAN (0 flags,
+  92 files) after fixing two detector false positives (`re.compile`
+  vs bare `compile`, UPPER_SNAKE identifiers) and allowlisting the
+  Phase 9–11 synthetic mock-token prefixes; D-045 re-verified —
+  zero real credentials.
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3186,6 +3282,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 33 | AI business analyst & decision engine — **D-101–D-104 (Approved 2026-09-17)**: canonical BusinessInsight/Recommendation with GENERATED → EVALUATED → DISPATCHED_TO_HITL/AUTO_ACCEPTED/DISMISSED (+SUPERSEDED) lifecycle, deterministic pure rule evaluation over durable Phase 12/13 metrics, SHA-256 insight dedup over (category, correlation keys, window refs) in `analytics.business_insight`, injected anomaly detectors recorded strictly as D-027 audit events, and a structurally enforced HITL boundary for HIGH/CRITICAL severity (auto-accept unreachable; full ledger rebuildable from durable events alone). |
 | 34 | HITL approval engine & decision ledger — **D-105–D-108 (Approved 2026-09-17)**: canonical HitlReviewTicket with PENDING_REVIEW → CLAIMED → APPROVED/REJECTED/MODIFIED/ESCALATED/EXPIRED lifecycle (escalation re-queues, expiry only via deterministic sweep), PK-as-lock atomic claims over `hitl.review_tickets` + append-only hash-chained `hitl.review_ledger`, ingestion of Phase 17 DISPATCHED_TO_HITL insights, idempotent command dispatch through injected queue-type dispatchers, tamper-evident chain verification, mock local actors only (D-045). |
 | 35 | Internal tools & operator control plane — **D-109–D-112 (Approved 2026-09-17)**: closed command grammar (PAUSE/RESUME_QUEUE, RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS) with deterministic local-token RBAC, ControlPlaneEngine over `admin.operator_actions` (PK-as-lock) + hash-chained `admin.control_audit` (Phase 18 tamper standard), an injected-read multi-domain state facade (DLQ/HITL/insights/assets), replay strictly dry-run unless a single-use confirmation key is supplied, DLQ retries + circuit breakers with deterministic logical-clock cool-downs, and zero cross-module imports (D-045/D-027 discipline). |
+| 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

@@ -594,3 +594,18 @@ CREATE TABLE IF NOT EXISTS assets.content_version (
     PRIMARY KEY (content_id, version_number),
     UNIQUE (content_id, version_id)
 );
+
+-- Phase 20 (D-113/D-115): durable hardening-audit vault. Append-only
+-- record of gate rejections, attestation checks, rate-limit hits and
+-- actor lockouts; the PK dedups attempt-unique records exactly like
+-- every D-027 surface (retry of the same record = no second row).
+CREATE SCHEMA IF NOT EXISTS security;
+CREATE TABLE IF NOT EXISTS security.hardening_audit (
+    record_key        text PRIMARY KEY,
+    record_kind       text NOT NULL,
+    subject           text NOT NULL,
+    actor             text NOT NULL,
+    detail            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    logical_at        text NOT NULL,
+    recorded_at       timestamptz NOT NULL DEFAULT now()
+);

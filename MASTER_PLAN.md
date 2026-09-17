@@ -561,8 +561,25 @@ docs/
 > threshold trips, deterministic logical-clock cool-downs,
 > HALF_OPEN probes) emitting only D-027 events (D-111). Suite
 > 24/24 zero-skip incl. live-PG E2E, battery 669/669, ladder
-> 46/46. Next: **Phase 20**.
+> 46/46.
 > Details and exact closure gates: `TODO.md`.
+
+> **Phase 20 — Security Hardening & Threat Model — CLOSED (2026-09-17),
+> D-113–D-116 all owner-approved.** A canonical threat taxonomy and
+> battery-backed control registry (every control names its test
+> artifact, D-113); a system-wide `InputHardeningGate` (size/
+> charset/control-char/confusable/NFC-canonicalization/JSON
+> depth-width/duplicate-key, D-114) with ALL prior-phase validators
+> re-audited — six unbounded surfaces hardened; chain-head
+> attestation **v2** (position-weighted FULL-ROW fold over the
+> Phase 18/19 hash chains — interior mutation, swap, truncation and
+> append each detected; live-PG tamper proven with byte-exact
+> restore) plus a durable `security.hardening_audit` vault and
+> deterministic rate-limit/lockout counters on the logical clock
+> (D-115); extended AST sweep + secret-entropy scan + bounds
+> re-audit all CLEAN (D-116). Suite 33/33 zero-skip incl. 5 live-PG
+> E2E, battery 702/702, ladder 46/46. Next: **Phase 21**.
+> Details: `docs/phases/phase-20-security-hardening.md` §7, `TODO.md`.
 
 ### Phase 0 --- Foundation
 

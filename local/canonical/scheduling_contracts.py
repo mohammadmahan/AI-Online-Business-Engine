@@ -105,6 +105,9 @@ def validate_scheduled_post(post: Dict) -> Dict:
             "targets must be a non-empty list (Phase 11 destination "
             "matrix — final platform authority stays with the fan-out "
             "validators, D-077)")
+    if len(targets) > MAX_TARGETS_PER_POST:
+        raise SchedulingContractError(
+            f"targets exceeds {MAX_TARGETS_PER_POST} entries (D-114)")
     if len(set(targets)) != len(targets):
         raise SchedulingContractError("targets must be unique")
 
@@ -125,6 +128,7 @@ def validate_scheduled_post(post: Dict) -> Dict:
 # --- slot arithmetic (D-094) — pure, no clock ---------------------------------
 
 SLOT_GRANULARITY_MINUTES = 15  # slot bucket size; the minimum gap
+MAX_TARGETS_PER_POST = 16      # declared bound (D-114 hardening re-audit)
 
 
 def slot_bucket(scheduled_for: str,
