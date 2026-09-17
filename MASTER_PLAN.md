@@ -541,7 +541,27 @@ docs/
 > command dispatchers — a repeated approval signal produces zero
 > duplicate side-effects, with zero cross-module imports (D-107).
 > Suite 22/22 zero-skip incl. live-PG E2E, battery 645/645, ladder
-> 46/46. Next: **Phase 19**.
+> 46/46.
+> Details and exact closure gates: `TODO.md`.
+>
+> **Phase 19 — Internal Tools, Operator Console & Admin Control
+> Plane — CLOSED at foundation level (2026-09-17), D-109–D-112 all
+> owner-approved.** A closed six-command operator grammar
+> (PAUSE/RESUME_QUEUE, RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT,
+> MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS) with deterministic local-
+> token RBAC (D-109); a ControlPlaneEngine over
+> `admin.operator_actions` (PK-as-lock, exactly-once application,
+> 8-thread race proven) and a global hash-chained
+> `admin.control_audit` with verify_chain tamper detection (D-112);
+> REPLAY strictly dry-run unless a single-use per-VALUE
+> confirmation key burns before dispatch (D-110); a multi-domain
+> state facade over injected reads (DLQ / HITL / insights / assets)
+> with reader-error isolation; and durable queue control + DLQ
+> retries with attempt budgets + circuit breakers (manual and
+> threshold trips, deterministic logical-clock cool-downs,
+> HALF_OPEN probes) emitting only D-027 events (D-111). Suite
+> 24/24 zero-skip incl. live-PG E2E, battery 669/669, ladder
+> 46/46. Next: **Phase 20**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

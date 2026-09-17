@@ -619,6 +619,59 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 19 — Internal Tools, Operator Console & Admin Control
+      Plane — **CLOSED at foundation level (2026-09-17), D-109–D-112
+      all owner-approved**:
+      D-109 contracts (`local/canonical/admin_contracts.py`: closed
+      six-command grammar — PAUSE_QUEUE, RESUME_QUEUE,
+      RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE,
+      REPLAY_EVENTS; deterministic local-token RBAC
+      (`actor:operator:*` queue ops, `actor:admin:*` all,
+      `actor:system:*` engine-internal) with strict
+      `actor:<role>:<non-empty id>` token parsing; OperatorAction /
+      QueueControlCommand / SystemDiagnosticReport /
+      AuditQueryFilter validators; circuit-breaker CLOSED → OPEN →
+      HALF_OPEN state machine; replay DRY_RUN/APPLY decision);
+      D-110 engine (`admin_engine.py` + `admin.operator_actions` /
+      `admin.control_audit` / `admin.circuit_breakers` schema:
+      action_id PK as the exactly-once application guard;
+      REPLAY_EVENTS dry-run by default, APPLY only with a
+      single-use per-KEY-VALUE confirmation key burned BEFORE
+      dispatch and its burn recorded in the tamper-evident chain;
+      handler envelopes carry the computed mode; multi-domain
+      diagnostic report via injected read callables with reader-
+      error isolation — queues/HITL/insights/assets, zero
+      cross-module imports; filtered action queries); D-111 worker
+      (`admin_worker.py`: durable queue control states (PAUSED/
+      OPEN) with idempotent transitions; DLQ item retries through
+      an injected dispatcher with attempt budgets (≥5 refused) and
+      refusals audited; circuit breakers tripping manually or via
+      injected threshold detectors with deterministic logical-clock
+      cool-downs and HALF_OPEN probe close/re-open — every
+      intervention an immutable D-027 event); D-112 audit (global
+      SHA-256 hash-chained operator ledger, verify_chain tamper
+      detection — Phase 18 standard; zero UI/frontend coupling —
+      a callable facade only).
+      Phase 19 suite 24/24 zero-skip (20 offline + 4 live-PG E2E:
+      real PgEventStore + PG admin tables, 8-thread identical-action
+      race with exactly one APPLIED, live replay-key burn,
+      queue-control/breaker restart parity); battery 669/669
+      zero-skip; ladder 46/46; AST audit clean (0 network imports,
+      0 AI SDKs, 0 UI framework couplings, 0 cross-domain imports,
+      0 time/datetime, 0 os.environ); secret scan clean;
+      diff-check PASS.
+      Suite-found defects fixed in-batch: failed report readers
+      leaking None into the validated domain map; RBAC token
+      parser accepting id-less actors; ambiguous REPLAY reason
+      condition; replay handler envelopes missing the computed
+      mode; per-action-id key burn allowing the same key to apply
+      twice under a new action id (now per-KEY-VALUE via audited
+      burns); an undefined-name crash on verify_chain's success
+      path; and two live tests missing registered handlers.
+      Standing owner gate: no auth providers, no real identities,
+      no UI framework, no network (D-045) — operators are local
+      token refs; Phase 19 passing does NOT prove live SSO/UI
+      compatibility.
 - [x] Phase 18 — HITL Approval Engine & Decision Ledger — **CLOSED at
       foundation level (2026-09-17), D-105–D-108 all owner-approved**:
       D-105 contracts (`local/canonical/hitl_contracts.py`: canonical

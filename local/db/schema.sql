@@ -452,6 +452,48 @@ CREATE TABLE IF NOT EXISTS hitl.review_ledger (
     logical_at        text NOT NULL
 );
 
+-- D-109/D-110 operator actions: action_id PK is the application
+-- guard (one durable application per action); confirmation_key is
+-- single-use for APPLY-mode replay (burned + recorded, D-110).
+CREATE TABLE IF NOT EXISTS admin.operator_actions (
+    action_id         text PRIMARY KEY,
+    command           text NOT NULL,
+    target            text NOT NULL,
+    actor             text NOT NULL,
+    reason            text,
+    status            text NOT NULL,
+    mode              text,
+    confirmation_key_hash text,
+    detail            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at_logical text NOT NULL,
+    applied_at_logical text
+);
+
+-- D-112 hash-chained operator audit ledger (Phase 18 standard:
+-- global prev-hash chain, append-only, verify_chain tamper check).
+CREATE TABLE IF NOT EXISTS admin.control_audit (
+    audit_seq         bigserial PRIMARY KEY,
+    action_id         text NOT NULL,
+    event_kind        text NOT NULL,
+    actor             text NOT NULL,
+    command           text,
+    target            text,
+    detail            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash         text NOT NULL,
+    row_hash          text NOT NULL,
+    logical_at        text NOT NULL
+);
+
+-- D-111 circuit breaker durable state (one row per breaker name).
+CREATE TABLE IF NOT EXISTS admin.circuit_breakers (
+    breaker_name      text PRIMARY KEY,
+    state             text NOT NULL,
+    tripped_by        text,
+    tripped_at_logical text,
+    cool_down_until   text,
+    last_reason       text
+);
+
 -- D-086 materialized snapshots: a full serialized rollup state per
 -- (window, cursor) — heavy queries read this, not raw events.
 CREATE TABLE IF NOT EXISTS analytics.snapshot (
@@ -529,6 +571,7 @@ CREATE TABLE IF NOT EXISTS scheduling.slot_lock (
 -- (D-100).
 CREATE SCHEMA IF NOT EXISTS assets;
 CREATE SCHEMA IF NOT EXISTS hitl;
+CREATE SCHEMA IF NOT EXISTS admin;
 CREATE TABLE IF NOT EXISTS assets.media_asset (
     checksum          text PRIMARY KEY,
     asset_id          text NOT NULL,

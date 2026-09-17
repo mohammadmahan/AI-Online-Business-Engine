@@ -2485,6 +2485,73 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** a human approval executes the action exactly
   once, no matter how often the signal repeats.
 
+## D-109 — Canonical admin contract and operator action protocol
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** operators currently intervene by editing volumes
+  or running ad-hoc scripts — invisible, unaudited, and outside
+  every governance boundary built since Phase 5.
+- **Decision:** a canonical `OperatorAction` (action_id, command,
+  target, actor, reason, logical timestamps, confirmation key) plus
+  `SystemDiagnosticReport`, `AuditQueryFilter`, and
+  `QueueControlCommand` shapes. The command grammar is a CLOSED
+  vocabulary: PAUSE_QUEUE, RESUME_QUEUE, RETRY_DLQ_ITEM,
+  FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS.
+  RBAC is deterministic over local actor tokens
+  (`actor:operator:*` < `actor:admin:*`; `actor:system:*` for the
+  engine itself) — D-045 compliant, zero external auth providers,
+  no network.
+- **Consequences:** every intervention becomes a validated,
+  permission-checked, durably-audited action instead of an
+  invisible manual mutation.
+
+## D-110 — Control plane engine and state observation vault
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** `ControlPlaneEngine` over PostgreSQL
+  `admin.operator_actions` (PK-as-lock application guard) and
+  `admin.control_audit` (hash-chained operator ledger) with a JSON
+  parity backend. A consolidated read facade aggregates durable
+  state across domains through INJECTED read callables — DLQ items
+  (Phases 10/14), open HITL tickets (Phase 18), HITL-routed
+  insights (Phase 17), asset registry counts (Phase 16) — with zero
+  cross-module imports. REPLAY_EVENTS runs strictly in dry-run
+  (read-only) mode unless an explicit atomic confirmation key is
+  supplied; the key is single-use and recorded in the audit.
+- **Consequences:** one observable dashboard of queue/HITL/insight/
+  asset state from durable data only; replay cannot silently
+  mutate history.
+
+## D-111 — Queue management, DLQ intervention and circuit breakers
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** a `QueueInterventionWorker` providing safe DLQ item
+  retries (attempt budget respected, retries recorded as D-027
+  events) and deterministic PAUSE/RESUME queue control states.
+  Circuit breakers trip manually (operator command) or
+  automatically (threshold breach evaluated by an INJECTED detector
+  over the durable state report) with deterministic cool-down
+  periods on the injected logical clock — no wall-clock reads.
+  Downstream interventions emit strictly as immutable D-027 events
+  via injected dispatch callables; the worker imports no domain
+  module.
+- **Consequences:** a tripped breaker is a first-class durable
+  state with deterministic recovery, not a silent config flip.
+
+## D-112 — Operator audit ledger and cryptographic verification
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** every administrative action, manual override, and
+  configuration mutation appends to `admin.control_audit` — an
+  append-only, SHA-256 hash-chained ledger matching the Phase 18
+  standard (prev-hash linkage, sequence validation,
+  `verify_chain` tamper detection). Actors are local token refs
+  only; zero UI/frontend framework coupling — the control plane is
+  a callable facade a thin client may bind to later.
+- **Consequences:** "who pressed what, when (logically), with what
+  authority, and what changed" is durably answerable and tamper-
+  evident.
+
 ## D-108 — Audit provenance, ledger parity and security boundaries
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3118,6 +3185,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 32 | Content versioning & media assets — **D-097–D-100 (Approved 2026-09-17)**: canonical MediaAsset/ContentVersion with SHA-256 content-addressable dedup and append-only version chains (D-097); atomic PG-constraint registration (PK checksum, unique (content_id, version_number)) with Class-B pre-storage validation and JSON parity (D-098); deterministic idempotent variant derivation behind a provider-neutral bridge (D-099); quarantine with injected-clock retention cooldown, full D-027 audit and historical version reconstruction from durable events (D-100). |
 | 33 | AI business analyst & decision engine — **D-101–D-104 (Approved 2026-09-17)**: canonical BusinessInsight/Recommendation with GENERATED → EVALUATED → DISPATCHED_TO_HITL/AUTO_ACCEPTED/DISMISSED (+SUPERSEDED) lifecycle, deterministic pure rule evaluation over durable Phase 12/13 metrics, SHA-256 insight dedup over (category, correlation keys, window refs) in `analytics.business_insight`, injected anomaly detectors recorded strictly as D-027 audit events, and a structurally enforced HITL boundary for HIGH/CRITICAL severity (auto-accept unreachable; full ledger rebuildable from durable events alone). |
 | 34 | HITL approval engine & decision ledger — **D-105–D-108 (Approved 2026-09-17)**: canonical HitlReviewTicket with PENDING_REVIEW → CLAIMED → APPROVED/REJECTED/MODIFIED/ESCALATED/EXPIRED lifecycle (escalation re-queues, expiry only via deterministic sweep), PK-as-lock atomic claims over `hitl.review_tickets` + append-only hash-chained `hitl.review_ledger`, ingestion of Phase 17 DISPATCHED_TO_HITL insights, idempotent command dispatch through injected queue-type dispatchers, tamper-evident chain verification, mock local actors only (D-045). |
+| 35 | Internal tools & operator control plane — **D-109–D-112 (Approved 2026-09-17)**: closed command grammar (PAUSE/RESUME_QUEUE, RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS) with deterministic local-token RBAC, ControlPlaneEngine over `admin.operator_actions` (PK-as-lock) + hash-chained `admin.control_audit` (Phase 18 tamper standard), an injected-read multi-domain state facade (DLQ/HITL/insights/assets), replay strictly dry-run unless a single-use confirmation key is supplied, DLQ retries + circuit breakers with deterministic logical-clock cool-downs, and zero cross-module imports (D-045/D-027 discipline). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
