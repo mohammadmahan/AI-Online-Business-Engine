@@ -523,7 +523,25 @@ docs/
 > or state-mutating payloads can never auto-accept, with the full
 > decision ledger rebuildable from durable events alone (D-104).
 > Suite 27/27 zero-skip incl. live-PG E2E, battery 623/623, ladder
-> 46/46. Next: **Phase 18**.
+> 46/46.
+> Details and exact closure gates: `TODO.md`.
+>
+> **Phase 18 — HITL Approval Engine & Decision Ledger — CLOSED at
+> foundation level (2026-09-17), D-105–D-108 all owner-approved.**
+> Canonical HitlReviewTicket across four queues (INSIGHT_REVIEW /
+> PUBLISH_GATE / ORDER_OVERRIDE / ASSET_FLAG) with the lifecycle
+> PENDING_REVIEW → CLAIMED → APPROVED / REJECTED / MODIFIED /
+> ESCALATED / EXPIRED — escalation a re-queuing loop with elevated
+> roles, expiry decided ONLY by a deterministic sweep on an injected
+> logical clock (D-105); PK-as-lock atomic claims where an 8-thread
+> race yields exactly one winner, an append-only SHA-256 hash-chained
+> decision ledger with tamper verification, and idempotent ingestion
+> of Phase 17 DISPATCHED_TO_HITL insights (D-106/D-108); and
+> idempotent resolution application through injected queue-type
+> command dispatchers — a repeated approval signal produces zero
+> duplicate side-effects, with zero cross-module imports (D-107).
+> Suite 22/22 zero-skip incl. live-PG E2E, battery 645/645, ladder
+> 46/46. Next: **Phase 19**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

@@ -2435,6 +2435,69 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   side-effectful channels stay behind their own contracts (AST-
   verified import boundary).
 
+## D-105 — Canonical HITL contract and review state machine
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** Phase 17 routes insights to DISPATCHED_TO_HITL and
+  Phases 11/12/15 need human gates, but there is no canonical review
+  ticket: decisions live in chat threads and vanish.
+- **Decision:** a canonical `HitlReviewTicket` — ticket_id,
+  queue_type (INSIGHT_REVIEW | PUBLISH_GATE | ORDER_OVERRIDE |
+  ASSET_FLAG), payload_ref, required_role, resolution_status,
+  reviewer_actor_id, review decision data, feedback_notes — with
+  the lifecycle PENDING_REVIEW → CLAIMED → APPROVED | REJECTED |
+  MODIFIED | ESCALATED | EXPIRED. MODIFIED carries the reviewer's
+  changed payload; ESCALATED re-queues as a fresh PENDING_REVIEW
+  ticket with elevated role (an escalation LOOP, not a terminal);
+  EXPIRED is decided by the deterministic sweep, never by a
+  reviewer. Every transition is an immutable D-027 event.
+- **Consequences:** every human decision becomes durable,
+  attributable, and reconstructible; nothing is decided in a
+  sidebar.
+
+## D-106 — HITL ledger engine and claim lock vault
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** two reviewers must never apply resolutions to the
+  same ticket concurrently; ticket rows need atomic claim locks
+  like every other exactly-once boundary in this system.
+- **Decision:** `HitlEngine` over PostgreSQL `hitl.review_tickets`
+  (PK-as-lock claim: exactly one CLAIMED winner) and
+  `hitl.review_ledger` (append-only decision history) with a JSON
+  parity backend. Ingestion consumes Phase 17 DISPATCHED_TO_HITL
+  insights (INSIGHT_REVIEW queue) plus PUBLISH_GATE / ORDER_OVERRIDE
+  / ASSET_FLAG producers. Expiration and escalation sweeps run on an
+  INJECTED logical clock evaluator — zero wall-clock reads.
+- **Consequences:** multi-reviewer races resolve to exactly one
+  claimant; sweeps are deterministic and testable.
+
+## D-107 — Decision dispatcher and platform action bridge
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** on APPROVED/MODIFIED the `HitlDispatcher` emits
+  downstream commands — apply the analyst recommendation (Phase 17
+  insight), unblock a Phase 15 publishing slot, trigger a Phase 12
+  OMS compensation — STRICTLY through injected command dispatchers
+  keyed by queue_type; no direct cross-module imports. Resolution
+  application is idempotent: a duplicate approval/rejection signal
+  for an already-resolved ticket produces zero duplicate side-
+  effects (the ledger already carries the decision).
+- **Consequences:** a human approval executes the action exactly
+  once, no matter how often the signal repeats.
+
+## D-108 — Audit provenance, ledger parity and security boundaries
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Decision:** the review ledger is TAMPER-EVIDENT: each ledger
+  row carries the hash of the previous row for its ticket (SHA-256
+  chain), the original AI proposal, reviewer overrides, reasoning,
+  and applied actions; `verify_chain` detects any mutation of
+  durable decision history. Actors are mock local role references
+  only (D-045): no auth backends, no network, no real identities.
+- **Consequences:** "who decided what, on which evidence, and what
+  ran as a result" is answerable from durable data, and silently
+  editing that history is detectable.
+
 ## D-104 — Recommendation auditing, HITL boundary and ledger parity
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3054,6 +3117,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 31 | Content calendar & scheduling engine — **D-093–D-096 (Approved 2026-09-17)**: canonical ScheduledPost lifecycle SCHEDULED → DUE → DISPATCHED (+CANCELLED/RESCHEDULED, full provenance) with the injectable clock as the only time source (D-093); per-platform PK-as-lock slot reservations with configurable minimum gap, slot_conflict = Class-B before dispatch (D-094); due scanner from durable data ordered by ingest_seq bridging to the Phase 11 FanOutEngine — scheduler never publishes (D-095); only pre-DISPATCHED posts mutable, slot ledger audits full reservation history, calendar view rebuilds from durable events alone (D-096). |
 | 32 | Content versioning & media assets — **D-097–D-100 (Approved 2026-09-17)**: canonical MediaAsset/ContentVersion with SHA-256 content-addressable dedup and append-only version chains (D-097); atomic PG-constraint registration (PK checksum, unique (content_id, version_number)) with Class-B pre-storage validation and JSON parity (D-098); deterministic idempotent variant derivation behind a provider-neutral bridge (D-099); quarantine with injected-clock retention cooldown, full D-027 audit and historical version reconstruction from durable events (D-100). |
 | 33 | AI business analyst & decision engine — **D-101–D-104 (Approved 2026-09-17)**: canonical BusinessInsight/Recommendation with GENERATED → EVALUATED → DISPATCHED_TO_HITL/AUTO_ACCEPTED/DISMISSED (+SUPERSEDED) lifecycle, deterministic pure rule evaluation over durable Phase 12/13 metrics, SHA-256 insight dedup over (category, correlation keys, window refs) in `analytics.business_insight`, injected anomaly detectors recorded strictly as D-027 audit events, and a structurally enforced HITL boundary for HIGH/CRITICAL severity (auto-accept unreachable; full ledger rebuildable from durable events alone). |
+| 34 | HITL approval engine & decision ledger — **D-105–D-108 (Approved 2026-09-17)**: canonical HitlReviewTicket with PENDING_REVIEW → CLAIMED → APPROVED/REJECTED/MODIFIED/ESCALATED/EXPIRED lifecycle (escalation re-queues, expiry only via deterministic sweep), PK-as-lock atomic claims over `hitl.review_tickets` + append-only hash-chained `hitl.review_ledger`, ingestion of Phase 17 DISPATCHED_TO_HITL insights, idempotent command dispatch through injected queue-type dispatchers, tamper-evident chain verification, mock local actors only (D-045). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

@@ -419,6 +419,39 @@ CREATE TABLE IF NOT EXISTS analytics.business_insight (
     updated_seq       bigint
 );
 
+-- D-105/D-106 HITL review tickets: ticket_id PK is the atomic claim
+-- lock (exactly one CLAIMED winner); created/decided_at_logical are
+-- injected logical-clock values, never wall clock.
+CREATE TABLE IF NOT EXISTS hitl.review_tickets (
+    ticket_id         text PRIMARY KEY,
+    queue_type        text NOT NULL,
+    payload_ref       text NOT NULL,
+    required_role     text NOT NULL,
+    resolution_status text NOT NULL,
+    reviewer_actor_id text,
+    payload           jsonb NOT NULL DEFAULT '{}'::jsonb,
+    payload_override  jsonb,
+    feedback_notes    text,
+    created_at_logical text NOT NULL,
+    decided_at_logical text,
+    escalated_to      text,
+    ingest_key        text UNIQUE
+);
+
+-- D-108 tamper-evident decision ledger: append-only rows hash-chained
+-- per ticket (prev_hash links); verify_chain detects any mutation.
+CREATE TABLE IF NOT EXISTS hitl.review_ledger (
+    ledger_seq        bigserial PRIMARY KEY,
+    ticket_id         text NOT NULL,
+    event_kind        text NOT NULL,
+    actor             text NOT NULL,
+    decision          text,
+    detail            jsonb NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash         text NOT NULL,
+    row_hash          text NOT NULL,
+    logical_at        text NOT NULL
+);
+
 -- D-086 materialized snapshots: a full serialized rollup state per
 -- (window, cursor) — heavy queries read this, not raw events.
 CREATE TABLE IF NOT EXISTS analytics.snapshot (
@@ -495,6 +528,7 @@ CREATE TABLE IF NOT EXISTS scheduling.slot_lock (
 -- forks. Rows are never deleted here — GC is quarantine-flag only
 -- (D-100).
 CREATE SCHEMA IF NOT EXISTS assets;
+CREATE SCHEMA IF NOT EXISTS hitl;
 CREATE TABLE IF NOT EXISTS assets.media_asset (
     checksum          text PRIMARY KEY,
     asset_id          text NOT NULL,

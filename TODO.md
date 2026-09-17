@@ -619,6 +619,57 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 18 — HITL Approval Engine & Decision Ledger — **CLOSED at
+      foundation level (2026-09-17), D-105–D-108 all owner-approved**:
+      D-105 contracts (`local/canonical/hitl_contracts.py`: canonical
+      HitlReviewTicket — ticket_id, queue_type INSIGHT_REVIEW /
+      PUBLISH_GATE / ORDER_OVERRIDE / ASSET_FLAG, payload_ref,
+      required_role, logical clock stamps (never wall clock); role
+      discipline via mock local actor refs (role:*/agent:* — D-045);
+      lifecycle PENDING_REVIEW → CLAIMED → APPROVED / REJECTED /
+      MODIFIED / ESCALATED / EXPIRED with EXPIRED sweep-only (never
+      a reviewer action), MODIFIED requiring payload_override,
+      escalation a re-queuing LOOP with deterministic role elevation;
+      strict ReviewAction/Resolution validation); D-106 engine
+      (`hitl_engine.py` + `hitl.review_tickets` / `hitl.review_ledger`
+      schema: ticket_id PK as the atomic claim lock — guarded UPDATE,
+      exactly one CLAIMED winner under 8-thread races; append-only
+      ledger hash-chained per ticket with verify_chain tamper
+      detection; idempotent ingestion of Phase 17
+      DISPATCHED_TO_HITL insights via unique ingest_key with
+      SHA-256-digest deterministic ticket ids; JSON parity vault;
+      deterministic expire_sweep on an injected logical-clock
+      evaluator — zero wall-clock); D-107 dispatcher
+      (`hitl_dispatcher.py`: HitlIngestionBridge over an injected
+      insight source (filters non-HITL rows, re-ingest idempotent);
+      resolution → downstream command through injected queue-type
+      dispatchers (apply recommendation / unblock slot / OMS
+      compensation / asset flag) with zero cross-module imports;
+      exactly-once application gate — a duplicate approval/rejection
+      signal produces zero duplicate side-effects; dispatcher
+      failures recorded, never silent; command_for() pure downstream
+      contract shape carrying the MODIFIED override); D-108 audit
+      (full ledger parity: original proposal → claim → resolution →
+      applied action, all D-027 events, ledger rows hash-chained —
+      mutation of decision history is detectable).
+      Phase 18 suite 22/22 zero-skip (18 offline + 4 live-PG E2E:
+      real PgEventStore + PG vault/ledger, 8-thread multi-reviewer
+      claim race with exactly one winner, claim→resolve→apply chain
+      with on-PG chain verification, ingestion idempotency, expiry
+      sweep + restart parity); battery 645/645 zero-skip; ladder
+      46/46; AST audit clean (0 network imports, 0 AI SDKs, 0
+      cross-domain imports, 0 time/datetime, 0 os.environ); secret
+      scan clean; diff-check PASS.
+      Suite-found defects fixed in-batch: psql transport rendering
+      Python None as the invalid jsonb token (every live insert
+      failed — optional jsonb now emits a literal SQL NULL keyword
+      via control flow), builtin hash() in ingest ticket ids
+      (process-randomized — SHA-256 digest, Phase 17 precedent),
+      and a missing _JsonVault.max_ledger_seq parity method.
+      Standing owner gate: no auth backends, no real identities, no
+      network (D-045) — actors are mock local role references;
+      Phase 18 passing does NOT prove live identity-provider
+      compatibility.
 - [x] Phase 17 — AI Business Analyst & Decision Engine — **CLOSED at
       foundation level (2026-09-17), D-101–D-104 all owner-approved**:
       D-101 contracts (`local/canonical/analyst_contracts.py`:
