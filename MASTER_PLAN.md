@@ -473,8 +473,23 @@ docs/
 > (D-092). Suite 26/26 zero-skip incl. live-PG E2E, battery 552/552,
 > ladder 46/46; the suite exposed and fixed a DLQ read-shape defect,
 > a retry-ladder stall, and a terminal-stickiness hole. No provider
-> endpoints or credentials exist or are requested (D-045). Next:
-> **Phase 15**.
+> endpoints or credentials exist or are requested (D-045). Details
+> and exact closure gates: `TODO.md`.
+>
+> **Phase 15 — Content Calendar & Scheduling Engine — CLOSED at
+> foundation level (2026-09-17), D-093–D-096 all owner-approved.**
+> Canonical ScheduledPost lifecycle SCHEDULED → DUE → DISPATCHED
+> (+ CANCELLED / RESCHEDULED with full provenance) driven by the
+> injectable clock — zero wall-clock reads (D-093); per-platform
+> PK-as-lock slot reservations with a configurable gap where
+> conflicting plans are recorded slot_conflict Class-B rejections
+> and reschedule claims-new-before-supersede (D-094); a durable,
+> ingest_seq-ordered due scanner bridging to the Phase 11
+> FanOutEngine — the scheduler never publishes (D-095); and
+> pre-DISPATCHED-only mutability with an append-only slot ledger and
+> a calendar view rebuilt from durable events alone (D-096). Suite
+> 24/24 zero-skip incl. live-PG E2E, battery 576/576, ladder 46/46.
+> Next: **Phase 16**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

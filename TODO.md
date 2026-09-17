@@ -619,6 +619,59 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 15 — Content Calendar & Scheduling Engine — **CLOSED at
+      foundation level (2026-09-17), D-093–D-096 all owner-approved**:
+      D-093 contract (`local/canonical/scheduling_contracts.py`:
+      canonical ScheduledPost — post_id, content_ref, targets =
+      Phase 11 destination matrix, scheduled_for as the producer's
+      own ISO instant, SHA-256 idempotency over (content_ref, sorted
+      targets, scheduled_for); lifecycle SCHEDULED → DUE →
+      DISPATCHED + CANCELLED (SCHEDULED/DUE) + RESCHEDULED as a
+      SCHEDULED-only revision marker keeping the prior time; strict
+      local Class-B validation; pure slot arithmetic flooring instants
+      to configurable gap buckets that must divide 1440; due =
+      scheduled_for <= injected now — the wall clock never enters any
+      key or comparison); D-094 slot guard (`scheduling_engine.py` +
+      `scheduling.slot_lock` schema: per-platform PK-as-lock claims,
+      `active` flag keeps superseded rows as ledger history and makes
+      freed slots re-claimable, conflicting plans record slot_conflict
+      Class-B rejections that leave existing slots untouched, JSON
+      parity backend); D-095 due scanner + bridge
+      (`scheduling_worker.py`: durable-data-only reads in ingest_seq
+      order, injected now_iso at exactly one boundary, bridge to
+      FanOutEngine.route()+dispatch() via the provider-neutral
+      FanOutBridge — the scheduler NEVER imports or re-implements
+      publishing (AST-verified), receipts consumed and recorded,
+      bridge failures recorded with the post left DUE for recovery,
+      independent-post discipline, reconciliation from durable data
+      only); D-096 mutability + audit (only pre-DISPATCHED posts
+      mutable — dispatched/terminal mutations are recorded rejections;
+      reschedule claims NEW slots first so a conflicting reschedule
+      changes nothing and supersedes old slots into history on
+      success; attempt-unique transition event ids from a durable
+      count — conflicting duplicates surface as D-027 IntegrityError,
+      never swallowed; calendar view rebuilt from durable events
+      alone — fresh-engine parity tested).
+      Phase 15 suite 24/24 zero-skip (21 offline + 3 live-PG E2E:
+      real PgEventStore + PG slot_lock, schedule→conflict→
+      reschedule→reclaim chain, 8-thread single-winner slot claim,
+      due-scan → DISPATCHED with fresh-engine restart parity);
+      battery 576/576 zero-skip; ladder 46/46; AST audit clean
+      (zero network imports, zero publishing-module imports in
+      scheduling modules — the D-095 boundary import-verified, zero
+      decision verbs, zero os.environ); secret scan clean;
+      diff-check PASS.
+      Suite-found defects fixed in-batch: unreachable
+      SCHEDULED→RESCHEDULED edge (key-guard ordering), superseded
+      slots blocking re-claim + reschedule recording despite slot
+      conflict (active-flag redesign + claims-new-first),
+      reschedule event-id collision on retries (attempt-unique ids
+      + IntegrityError never swallowed), and two invalid test
+      premises (bucket flooring 09:20→09:15; fixed platforms on the
+      shared live ledger — run-scoped platforms + delta assertions).
+      Standing owner gate: no platform endpoints or credentials
+      (D-045) — none exist, none requested; Phase 15 passing does
+      NOT prove live platform compatibility.
 - [x] Phase 14 — Notification System & User Alerts — **CLOSED at
       foundation level (2026-09-17), D-089–D-092 all owner-approved**:
       D-089 contract (`local/canonical/notification_contracts.py`:

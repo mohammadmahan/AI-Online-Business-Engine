@@ -454,3 +454,18 @@ CREATE TABLE IF NOT EXISTS notifications.dead_letter (
     event_ref         jsonb NOT NULL,
     admitted_at       timestamptz NOT NULL DEFAULT now()
 );
+
+-- Phase 15 (D-094): per-platform calendar slot locks. The PRIMARY KEY
+-- (platform, slot_bucket) IS the lock — a conflicting schedule loses
+-- atomically and records slot_conflict; rows are never deleted, so the
+-- table audits the complete reservation history (D-096).
+CREATE SCHEMA IF NOT EXISTS scheduling;
+CREATE TABLE IF NOT EXISTS scheduling.slot_lock (
+    platform          text NOT NULL,
+    slot_bucket       text NOT NULL,
+    post_id           text NOT NULL,
+    scheduled_for     text NOT NULL,
+    active            boolean NOT NULL DEFAULT true,
+    locked_at         timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (platform, slot_bucket)
+);

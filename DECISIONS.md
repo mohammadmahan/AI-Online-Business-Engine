@@ -2378,6 +2378,83 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
+## D-093 — Scheduled post contract and calendar model
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** campaigns (Phase 11) publish immediately when
+  invoked; the business needs a content calendar — posts planned for
+  future release windows — without coupling the calendar to any
+  platform or to wall-clock reads.
+- **Decision:** a canonical `ScheduledPost` (content ref, target
+  matrix = Phase 11 destinations, `scheduled_for` as the producer's
+  own ISO instant, idempotency key) with lifecycle `SCHEDULED → DUE →
+  DISPATCHED` plus `CANCELLED` (from SCHEDULED/DUE) and
+  `RESCHEDULED` (SCHEDULED→SCHEDULED revision, full provenance of
+  prior time kept). The injectable clock is the ONLY time source —
+  the wall clock never enters any key, bucket, or comparison
+  (D-085/D-086 precedent). Every transition is a D-027 event with
+  D-026 provenance; the calendar snapshot view is rebuildable from
+  durable events alone.
+- **Consequences:** scheduling is platform-neutral and
+  restart-reconstructible; adding destinations requires no calendar
+  change.
+
+## D-094 — Slot conflict prevention and calendar guard
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** two posts scheduled into the same platform slot
+  inside a minimum gap would race at publish time and burn platform
+  rate budgets (D-074/D-069 pacer) on avoidable conflicts.
+- **Decision:** per-platform slot locking with a configurable
+  minimum gap: reservation is a PostgreSQL PK-as-lock
+  (`scheduling.slot_lock`, D-070/D-092 precedent) keyed
+  (platform, slot bucket); the slot bucket derives from
+  `scheduled_for` by pure arithmetic — never the wall clock. A
+  conflicting schedule attempt is a deterministic `slot_conflict`
+  rejection (Class-B before dispatch) that leaves existing slots
+  untouched. JSON parity backend mirrors the semantics offline.
+- **Consequences:** the pacer's rate budget is reserved by the
+  calendar, not discovered at dispatch; conflicts surface at
+  scheduling time where they are cheap to fix.
+
+## D-095 — Due-scanner worker and fan-out bridge
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** due posts must reach the Phase 11 FanOutEngine
+  exactly once, in deterministic order, without the scheduler ever
+  re-implementing publishing.
+- **Decision:** the due scanner reads DUE posts from durable store
+  data only, ordered by `ingest_seq`, and compares each
+  `scheduled_for` against the INJECTED clock (`now_iso()` supplied
+  by the caller — tests pass a constant; production passes a real
+  clock at exactly one boundary). A due post is bridged to
+  `FanOutEngine.route()` + `dispatch()`; dispatch receipts are
+  consumed and recorded as scheduling events. The scheduler NEVER
+  publishes directly, never retries platform semantics (D-052/D-077
+  belong to the publishers), and never advances a post past DUE on a
+  bridge failure — the failure is recorded and the scanner moves on
+  (independent-post discipline, D-077 spirit).
+- **Consequences:** one boundary owns time; one module owns
+  platform dispatch; the calendar stays a thin, deterministic layer.
+
+## D-096 — Reschedule, cancellation and audit vault
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** plans change before release; audit demands the full
+  history, not the latest state.
+- **Decision:** only pre-DISPATCHED posts are mutable: RESCHEDULED
+  and CANCELLED are recorded transitions with full provenance (who,
+  when per the injected clock, prior value kept) — dispatched and
+  other terminal posts are IMMUTABLE and any mutation attempt is a
+  recorded deterministic rejection. On reschedule the old slot lock
+  is superseded (never reused) and a new slot is claimed; the slot
+  ledger therefore audits the complete reservation history. All
+  scheduling events live on the D-027 store; the calendar snapshot
+  view is rebuilt from durable events alone (no in-process state
+  required for correctness).
+- **Consequences:** complete what/when/who audit; restart parity of
+  the calendar view; no path can alter a dispatched post.
+
 ## D-089 — Canonical notification contract and multi-channel schema
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -2825,6 +2902,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 28 | Order management system — **D-081–D-084 (Approved 2026-09-16)**: order contract + lifecycle `PLACED → VALIDATED → FULFILLING → COMPLETED` with CANCELLED/REFUNDED terminals and client_order_id SHA-256 idempotency (D-081), provider-neutral inventory with atomic PG row-lock reservation — no oversell (D-082), payment-neutral boundary + Phase 11 fan-out notification integration (D-083), immutable transition audit + TTL auto-cancel reconciliation vault (D-084); payment gateway and live credentials remain owner-gated per D-045 | Approved | — | 12 (architecture done) |
 | 29 | Analytics, reporting & metrics engine — **D-085–D-088 (Approved 2026-09-16)**: CQRS read-side projections over the D-027 store with deterministic windowing from recorded event timestamps, no wall-clock keys (D-085), incremental snapshots keyed by the monotonic ingest_seq cursor — exactly-once, rebuild-safe (D-086), cross-domain campaign→revenue correlator joined on shared campaign_id with zero domain imports (D-087), idempotent JSON/CSV export keyed by window hash + report audit vault, aggregates only — no customer data (D-088) | Approved | — | 13 (architecture done) |
 | 30 | Notification system & user alerts — **D-089–D-092 (Approved 2026-09-17)**: universal NotificationEvent contract with local Class-B validation before queueing (D-089); deduplication_key vault + PG PK-as-lock, pure-function quiet-hours/frequency guards, independent per-channel fan-out (D-090); transactional outbox worker with exponential backoff and HITL-materializing DLQ (D-091); full delivery audit on the D-027 store with restart-reconstructible status tracking (D-092). |
+| 31 | Content calendar & scheduling engine — **D-093–D-096 (Approved 2026-09-17)**: canonical ScheduledPost lifecycle SCHEDULED → DUE → DISPATCHED (+CANCELLED/RESCHEDULED, full provenance) with the injectable clock as the only time source (D-093); per-platform PK-as-lock slot reservations with configurable minimum gap, slot_conflict = Class-B before dispatch (D-094); due scanner from durable data ordered by ingest_seq bridging to the Phase 11 FanOutEngine — scheduler never publishes (D-095); only pre-DISPATCHED posts mutable, slot ledger audits full reservation history, calendar view rebuilds from durable events alone (D-096). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,
