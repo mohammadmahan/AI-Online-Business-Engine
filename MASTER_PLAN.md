@@ -489,7 +489,22 @@ docs/
 > pre-DISPATCHED-only mutability with an append-only slot ledger and
 > a calendar view rebuilt from durable events alone (D-096). Suite
 > 24/24 zero-skip incl. live-PG E2E, battery 576/576, ladder 46/46.
-> Next: **Phase 16**.
+> Details and exact closure gates: `TODO.md`.
+>
+> **Phase 16 — Content Versioning & Media Asset Management — CLOSED
+> at foundation level (2026-09-17), D-097–D-100 all owner-approved.**
+> Pure content-addressable assets (SHA-256 computed from bytes, one
+> checksum = one asset, dedup by construction) with immutable
+> append-only ContentVersion chains and durable version numbers
+> (D-097); an AssetVault over PG unique constraints + JSON parity
+> where corrupt/oversized/mime-mismatched registrations are Class-B
+> rejections BEFORE any byte reaches storage (D-098); deterministic
+> pure derivation keys with an idempotent PENDING_DERIVATION →
+> PROCESSING → READY/FAILED variant state machine and no external
+> transcoder call (D-099); and quarantine-with-cooldown lifecycle
+> plus historical reconstruction from durable events alone (D-100).
+> Suite 20/20 zero-skip incl. live-PG E2E (8-thread single-creator
+> race), battery 596/596, ladder 46/46. Next: **Phase 17**.
 > Details and exact closure gates: `TODO.md`.
 
 ### Phase 0 --- Foundation

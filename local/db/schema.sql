@@ -469,3 +469,32 @@ CREATE TABLE IF NOT EXISTS scheduling.slot_lock (
     locked_at         timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (platform, slot_bucket)
 );
+
+-- Phase 16 (D-097/D-098): content-addressable media assets and
+-- append-only content versions. One checksum = one asset (the PK IS
+-- the dedup); (content_id, version_number) unique = one chain, no
+-- forks. Rows are never deleted here — GC is quarantine-flag only
+-- (D-100).
+CREATE SCHEMA IF NOT EXISTS assets;
+CREATE TABLE IF NOT EXISTS assets.media_asset (
+    checksum          text PRIMARY KEY,
+    asset_id          text NOT NULL,
+    mime_type         text NOT NULL,
+    file_size_bytes   bigint NOT NULL,
+    storage_uri       text NOT NULL,
+    lifecycle         text NOT NULL DEFAULT 'ACTIVE',
+    quarantine_at     text,
+    metadata          jsonb NOT NULL DEFAULT '{}'::jsonb,
+    registered_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS assets.content_version (
+    content_id        text NOT NULL,
+    version_number    integer NOT NULL,
+    version_id        text NOT NULL,
+    asset_id          text NOT NULL,
+    parent_version_id text,
+    metadata          jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (content_id, version_number),
+    UNIQUE (content_id, version_id)
+);

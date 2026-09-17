@@ -2378,6 +2378,80 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Telegram pacing feedback (retry_after) is respected exactly;
   recovery from Class-E requires a human decision.
 
+## D-097 — Canonical media asset and content version contract
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** campaigns and posts need immutable, content-
+  addressed media with versioned content; without a contract every
+  domain would invent its own file tracking and lose lineage.
+- **Decision:** canonical `MediaAsset` (asset_id, checksum =
+  SHA-256 content-addressable hash, mime_type, file_size_bytes,
+  storage_uri_reference, metadata) and `ContentVersion` (content_id,
+  monotonically increasing version_number, asset_id, parent_version_id,
+  metadata). Assets are PURELY content-addressed: one checksum = one
+  asset (deduplication by construction). Content versions are
+  strictly APPEND-ONLY — an update spawns the next version
+  (v1 → v2 → v3); no version is ever mutated; the version graph
+  (parent links) must stay a single chain per content_id. Binaries
+  live behind the Phase 3 MediaStore abstraction (D-049/D-056) —
+  the engine stores only references.
+- **Consequences:** byte-identical uploads collapse to one asset;
+  full historical content state is reconstructible from the version
+  chain; storage stays provider-neutral.
+
+## D-098 — Asset storage vault and deduplication engine
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** concurrent registrations of the same or conflicting
+  assets must resolve deterministically, and corrupt/oversized/
+  mime-mismatched uploads must never reach storage.
+- **Decision:** atomic registration via PostgreSQL unique
+  constraints — `assets.media_asset` PK on checksum,
+  `assets.content_version` unique on (content_id, version_number) —
+  with a JSON parity vault for offline work. Class-B validation
+  BEFORE storage: checksum mismatch (declared vs computed), size
+  over the configured cap, mime outside the allow-list, or declared
+  mime contradicting detected content signatures is rejected
+  locally. The vault never deletes binaries; deletion happens only
+  through D-100 quarantine semantics.
+- **Consequences:** exactly-one asset per checksum under
+  concurrency; invalid uploads rejected before touching storage.
+
+## D-099 — Media variant generator and processing pipeline bridge
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Status note:** pure derivation contract — no external
+  transcoder is called directly.
+- **Decision:** variant derivation is a deterministic, injected
+  processor (provider-neutral bridge, RULES §35): a variant spec
+  (kind, parameters) applied to a parent asset yields the same
+  variant reference every time — idempotent by derivation key
+  SHA-256(parent checksum, kind, canonical parameters). Variant
+  lifecycle PENDING_DERIVATION → PROCESSING → READY | FAILED is
+  recorded on the D-027 store; re-derivation of an existing READY
+  variant is a no-op returning the same reference; a FAILED variant
+  may be re-attempted (new attempt, durable attempt count).
+- **Consequences:** processing farms can be added later without
+  contract changes; retries never duplicate variants.
+
+## D-100 — Asset lifecycle, garbage-collection quarantine and audit vault
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** unreferenced assets must not be hard-deleted in a
+  rush, and every asset action must be auditable.
+- **Decision:** soft-delete and quarantine: an asset with no
+  referencing content version enters QUARANTINED with a
+  configurable retention cooldown measured by the INJECTED clock
+  (deterministic — never wall-clock); only assets whose cooldown has
+  elapsed AND remain unreferenced become GC-ELIGIBLE, and actual
+  binary removal is out of scope for this phase (the record stays,
+  flagged). Every upload, version increment, derivation, and
+  quarantine action is a D-027 event; historical reconstruction —
+  the full content state at any past version — rebuilds from
+  durable events alone.
+- **Consequences:** no data loss by construction; the audit trail
+  answers "what did content X look like at v2?" from durable data.
+
 ## D-093 — Scheduled post contract and calendar model
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -2903,6 +2977,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 29 | Analytics, reporting & metrics engine — **D-085–D-088 (Approved 2026-09-16)**: CQRS read-side projections over the D-027 store with deterministic windowing from recorded event timestamps, no wall-clock keys (D-085), incremental snapshots keyed by the monotonic ingest_seq cursor — exactly-once, rebuild-safe (D-086), cross-domain campaign→revenue correlator joined on shared campaign_id with zero domain imports (D-087), idempotent JSON/CSV export keyed by window hash + report audit vault, aggregates only — no customer data (D-088) | Approved | — | 13 (architecture done) |
 | 30 | Notification system & user alerts — **D-089–D-092 (Approved 2026-09-17)**: universal NotificationEvent contract with local Class-B validation before queueing (D-089); deduplication_key vault + PG PK-as-lock, pure-function quiet-hours/frequency guards, independent per-channel fan-out (D-090); transactional outbox worker with exponential backoff and HITL-materializing DLQ (D-091); full delivery audit on the D-027 store with restart-reconstructible status tracking (D-092). |
 | 31 | Content calendar & scheduling engine — **D-093–D-096 (Approved 2026-09-17)**: canonical ScheduledPost lifecycle SCHEDULED → DUE → DISPATCHED (+CANCELLED/RESCHEDULED, full provenance) with the injectable clock as the only time source (D-093); per-platform PK-as-lock slot reservations with configurable minimum gap, slot_conflict = Class-B before dispatch (D-094); due scanner from durable data ordered by ingest_seq bridging to the Phase 11 FanOutEngine — scheduler never publishes (D-095); only pre-DISPATCHED posts mutable, slot ledger audits full reservation history, calendar view rebuilds from durable events alone (D-096). |
+| 32 | Content versioning & media assets — **D-097–D-100 (Approved 2026-09-17)**: canonical MediaAsset/ContentVersion with SHA-256 content-addressable dedup and append-only version chains (D-097); atomic PG-constraint registration (PK checksum, unique (content_id, version_number)) with Class-B pre-storage validation and JSON parity (D-098); deterministic idempotent variant derivation behind a provider-neutral bridge (D-099); quarantine with injected-clock retention cooldown, full D-027 audit and historical version reconstruction from durable events (D-100). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

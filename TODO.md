@@ -619,6 +619,60 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 16 — Content Versioning & Media Asset Management —
+      **CLOSED at foundation level (2026-09-17), D-097–D-100 all
+      owner-approved**:
+      D-097 contracts (`local/canonical/asset_contracts.py`:
+      canonical MediaAsset — checksum COMPUTED from the actual bytes
+      via SHA-256, size cross-checked, mime allow-list + signature
+      contradiction check, byte cap; ContentVersion — v1-root rule,
+      parent links, monotonic numbers; single-chain graph validator;
+      pure deterministic derivation keys over (checksum, kind, spec);
+      durable reference vocabulary + ACTIVE/QUARANTINED/GC_ELIGIBLE
+      and PENDING_DERIVATION/PROCESSING/READY/FAILED vocabularies);
+      D-098 vault (`asset_engine.py` + `assets.media_asset` /
+      `assets.content_version` schema: PG unique constraints as the
+      atomicity — checksum PK + (content_id, version_number) unique —
+      with a JSON parity backend; Class-B validation BEFORE any byte
+      reaches storage; dedup by construction returns DEDUPLICATED
+      with the existing asset_id; append-only chains with stale-head
+      protection and durable version-number derivation — never a
+      caller counter; binaries behind the injected Phase 3 MediaStore
+      seam — references only, never deletes); D-099 variant bridge
+      (`asset_worker.py`: idempotent derivation — same parent+spec
+      yields the same derivation key and reference, reprocessing
+      safe; unknown parent fails deterministically; cooldown-aware
+      processing semantics); D-100 lifecycle + audit (quarantine
+      scanner — referenced assets kept, orphans quarantined at the
+      injected instant, configurable cooldown → GC-eligible,
+      resurrection on reference; every upload/dedup/version/
+      lifecycle/variant action a D-027 event; historical version
+      reconstruction from durable rows alone — fresh-engine parity
+      tested).
+      Phase 16 suite 20/20 zero-skip (17 offline + live-PG E2E:
+      real PgEventStore + PG vault, register→dedup→version chain,
+      8-thread same-checksum single-creator race, quarantine scan on
+      shared durable state, restart parity); battery 596/596
+      zero-skip; ladder 46/46; AST audit clean (zero network
+      imports, zero cloud SDKs, zero platform/pricing/notification
+      imports in asset modules, zero os.environ; the two scan hits
+      are the D-027 services.sync_engine EventStore dependency —
+      the established Phase 13–15 precedent); secret scan clean;
+      diff-check PASS.
+      Suite-found defects fixed in-batch: concurrent same-checksum
+      dedup losers colliding on ONE event id (terminal guard
+      IntegrityError from worker threads) — _record now treats a
+      lost exactly-once race as a clean loser; register_asset
+      silently DROPPING a contradicting declared checksum instead
+      of Class-B-rejecting (corrupt registration now rejected
+      before storage); test-harness EPERM cascade (_JsonVault
+      mkdir vs os.remove teardown) masking all M2/M3 results; and
+      an invalid test premise (validate_variant_kind returns the
+      SPEC dict, not a kind set).
+      Standing owner gate: no storage endpoints or credentials
+      (D-045) — none exist, none requested; binaries stay local
+      behind the MediaStore seam; Phase 16 passing does NOT prove
+      live cloud-storage compatibility.
 - [x] Phase 15 — Content Calendar & Scheduling Engine — **CLOSED at
       foundation level (2026-09-17), D-093–D-096 all owner-approved**:
       D-093 contract (`local/canonical/scheduling_contracts.py`:
