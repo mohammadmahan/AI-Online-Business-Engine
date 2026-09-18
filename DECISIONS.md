@@ -2713,6 +2713,109 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   every run; zero-skip discipline extends to negative-space
   coverage.
 
+## D-121 — Local structured event log ledger (engine.log.v1)
+
+- **Status:** **Approved** (2026-09-18, owner-approved)
+- **Situation:** MASTER_PLAN Phase 22 requires structured logs,
+  workflow monitoring and audit events; the Phase 8 `ai.observe.v1`
+  collector covers only the AI surface, so operational subsystems
+  (analytics, HITL, dispatch, security, scheduling) still log in
+  ad-hoc shapes, and no cross-subsystem causal identifier exists.
+- **Decision:** a canonical operational log record
+  (`engine.log.v1`) — required fields: `schema_version`,
+  `trace_id`, `causal_chain_id`, `logical_at`, `domain`, `event`,
+  `level`, `status` — emitted as append-only JSONL with an optional
+  durable vault reusing the D-027 event-store transport (deterministic
+  row keys, no wall clock anywhere). `trace_id`/`causal_chain_id` are
+  DETERMINISTIC identifiers derived from causal inputs (domain,
+  entity ref, logical sequence) — never `time.time_ns()`; child
+  events chain by carrying the parent causal id forward. Every
+  payload passes D-114 sanitization at the log boundary (size caps,
+  charset, credential-marker redaction, no raw PII/secrets). The
+  Phase 8 AI surface remains `ai.observe.v1`, unchanged.
+- **Consequences:** any subsystem event is traceable across engines
+  without wall-clock correlation; log tampering is detectable via
+  append-only storage; zero-leak logging is enforced structurally.
+- **Verification (Phase 22 closeout, 2026-09-18):** battery-proven —
+  deterministic ids (same inputs ⇒ same ids), chain propagation
+  across sink re-instantiation, JSONL append-only round-trip,
+  durable vault dedupe (`skipped_duplicate` on re-emission) with
+  exact trace-scoped counts on live PG.
+
+## D-122 — Deterministic metrics registry & localhost-only exposition
+
+- **Status:** **Approved** (2026-09-18, owner-approved)
+- **Situation:** state-machine throughput, slot-lock contention,
+  ledger verification latency and circuit-breaker trips are today
+  only observable as test counts; there is no live operational
+  readout, and external APM agents are forbidden (D-045).
+- **Decision:** a zero-dependency metrics registry — monotone
+  counters, gauges, and histograms with FIXED logical bucket edges —
+  updated deterministically via explicit `incr`/`observe` calls on
+  the logical timeline (never wall-clock sampling). A stdlib
+  `http.server` exporter bound strictly to 127.0.0.1 serves the
+  Prometheus text exposition format; metric names and label sets
+  are DECLARED in a bounded registry (no unbounded cardinality, no
+  raw payload values or PII in labels). Nothing outside loopback
+  can scrape it; no external telemetry endpoint exists.
+- **Consequences:** counters/histograms are reproducible in tests
+  (same logical inputs → same exposition); the local exporter is
+  inspectable by the operator console without any network exposure.
+- **Verification (Phase 22 closeout, 2026-09-18):** battery-proven —
+  monotonicity enforced (negative/zero increments Class-B),
+  byte-identical exposition across instances, fixed bucket edges,
+  cardinality caps, exporter bound to 127.0.0.1 serving exactly
+  `exposition()` with 404 off-path (loopback scrape via curl).
+
+## D-123 — Composable health probes & the qa.health_report.v1 attestation
+
+- **Status:** **Approved** (2026-09-18, owner-approved)
+- **Situation:** stack health is checked ad hoc in shell one-liners;
+  there is no deterministic, machine-readable readiness artifact an
+  operator (or the Phase 19 control plane) can query.
+- **Decision:** a probe is a deterministic callable returning
+  `{name, ok, verdict, detail, checked_at_logical}` (verdict ∈
+  PASS / DEGRADED / FAIL — degraded is an EXPLICIT verdict, never a
+  silent pass); probes compose into a registry that renders
+  `qa.health_report.v1` — a versioned, machine-readable JSON
+  attestation. Shipped probes: live-PG reachability + schema
+  presence, ledger attestation validity (D-115 fold over the
+  Phase 18/19 chains), scheduled-post queue depth vs declared
+  threshold, and circuit-breaker states (D-111). Probes receive
+  everything injected (no engine imports); the CLI renders the
+  report deterministically via the logical clock.
+- **Consequences:** health is an artifact, not a claim; the report
+  is auditable, diffable, and consumable by the control plane.
+- **Verification (Phase 22 closeout, 2026-09-18):** battery-proven —
+  PASS/DEGRADED/FAIL semantics (degraded explicit), threshold
+  ordering guard, report shape validation, worst-of aggregation;
+  live CLI renders a real attestation: pg_schema PASS,
+  ledger_integrity PASS (D-115 fold over the Phase 19 chain),
+  breaker_states DEGRADED on durable residue (honest reporting).
+
+## D-124 — Zero-leak telemetry discipline (logs, metrics, probes)
+
+- **Status:** **Approved** (2026-09-18, owner-approved)
+- **Situation:** logs and metrics are the classic leak channels
+  (connection strings, bearer tokens, customer references in
+  labels); D-045 forbids any of them reaching storage or output.
+- **Decision:** every string that reaches a log record, a metric
+  label, or a probe detail passes the D-114 gate AND the telemetry
+  redaction list (`postgres://`, `bearer `, `api_key`, `password=`,
+  `authorization:`) plus an explicit PII denylist; non-conforming
+  values are replaced with the fixed marker `[REDACTED]` — never
+  silently truncated into ambiguity. Observability modules import
+  NO engine modules — they observe via injected read callables,
+  preserving the established import-level boundary discipline —
+  and the leakage battery is part of every regression pass.
+- **Consequences:** telemetry is safe by construction; any future
+  leak channel must first defeat a battery-asserted gate.
+- **Verification (Phase 22 closeout, 2026-09-18):** battery-proven —
+  credential markers in details/payloads/metric labels all render
+  as `[REDACTED]` (exposition text verified marker-free), PII
+  payload keys redacted, control chars rejected Class-B, oversized
+  fields marked `…[TRUNC]`, probe details pass the same gate.
+
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3388,6 +3491,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 35 | Internal tools & operator control plane — **D-109–D-112 (Approved 2026-09-17)**: closed command grammar (PAUSE/RESUME_QUEUE, RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS) with deterministic local-token RBAC, ControlPlaneEngine over `admin.operator_actions` (PK-as-lock) + hash-chained `admin.control_audit` (Phase 18 tamper standard), an injected-read multi-domain state facade (DLQ/HITL/insights/assets), replay strictly dry-run unless a single-use confirmation key is supplied, DLQ retries + circuit breakers with deterministic logical-clock cool-downs, and zero cross-module imports (D-045/D-027 discipline). |
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
+| 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

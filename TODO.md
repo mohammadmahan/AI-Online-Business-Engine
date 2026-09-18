@@ -619,6 +619,41 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 22 — Observability & Health Telemetry — **CLOSED
+      (2026-09-18), D-121–D-124 all owner-approved**:
+      D-121 log ledger (`local/canonical/obs_contracts.py`:
+      engine.log.v1 — 8 required fields, 7 domains, deterministic
+      SHA-256 trace/causal ids over causal inputs via
+      TraceContext root/child, JSONL append-only sink + PgLogVault
+      over the D-027 transport with `log|<trace>|<causal>` keys —
+      re-emission dedupes, trace-scoped counts exact);
+      D-122 metrics (`local/canonical/obs_metrics.py`: monotone
+      counters (positive-int only), gauges, fixed-bucket
+      histograms, declared bounded cardinality (≤8 labels, ≤64
+      sets), byte-identical Prometheus text exposition;
+      `local/services/metrics_exporter.py`: stdlib HTTP bound
+      HARDCODED to 127.0.0.1, serves exactly the exposition, 404
+      off-path); D-123 health (`local/canonical/obs_health.py`:
+      PASS/DEGRADED/FAIL probes — degraded explicit, threshold
+      ordering guarded — rendering qa.health_report.v1 with an
+      operator CLI; shipped probes: pg schema presence, D-115
+      ledger fold over the Phase 19 chain, queue depth, breaker
+      states); D-124 zero-leak telemetry (credential markers →
+      `[REDACTED]` in details/payloads/LABELS, PII denylist,
+      marked `…[TRUNC]` oversize, control chars Class-B, no engine
+      imports from observability). Suite 26/26 zero-skip incl. 5
+      live-PG E2E (vault dedupe + trace counts, live probes, CLI
+      attestation over the real chain). Battery **750/750
+      zero-skip, two consecutive green runs**; ladder 46/46;
+      census reconciles 750/750 across 29 modules (T1=649 · T2=46
+      · T3=48 · T4=7); AST (88) / entropy (98) / bounds (11/11)
+      CLEAN. In-batch fixes: sanitize ordering (truncate before
+      gate), vault key trace-embedding, exporter moved canonical →
+      services (Phase 20 sweep caught `http.server` in canonical),
+      run-scoped live-test ids. Standing owner gate: loopback
+      only — no external collector/APM (D-045); Phase 22 passing
+      does NOT prove compatibility with real observability
+      infrastructure. Next: Phase 23 per MASTER_PLAN.
 - [x] Phase 21 — Testing & Quality Engineering — **CLOSED
       (2026-09-18), D-117–D-120 all owner-approved**:
       D-120 tier taxonomy + toolkit (`local/canonical/qa_toolkit.py`:

@@ -601,6 +601,24 @@ docs/
 > ladder 46/46; AST/entropy/bounds sweeps CLEAN. Next: **Phase 22**.
 > Details: `docs/phases/phase-21-testing-quality.md` §6, `TODO.md`.
 
+> **Phase 22 — Observability & Health Telemetry — CLOSED
+> (2026-09-18), D-121–D-124 all owner-approved.** Canonical
+> operational log ledger (`engine.log.v1`: deterministic
+> trace/causal ids over causal inputs, JSONL + D-027-backed durable
+> vault, D-114/D-124 zero-leak boundary — credential redaction, PII
+> keys, marked truncation, Class-B taxonomy); deterministic metrics
+> registry (monotone counters, fixed-bucket histograms, declared
+> bounded cardinality, byte-identical exposition) with a
+> loopback-only Prometheus text exporter in `local/services/`
+> (bind hardcoded 127.0.0.1); composable health probes rendering
+> the machine-readable `qa.health_report.v1` attestation with an
+> operator CLI (live: pg PASS, ledger fold PASS, breakers honestly
+> DEGRADED on durable residue). Suite 26/26 zero-skip incl. 5
+> live-PG E2E; battery **750/750 zero-skip, two consecutive green
+> runs**; ladder 46/46; AST (88 files) / entropy (98 files) /
+> bounds (11/11) sweeps CLEAN. Next: **Phase 23**.
+> Details: `docs/phases/phase-22-observability.md` §6, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git
