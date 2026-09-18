@@ -619,6 +619,32 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [ ] Phase 24 — Vendor Lock-in & Neutral Portability Layer — **OPEN
+      (2026-09-18), M0 spec registered; D-129–D-132 PROPOSED,
+      pending owner approval** (full spec:
+      `docs/phases/phase-24-vendor-lockin.md`):
+      - D-129 (Proposed) — model/provider neutrality contract:
+        `ProviderContract` checklist (schema-compatible generate,
+        token accounting write-through to D-127, D-052 failure
+        classes, zero provider-metadata leakage into canonical
+        state) + `assert_provider_conformance` harness.
+      - D-130 (Proposed) — storage/database parity boundaries:
+        `BackendPair` + `assert_backend_parity` over the declared
+        pairs (event store, slot locks, notification locks),
+        `MediaStoreContract` for blob ops, AST-enforced SQL
+        portability (vendor idioms confined to transport + schema).
+      - D-131 (Proposed) — pluggable channel adapters:
+        `ChannelAdapterContract`, hot-swap registry with
+        deterministic verdicts audited via D-121, battery-asserted
+        workflow isolation (zero channel literals in canonical
+        workflows; extended D-116 AST rule).
+      - D-132 (Proposed) — portability battery:
+        `test_phase24_portability.py` (conformance, parity,
+        hot-swap, simulated provider lockout ⇒ D-066 fallback),
+        full battery ×2 green, census, sweeps.
+      - Milestones: M1 contracts → M2 bindings → M3 sweep extension
+        → M4 battery & closure; implementation GATED on owner
+        approval of D-129–D-132.
 - [x] Phase 23 — Resilience & Cost Optimization — **CLOSED
       (2026-09-18), D-125–D-128 all owner-approved same-day**:
       D-125 compaction (`local/canonical/compaction.py`: state-based
