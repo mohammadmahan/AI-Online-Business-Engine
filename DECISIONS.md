@@ -3039,7 +3039,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-133 — End-to-end business flow orchestration conductor
 
-- **Status:** **Proposed** (2026-09-18, Phase 25 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved same-day)
 - **Situation:** every phase engine is battery-proven in isolation,
   but the MASTER_PLAN §13 Phase 25 flow — Instagram lead →
   conversation → discovery → cart/order → payment → verification →
@@ -3055,10 +3055,20 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** the platform's headline promise (lead-to-
   analytics) becomes a deterministic, auditable execution unit;
   any boundary regression surfaces as a stage-contract failure.
+- **Verification (Phase 25 closeout, 2026-09-18):** conductor
+  proven: ten stages under ONE unbroken root trace (ten distinct
+  causal ids), zero-schema-mutation guard rejects rogue keys,
+  strict stage binding (missing AND unknown stages rejected),
+  audited FAILURE path. Harness-forced design fix: the D-052 class
+  is classified AT the stage boundary (explicit `.failure_class`
+  wins, else the canonical message classifier) — the audited class
+  is what recovery routes on, never the exception type name; the
+  root trace ids are injected into the flow context so the
+  unbroken-trace guard is checkable in data.
 
 ## D-134 — Deterministic chaos & fault-injection ladder
 
-- **Status:** **Proposed** (2026-09-18, Phase 25 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved same-day)
 - **Situation:** phases proved fault handling locally (retry
   ladders, budget refusals, dead-letters, breaker rows), but never
   at every boundary of ONE end-to-end flow.
@@ -3075,10 +3085,20 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   all clocks logical (D-085/D-093/D-121).
 - **Consequences:** failure/recovery stops being per-phase lore
   and becomes a pinned, regression-proofed flow property.
+- **Verification (Phase 25 closeout, 2026-09-18):** all five
+  scenarios pinned with `FaultScript` reproducibility over the
+  REAL engines: Class-A outage recovers by replay (attempt 2,
+  jitter-free backoff, end state byte-equal to the happy path incl.
+  inventory); D-127 exhaustion refuses pre-dispatch (zero provider
+  invocation, flow stopped at the boundary, NOT replay-recoverable
+  — terminal at flow level); media fault fails closed; delivery-
+  lock contention leaves the original claim byte-untouched;
+  payment-verification failure → CANCELLED, inventory RESTORED
+  (8→10), failure notice via the real D-089 template registry.
 
 ## D-135 — Automated state reconciliation & self-healing
 
-- **Status:** **Proposed** (2026-09-18, Phase 25 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved same-day)
 - **Situation:** durable-only reconstruction is asserted per phase
   (Phase 6/17 idempotency, Phase 23 compaction); interrupted-
   process scenarios across the full flow are not yet exercised.
@@ -3094,10 +3114,17 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** crash-resilience becomes an executable
   guarantee, not a design note; recovery is always replay, never
   manual state surgery.
+- **Verification (Phase 25 closeout, 2026-09-18):** stranded-lock
+  sweep idempotent with zero phantom rows and no resurrection of
+  vanished rows; state rebuilds from durable refs only (malformed
+  rows skipped as evidence, parseable unknowns counted);
+  exactly-once outbox replay proven on the JSON store AND the live
+  PG store; conflicting duplicate → `IntegrityError` (human
+  review, D-027).
 
 ## D-136 — Full-spectrum verification battery & acceptance gates
 
-- **Status:** **Proposed** (2026-09-18, Phase 25 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved same-day)
 - **Situation:** the T4 census tier exists (7 tests) but no
   multi-stage full-flow battery over offline-hermetic AND live-PG
   environments.
@@ -3111,6 +3138,16 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   AST/entropy/bounds CLEAN; `git diff --check` PASS; stack 5/5.
 - **Consequences:** Phase 26 (Launch) inherits a machine-checked
   end-to-end acceptance surface instead of a manual checklist.
+- **Verification (Phase 25 closeout, 2026-09-18):**
+  `test_phase25_full_system.py` 18/18 zero-skip (15 offline + 3
+  live-PG E2E: the FULL ten-stage flow persisted through the real
+  `PgEventStore` — order VALIDATED, inventory 10→8; live outbox
+  replay exactly-once; conflicting duplicate → IntegrityError).
+  FULL battery **814/814, two consecutive green runs + one census
+  run, zero warnings**; ladder 46/46; census reconciles exactly
+  (T1=706 · T2=44 · T3=54 · T4=10 = 814, 32 modules); AST CLEAN
+  (68 files); entropy CLEAN (112 files); `git diff --check` PASS;
+  stack 5/5 healthy.
 
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 

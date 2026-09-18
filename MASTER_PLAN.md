@@ -661,6 +661,28 @@ docs/
 > stack 5/5 healthy. Next: **Phase 25**.
 > Details: `docs/phases/phase-24-vendor-lockin.md` §6, `TODO.md`.
 
+> **Phase 25 — Full System Test & E2E Failure/Recovery — CLOSED
+> (2026-09-18), D-133–D-136 all owner-approved same-day.**
+> The MASTER_PLAN headline flow (Instagram lead → conversation →
+> product discovery → cart/order → payment → verification →
+> inventory → shipping → notification → analytics) is now ONE
+> deterministic execution unit: a pure ten-stage conductor with
+> declared stage envelopes, zero schema mutation, and one unbroken
+> D-121 trace (D-133); a fault ladder over the real engines —
+> Class-A outage recovers by REPLAY, D-127 budget exhaustion
+> refuses pre-dispatch, media faults fail closed, lock contention
+> yields byte-untouched claims, payment failure CANCELS the order,
+> RESTORES inventory, and queues the failure notice (D-134);
+> stranded-lock sweeps, durable-only rebuilds, and exactly-once
+> outbox replay on JSON AND live PG (D-135); the full-spectrum
+> battery with offline-hermetic T4 + live-PG T3 classes (D-136).
+> Suite 18/18 zero-skip incl. 3 live-PG E2E. Battery **814/814,
+> two consecutive green runs + census run, zero warnings**; ladder
+> 46/46; census reconciles exactly (T1=706 · T2=44 · T3=54 · T4=10,
+> 32 modules); AST CLEAN (68 files) / entropy CLEAN (112 files);
+> stack 5/5 healthy. Next: **Phase 26**.
+> Details: `docs/phases/phase-25-full-system-test.md` §7, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git

@@ -128,3 +128,58 @@ census convention:
    D-045). Confirm or trim.
 3. **Conductor placement:** canonical (pure) with injected service
    adapters, per RULES §35 — same pattern as every engine.
+
+## 7. Verification record (M4 closeout, 2026-09-18)
+
+- **Governance:** D-133–D-136 flipped Proposed → **Approved** per
+  the owner's execution order; flow scope confirmed as the
+  MASTER_PLAN ten-stage list with mock gateways (D-045).
+- **M1 (conductor):** `canonical/e2e_contracts.py` +
+  `canonical/e2e_conductor.py` — pure, zero I/O imports. Proven:
+  ten stages under ONE unbroken root trace (ten distinct causal
+  ids), zero-schema-mutation guard rejects rogue keys, strict
+  stage binding (missing AND unknown stages rejected), audited
+  FAILURE path. The harness forced a real design fix: the D-052
+  class is now classified AT the stage boundary (explicit
+  `.failure_class` wins, else the canonical message classifier) —
+  the audited class is what recovery routes on, never the
+  exception type name. The root trace ids are injected into the
+  flow context so the unbroken-trace guard is checkable in data.
+- **M2 (fault ladder & recovery):** all five D-134 scenarios pinned
+  with `FaultScript` reproducibility: Class-A outage recovers by
+  REPLAY (attempt 2, jitter-free backoff, end state byte-equal to
+  the happy path incl. inventory); D-127 exhaustion refuses
+  PRE-dispatch (zero provider invocation, flow stopped exactly at
+  the boundary, order PLACED, inventory untouched; the refused
+  logical event meters its tokens row per the shipped
+  `consume_llm` shape; NOT replay-recoverable — terminal at flow
+  level); media fault fails closed (no notification work at all);
+  delivery-lock contention — the original claim survives
+  byte-untouched and the flow yields; payment-verification failure
+  → order CANCELLED, inventory RESTORED (8→10), failure notice
+  queued through the real D-089 template registry. D-135: the
+  stranded-lock sweep is idempotent with zero phantom rows and
+  never resurrects vanished rows; state rebuilds from durable refs
+  only; outbox replay is exactly-once on the JSON store AND the
+  live PG store.
+- **M3 (battery):** `tests/test_phase25_full_system.py` — 15
+  offline tests + 3 live-PG E2E. Live leg: the FULL ten-stage flow
+  persisted through the real `PgEventStore` (order VALIDATED,
+  inventory 10→8), live outbox replay exactly-once
+  (`skipped_duplicate` verdict on re-delivery), and a conflicting
+  duplicate → `IntegrityError` (human review, D-027).
+- **M4 (gates):** FULL battery **814/814, two consecutive green
+  runs + one census run, zero warnings**. Ladder 46/46. Census
+  reconciles exactly: **T1=706 · T2=44 · T3=54 · T4=10 = 814
+  (32 modules), green=True**. AST sweep CLEAN (68 canonical files);
+  entropy CLEAN (112 files); `git diff --check` PASS; stack 5/5
+  healthy.
+- **Test-side lessons pinned in the battery:** (1)
+  `succeeded_references()` matches on an event-id PREFIX (D-027
+  parity contract) — per-source isolation requires event_id-prefix
+  filtering in assertions; (2) budget assertions read `consumed()`
+  row semantics, not row counts (a refused logical event still
+  meters its first resource); (3) analytics metric eids must be
+  deterministic across replays — the harness adopted the OMS's own
+  durable ids (`oms|order|<key>`), so replay reaches a FIXED POINT
+  (no new events, cursor motionless) instead of double-projecting.
