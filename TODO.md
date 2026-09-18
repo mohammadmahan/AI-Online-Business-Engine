@@ -619,6 +619,33 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [x] Phase 21 — Testing & Quality Engineering — **CLOSED
+      (2026-09-18), D-117–D-120 all owner-approved**:
+      D-120 tier taxonomy + toolkit (`local/canonical/qa_toolkit.py`:
+      Unit → Subsystem Ladder → Local PG Integration → Full E2E,
+      census derived from real discovery output and reconciled
+      exactly 724/724); D-117 state-machine invariant battery over
+      all five phase-17–20 edge matrices (each proven CLOSED by
+      construction — undeclared transitions refused at the
+      validator, not by exception); D-118 deterministic chaos
+      (handler/dispatcher exception isolation, flaky-dispatch
+      redelivery dedupe, mid-transaction PG aborts with
+      clean-rollback + audit-truth + ledger-integrity invariants,
+      8-thread ledger and live slot-lock contention — exactly-one
+      winner each, zero wall-clock reads); D-119 seeded fuzz (585
+      cases) over every D-114 entry point with frozen verdict
+      fixtures. Net-found shipped defects, fixed + pinned +
+      mutation-checked: DueScanner work-starvation on the
+      accumulating durable store (D-095/D-096); Phase 15 race-key
+      prefix collision vs the never-deleted `slot_lock` ledger
+      (intermittent `0 != 1`); 5 unclosed test file handles
+      polluting D-114 entry-point output. Battery **724/724
+      zero-skip, two consecutive green runs**; ladder 46/46;
+      AST sweep (84 files) + entropy scan (94 files) + bounds
+      re-audit (11/11) all CLEAN; stack 5/5 healthy. Observation
+      logged for a future batch: `time.time_ns()` row-ID components
+      in Phases 9–11 publishers (IDs, not D-027 keys). Next:
+      Phase 22 (Observability) per MASTER_PLAN.
 - [x] Phase 20 — Security Hardening & Threat Model — **CLOSED
       (2026-09-17), D-113–D-116 all owner-approved**:
       D-113 contracts (`local/canonical/security_contracts.py`:

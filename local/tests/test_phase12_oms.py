@@ -410,7 +410,8 @@ class TestM2Engine(unittest.TestCase):
             self.h.engine.place_order(make_order())
             self.h.engine.transition(norm["order_key"], VALIDATED)
             # ProvenanceEngine is a JSON STORE (one object), not JSONL
-            data = json.load(open(prov_path, encoding="utf-8"))
+            with open(prov_path, encoding="utf-8") as f:
+                data = json.load(f)
             rows = data.get("records", [])
             self.assertTrue(any(
                 r.get("source_reference", "").startswith("oms|")

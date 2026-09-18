@@ -357,7 +357,8 @@ class TestAuthorityBoundary(unittest.TestCase):
         vocabulary mutation. Import-graph assertion, fails loudly if the
         boundary erodes."""
         import canonical.ai_runtime as rt
-        src = open(rt.__file__, encoding="utf-8").read()
+        with open(rt.__file__, encoding="utf-8") as f:
+            src = f.read()
         for forbidden in ("sync_engine", "mock_woo", "notion_ingest",
                           "import_runner", "seed_registry"):
             self.assertNotIn(f"import {forbidden}", src)

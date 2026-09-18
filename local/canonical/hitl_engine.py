@@ -132,6 +132,17 @@ class _JsonVault:
         self._write("tickets.json", data)
         return 1
 
+    def update_ticket_guarded(self, ticket_id: str, sets: Dict,
+                              expect_status: str) -> int:
+        """JSON-parity of the PG compare-and-set (Phase 21): the
+        single-threaded parity vault wins only from the expected
+        state."""
+        row = self.get_ticket(ticket_id)
+        if row is None or \
+                row.get("resolution_status") != expect_status:
+            return 0
+        return self.update_ticket(ticket_id, sets)
+
     def get_ticket(self, ticket_id: str) -> Optional[Dict]:
         return self._read("tickets.json").get(ticket_id)
 
@@ -303,6 +314,37 @@ class _PgVault:
         out = self._exec(
             "UPDATE hitl.review_tickets SET " + ", ".join(sets_sql)
             + " WHERE ticket_id = " + self._txt("i")
+            + " RETURNING ticket_id", params).strip()
+        return 1 if out else 0
+
+    def update_ticket_guarded(self, ticket_id: str, sets: Dict,
+                              expect_status: str) -> int:
+        """State-guarded update (Phase 21 chaos discipline): the
+        row changes ONLY if its current resolution_status still
+        equals `expect_status` — a competing resolution between a
+        reader's fetch and write loses atomically (row-level
+        compare-and-set, no lost updates)."""
+        keys = list(sets)
+        texts = {k for k in keys
+                 if not isinstance(sets[k], (dict, list))}
+        sets_sql = []
+        params: Dict[str, str] = {}
+        for n, k in enumerate(keys):
+            tag = f"s{n}"
+            if k in texts:
+                sets_sql.append(f"{k} = " + self._txt(tag))
+                params[tag] = sets[k]
+            else:
+                sets_sql.append(f"{k} = " + self._txt(tag)
+                                + "::jsonb")
+                params[tag] = json.dumps(sets[k], ensure_ascii=False,
+                                         sort_keys=True)
+        params["i"] = ticket_id
+        params["exp"] = expect_status
+        out = self._exec(
+            "UPDATE hitl.review_tickets SET " + ", ".join(sets_sql)
+            + " WHERE ticket_id = " + self._txt("i")
+            + " AND resolution_status = " + self._txt("exp")
             + " RETURNING ticket_id", params).strip()
         return 1 if out else 0
 

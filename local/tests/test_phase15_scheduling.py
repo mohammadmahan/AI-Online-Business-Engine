@@ -446,7 +446,12 @@ class TestM4LivePgE2E(unittest.TestCase):
 
     def test_live_concurrent_slot_claimers_single_winner(self):
         locks = self.PgSlotLocks()
-        key = (f"instagram\x1f2026-09-18T{self.run_id[:2]}:00")
+        # FULL run_id in the bucket: the slot_lock table is durable
+        # ledger state — a truncated prefix (old bug) collided with
+        # active locks left by earlier battery runs, starving ALL
+        # racers (0 winners). D-096 rows are never deleted, so every
+        # run must claim a bucket no prior run can have touched.
+        key = (f"instagram\x1f2026-09-18T{self.run_id}:00")
         results = []
         barrier = threading.Barrier(8)
 

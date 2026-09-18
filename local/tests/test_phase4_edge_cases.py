@@ -233,8 +233,9 @@ class TestPriceInvariants(VerifyMixin, unittest.TestCase):
         These are NOT approved rules (D-010/D-024 = exact numeric
         Toman). The suite keeps them observable instead of silent.
         """
-        src = open(os.path.join(LOCAL, "canonical", "prices.py"),
-                   encoding="utf-8").read()
+        with open(os.path.join(LOCAL, "canonical", "prices.py"),
+                  encoding="utf-8") as f:
+            src = f.read()
         self.verify("D-010 no 1,000-rounding invented in price engine",
                     "1000" not in src.replace("D-010", ""))
         self.verify("no negative-margin rule invented",

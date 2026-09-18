@@ -1,0 +1,189 @@
+{
+  "census": [
+    {
+      "module": "test_ladder",
+      "tests": 46,
+      "integration_tests": 0,
+      "e2e_tests": 2
+    },
+    {
+      "module": "test_n8n_error_router_m3",
+      "tests": 21,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_n8n_hitl_dead_letter_m4",
+      "tests": 16,
+      "integration_tests": 0,
+      "e2e_tests": 5
+    },
+    {
+      "module": "test_n8n_sandbox_m2",
+      "tests": 7,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase10_telegram",
+      "tests": 51,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase11_orchestration",
+      "tests": 50,
+      "integration_tests": 5,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase12_oms",
+      "tests": 37,
+      "integration_tests": 6,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase13_analytics",
+      "tests": 28,
+      "integration_tests": 4,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase14_notifications",
+      "tests": 26,
+      "integration_tests": 4,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase15_scheduling",
+      "tests": 24,
+      "integration_tests": 3,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase16_assets",
+      "tests": 20,
+      "integration_tests": 3,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase17_analyst",
+      "tests": 27,
+      "integration_tests": 4,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase18_hitl",
+      "tests": 22,
+      "integration_tests": 4,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase19_admin",
+      "tests": 24,
+      "integration_tests": 4,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase20_security",
+      "tests": 33,
+      "integration_tests": 5,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase21_qa",
+      "tests": 22,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase4_edge_cases",
+      "tests": 16,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase6_notion_adapter_m3",
+      "tests": 17,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase6_notion_ingest",
+      "tests": 16,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase6_notion_m2",
+      "tests": 24,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase6_notion_m4_conformance",
+      "tests": 20,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase7_ai_runtime_m1",
+      "tests": 31,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase7_ai_runtime_m2",
+      "tests": 25,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase7_ai_runtime_m3",
+      "tests": 20,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase7_ai_runtime_m4",
+      "tests": 24,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase8_ai_observability",
+      "tests": 42,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_phase9_instagram",
+      "tests": 24,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    },
+    {
+      "module": "test_verification_queue",
+      "tests": 11,
+      "integration_tests": 0,
+      "e2e_tests": 0
+    }
+  ],
+  "report": {
+    "tiers": {
+      "T1_UNIT": 631,
+      "T2_SUBSYSTEM_LADDER": 44,
+      "T3_LOCAL_PG_INTEGRATION": 42,
+      "T4_FULL_E2E": 7
+    },
+    "total_tests": 724,
+    "census_total": 724,
+    "skipped": 0,
+    "failures": 0,
+    "reconciles": true,
+    "green": true,
+    "schema": "qa.tier_report.v1",
+    "generated": "2026-09-18",
+    "runs": "two consecutive green battery runs (zero-flake claim)"
+  }
+}

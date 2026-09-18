@@ -581,6 +581,26 @@ docs/
 > E2E, battery 702/702, ladder 46/46. Next: **Phase 21**.
 > Details: `docs/phases/phase-20-security-hardening.md` §7, `TODO.md`.
 
+> **Phase 21 — Testing & Quality Engineering — CLOSED (2026-09-18),
+> D-117–D-120 all owner-approved.** Deterministic QA toolkit
+> (tier taxonomy D-120, state-machine audit D-117, fault injectors
+> D-118, seeded fuzzer D-119) in `local/canonical/qa_toolkit.py`;
+> invariant battery over ALL five phase-17–20 edge matrices (closed
+> by construction); chaos battery (handler/dispatcher exceptions,
+> transient dispatch, mid-transaction PG aborts with clean-rollback
+> + audit-truth + ledger-integrity invariants, 8-thread ledger and
+> live slot-lock contention — exactly-one-winner each); 585-case
+> deterministic fuzz over every D-114 entry point with frozen
+> verdict fixtures. The regression net caught and fixed 3 shipped
+> defects (DueScanner work-starvation on the accumulating durable
+> store; a test race-key prefix collision against the never-deleted
+> `slot_lock` ledger; D-114 entry-point lint pollution) — each
+> pinned deterministically and mutation-checked. Tier census
+> reconciles exactly: T1=629 · T2=46 · T3=42 live-PG · T4=7 →
+> **battery 724/724 zero-skip, TWO consecutive green runs**;
+> ladder 46/46; AST/entropy/bounds sweeps CLEAN. Next: **Phase 22**.
+> Details: `docs/phases/phase-21-testing-quality.md` §6, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git

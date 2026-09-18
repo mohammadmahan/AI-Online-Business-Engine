@@ -2634,6 +2634,110 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Phase 9–11 synthetic mock-token prefixes; D-045 re-verified —
   zero real credentials.
 
+## D-117 — Formal state-machine invariant auditing across phases
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** Phases 12/15/17/18/19 each test their own state
+  machine in isolation; no artifact proves the edge matrices stay
+  closed (every illegal edge rejected, every legal edge accepted)
+  or that terminal states have no exits — a regression in any one
+  matrix currently surfaces only if that phase's own tests change.
+- **Decision:** a cross-phase invariant battery asserts, for EVERY
+  state machine (OMS orders, scheduling posts, business insights,
+  HITL tickets, scheduling circuit breakers):
+  (1) the legal-edge matrix is exactly the declared set;
+  (2) every undeclared (from, to) pair is rejected or refused;
+  (3) terminal states have no outgoing edges;
+  (4) state-affecting engine calls against the LIVE PG store leave
+  the durable row count unchanged when refused (no partial writes);
+  (5) crash between a durable write and its audit append is
+  reconciled by the attestation (D-115) without operator action.
+  The battery runs in every regression pass.
+- **Consequences:** edge-matrix drift in any phase fails CI-style
+  battery runs immediately; state machines can no longer regress
+  silently.
+- **Verification (Phase 21 closeout, 2026-09-18):** battery-proven
+  — all five matrices asserted closed; live-PG refused-write
+  row-count checks green; terminal states exit-less.
+
+## D-118 — Deterministic fault injection & local chaos discipline
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** rollback, retry and recovery paths exist across
+  the engines, but most are exercised only on the happy path; real
+  failures arrive unannounced and must not corrupt durable state.
+- **Decision:** a deterministic fault-injection toolkit (no
+  monkeypatching of shippable modules, no randomness, no wall
+  clock) injects failures at INJECTED seams only:
+  handler/dispatcher exceptions (Phase 19 execute path),
+  transient-then-success dispatch sequences (retry ladders),
+  mid-transaction aborts on the live PG store (crash between
+  begin and succeed leaves NO succeeded row), and concurrent
+  reader/writer contention on the HITL ledger and control-audit
+  chains. Every injection asserts three invariants: clean rollback
+  (durable state unchanged or advanced atomically), audit truth
+  (the failure is recorded, never silent), and ledger integrity
+  (attestation + verify_chain still pass after recovery).
+- **Consequences:** recovery paths are battery-proven; chaos runs
+  are reproducible and CI-safe (fully local, deterministic).
+- **Verification (Phase 21 closeout, 2026-09-18):** chaos battery
+  green — handler/dispatcher exceptions isolated, transient
+  dispatch retried-then-deduped, mid-transaction PG abort leaves
+  no succeeded row (recovery completes, dedupe holds), 8-thread
+  HITL-ledger contention and 8-thread live slot-lock race each
+  exactly-one-winner with attestation/verify_chain intact.
+
+## D-119 — Automated fuzz hardening of D-114 entry points
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** the D-114 gate and validators are hand-tested on
+  curated bad inputs; a fuzzer can find the inputs humans miss
+  (length-boundary off-by-ones, deep type confusion, absurdly
+  nested JSON, multibyte confusables).
+- **Decision:** a DETERMINISTIC mutational fuzzer (seeded corpus,
+  fixed mutation ladder, no randomness) hammers all D-114 entry
+  points — InputHardeningGate string/identifier/JSON, plus the six
+  hardened prior-phase validators — with generated adversarial
+  payloads. Invariants: ANY outcome is either a deterministic
+  Class-B/InputRejected rejection or clean acceptance; never an
+  unhandled exception type, a hang (each case executes under a
+  step-budget), or observable state mutation. Corpus and expected
+  verdicts are frozen as fixtures; the corpus grows only by
+  owner-approved additions.
+- **Verification (Phase 21 closeout, 2026-09-18):** 585
+  deterministic cases run CLEAN after the fuzzer found and the
+  engine fixed 2 real D-114 gaps (lone-surrogate
+  `UnicodeEncodeError` leak; silent acceptance of `Cs` codepoints);
+  corpus + verdicts frozen as fixtures.
+- **Consequences:** entry points are adversarially exercised on
+  every run; zero-skip discipline extends to negative-space
+  coverage.
+
+## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
+
+- **Status:** **Approved** (2026-09-17, owner-approved)
+- **Situation:** the battery has grown to 700+ tests across
+  phases; without a declared tier taxonomy, reports cannot state
+  what a green run actually covered.
+- **Decision:** the suite is organized into four declared tiers —
+  T1 Unit (pure contracts/validators), T2 Subsystem Ladder
+  (cross-module local engines), T3 Local-PG Integration (live
+  containers), T4 Full E2E (multi-engine flows) — and the QA
+  toolkit emits a machine-readable tier report (counts per tier,
+  skip census MUST be zero, wall-free runtime metrics). A run is
+  green only if: zero skipped, zero failures, deterministic seeds
+  verified (same seed = same verdicts), and the tier report
+  reconciles with the discovery census. The report is a durable
+  battery artifact, not a manual claim.
+- **Consequences:** every green run carries an auditable coverage
+  statement; skip-creep and flaky nondeterminism are structurally
+  visible.
+- **Verification (Phase 21 closeout, 2026-09-18):** census
+  reconciles exactly (724/724 across 28 modules) — T1=629 ·
+  T2=46 · T3=42 live-PG · T4=7; zero skips; TWO consecutive
+  green battery runs after fixing the last nondeterminism source
+  (test race-key collision vs the durable `slot_lock` ledger).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3283,6 +3387,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 34 | HITL approval engine & decision ledger — **D-105–D-108 (Approved 2026-09-17)**: canonical HitlReviewTicket with PENDING_REVIEW → CLAIMED → APPROVED/REJECTED/MODIFIED/ESCALATED/EXPIRED lifecycle (escalation re-queues, expiry only via deterministic sweep), PK-as-lock atomic claims over `hitl.review_tickets` + append-only hash-chained `hitl.review_ledger`, ingestion of Phase 17 DISPATCHED_TO_HITL insights, idempotent command dispatch through injected queue-type dispatchers, tamper-evident chain verification, mock local actors only (D-045). |
 | 35 | Internal tools & operator control plane — **D-109–D-112 (Approved 2026-09-17)**: closed command grammar (PAUSE/RESUME_QUEUE, RETRY_DLQ_ITEM, FORCE_SUPERSEDE_INSIGHT, MANUAL_SLOT_OVERRIDE, REPLAY_EVENTS) with deterministic local-token RBAC, ControlPlaneEngine over `admin.operator_actions` (PK-as-lock) + hash-chained `admin.control_audit` (Phase 18 tamper standard), an injected-read multi-domain state facade (DLQ/HITL/insights/assets), replay strictly dry-run unless a single-use confirmation key is supplied, DLQ retries + circuit breakers with deterministic logical-clock cool-downs, and zero cross-module imports (D-045/D-027 discipline). |
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
+| 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

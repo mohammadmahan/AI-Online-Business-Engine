@@ -120,8 +120,11 @@ class ObservabilityTests(unittest.TestCase):
                         provider="mock", model="mock-1")
         self.assertEqual(rec["schema_version"], SCHEMA_VERSION)
         self.assertEqual(rec["hitl_decision"], "none")
-        persisted = [json.loads(l) for l in open(self.path,
-                                                 encoding="utf-8")]
+        persisted = []
+        with open(self.path, encoding="utf-8") as f:
+            for l in f:
+                persisted.append(json.loads(l))
+        self.assertEqual(persisted, self.col.records())
         self.assertEqual(persisted, self.col.records())
 
     def test_malformed_records_refused_class_b(self):
@@ -172,9 +175,11 @@ class ObservabilityTests(unittest.TestCase):
 
     def test_append_only_file_view(self):
         self._rec("a")
-        first = open(self.path, encoding="utf-8").read()
+        with open(self.path, encoding="utf-8") as f:
+            first = f.read()
         self._rec("b")
-        second = open(self.path, encoding="utf-8").read()
+        with open(self.path, encoding="utf-8") as f:
+            second = f.read()
         self.assertTrue(second.startswith(first))  # lines only append
 
     def test_helpers(self):

@@ -108,11 +108,24 @@ class DueScanner:
 
     def scan(self, now_iso: str, limit: int = 100) -> Dict:
         """One scan pass at the INJECTED instant. Marks due posts and
-        bridges them to fan-out. Deterministic order (ingest_seq)."""
+        bridges them to fan-out. Deterministic order (ingest_seq).
+
+        D-095/D-096 fix (Phase 21 regression net): `limit` bounds the
+        WORK considered this pass — it must apply AFTER terminal posts
+        are skipped, never before. Applying it to the raw ref list lets
+        already-dispatched posts from prior runs consume the entire
+        budget on an accumulating durable store and starve fresh posts
+        (observed live: 15k+ events, every new post beyond the first
+        100 refs never scanned)."""
         summary = {"marked_due": 0, "dispatched": 0,
                    "bridge_failed": 0, "skipped_terminal": 0,
-                   "not_due": 0}
-        for post in self._scheduled_posts()[:limit]:
+                   "not_due": 0, "over_limit": 0}
+        for post in self._scheduled_posts():
+            if summary["marked_due"] + summary["dispatched"] \
+                    + summary["bridge_failed"] \
+                    + summary["not_due"] >= limit:
+                summary["over_limit"] += 1
+                continue
             pid = post["post_id"]
             state = self._post_state(pid)
             if state["status"] in (ST_DISPATCHED, ST_CANCELLED):

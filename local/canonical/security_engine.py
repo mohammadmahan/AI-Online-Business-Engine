@@ -96,7 +96,10 @@ def _scan_confusables(text: str, value: str) -> None:
     for ch in value:
         if ch in _CONFUSABLES:
             _reject("confusable_unicode")
-        if unicodedata.category(ch) in ("Cf", "Co", "Cn"):
+        if unicodedata.category(ch) in ("Cf", "Co", "Cn", "Cs"):
+            # Cs (surrogates) added by the Phase 21 fuzz battery: a
+            # lone surrogate accepted here would explode later at
+            # encode time with an unhandled UnicodeEncodeError
             _reject("invisible_or_unassigned_char")
 
 
@@ -144,7 +147,12 @@ class InputHardeningGate:
     def check_payload(self, data) -> bytes:
         p = self.policy
         if isinstance(data, str):
-            data = data.encode("utf-8")
+            try:
+                data = data.encode("utf-8")
+            except UnicodeEncodeError:
+                # lone surrogates etc. — deterministic rejection at
+                # the gate (fuzz-battery finding, Phase 21)
+                _reject("payload_not_encodable")
         if not isinstance(data, (bytes, bytearray)):
             _reject("payload_not_bytes")
         if len(data) > p.max_payload_bytes:
