@@ -183,9 +183,12 @@ class ProjectionEngine:
     """
 
     def __init__(self, events_source, cursor_store=None,
-                 sources=("instagram", "telegram", "oms")):
+                 sources=None):
         self.events_source = events_source
         self.cursor = cursor_store or _default_cursor_store()
+        if sources is None:
+            from canonical.analytics_contracts import ENGINE_SOURCES
+            sources = ENGINE_SOURCES
         self.sources = tuple(sources)
 
     # -- event reading -----------------------------------------------------

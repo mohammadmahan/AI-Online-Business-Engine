@@ -292,6 +292,74 @@ _BOUND_TOKENS = re.compile(
 )
 
 
+# --- channel/vendor isolation (D-131) --------------------------------------------------------
+
+#: channel/vendor identifiers whose literals must stay CONFINED to
+#: their declared home modules (D-131): routing is data/targets lists
+#: handled by the channel + orchestration registries — other canonical
+#: modules must never branch on a vendor name.
+_CHANNEL_LITERALS: Tuple[str, ...] = ("instagram", "telegram")
+
+#: declared homes where the literals are PART of the abstraction
+#: (adapter/contract/publisher modules, the Phase 11 target registry,
+#: the Phase 13 source vocabulary, the QA fuzz corpus).
+_CHANNEL_HOME_MARKERS: Tuple[str, ...] = (
+    "instagram", "telegram", "orchestration",
+    "analytics_contracts", "qa_toolkit",
+)
+
+
+def _is_channel_home(path: str) -> bool:
+    fname = os.path.basename(path)
+    return ("security_worker" in fname  # this scanner's own table
+            or any(marker in fname for marker in _CHANNEL_HOME_MARKERS))
+
+
+def channel_isolation_scan(paths: Iterable[str]) -> Dict[str, object]:
+    """D-131: channel/vendor string literals outside their declared
+    home modules are findings. This is the battery-enforced rule that
+    keeps adapter identity out of canonical workflow code — a new
+    channel is added in its own module + registries, nowhere else.
+    (This scanner's own literal table is, by construction, a home.)"""
+    findings: List[Dict[str, str]] = []
+    files_scanned = 0
+
+    def _scan_file(path: str) -> None:
+        nonlocal files_scanned
+        fname = os.path.basename(path)
+        if _is_channel_home(path):
+            files_scanned += 1
+            return  # declared home — literals are part of the abstraction
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                tree = ast.parse(fh.read(), filename=path)
+        except (SyntaxError, OSError):
+            return
+        files_scanned += 1
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                low = node.value.strip().lower()
+                if low in _CHANNEL_LITERALS:
+                    findings.append({
+                        "file": path, "line": str(node.lineno),
+                        "kind": "channel_literal_outside_home",
+                        "detail": repr(node.value),
+                    })
+
+    for p in sorted(paths):
+        if _is_test_path(p):
+            continue  # test fixtures may name channels
+        if os.path.isdir(p):
+            for dirpath, _dirnames, filenames in os.walk(p):
+                for fn in sorted(filenames):
+                    if fn.endswith(".py"):
+                        _scan_file(os.path.join(dirpath, fn))
+        elif p.endswith(".py") and os.path.isfile(p):
+            _scan_file(p)
+    return {"files_scanned": files_scanned, "findings": findings,
+            "clean": not findings}
+
+
 def bounds_re_audit(canonical_dir: str) -> Dict[str, object]:
     """Confirm every prior-phase validator module declares explicit
     bounds. A module with NO bound token is a finding (D-114 gap)."""
@@ -338,10 +406,14 @@ def full_security_sweep(project_root: str,
     ast_report = ast_sweep(targets)
     ent_report = entropy_scan(targets)
     bounds_report = bounds_re_audit(canonical_dir)
+    channel_report = channel_isolation_scan(
+        [os.path.join(project_root, "local", "canonical")])
     return {
         "ast": ast_report,
         "entropy": ent_report,
         "bounds": bounds_report,
+        "channel_isolation": channel_report,
         "clean": bool(ast_report["clean"] and ent_report["clean"]
-                      and bounds_report["clean"]),
+                      and bounds_report["clean"]
+                      and channel_report["clean"]),
     }

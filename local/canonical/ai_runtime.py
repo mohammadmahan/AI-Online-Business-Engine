@@ -179,6 +179,11 @@ class MockAiProvider(AiProvider):
                 request.prompt_payload, ensure_ascii=False)) // 4),
             "completion_tokens": max(1, len(raw) // 4),
         }
+        # D-129 token-accounting contract: the D-127 write-through reads
+        # estimated_cost; deterministic mock tariff (documented dummy).
+        usage["estimated_cost"] = round(
+            usage["prompt_tokens"] / 1000.0 * 0.5
+            + usage["completion_tokens"] / 1000.0 * 1.5, 10)
         return AiResponse(text=raw, parsed=parsed, usage=usage,
                           provider=self.name, model="mock-1",
                           finish_reason="stop", latency_ms=1)

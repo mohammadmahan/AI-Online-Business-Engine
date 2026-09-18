@@ -37,6 +37,14 @@ _SUM_KINDS = (MK_REVENUE_MINOR,)
 
 # platform sub-outcomes classified as a SERVED publication
 # (mirrors the Phase 9/10/11 outcome vocabulary)
+# declared source vocabulary (D-131 channel-isolation home): the
+#: publication channel names live HERE and nowhere else outside the
+#: channel/orchestration modules themselves.
+PUBLICATION_SOURCES = ("instagram", "telegram")
+#: the analytics engine's scan list = publication channels + the OMS
+#: domain (not a channel — a Phase 12 source).
+ENGINE_SOURCES = PUBLICATION_SOURCES + ("oms",)
+
 _PUBLISHED_OUTCOMES = ("published", "duplicate_publish_blocked")
 _FAILED_OUTCOMES = ("terminal_reject", "rejected_class_b",
                     "retries_exhausted", "chat_unreachable",
@@ -120,7 +128,7 @@ def classify_event(source_system: str, ref: Dict) -> Optional[Dict]:
     eid = str(ref.get("event_id", ""))
 
     # publication outcomes (Phases 9/10/11)
-    if src in ("instagram", "telegram") and \
+    if src in PUBLICATION_SOURCES and \
             eid.startswith((f"{src}|transition|", f"{src}|publish|")):
         outcome = ref.get("outcome") or ref.get("state")
         if outcome in _PUBLISHED_OUTCOMES:

@@ -67,7 +67,12 @@ class _JsonSlotLocks:
             data = self._load()
             existing = data.get(key)
             if existing and existing.get("active", True):
-                return {"acquired": False, "holder": existing}
+                # declared envelope (D-130 parity): identical shape to
+                # the PG backend — internal ledger fields stay internal
+                return {"acquired": False,
+                        "holder": {"post_id": existing.get("post_id", ""),
+                                   "scheduled_for":
+                                       existing.get("scheduled_for", "")}}
             # a released (superseded) slot is re-claimable — the row
             # stays as ledger history (D-096)
             rec = json.loads(json.dumps(row))

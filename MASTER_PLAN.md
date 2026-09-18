@@ -641,6 +641,26 @@ docs/
 > (fixed, re-proven, pinned). Next: **Phase 24**.
 > Details: `docs/phases/phase-23-resilience-cost.md` §6, `TODO.md`.
 
+> **Phase 24 — Vendor Lock-in & Neutral Portability — CLOSED
+> (2026-09-18), D-129–D-132 all owner-approved same-day.**
+> Portability is now a tested property, not an assertion:
+> ProviderContract conformance over the shipped provider set with
+> D-127 token write-through proven to exact metering and 100% hard
+> refusal (D-129); BackendPair parity harness — all four declared
+> pairs (event store, slot locks, notification locks, media)
+> mode=both with ZERO divergences incl. live PG, envelope
+> divergence in JSON slot-lock `claim` caught and conformed
+> (D-130); channel-adapter registry with deterministic hot-swap
+> verdicts audited through the shipped D-121 LogLedger emitter and
+> the D-131 channel-confinement AST rule joined to the D-116
+> extended sweep (D-131); `test_phase24_portability.py` 26/26
+> zero-skip incl. live-PG E2E (D-132). Battery **796/796 zero-skip,
+> two consecutive green runs + census run, zero warnings**; ladder
+> 46/46; census reconciles exactly (T1=694 · T2=44 · T3=51 · T4=7,
+> 31 modules); entropy CLEAN (122 files); canonical AST gate green;
+> stack 5/5 healthy. Next: **Phase 25**.
+> Details: `docs/phases/phase-24-vendor-lockin.md` §6, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git

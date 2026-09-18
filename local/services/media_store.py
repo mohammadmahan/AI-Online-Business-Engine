@@ -30,6 +30,10 @@ class MediaStore(ABC):
     @abstractmethod
     def head(self, object_key: str) -> dict: ...
 
+    @abstractmethod
+    def list(self) -> list:
+        """Return all object keys in the store (sorted)."""
+
 
 class LocalObjectStore(MediaStore):
     """S3-compatible emulator backend (endpoint/keys via env only).
@@ -105,6 +109,18 @@ class LocalObjectStore(MediaStore):
             if os.path.exists(p):
                 os.remove(p)
         return existed
+
+    def list(self) -> list:
+        bucket_dir = os.path.join(self.root, self.bucket)
+        keys = []
+        if os.path.isdir(bucket_dir):
+            for dirpath, _dirnames, filenames in os.walk(bucket_dir):
+                for fn in filenames:
+                    if fn.endswith(".meta.json") or fn.endswith(".tmp"):
+                        continue
+                    full = os.path.join(dirpath, fn)
+                    keys.append(os.path.relpath(full, bucket_dir))
+        return sorted(keys)
 
 
 def media_store() -> MediaStore:

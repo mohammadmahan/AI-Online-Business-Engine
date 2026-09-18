@@ -2926,9 +2926,9 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   consecutive green runs; census reconciles exactly (T1=666 ·
   T2=46 · T3=51 · T4=7, 30 modules).
 
-## D-129 — Model & provider neutrality contract (AiProvider v2) (Proposed)
+## D-129 — Model & provider neutrality contract (AiProvider v2)
 
-- **Status:** **Proposed** (2026-09-18, drafted Phase 24 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved; drafted Phase 24 M0)
 - **Situation:** the `AiProvider` boundary (Phases 7–8) is enforced
   by convention, not by a battery; provider conformance, identical
   token accounting, and zero provider-payload leakage into
@@ -2945,10 +2945,20 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** adding a provider = one interface + one harness
   pass; non-conforming providers surface as battery failures —
   lock-in becomes structurally visible.
+- **Verification (Phase 24 closeout, 2026-09-18):**
+  `assert_provider_conformance` proven for the shipped set —
+  MockAiProvider, the OpenAI/Anthropic-compatible adapters, and
+  FallbackProvider under a DECLARED composite-members rule (a
+  fallback honestly reports the responding engine; the composite
+  name is declared, not checked against it). Write-through proven
+  into the D-127 ledger: exact token/call metering and hard
+  refusal at 100% before dispatch. Conformance gap in the mock's
+  usage envelope (missing `estimated_cost`) found by the harness
+  and fixed in the provider.
 
-## D-130 — Storage & database abstraction boundaries (Proposed)
+## D-130 — Storage & database abstraction boundaries
 
-- **Status:** **Proposed** (2026-09-18, drafted Phase 24 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved; drafted Phase 24 M0)
 - **Situation:** JSON/PG parity is proven per-phase ad hoc; blob
   ops have an ABC but no conformance contract; ANSI-SQL portability
   is implied, never declared or enforced.
@@ -2964,10 +2974,19 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** backend/vendor swaps become parity-harness
   passes; hermetic memory backends remain the canonical offline
   tier.
+- **Verification (Phase 24 closeout, 2026-09-18):** all four
+  declared pairs (event store, slot locks, notification locks,
+  media) run mode=both parity with ZERO divergences, live-PG
+  included. The harness caught a real envelope divergence: JSON
+  slot-lock `claim` returned the full internal row as `holder`
+  while PG returned the declared shape — JSON conformed (consumers
+  read `post_id` only; Phase 15 battery verified unaffected).
+  `LocalObjectStore` gained `list()` per the standardized blob
+  surface and passes media conformance.
 
-## D-131 — Pluggable integration adapters (channels & tooling) (Proposed)
+## D-131 — Pluggable integration adapters (channels & tooling)
 
-- **Status:** **Proposed** (2026-09-18, drafted Phase 24 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved; drafted Phase 24 M0)
 - **Situation:** Instagram/Telegram/mock adapters and notification
   channels are injectable but lack a declared interchange protocol
   (registry, health, hot-swap semantics) and an isolation guarantee
@@ -2983,10 +3002,20 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** a new channel is one adapter + one registry
   entry + one conformance pass; vendor tentacles in canonical code
   are structurally impossible to merge unnoticed.
+- **Verification (Phase 24 closeout, 2026-09-18):** hot-swap
+  registry rebind emits deterministic verdict rows through the
+  SHIPPED `LogLedger` emitter (D-121 `engine.log.v1` shape,
+  D-124 redaction gate — no foreign row shape invented). The D-131
+  confinement rule joined the D-116 extended sweep as an allowlist
+  of declared homes (adapter modules, channel contracts, fuzz
+  corpus, scanner table); planted violations in canonical workflow
+  code are caught. Two analytics literals were relocated to their
+  single contracts home with the publication-channel vs OMS-domain
+  distinction preserved (Phase 13 battery re-verified 28/28).
 
-## D-132 — Portability & port-swapping verification battery (Proposed)
+## D-132 — Portability & port-swapping verification battery
 
-- **Status:** **Proposed** (2026-09-18, drafted Phase 24 M0)
+- **Status:** **Approved** (2026-09-18, owner-approved; drafted Phase 24 M0)
 - **Situation:** the neutrality claims of D-129..D-131 need the
   same zero-skip closure as every prior phase.
 - **Decision (proposed):** `local/tests/test_phase24_portability.py`
@@ -2998,6 +3027,15 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   battery ×2 green, census reconcile, sweeps CLEAN.
 - **Consequences:** replaceability becomes a tested, regression-
   pinned property of the platform.
+- **Verification (Phase 24 closeout, 2026-09-18):**
+  `test_phase24_portability.py` 26/26 zero-skip (offline + live-PG
+  E2E: parity mode=both against the real store, lockout fallback
+  with exact ledger metering, hot-swap audit rows). FULL battery
+  **796/796, two consecutive green runs + one census run, zero
+  warnings**; ladder 46/46; census reconciles exactly
+  (T1=694 · T2=44 · T3=51 · T4=7 = 796, 31 modules); entropy CLEAN
+  (122 files); canonical AST gate green; stack 5/5 healthy;
+  `git diff --check` PASS.
 
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
@@ -3675,7 +3713,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
-| 40 | Vendor lock-in & neutral portability — **D-129–D-132 (Proposed 2026-09-18)**: provider-neutrality contract with token-accounting write-through and conformance harness; storage/database parity boundaries (BackendPair harness, MediaStoreContract, AST-enforced SQL portability); pluggable channel-adapter interchange protocol with hot-swap registry and workflow-isolation AST rule; portability & port-swapping verification battery.
+| 40 | Vendor lock-in & neutral portability — **D-129–D-132 (Approved 2026-09-18)**: provider-neutrality contract with token-accounting write-through and conformance harness; storage/database parity boundaries (BackendPair harness, MediaStoreContract, AST-enforced SQL portability); pluggable channel-adapter interchange protocol with hot-swap registry and workflow-isolation AST rule; portability & port-swapping verification battery.
 | 39 | Resilience & cost optimization — **D-125–D-128 (Approved 2026-09-18)**: deterministic retention/compaction with verified-freeze archives (state-based eligibility, attestation-verified snapshots, fail-closed teardown, hardening_audit manifests, declared indexes + keyset reads — tamper-evidence NEVER weakened); a shared resilience envelope (D-052-bound retry policy with logical backoff, budgeted executor, psql transport concurrency ceiling with deterministic fast-fail); platform resource-budget envelopes extending D-063 semantics (≥80% warn / 100% pre-dispatch refusal, per_run/per_logical_day windows, green/yellow scopes, single consumption ledger with AI write-through); and a chaos × compaction × quota verification battery. |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).

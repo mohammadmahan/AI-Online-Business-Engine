@@ -200,3 +200,50 @@ existing seams bound IN:
    ledger (proposed) vs Phase 19 control-audit chain (owner call —
    both are defensible; the ledger keeps the audit chain
    append-only-pure for human decisions).
+
+## 6. Verification record (M4 closeout, 2026-09-18)
+
+- **Governance:** D-129–D-132 flipped Proposed → **Approved** per
+  the owner's execution order; hot-swap auditing routed to the
+  D-121 ledger as proposed (option 3 confirmed by execution).
+- **M1 (contracts):** `canonical/portability.py` +
+  `canonical/portability_contracts.py` +
+  `canonical/portability_channels.py` — pure, zero I/O imports.
+  Harness semantics proven live: parity compares only through
+  declared op matrices; envelope-shape divergence rejected; the
+  harness immediately caught a real conformance gap (mock provider
+  usage lacked `estimated_cost`) — fixed in the provider.
+- **M2 (bindings):** shipped provider set conforms (FallbackProvider
+  under the declared composite-members rule — a fallback honestly
+  reports the responding engine); D-127 write-through proven to
+  exact token/call metering with hard refusal at 100% before
+  dispatch. All four backend pairs declared and run mode=both with
+  **zero divergences** incl. live PG; the JSON slot-lock `claim`
+  envelope divergence the harness caught was conformed to the
+  declared shape (consumers read `post_id` only; Phase 15 battery
+  re-verified 24/24). `LocalObjectStore` gained `list()` per the
+  standardized blob surface; media conformance PASS.
+- **M3 (isolation):** D-131 channel-confinement rule joined the
+  D-116 extended sweep as a **declared-homes allowlist** (adapter
+  modules, channel contracts, fuzz corpus, scanner table — ground-
+  truth grounded). Planted violations in canonical workflow code
+  are caught. Two analytics literals relocated to their single
+  contracts home with the publication-channel vs OMS-domain
+  distinction preserved (Phase 13 battery re-verified 28/28);
+  the scanner skips itself.
+- **M4 (battery & closure):** `test_phase24_portability.py`
+  **26/26 zero-skip** (offline + live-PG E2E: parity mode=both
+  against the real 20k+ store, lockout ⇒ D-066 fallback with exact
+  ledger metering, hot-swap audit rows in the real D-121 ledger).
+  FULL battery **796/796, two consecutive green runs + one census
+  run, zero warnings**. Ladder 46/46. Census reconciles exactly:
+  **T1=694 · T2=44 · T3=51 · T4=7 = 796 (31 modules), green=True**.
+  Entropy CLEAN (122 files); canonical AST gate green (the wider
+  sweep's findings are the established adjudicated classes:
+  `local/scripts` tooling channel per Phase 5 precedent, the
+  Phase 22-sanctioned services I/O home for the exporter);
+  `git diff --check` PASS; stack 5/5 healthy.
+- **Standing boundary:** conformance ≠ live compatibility — no real
+  provider/channel credentials exist or were used (D-045/D-050).
+  Live OpenAI/Anthropic/Instagram/Telegram compatibility remains
+  owner-gated.
