@@ -619,7 +619,37 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
-- [ ] Phase 23 — Resilience & Cost Optimization — **M0 SPEC
+- [x] Phase 23 — Resilience & Cost Optimization — **CLOSED
+      (2026-09-18), D-125–D-128 all owner-approved same-day**:
+      D-125 compaction (`local/canonical/compaction.py`: state-based
+      eligibility, verified-freeze JSONL archives + attestation
+      folds, fail-closed teardown with count checks, manifest rows
+      in `security.hardening_audit` (`compaction_manifest` kind
+      added), `COMPACT_RETIREABLE` admin command (admin-only,
+      Phase 19 control plane), declared idempotent indexes
+      (pending-status partial, slot-lock platform+active, breaker
+      state+horizon) + keyset `keyset_scan_events`);
+      D-126 resilience (`local/canonical/resilience.py`:
+      D-052-bound RetryPolicy — jitter-free logical backoff,
+      A retry / B,C,E terminal / D quarantine; BudgetedExecutor;
+      psql transport ceiling with bounded queue + deterministic
+      `TransportSaturation` Class-A fast-fail);
+      D-127 budgets (`budget_contracts.py` + `budget_engine.py`:
+      5 resources × green/yellow, env-configurable via
+      `PHASE23_BUDGET_*`, ≥80% warn / 100% pre-dispatch refusal,
+      exact-boundary allowed, D-063 write-through, batch
+      stop-at-refusal); D-128 battery (forgery detection,
+      fail-closed compaction, saturation chaos, quota exhaustion).
+      Suite 20/20 zero-skip incl. 3 live-PG E2E (active lock
+      survives, chain attestation unchanged after compaction).
+      Battery **770/770 zero-skip, two consecutive green runs**;
+      ladder 46/46; census reconciles 770/770 across 30 modules
+      (T1=666 · T2=46 · T3=51 · T4=7); AST (93) / entropy (103)
+      CLEAN. In-batch catch: slot-lock boolean-parse defect
+      (archive preserved evidence; parser fixed, re-proven, pinned).
+      Standing gate: bounds are local/env-config; production sizing
+      stays owner-gated. Next: Phase 24 per MASTER_PLAN.
+- [x] Phase 23 — Resilience & Cost Optimization — **M0 SPEC
       REGISTERED (2026-09-18), awaiting owner approval of
       D-125–D-128**:
       Spec: `docs/phases/phase-23-resilience-cost.md` (governance

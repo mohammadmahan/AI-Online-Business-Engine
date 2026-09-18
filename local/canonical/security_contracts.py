@@ -161,7 +161,10 @@ def validate_policy(policy: Dict) -> Dict:
 # --- hardening audit record (D-113/D-115) ------------------------------------------------
 
 RECORD_KINDS = ("gate_rejection", "attestation_check",
-                "rate_limit_hit", "actor_lockout", "key_burn")
+                "rate_limit_hit", "actor_lockout", "key_burn",
+                # D-125 (approved 2026-09-18): compaction manifests are
+                # chain-anchored audit rows — retention is audited.
+                "compaction_manifest")
 
 
 def validate_record(record: Dict) -> Dict:

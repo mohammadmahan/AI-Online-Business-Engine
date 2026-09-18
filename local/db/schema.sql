@@ -609,3 +609,22 @@ CREATE TABLE IF NOT EXISTS security.hardening_audit (
     logical_at        text NOT NULL,
     recorded_at       timestamptz NOT NULL DEFAULT now()
 );
+
+-- ============================================================================
+-- Phase 23 (D-125, approved 2026-09-18): read-path cost optimization —
+-- declared, idempotent indexes for hot queries over high-volume history.
+-- No structure here weakens tamper evidence; indexes only.
+-- ============================================================================
+
+-- pending/retry scans over the event store (partial: terminal rows excluded)
+CREATE INDEX IF NOT EXISTS event_record_pending_idx
+    ON events.event_record (processing_status)
+    WHERE processing_status NOT IN ('succeeded', 'skipped_duplicate');
+
+-- slot-lock contention checks (platform + active state)
+CREATE INDEX IF NOT EXISTS slot_lock_platform_active_idx
+    ON scheduling.slot_lock (platform, active);
+
+-- breaker hygiene scans (state + logical stamp for horizon eligibility)
+CREATE INDEX IF NOT EXISTS circuit_breakers_state_idx
+    ON admin.circuit_breakers (state, tripped_at_logical);

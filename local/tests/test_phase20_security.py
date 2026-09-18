@@ -291,7 +291,9 @@ class TestM4ContractBoundary(unittest.TestCase):
         self.assertEqual(
             sorted(RECORD_KINDS),
             sorted(["gate_rejection", "attestation_check",
-                    "rate_limit_hit", "actor_lockout", "key_burn"]))
+                    "rate_limit_hit", "actor_lockout", "key_burn",
+                    # D-125: compaction manifests join the audited kinds
+                    "compaction_manifest"]))
         with self.assertRaises(SecurityContractError):
             validate_record({"record_kind": "nope", "subject": "s",
                              "actor": "a", "logical_at": "L1"})

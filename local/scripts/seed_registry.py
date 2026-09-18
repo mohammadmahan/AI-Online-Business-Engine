@@ -55,13 +55,54 @@ def container_psql(sql: str) -> str:
     return proc.stdout.strip()
 
 
+# --- D-126 transport concurrency ceiling (Phase 23) ---------------------------
+# Under upstream degradation, callers queue and then fail FAST with a
+# deterministic verdict instead of exhausting connections. The ceiling is
+# env-configurable (owner directive: bounds are environment parameters);
+# a zero/negative value disables the ceiling (single-threaded tooling).
+
+import threading  # noqa: E402
+import time as _time  # noqa: E402
+
+_CEILING_ENV = "PHASE23_PSQL_CONCURRENCY"
+_CEILING_DEFAULT = 8
+_QUEUE_WAIT_S = float(os.environ.get("PHASE23_PSQL_QUEUE_WAIT", "5"))
+_CEILING = threading.BoundedSemaphore(
+    max(1, int(os.environ.get(_CEILING_ENV, _CEILING_DEFAULT))))
+
+
+class TransportSaturation(RuntimeError):
+    """Deterministic fast-fail when the concurrency ceiling stays
+    saturated for the whole bounded wait (D-126 Class-A verdict)."""
+
+
 def q(sql: str) -> str:
-    """Run via host psql if available, else inside the container."""
+    """Run via host psql if available, else inside the container.
+
+    Gated by the D-126 concurrency ceiling: at most N concurrent psql
+    children; the rest queue up to PHASE23_PSQL_QUEUE_WAIT seconds and
+    then fail deterministically (TransportSaturation) — never a
+    connection-pool death spiral.
+    """
+    deadline = _time.monotonic() + _QUEUE_WAIT_S
+    while True:
+        if _CEILING.acquire(blocking=False):
+            break
+        if _time.monotonic() >= deadline:
+            raise TransportSaturation(
+                f"psql transport saturated (ceiling "
+                f"{int(os.environ.get(_CEILING_ENV, _CEILING_DEFAULT))}, "
+                f"wait {_QUEUE_WAIT_S}s) — deterministic fast-fail")
+        _time.sleep(0.05)
     try:
-        subprocess.run(["psql", "--version"], capture_output=True, check=True)
-        return psql(sql)
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        return container_psql(sql)
+        try:
+            subprocess.run(["psql", "--version"], capture_output=True,
+                           check=True)
+            return psql(sql)
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return container_psql(sql)
+    finally:
+        _CEILING.release()
 
 
 def verify() -> int:

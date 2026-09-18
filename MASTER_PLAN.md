@@ -619,6 +619,28 @@ docs/
 > bounds (11/11) sweeps CLEAN. Next: **Phase 23**.
 > Details: `docs/phases/phase-22-observability.md` §6, `TODO.md`.
 
+> **Phase 23 — Resilience & Cost Optimization — CLOSED (2026-09-18),
+> D-125–D-128 all owner-approved same-day.** Deterministic retention
+> & compaction (D-125: state-based eligibility, verified-freeze
+> JSONL archives with attestation folds, fail-closed teardown,
+> hardening_audit manifest rows, `COMPACT_RETIREABLE` admin command,
+> declared idempotent indexes + keyset reads — tamper evidence
+> never weakened, chain attestation verified unchanged after
+> compaction); shared resilience envelope (D-126: D-052-bound
+> RetryPolicy with jitter-free logical backoff, BudgetedExecutor,
+> psql transport concurrency ceiling with deterministic Class-A
+> fast-fail, breaker hygiene); platform resource-budget envelopes
+> (D-127: 5 resources × green/yellow, env-configurable,
+> D-063-identical ≥80% warn / 100% pre-dispatch refusal, one
+> consumption ledger with AI write-through); chaos × compaction ×
+> quota battery (D-128: forgery detection, fail-closed compaction,
+> pool saturation, quota exhaustion). Suite 20/20 zero-skip incl.
+> 3 live-PG E2E; battery **770/770 zero-skip, two consecutive
+> green runs**; ladder 46/46; AST (93 files) / entropy (103 files)
+> sweeps CLEAN. In-batch catch: slot-lock boolean-parse defect
+> (fixed, re-proven, pinned). Next: **Phase 24**.
+> Details: `docs/phases/phase-23-resilience-cost.md` §6, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git

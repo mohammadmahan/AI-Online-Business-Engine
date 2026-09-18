@@ -1,7 +1,7 @@
 # Phase 23 — Resilience & Cost Optimization (D-125–D-128)
 
-- Status: **specification (M0) — decisions PROPOSED, pending owner
-  approval; implementation gated on approval**
+- Status: **CLOSED (M0–M4, 2026-09-18) — D-125–D-128 owner-approved
+  (same day); implementation + battery complete**
 - Discipline: local-first (D-053), design-first, zero-skip testing;
   strictly localhost/air-gapped (D-045); deterministic chronology
   (injected logical clocks only — D-085/D-086/D-093/D-121 precedent);
@@ -196,12 +196,74 @@ D-127 budget_engine.py
   re-audit CLEAN; `git diff --check` PASS; stack 5/5 healthy;
   live-layer tests run (not skipped) while Colima/Docker is up.
 
-## 5. Open items for the owner
+## 5. Owner rulings (2026-09-18, recorded)
 
-1. **Approve / amend D-125..D-128** (registered as Proposed).
-2. Compaction cadence preference: per-battery-run automatic vs
-   operator-triggered via the Phase 19 control plane
-   (`COMPACT_RETIREABLE` as a new admin command is the natural
-   home — owner call).
-3. Default budget numbers for D-127 (declared dummies now; real
-   limits are owner config).
+1. **D-125–D-128 APPROVED as specified** (DECISIONS.md updated
+   Proposed → Approved; register row 39 updated).
+2. **Compaction cadence:** OPERATOR-TRIGGERED via the Phase 19
+   control plane — new `COMPACT_RETIREABLE` command (admin-only,
+   RBAC-gated, exactly-once action ids); optional automated hooks
+   only during declared maintenance windows.
+3. **Budget defaults:** declared deterministic baselines for
+   canonical suites; ALL limits env-configurable
+   (`PHASE23_BUDGET_<RESOURCE>`).
+
+## 6. Verification record (M4 closeout, 2026-09-18)
+
+**Battery:** 770/770 OK, zero skipped, zero ResourceWarnings — TWO
+consecutive full-battery runs green. Ladder 46/46. Census reconciles
+exactly (770 = 770 across 30 modules): T1=666 · T2=46 · T3=51
+live-PG · T4=7.
+
+**Suite:** `test_phase23_resilience.py` 20/20 zero-skip — 17 offline
++ 3 live-PG E2E (COMPACT_RETIREABLE on the real store: active lock
+SURVIVES, inactive removed, manifests recorded, Phase 19 chain
+attestation verified UNCHANGED after compaction; keyset pages over
+the 20k-row event store ordered + disjoint).
+
+**M1 evidence (D-125):** state-based eligibility proven; snapshot
+forgery battery (byte flip / dropped line / reordered row) all
+detected; fail-closed proven (snapshot-write failure ⇒ zero deletes;
+decode failures ⇒ Class-B `CompactionError`); empty-set noop
+auditable; delete-count mismatch halts. Declared idempotent indexes
+applied live (`event_record_pending_idx`,
+`slot_lock_platform_active_idx`, `circuit_breakers_state_idx`).
+`COMPACT_RETIREABLE` wired into the Phase 19 control plane
+(admin-only RBAC, `COMMANDS`/`PERMISSIONS` extended, Phase 20 enum
+pin updated additively).
+
+**M2 evidence (D-126):** backoff schedule jitter-free
+(`base·2^(attempt−1)`); D-052 routing (A retries → exhausted,
+B/C terminal, D quarantine, explicit `failure_class` wins);
+BudgetedExecutor refuses with zero attempts consumed; transport
+ceiling: 24 contenders / ceiling 8 ⇒ all drained via queueing
+(0.2s), and saturation fast-fails deterministically (~0.2s wait,
+no hangs) with a Class-A verdict.
+
+**M3 evidence (D-127):** 10 declared budgets (5 resources ×
+green/yellow), env overrides proven (incl. negative ⇒ Class-B);
+≥80% warning; hard refusal BEFORE the consuming call with the ledger
+unchanged; exact-boundary consume allowed; D-063 write-through (one
+event ⇒ tokens + calls rows); batch stops at first refusal; scopes
+independent; red scope refuses to exist (D-050).
+
+**In-batch defect caught by the M1 diag (fixed + pinned):** the
+slot-lock row parser accepted only `True`/`t` while PG renders
+boolean `true` — the first live run misclassified ACTIVE locks as
+eligible and archived-then-removed all 210 slot_lock rows (including
+race winners). Archive verified intact (evidence preserved,
+manifests recorded); parser fixed (`true`/`t` both accepted),
+re-proven live (active spares, inactive removed), and the M4 live
+test pins the invariant permanently. The deleted rows' slots become
+claimable again — harmless in the local stack (re-claimable
+namespace), documented here for the record.
+
+**Audit gates:** extended AST sweep CLEAN (93 files, 0 findings),
+secret-entropy scan CLEAN (103 files, 0 flags), bounds re-audit
+CLEAN, `git diff --check` PASS, stack 5/5 healthy.
+
+**Standing owner gate:** all compaction/budget/ceiling bounds are
+LOCAL and env-configurable; Phase 23 passing does NOT prove
+compatibility with real infrastructure sizing (production PG
+vacuum/retention policy, real cloud quotas) — that remains an
+owner-gated configuration exercise.
