@@ -619,6 +619,29 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [ ] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **M0
+      SPEC REGISTERED (2026-09-18), D-133–D-136 PROPOSED pending
+      owner approval; implementation GATED** (full spec:
+      `docs/phases/phase-25-full-system-test.md`):
+      - D-133 (Proposed) — end-to-end flow orchestration: pure
+        10-stage conductor (`e2e_conductor.py`, all adapters
+        injected) over declared stage envelopes with unbroken D-121
+        trace context and zero schema mutation.
+      - D-134 (Proposed) — deterministic chaos ladder at every
+        boundary: channel outage, AI budget refusal, media fault,
+        lock contention, payment-verify failure; exact D-052
+        classes, breaker engagement, exact-ledger rollback,
+        recovery via retry/replay only.
+      - D-135 (Proposed) — state reconciliation & self-healing:
+        outbox replay from D-027 (exactly-once), stranded-lock
+        sweeps, compaction recovery, crash-restart from durable
+        stores only.
+      - D-136 (Proposed) — full-spectrum battery:
+        `test_phase25_full_system.py`, offline-hermetic + live-PG
+        E2E classes, zero-skip acceptance gates, battery ×2 green.
+      - Milestones: M0 spec → M1 conductor → M2 fault/recovery
+        wiring → M3 battery → M4 gates & closure; implementation
+        GATED on owner approval of D-133–D-136.
 - [x] Phase 24 — Vendor Lock-in & Neutral Portability Layer — **CLOSED
       (2026-09-18), D-129–D-132 all owner-approved same-day**:
       D-129 neutrality (`canonical/portability.py` `ProviderContract`;
