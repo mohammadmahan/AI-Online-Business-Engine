@@ -2816,6 +2816,86 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   payload keys redacted, control chars rejected Class-B, oversized
   fields marked `…[TRUNC]`, probe details pass the same gate.
 
+## D-125 — Deterministic retention, compaction & verified-freeze archives
+
+- **Status:** **Proposed** (2026-09-18, drafted Phase 23 M0 —
+  implementation gated on owner approval)
+- **Situation:** durable tables grow unboundedly (event_record
+  20,561 rows measured 2026-09-18; breaker residue 82/82 non-CLOSED
+  and climbing with every battery run); growth is a cost and
+  read-path performance liability, but naive deletion would break
+  D-096/D-112/D-115 tamper-evidence.
+- **Decision:** retention by STATE, not age — only terminal rows
+  (terminal processing_status, resolved tickets, superseded slot
+  locks) are eligible; verified-freeze snapshot (JSONL archive +
+  full-set attestation fold — an archive that doesn't verify is
+  refused Class-B and NOTHING is removed); one-batch teardown then
+  live-chain re-verify (any mismatch halts the compactor fail-closed);
+  every run appends a manifest to security.hardening_audit;
+  compaction is never used to weaken evidence — it exists so the
+  evidence stays affordable. Read-path cost: declared idempotent
+  indexes + keyset-paginated reads (no OFFSET scans).
+- **Consequences:** storage bounded, tamper-evidence intact, every
+  compaction audited; read paths stop degrading with history size.
+
+## D-126 — Resilience envelope: breaker hygiene, bounded retries, deterministic backoff
+
+- **Status:** **Proposed** (2026-09-18, drafted Phase 23 M0 —
+  implementation gated on owner approval)
+- **Situation:** breaker rows accumulate (82/82 non-CLOSED residue);
+  retry/backoff is ad hoc per engine; the psql transport has no
+  declared concurrency ceiling, so upstream degradation can exhaust
+  connections instead of failing deterministically.
+- **Decision:** breaker rows tied to resolved incidents (or beyond a
+  declared logical horizon) become D-125-compactable; a shared
+  deterministic `RetryPolicy` (logical backoff `base*2^(attempt-1)`,
+  jitter FORBIDDEN, classes bound to D-052: A retryable, B/C/E
+  terminal, D quarantined) and `BudgetedExecutor` (refuses when the
+  retry/failure budget is exhausted) unify engine behavior; the psql
+  transport gains a semaphore ceiling with bounded-queue fast-fail
+  (deterministic Class-A verdict, zero hangs — chaos-proven).
+- **Consequences:** one retry semantic across engines; breaker
+  residue governed; degradation is deterministic, never a cascade.
+
+## D-127 — Platform resource-budget envelopes
+
+- **Status:** **Proposed** (2026-09-18, drafted Phase 23 M0 —
+  implementation gated on owner approval)
+- **Situation:** D-063 guards AI spend only; container CPU/memory,
+  LLM token quotas per batch, and API-call budgets on green/yellow
+  paths have no owner-approved bounds — "cost control" exists for
+  exactly one resource class (MASTER_PLAN §13 Phase 23 mandate).
+- **Decision:** canonical `ResourceBudget` (named resource, limit,
+  window per_run/per_logical_day, scope green/yellow) + deterministic
+  `BudgetLedger` (append-only consumption rows on the logical
+  timeline) with D-063-identical enforcement: ≥80% ⇒
+  `budget_warning`, 100% ⇒ refusal BEFORE the consuming call,
+  always active, never ledger-gated. D-063's AI meter writes through
+  to the same ledger — one consumption record for ALL resource
+  classes; defaults are declared dummies (D-045-safe), real limits
+  are owner config.
+- **Consequences:** overrun of any budget structurally impossible
+  without an owner-approved config change; AI + platform spend
+  visible in one ledger.
+
+## D-128 — Phase 23 verification battery (chaos × compaction × quota)
+
+- **Status:** **Proposed** (2026-09-18, drafted Phase 23 M0 —
+  implementation gated on owner approval)
+- **Situation:** the new failure modes (mid-compaction crash,
+  archive forgery, quota exhaustion mid-batch, pool saturation) need
+  battery-proven closure.
+- **Decision:** `local/tests/test_phase23_resilience.py` — offline +
+  live-PG classes: compaction edges (empty set, active rows present,
+  snapshot-verify failure ⇒ nothing removed, mid-teardown crash ⇒
+  fail-closed + audited), archive forgery (flipped byte ⇒ verify
+  fails), breaker hygiene, retry vectors, pool-saturation chaos
+  (deterministic refusal, zero hangs), quota exhaustion (hard
+  refusal pre-call, soft warning at 80%); full regression + census
+  reconcile; two consecutive green runs.
+- **Consequences:** the new surfaces close under the same
+  zero-skip discipline as every prior phase.
+
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3492,6 +3572,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
+| 39 | Resilience & cost optimization — **D-125–D-128 (Proposed 2026-09-18, pending owner approval)**: deterministic retention/compaction with verified-freeze archives (state-based eligibility, attestation-verified snapshots, fail-closed teardown, hardening_audit manifests, declared indexes + keyset reads — tamper-evidence NEVER weakened); a shared resilience envelope (D-052-bound retry policy with logical backoff, budgeted executor, psql transport concurrency ceiling with deterministic fast-fail); platform resource-budget envelopes extending D-063 semantics (≥80% warn / 100% pre-dispatch refusal, per_run/per_logical_day windows, green/yellow scopes, single consumption ledger with AI write-through); and a chaos × compaction × quota verification battery. |
 
 Nothing in this register may be resolved silently (PROJECT_RULES §4).
 Only the human owner approves decisions; D-014, D-015, D-017, D-018,

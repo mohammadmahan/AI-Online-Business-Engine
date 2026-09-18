@@ -619,6 +619,29 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [ ] Phase 23 — Resilience & Cost Optimization — **M0 SPEC
+      REGISTERED (2026-09-18), awaiting owner approval of
+      D-125–D-128**:
+      Spec: `docs/phases/phase-23-resilience-cost.md` (governance
+      reconciliation vs MASTER_PLAN §13 "Cost Control", live
+      growth evidence: event_record 20,561 rows, breaker residue
+      82/82 non-CLOSED). PROPOSED decisions: **D-125**
+      deterministic retention/compaction via verified-freeze
+      archives (state-based eligibility, attestation-verified
+      snapshots, fail-closed teardown, hardening_audit manifests,
+      declared indexes + keyset reads — tamper-evidence NEVER
+      weakened); **D-126** resilience envelope (D-052-bound
+      RetryPolicy with logical backoff, BudgetedExecutor, psql
+      transport concurrency ceiling with deterministic fast-fail,
+      breaker-hygiene compaction); **D-127** platform
+      resource-budget envelopes (D-063-identical ≥80% warn / 100%
+      pre-dispatch refusal, per_run/per_logical_day windows,
+      green/yellow scopes, single consumption ledger with AI
+      write-through); **D-128** chaos × compaction × quota battery.
+      Owner items: approve/amend D-125..D-128; compaction cadence
+      (per-run automatic vs control-plane `COMPACT_RETIREABLE`
+      command); default budget numbers. Implementation M1–M4
+      starts ONLY after approval.
 - [x] Phase 22 — Observability & Health Telemetry — **CLOSED
       (2026-09-18), D-121–D-124 all owner-approved**:
       D-121 log ledger (`local/canonical/obs_contracts.py`:
