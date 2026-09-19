@@ -696,6 +696,19 @@ docs/
 > NOT a launch**; live activation requires separate explicit
 > one-time owner authorization. Next: **Phase 27**.
 > Details: `docs/phases/phase-26-launch.md` §8, `TODO.md`.
+>
+> **Phase 26 extension — resilience drill operationalized
+> (2026-09-19).** BAC-001 is now a first-class operator command
+> (`local/scripts/resilience_drill.py`): six-stage lifecycle —
+> scoped seed+fold → D-125 archive+verify → counted purge →
+> rehydration → byte-equal verification → EV-BAC-001 certification —
+> with CLI/JSON status output, run-scoped isolation, and fail-closed
+> behavior on every fault path (drill failure ⇒ NEGATIVE evidence ⇒
+> BAC-001 blocks ⇒ NO_GO). Drill evidence feeds the D-137 matrix via
+> `canonical_matrix(drill_result=…)` → the D-138 bundle. Battery
+> **870/870 ×2 green, zero warnings**; census (canonical D-120
+> toolkit) T1=754 · T2=44 · T3=62 · T4=10 = 870 (34 modules);
+> AST/entropy CLEAN; stack 5/5. Details: §9 of the phase doc.
 
 ### Phase 0 --- Foundation
 
@@ -852,7 +865,9 @@ monitoring, escalation, end-to-end, and recovery checks pass.
 
 > Status: **closed (launch candidate `f6d0904`+; verdict machinery
 > shipped, no activation performed)** — see the blockquote above and
-> `docs/phases/phase-26-launch.md` §8.
+> `docs/phases/phase-26-launch.md` §8. Recovery rehearsal
+> operationalized as the `resilience_drill.py` operator command
+> (phase doc §9); drill evidence feeds the launch matrix (D-137/D-138).
 
 ### Phase 27 --- Optimization
 

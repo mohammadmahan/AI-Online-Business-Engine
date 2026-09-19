@@ -95,13 +95,17 @@ class EvidenceCollector:
             f"entropy={entropy_report.get('files_scanned', 0)}")
 
     def restore_rehearsal_evidence(self, write_ok: bool,
-                                   verify_ok: bool) -> EvidenceRecord:
+                                   verify_ok: bool,
+                                   detail: str = "write+verify snapshot "
+                                                 "rehearsal") -> EvidenceRecord:
         """BAC-001: a backup counts ONLY after a successful restore —
-        verified-freeze write + attested verification (D-125)."""
+        verified-freeze write + attested verification (D-125). The
+        operator resilience drill supplies its structured outcome as
+        `detail` when this evidence comes from a real rehearsal."""
         return self._record(
             "EV-BAC-001", "commit_bound", bool(write_ok and verify_ok),
             "d125-verified-freeze-rehearsal",
-            "write+verify snapshot rehearsal")
+            detail)
 
     def gate_config_evidence(self, evidence_id: str, key: str,
                              reference: str) -> Optional[EvidenceRecord]:
@@ -148,7 +152,8 @@ def canonical_matrix(collector: EvidenceCollector, *,
                      bounds_report: Dict, restore_ok: bool,
                      probes_report: Dict, escalation_cfg: Dict,
                      battery_ok: bool, census_ok: bool,
-                     ladder_ok: bool) -> LaunchMatrix:
+                     ladder_ok: bool,
+                     drill_result: Optional[Dict] = None) -> LaunchMatrix:
     """The canonical nine-domain control matrix with evidence bound
     from the measured results (D-137)."""
     specs = (
@@ -184,9 +189,29 @@ def canonical_matrix(collector: EvidenceCollector, *,
         "EV-PAY-001", "payment_capture_enabled", "launch-config")
     shp = collector.gate_config_evidence(
         "EV-SHI-001", "shipping_purchase_enabled", "launch-config")
+    # BAC-001 from the operator resilience drill when a structured
+    # drill result is supplied (real rehearsal evidence, D-140): the
+    # write gate is stages 1-2, the verify gate stages 2+4, and the
+    # overall verdict must hold — any failed stage is NEGATIVE
+    # evidence (fail closed), never a pass.
+    if drill_result is not None:
+        stage_ok = {s["index"]: bool(s["ok"])
+                    for s in drill_result.get("stages", ())}
+        write_ok = all(stage_ok.get(i, False) for i in (1, 2))
+        verify_ok = all(stage_ok.get(i, False) for i in (2, 4))
+        bac_ok = bool(drill_result.get("ok")) and write_ok and verify_ok
+        bac_detail = (
+            f"operator drill {drill_result.get('verdict', 'UNKNOWN')} "
+            f"stages={len(stage_ok)} "
+            "evidence=" + drill_result.get("evidence", {}).get(
+                "evidence_id", "EV-BAC-001"))
+        restore_ok = bac_ok
+    else:
+        bac_detail = "write+verify snapshot rehearsal"
     evidence = {
         "SEC-001": collector.sweep_evidence(ast_report, entropy_report, bounds_report),
-        "BAC-001": collector.restore_rehearsal_evidence(restore_ok, restore_ok),
+        "BAC-001": collector.restore_rehearsal_evidence(
+            restore_ok, restore_ok, detail=bac_detail),
         "PAY-001": pay,
         "INV-001": collector.battery_evidence(
             "EV-INV-001", "phase12-battery", battery_ok=battery_ok,

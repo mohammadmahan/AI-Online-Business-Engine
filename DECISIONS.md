@@ -3188,6 +3188,13 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   rehearsal debris pruned, Phase 19-23 chain history intact
   (rows 1-432, verify_chain ok). Result: launch CANDIDATE
   only - no activation performed.
+- **Verification (Operator drill, 2026-09-19):** the resilience
+  drill is now the `resilience_drill.py` operator command
+  (six-stage lifecycle, CLI/JSON status dashboard, run-scoped
+  isolation, fail-closed on every fault path — verified by fault
+  injection). Drill evidence feeds the D-137 matrix as real
+  BAC-001 rehearsal evidence (a FAILED drill blocks BAC-001 ⇒
+  NO_GO). Suite 10/10 ×2; battery 870/870 ×2 green.
 - **Verification (Resilience drill, 2026-09-19):** catastrophic-
   recovery drill shipped and PASSED — a real D-027 store flow
   archived with the D-125 verified-freeze primitives, PROVEN
@@ -3298,6 +3305,13 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   rehearsal debris pruned, Phase 19-23 chain history intact
   (rows 1-432, verify_chain ok). Result: launch CANDIDATE
   only - no activation performed.
+- **Verification (Operator drill, 2026-09-19):** the resilience
+  drill is now the `resilience_drill.py` operator command
+  (six-stage lifecycle, CLI/JSON status dashboard, run-scoped
+  isolation, fail-closed on every fault path — verified by fault
+  injection). Drill evidence feeds the D-137 matrix as real
+  BAC-001 rehearsal evidence (a FAILED drill blocks BAC-001 ⇒
+  NO_GO). Suite 10/10 ×2; battery 870/870 ×2 green.
 - **Verification (Resilience drill, 2026-09-19):** catastrophic-
   recovery drill shipped and PASSED — a real D-027 store flow
   archived with the D-125 verified-freeze primitives, PROVEN

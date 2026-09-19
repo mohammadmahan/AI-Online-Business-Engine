@@ -649,7 +649,13 @@ these even if they seem helpful:
       resilience drill — catastrophic recovery (destroy → restore →
       verify over the live D-027 store via the D-125 verified-freeze
       primitives; forged/missing archives fail closed) — shipped and
-      PASSED (4/4 ×2 green, zero skips, `EV-BAC-001` evidence).
+      PASSED, then OPERATIONALIZED as the `resilience_drill.py`
+      operator command (six-stage lifecycle, CLI/JSON dashboard,
+      run-scoped, fail-closed on every fault path) with drill
+      evidence wired into the launch matrix (`canonical_matrix(
+      drill_result=…)` → BAC-001 → D-138 bundle). Suite 10/10 ×2;
+      battery 870/870 ×2 green; census T1=754 · T2=44 · T3=62 ·
+      T4=10 = 870 (34 modules); sweeps CLEAN; stack 5/5.
 - [x] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **CLOSED
       (2026-09-18), D-133–D-136 all owner-approved same-day**:
       D-133 conductor (`canonical/e2e_contracts.py` +

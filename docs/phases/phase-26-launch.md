@@ -284,3 +284,43 @@ Totals were always exact; only the tier split was mis-recorded.
   `events.event_record` D-027 store (run-scoped namespace only)
 - Exclusions: production rows untouched; rehearsal namespaced and
   cleaned; no wall-clock identity material (D-085/D-093).
+
+### Operationalization — operator command & matrix integration (2026-09-19)
+
+**Command:** `local/scripts/resilience_drill.py`
+(`--events N`, `--json`; exits 2 when the stack is unhealthy — fail
+closed before stage 1). Six-stage lifecycle, each stage
+machine-checked with structured status output:
+
+1. Scoped seed & canonical fold capture (real D-027 API;
+   run-scoped namespace — live production state is never touched)
+2. Snapshot archiving & verification (D-125 verified-freeze gate)
+3. Controlled scope purge (counted `DELETE … RETURNING` —
+   destruction proven; global store count reconciles)
+4. Rehydration from the re-verified snapshot (idempotent inserts,
+   original `ingest_seq` preserved)
+5. Byte-equal fold & storage verification (records, references,
+   ordering, zero collateral rows)
+6. Evidence certification (EV-BAC-001, commit + fingerprint bound)
+
+**Fail-closed properties (fault-injection-tested):** a failure at
+ANY stage — before or after the archive verifies — yields verdict
+`FAILED` and NEGATIVE evidence; the namespace is always cleaned.
+The verdict is recomputed from the stage list on every path (a
+fail-open regression caught by fault injection was fixed and is
+pinned by the battery).
+
+**Matrix integration (D-137/D-138):**
+`canonical_matrix(..., drill_result=<structured result>)` derives
+BAC-001 from the real rehearsal: write gate = stages 1–2, verify
+gate = stages 2+4, overall = drill ok. A FAILED drill blocks
+BAC-001 ⇒ NO_GO — disaster-recovery readiness now rests on real,
+repeatable rehearsal evidence rather than a caller's boolean.
+
+**Battery:** `test_phase26_resilience_drill.py` 10/10 ×2 green
+(5 offline + 5 live-PG: lifecycle, debris-free guarantee, fault
+injection, CLI JSON contract, matrix integration). Full battery
+**870/870 ×2 green, zero warnings**; census (canonical D-120
+toolkit) **T1=754 · T2=44 · T3=62 · T4=10 = 870 (34 modules),
+green=True**; AST CLEAN (72 files) / entropy CLEAN (118 files);
+`git diff --check` PASS; stack 5/5 healthy.
