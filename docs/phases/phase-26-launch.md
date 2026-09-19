@@ -163,4 +163,68 @@ evidence pack generated from canonical results with attestation hash.
 
 ## 8. Verification record
 
-_To be appended at M4 closeout._
+- Date: 2026-09-19 · Decisions D-137–D-140 **APPROVED** (owner,
+  2026-09-19, all six ruling points applied).
+- **M1 — contracts & evaluator** (`canonical/launch_contracts.py`,
+  `canonical/launch_evaluator.py`): closed control-state tuple
+  (`PASS/FAIL/BLOCKED/NOT_APPLICABLE`), mandatory/severity flags,
+  evidence-validity model (commit-bound, config-bound, logical
+  expiry, human-attested), secret-free config fingerprint
+  (D-124 redaction gate on the fingerprint path), fail-closed
+  evaluator — missing/malformed/stale/unbound/contradictory evidence
+  is NEVER a pass; verdicts `GO` / `CONDITIONAL_GO` (limited-scope
+  only) / `NO_GO`; attestation hash over (matrix version, candidate
+  commit, config fingerprint, evidence, findings, verdict, approval
+  state); byte-identical canonical output for identical inputs.
+- **M2 — activation & evidence** (`canonical/launch_activation.py`,
+  `canonical/launch_evidence.py`): DRAFT → ASSESSED → (NO_GO |
+  GO_ATTESTED) → OWNER_APPROVED → DRY_RUN → CANARY → OBSERVING →
+  PROMOTED, illegal transitions deterministic-rejected; one-time
+  context-bound approval tokens with owner nonce (replay/expiry/
+  mismatch/consumed rejected; durable burn in the D-027 store);
+  rollback reachable from CANARY/OBSERVING (every side-effect-capable
+  state); kill-switch; dry-run zero-side-effect guard; machine
+  telemetry → D-121 `engine.log.v1`, human approvals → Phase 19
+  hash-chained `admin.control_audit` via the new public
+  `append_external_audit` (D-112 tamper-evident). Nine-domain
+  canonical matrix + collectors over existing surfaces (Phase 20
+  sweeps, D-123 probes, D-125 compaction/restore rehearsal,
+  D-127/D-128 budgets, Phase 25 conductor evidence).
+- **M3 — battery** (`local/tests/test_phase26_launch.py`): **46/46
+  zero-skip** (43 offline-hermetic + 3 live-PG) — matrix evaluation,
+  fail-closed paths, verdict determinism, commit/config binding,
+  redaction, approval replay/expiry/mismatch/consumption, dry-run
+  safety, canary ceilings, rollback ordering + reconciliation,
+  live chain verification + durable burn in real PostgreSQL.
+- **M4 — gates**: battery **860/860, two consecutive green runs,
+  zero warnings**; ladder 46/46; census reconciles exactly
+  (**T1=710 · T2=46 · T3=56 · T4=13 = 860, 33 modules, green=True**);
+  AST CLEAN (107 files) / entropy CLEAN (107 files) / channel
+  isolation CLEAN (72 files); `git diff --check` PASS; stack 5/5
+  healthy.
+- **Live-leg defects found & fixed in-batch** (all pinned by tests):
+  1. `PgVault.append_audit` relied on the PG sequence default for
+     `audit_seq` while `row_hash` embedded the Python-side seq —
+     any delete (retention) silently diverged them and broke the
+     chain for every later row. Fixed: `audit_seq` inserted
+     explicitly, with a `::bigint` cast for the text-transport
+     psql boundary.
+  2. PG audit rows stored the string `'None'` for NULL command/
+     target (psql transport cannot carry SQL NULL) while the JSON
+     vault preserved real `None` — a Phase 24-style parity gap.
+     Fixed with the `_norm_none`/`_denorm_none` sentinel in BOTH
+     vaults (`'None'` is never a legal command).
+  3. Rehearsal debris from pre-fix runs (rows 433–454) was pruned
+     after verification; Phase 19–23 history (rows 1–432) verified
+     intact — `verify_chain() → {'ok': True, 'rows': 432}`.
+- **Suite-found engine defects fixed in-batch**: fail-open
+  aggregation over missing evidence (empty contract set ⇒ GO),
+  DRY_RUN/OBSERVING wrongly token-gated (they are zero-side-effect;
+  the side-effect-capable transitions are CANARY/OBSERVING-entry/
+  PROMOTED), replay-deadlocked approval context (owner nonce added
+  — context-bound yet fresh per attempt), OBSERVING rollback
+  reachability.
+- **Result: launch candidate established — NOT a launch.** The
+  deterministic verdict machinery is shipped and attested; live
+  production activation requires a separate, explicit, one-time
+  owner authorization (D-139).

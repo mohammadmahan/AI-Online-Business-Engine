@@ -2933,7 +2933,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   by convention, not by a battery; provider conformance, identical
   token accounting, and zero provider-payload leakage into
   canonical state are unproven properties.
-- **Decision (proposed):** `ProviderContract` in
+- **Decision:** `ProviderContract` in
   `canonical/portability.py` — deterministic `name`; schema-
   compatible `generate` for every declared schema id; token
   accounting always present and WRITE-THROUGH to the D-127 ledger
@@ -2962,7 +2962,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Situation:** JSON/PG parity is proven per-phase ad hoc; blob
   ops have an ABC but no conformance contract; ANSI-SQL portability
   is implied, never declared or enforced.
-- **Decision (proposed):** `BackendPair` + `assert_backend_parity`
+- **Decision:** `BackendPair` + `assert_backend_parity`
   — the SAME operation script runs against both factories of each
   declared pair (event store, slot locks, notification locks) and
   normalized verdicts must match; `MediaStoreContract` declares
@@ -2991,7 +2991,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   channels are injectable but lack a declared interchange protocol
   (registry, health, hot-swap semantics) and an isolation guarantee
   against vendor literals leaking into canonical workflows.
-- **Decision (proposed):** `ChannelAdapterContract` — deterministic
+- **Decision:** `ChannelAdapterContract` — deterministic
   `name`, mock/live variant pairs with IDENTICAL envelope shapes,
   D-052 failure classes, hot-swap = registry rebind with a
   deterministic verdict (`swapped_from`/`swapped_to`/
@@ -3018,7 +3018,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Status:** **Approved** (2026-09-18, owner-approved; drafted Phase 24 M0)
 - **Situation:** the neutrality claims of D-129..D-131 need the
   same zero-skip closure as every prior phase.
-- **Decision (proposed):** `local/tests/test_phase24_portability.py`
+- **Decision:** `local/tests/test_phase24_portability.py`
   — provider conformance + token write-through into D-127, backend
   parity across all declared pairs (offline always, live-PG while
   the stack is up), media conformance, hot-swap verdicts, simulated
@@ -3045,7 +3045,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   conversation → discovery → cart/order → payment → verification →
   inventory → shipping → notification → analytics — has never been
   executed as ONE traced flow with failure/recovery at every step.
-- **Decision (proposed):** `canonical/e2e_conductor.py` +
+- **Decision:** `canonical/e2e_conductor.py` +
   `canonical/e2e_contracts.py` — a PURE 10-stage conductor (all
   adapters/stores injected, RULES §35) over declared stage
   envelopes; a D-121 `TraceContext` root created at lead capture
@@ -3072,7 +3072,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Situation:** phases proved fault handling locally (retry
   ladders, budget refusals, dead-letters, breaker rows), but never
   at every boundary of ONE end-to-end flow.
-- **Decision (proposed):** structured, reproducible injections via
+- **Decision:** structured, reproducible injections via
   the Phase 21 `FaultScript` at each lifecycle boundary — channel
   outage (Class-A retry recovery), AI budget refusal at 100%
   (pre-dispatch, zero provider calls), media-store fault at fan-out
@@ -3102,7 +3102,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Situation:** durable-only reconstruction is asserted per phase
   (Phase 6/17 idempotency, Phase 23 compaction); interrupted-
   process scenarios across the full flow are not yet exercised.
-- **Decision (proposed):** outbox reconciliation (fault between
+- **Decision:** outbox reconciliation (fault between
   durable event write and downstream effect → replay from D-027
   with exactly-once semantics via idempotency keys);
   stranded-lock sweeps (crashed holder reclaimed deterministically,
@@ -3128,7 +3128,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Situation:** the T4 census tier exists (7 tests) but no
   multi-stage full-flow battery over offline-hermetic AND live-PG
   environments.
-- **Decision (proposed):** `tests/test_phase25_full_system.py`
+- **Decision:** `tests/test_phase25_full_system.py`
   with an offline-hermetic E2E class (full 10-stage flow on
   JSON/memory backends + mock adapters: happy path + every D-134
   fault + D-135 reconciliation scenario) and a live-PG E2E class
@@ -3151,13 +3151,13 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-137 — Launch readiness control matrix
 
-- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
 - **Situation:** MASTER_PLAN §13 gates Phase 26 (Launch) on nine
   check domains — security, backups, payment, inventory, shipping,
   monitoring, escalation, end-to-end, recovery — but no canonical,
   machine-verifiable control matrix exists; readiness today is
   implicit in scattered battery/sweep evidence.
-- **Decision (proposed):** one canonical, versioned control matrix
+- **Decision:** one canonical, versioned control matrix
   covering all nine domains. Every control: stable id (`SEC-*`,
   `BAK-*`, `PAY-*`, `INV-*`, `SHP-*`, `MON-*`, `ESC-*`, `E2E-*`),
   owner ROLE (configuration, never hard-coded identities), severity,
@@ -3177,18 +3177,40 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   recovery). Evidence-validity model: commit-bound, configuration-
   bound, logically-expiring, and human-attested classes; staleness
   computed from declared logical horizons — never wall clock.
+- **Verification (Phase 26 closeout, 2026-09-19):** shipped
+  and battery-attested. Suite 46/46 zero-skip (43 offline +
+  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
+  zero warnings; ladder 46/46; census reconciles exactly
+  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
+  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+  defects fixed in-batch: explicit audit_seq insert with
+  ::bigint cast, None-sentinel parity (PG vs JSON vault);
+  rehearsal debris pruned, Phase 19-23 chain history intact
+  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
+  only - no activation performed.
 
 ## D-138 — Deterministic Go/No-Go attestation
 
-- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
 - **Situation:** launch decisions need a deterministic, immutable,
   fail-closed verdict derived from the D-137 matrix, bound to the
   exact candidate commit and configuration, with no silent passes.
-- **Decision (proposed):** a PURE canonical evaluator over the
+- **Decision:** a PURE canonical evaluator over the
   matrix producing `GO` (all mandatory controls PASS, no blockers),
   `CONDITIONAL_GO` (only for explicitly declared limited-scope /
   non-production activation — never silently full production), or
-  `NO_GO` (any mandatory FAIL/BLOCKED/stale/unevaluable). Properties:
+  `NO_GO` (any manda
+- **Verification (Phase 26 closeout, 2026-09-19):** shipped
+  and battery-attested. Suite 46/46 zero-skip (43 offline +
+  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
+  zero warnings; ladder 46/46; census reconciles exactly
+  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
+  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+  defects fixed in-batch: explicit audit_seq insert with
+  ::bigint cast, None-sentinel parity (PG vs JSON vault);
+  rehearsal debris pruned, Phase 19-23 chain history intact
+  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
+  only - no activation performed.tory FAIL/BLOCKED/stale/unevaluable). Properties:
   fail closed; stable finding ordering; identical inputs ⇒
   byte-identical output; evidence bound to candidate commit +
   configuration fingerprint (secrets excluded, D-124); machine +
@@ -3201,11 +3223,22 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-139 — Controlled activation, canary & rollback protocol
 
-- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
 - **Situation:** production activation must be a sequence of
-  independently gated, reversible steps — never one global switch —
+  independently gated, reversible steps — never one global switch
+- **Verification (Phase 26 closeout, 2026-09-19):** shipped
+  and battery-attested. Suite 46/46 zero-skip (43 offline +
+  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
+  zero warnings; ladder 46/46; census reconciles exactly
+  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
+  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+  defects fixed in-batch: explicit audit_seq insert with
+  ::bigint cast, None-sentinel parity (PG vs JSON vault);
+  rehearsal debris pruned, Phase 19-23 chain history intact
+  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
+  only - no activation performed. —
   with tested rollback at every side-effect-capable state.
-- **Decision (proposed):** activation state machine `DRAFT →
+- **Decision:** activation state machine `DRAFT →
   ASSESSED → (NO_GO | GO_ATTESTED) → OWNER_APPROVED → DRY_RUN →
   CANARY → OBSERVING → PROMOTED`, with `ROLLING_BACK → ROLLED_BACK`
   reachable from every side-effect-capable state and illegal
@@ -3227,11 +3260,22 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 
 ## D-140 — Launch verification battery & operational evidence pack
 
-- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real produ
+- **Verification (Phase 26 closeout, 2026-09-19):** shipped
+  and battery-attested. Suite 46/46 zero-skip (43 offline +
+  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
+  zero warnings; ladder 46/46; census reconciles exactly
+  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
+  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+  defects fixed in-batch: explicit audit_seq insert with
+  ::bigint cast, None-sentinel parity (PG vs JSON vault);
+  rehearsal debris pruned, Phase 19-23 chain history intact
+  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
+  only - no activation performed.ction activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
 - **Situation:** the launch verdict itself needs a dedicated,
   zero-skip battery and a durable, machine-readable evidence pack
   generated from canonical results only.
-- **Decision (proposed):** `tests/test_phase26_launch.py` covering:
+- **Decision:** `tests/test_phase26_launch.py` covering:
   matrix schema/completeness; fail-closed handling of missing,
   stale, malformed, contradictory evidence; deterministic verdicts;
   exact commit + config-fingerprint binding; secret-redacted
@@ -3928,7 +3972,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
-| 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Proposed 2026-09-19)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
+| 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
 | 40 | Vendor lock-in & neutral portability — **D-129–D-132 (Approved 2026-09-18)**: provider-neutrality contract with token-accounting write-through and conformance harness; storage/database parity boundaries (BackendPair harness, MediaStoreContract, AST-enforced SQL portability); pluggable channel-adapter interchange protocol with hot-swap registry and workflow-isolation AST rule; portability & port-swapping verification battery.
 | 39 | Resilience & cost optimization — **D-125–D-128 (Approved 2026-09-18)**: deterministic retention/compaction with verified-freeze archives (state-based eligibility, attestation-verified snapshots, fail-closed teardown, hardening_audit manifests, declared indexes + keyset reads — tamper-evidence NEVER weakened); a shared resilience envelope (D-052-bound retry policy with logical backoff, budgeted executor, psql transport concurrency ceiling with deterministic fast-fail); platform resource-budget envelopes extending D-063 semantics (≥80% warn / 100% pre-dispatch refusal, per_run/per_logical_day windows, green/yellow scopes, single consumption ledger with AI write-through); and a chaos × compaction × quota verification battery. |

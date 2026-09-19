@@ -683,6 +683,20 @@ docs/
 > stack 5/5 healthy. Next: **Phase 26**.
 > Details: `docs/phases/phase-25-full-system-test.md` §7, `TODO.md`.
 
+> **Phase 26 — Launch (CLOSED 2026-09-19).** Nine-domain readiness
+> control matrix, fail-closed deterministic Go/No-Go evaluator with
+> commit+config-bound attestation, controlled activation state
+> machine (preflight → dry-run → canary → observation → promotion;
+> rollback reachable from every side-effect-capable state),
+> one-time owner approval tokens, launch evidence pack (D-137–D-140).
+> Suite 46/46 zero-skip (43 offline + 3 live-PG) ×3 green; battery
+> **860/860 ×2 green, zero warnings**; ladder 46/46; census
+> T1=710 · T2=46 · T3=56 · T4=13 = 860 (33 modules); sweeps CLEAN;
+> stack 5/5 healthy. Result: **launch candidate established —
+> NOT a launch**; live activation requires separate explicit
+> one-time owner authorization. Next: **Phase 27**.
+> Details: `docs/phases/phase-26-launch.md` §8, `TODO.md`.
+
 ### Phase 0 --- Foundation
 
 Business definition, technology choices, planning documents, Git
@@ -835,6 +849,10 @@ Test failures and recovery at every important step.
 
 Launch only after security, backups, payment, inventory, shipping,
 monitoring, escalation, end-to-end, and recovery checks pass.
+
+> Status: **closed (launch candidate `f6d0904`+; verdict machinery
+> shipped, no activation performed)** — see the blockquote above and
+> `docs/phases/phase-26-launch.md` §8.
 
 ### Phase 27 --- Optimization
 

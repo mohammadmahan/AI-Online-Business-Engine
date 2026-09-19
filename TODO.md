@@ -619,9 +619,9 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
-- [ ] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
-      Activation — **IN PROGRESS (M0 spec registered 2026-09-19;
-      D-137–D-140 PROPOSED, implementation owner-gated)**:
+- [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
+      Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
+      M1–M4 shipped)**:
       canonical launch-readiness control matrix over the nine
       MASTER_PLAN domains (D-137), deterministic fail-closed Go/No-Go
       evaluator with commit+config-bound attestation (D-138),
@@ -632,10 +632,20 @@ these even if they seem helpful:
       sweeps/D-114, D-121 ledger, D-123 probes, D-124 redaction,
       D-125 compaction, D-127/D-128 budgets, Phase 19 RBAC +
       confirmation-key + control-audit chain, Phase 24 portability,
-      Phase 25 conductor/fault-ladder/recovery. **Completion
-      produces a launch CANDIDATE + verdict — NOT a launch; live
-      activation requires a separate explicit one-time owner
-      authorization.** Spec: `docs/phases/phase-26-launch.md`.
+      Phase 25 conductor/fault-ladder/recovery. **Shipped: suite 46/46
+      zero-skip (43 offline + 3 live-PG) ×3 consecutive green;
+      battery 860/860 ×2 green, zero warnings; ladder 46/46; census
+      reconciles exactly (T1=710 · T2=46 · T3=56 · T4=13, 33 modules);
+      AST/entropy/channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+      defects fixed in-batch: explicit-audit_seq insert (hash/row
+      divergence after retention deletes) + bigint cast + None
+      sentinel parity (PG vs JSON vault). Suite-found defects fixed:
+      fail-open missing-evidence aggregation, DRY_RUN/OBSERVING token
+      scope, replay-deadlocked approval context, OBSERVING rollback
+      reachability. Completion produces a launch CANDIDATE + verdict
+      — NOT a launch; live activation requires a separate explicit
+      one-time owner authorization.** Spec:
+      `docs/phases/phase-26-launch.md`.
 - [x] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **CLOSED
       (2026-09-18), D-133–D-136 all owner-approved same-day**:
       D-133 conductor (`canonical/e2e_contracts.py` +

@@ -24,6 +24,7 @@ from typing import Callable, Dict, List, Optional
 
 from canonical.admin_contracts import (
     CMD_REPLAY_EVENTS,
+    MAX_ACTION_ID_LEN,
     QC_OPEN,
     QC_PAUSED,
     AdminContractError,
@@ -52,6 +53,23 @@ def _row_hash(action_id: str, seq: int, body: Dict, prev_hash: str,
 
 def _key_hash(key: str) -> str:
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+# Transport parity sentinel (Phase 26 finding): the base64/psql path
+# cannot carry SQL NULL — `str(None)` degrades to the literal 'None'.
+# The audit chain normalizes None command/target to that sentinel on
+# write in BOTH vaults and restores None on read, so recomputed hashes
+# match across the JSON and PostgreSQL backends. Unambiguous: 'None'
+# is not a legal command in the D-109 closed grammar.
+_NONE_SENTINEL = "None"
+
+
+def _norm_none(value: Optional[str]) -> Optional[str]:
+    return _NONE_SENTINEL if value is None else value
+
+
+def _denorm_none(value: Optional[str]) -> Optional[str]:
+    return None if value == _NONE_SENTINEL else value
 
 
 # --- backends -----------------------------------------------------------------
@@ -121,6 +139,9 @@ class _JsonVault:
 
     # audit ledger
     def append_audit(self, row: Dict) -> None:
+        row = dict(row)
+        row["command"] = _norm_none(row.get("command"))
+        row["target"] = _norm_none(row.get("target"))
         data = self._read("audit.json")
         data[str(row["audit_seq"])] = row
         self._write("audit.json", data)
@@ -138,6 +159,9 @@ class _JsonVault:
     def audit_rows(self) -> List[Dict]:
         rows = list(self._read("audit.json").values())
         rows.sort(key=lambda r: int(r["audit_seq"]))
+        for r in rows:
+            r["command"] = _denorm_none(r.get("command"))
+            r["target"] = _denorm_none(r.get("target"))
         return rows
 
     # circuit breakers
@@ -249,17 +273,26 @@ class _PgVault:
 
     # audit ledger
     def append_audit(self, row: Dict) -> None:
+        # audit_seq is INSERTED EXPLICITLY (Phase 26 finding): the
+        # stored row_hash embeds the Python-side seq, so it must be
+        # the DB row's seq. Relying on the sequence default silently
+        # diverges the two after any delete (retention pruning),
+        # breaking verification for every later row.
         self._exec(
-            "INSERT INTO admin.control_audit (action_id, event_kind, "
-            "actor, command, target, detail, prev_hash, row_hash, "
-            "logical_at) VALUES (" + self._txt("a") + ", "
-            + self._txt("k") + ", " + self._txt("ac") + ", "
-            + self._txt("c") + ", " + self._txt("t") + ", "
-            + self._txt("d") + "::jsonb, " + self._txt("ph") + ", "
-            + self._txt("rh") + ", " + self._txt("la") + ")",
-            {"a": row["action_id"], "k": row["event_kind"],
-             "ac": row["actor"], "c": row.get("command"),
-             "t": row.get("target"),
+            "INSERT INTO admin.control_audit (audit_seq, action_id, "
+            "event_kind, actor, command, target, detail, prev_hash, "
+            "row_hash, logical_at) VALUES (" + self._txt("s")
+            + "::bigint, "
+            + self._txt("a") + ", " + self._txt("k") + ", "
+            + self._txt("ac") + ", " + self._txt("c") + ", "
+            + self._txt("t") + ", " + self._txt("d") + "::jsonb, "
+            + self._txt("ph") + ", " + self._txt("rh") + ", "
+            + self._txt("la") + ")",
+            {"s": row["audit_seq"],
+             "a": row["action_id"], "k": row["event_kind"],
+             "ac": row["actor"],
+             "c": _norm_none(row.get("command")),
+             "t": _norm_none(row.get("target")),
              "d": json.dumps(row.get("detail", {}),
                              ensure_ascii=False, sort_keys=True),
              "ph": row["prev_hash"], "rh": row["row_hash"],
@@ -293,8 +326,9 @@ class _PgVault:
             if len(p) >= 10 and p[-1] == "END":
                 out.append({"audit_seq": int(p[0]),
                             "action_id": p[1], "event_kind": p[2],
-                            "actor": p[3], "command": p[4] or None,
-                            "target": p[5] or None,
+                            "actor": p[3],
+                            "command": _denorm_none(p[4] or None),
+                            "target": _denorm_none(p[5] or None),
                             "detail": json.loads(p[6]),
                             "prev_hash": p[7], "row_hash": p[8],
                             "logical_at": p[9]})
@@ -414,6 +448,25 @@ class ControlPlaneEngine:
             "event_kind": kind, "actor": actor, "command": command,
             "target": target, "detail": detail, "prev_hash": prev,
             "row_hash": rh, "logical_at": logical_at})
+
+    def append_external_audit(self, action_id: str, kind: str,
+                              actor: str, detail: Dict,
+                              logical_at: str) -> Dict:
+        """Append a NON-COMMAND external event to the operator audit
+        chain (Phase 26: launch approvals, break-glass, promotion,
+        rollback). Same hash-chained row shape as command audits
+        (D-112 tamper-evidence); NOT an action execution — nothing is
+        dispatched, no confirmation key is involved."""
+        from .admin_contracts import parse_actor
+        parse_actor(actor)               # validates the role token
+        if not isinstance(action_id, str) or not action_id or \
+                len(action_id) > MAX_ACTION_ID_LEN:
+            raise AdminContractError("action_id invalid or too long")
+        if not isinstance(kind, str) or not kind:
+            raise AdminContractError("kind required")
+        self._audit_append(action_id, kind, actor, None, None,
+                           detail or {}, logical_at)
+        return {"ok": True, "kind": kind, "action_id": action_id}
 
     def verify_chain(self) -> Dict:
         """Tamper-evidence over the GLOBAL operator chain (D-112)."""
