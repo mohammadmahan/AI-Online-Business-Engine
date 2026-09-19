@@ -3149,6 +3149,109 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   (68 files); entropy CLEAN (112 files); `git diff --check` PASS;
   stack 5/5 healthy.
 
+## D-137 — Launch readiness control matrix
+
+- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Situation:** MASTER_PLAN §13 gates Phase 26 (Launch) on nine
+  check domains — security, backups, payment, inventory, shipping,
+  monitoring, escalation, end-to-end, recovery — but no canonical,
+  machine-verifiable control matrix exists; readiness today is
+  implicit in scattered battery/sweep evidence.
+- **Decision (proposed):** one canonical, versioned control matrix
+  covering all nine domains. Every control: stable id (`SEC-*`,
+  `BAK-*`, `PAY-*`, `INV-*`, `SHP-*`, `MON-*`, `ESC-*`, `E2E-*`),
+  owner ROLE (configuration, never hard-coded identities), severity,
+  mandatory flag, declared evidence kind + reference, remediation
+  guidance. States: `PASS` / `FAIL` / `BLOCKED` / `NOT_APPLICABLE` —
+  **missing, stale, malformed, or unknown evidence is never a pass**;
+  it evaluates as `BLOCKED` and fails the verdict closed. Anchors
+  (compose, never duplicate): Phase 20 sweeps + D-114 (security),
+  D-125 verified-freeze + restore-rehearsal (backup — a backup is
+  valid only after a successful restore), Phase 12 verify path +
+  D-027 idempotent callbacks + Phase 25-proven negative verdicts
+  (payments; capture disabled until owner activation), D-082/D-084
+  (inventory), Phase 24 provider-neutral intent boundary (shipping;
+  no purchase pre-approval), D-123/D-121/D-124 (monitoring), Phase 19
+  RBAC + runbook refs + audited break-glass (escalation), Phase 25
+  suite/census/ladder tied to the exact candidate commit (E2E +
+  recovery). Evidence-validity model: commit-bound, configuration-
+  bound, logically-expiring, and human-attested classes; staleness
+  computed from declared logical horizons — never wall clock.
+
+## D-138 — Deterministic Go/No-Go attestation
+
+- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Situation:** launch decisions need a deterministic, immutable,
+  fail-closed verdict derived from the D-137 matrix, bound to the
+  exact candidate commit and configuration, with no silent passes.
+- **Decision (proposed):** a PURE canonical evaluator over the
+  matrix producing `GO` (all mandatory controls PASS, no blockers),
+  `CONDITIONAL_GO` (only for explicitly declared limited-scope /
+  non-production activation — never silently full production), or
+  `NO_GO` (any mandatory FAIL/BLOCKED/stale/unevaluable). Properties:
+  fail closed; stable finding ordering; identical inputs ⇒
+  byte-identical output; evidence bound to candidate commit +
+  configuration fingerprint (secrets excluded, D-124); machine +
+  human reports generated from ONE canonical result; durable
+  attestation hash over (matrix version, candidate commit, config
+  fingerprint, evidence references, findings, verdict, approval
+  state); any source change, config change, expiry, or failed recheck
+  invalidates a prior attestation. A technical GO is necessary but
+  NOT sufficient — explicit owner approval remains mandatory.
+
+## D-139 — Controlled activation, canary & rollback protocol
+
+- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Situation:** production activation must be a sequence of
+  independently gated, reversible steps — never one global switch —
+  with tested rollback at every side-effect-capable state.
+- **Decision (proposed):** activation state machine `DRAFT →
+  ASSESSED → (NO_GO | GO_ATTESTED) → OWNER_APPROVED → DRY_RUN →
+  CANARY → OBSERVING → PROMOTED`, with `ROLLING_BACK → ROLLED_BACK`
+  reachable from every side-effect-capable state and illegal
+  transitions failing deterministically. Preflight (candidate
+  identity, clean tree, attestation validity, restore evidence,
+  monitoring/escalation) → dry run (config + reachability, ZERO
+  public side effects) → limited canary (smallest owner-approved
+  scope under D-127/D-128 ceilings, kill-switch available) →
+  observation (declared thresholds) → promotion (explicit one-time
+  owner approval token with Phase 19 confirmation-key semantics:
+  replay/expiry/mismatch/consumed rejected; absence of failures
+  never infers approval) → rollback (stop-new-work first, compensate
+  second; forensic evidence preserved; outbox/lock/reservation
+  reconciliation; post-rollback state report). Audit destinations:
+  machine readiness/activation telemetry → D-121 `engine.log.v1`;
+  human approval, break-glass, promotion → Phase 19
+  `admin.control_audit` hash-chained chain. NO real activation in
+  M0 or before explicit one-time owner authorization.
+
+## D-140 — Launch verification battery & operational evidence pack
+
+- **Status:** **Proposed** (2026-09-19, awaiting owner approval)
+- **Situation:** the launch verdict itself needs a dedicated,
+  zero-skip battery and a durable, machine-readable evidence pack
+  generated from canonical results only.
+- **Decision (proposed):** `tests/test_phase26_launch.py` covering:
+  matrix schema/completeness; fail-closed handling of missing,
+  stale, malformed, contradictory evidence; deterministic verdicts;
+  exact commit + config-fingerprint binding; secret-redacted
+  evidence; approval-token expiry/mismatch/one-time-use/replay
+  rejection; dry-run side-effect prohibition; canary ceilings +
+  kill-switch; rollback ordering + post-rollback reconciliation;
+  backup-to-restore PROOF (not backup presence); alert-routing and
+  escalation verification; offline-hermetic + live-PG coverage per
+  repository conventions; full battery ×2 green, zero skips/warnings/
+  flakes; exact census + ladder; clean AST/entropy/diff; healthy
+  stack. The evidence pack (canonical-generated): candidate commit,
+  secrets-free config fingerprint, matrix version, per-control
+  verdicts + evidence refs, aggregate verdict, open blockers +
+  remediation, backup/restore rehearsal result, monitoring/escalation
+  readiness, canary/rollback rehearsal result, approval state,
+  attestation hash, battery + census summary. Completion produces a
+  LAUNCH CANDIDATE + readiness verdict — it does not launch; live
+  activation requires a separate explicit one-time owner
+  authorization.
+
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -3825,6 +3928,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
+| 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Proposed 2026-09-19)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
 | 40 | Vendor lock-in & neutral portability — **D-129–D-132 (Approved 2026-09-18)**: provider-neutrality contract with token-accounting write-through and conformance harness; storage/database parity boundaries (BackendPair harness, MediaStoreContract, AST-enforced SQL portability); pluggable channel-adapter interchange protocol with hot-swap registry and workflow-isolation AST rule; portability & port-swapping verification battery.
 | 39 | Resilience & cost optimization — **D-125–D-128 (Approved 2026-09-18)**: deterministic retention/compaction with verified-freeze archives (state-based eligibility, attestation-verified snapshots, fail-closed teardown, hardening_audit manifests, declared indexes + keyset reads — tamper-evidence NEVER weakened); a shared resilience envelope (D-052-bound retry policy with logical backoff, budgeted executor, psql transport concurrency ceiling with deterministic fast-fail); platform resource-budget envelopes extending D-063 semantics (≥80% warn / 100% pre-dispatch refusal, per_run/per_logical_day windows, green/yellow scopes, single consumption ledger with AI write-through); and a chaos × compaction × quota verification battery. |
