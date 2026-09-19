@@ -948,31 +948,52 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Phase 0 --- Foundation**
+Current phase: **Phase 26 --- Launch Readiness & Controlled Activation
+(closed; launch candidate at technical GO, activation owner-gated)**
 
-Completed/decided:
+Completed (Phases 0--26; per-phase detail in §13 and the
+`docs/phases/` specifications):
 
--   Business concept
--   Reusable engine direction
--   Product scope
--   Product Master Excel structure
--   WooCommerce
--   n8n
--   Notion
--   AI runtime direction
--   Freebuff development layer
--   Git repository
--   Planning documents
+-   Business concept, architecture foundation, and planning documents
+    (Phases 0--1)
+-   Canonical governance: decision ledger D-001--D-140, authority
+    tiers (D-050), local-first isolation (D-053), error taxonomy
+    (D-052), provenance (D-026), idempotent event store (D-027)
+-   Local stack: PostgreSQL canonical store, n8n foundation, mock
+    Notion/Woo providers, offline dashboard (Phases 2--6)
+-   AI runtime: provider-neutral router, strict output contracts,
+    HITL proposal lifecycle, budget guardrails (Phases 7--8; D-062--D-068)
+-   Channels: Instagram, Telegram, cross-platform fan-out (Phases 9--11)
+-   Operations: order management, analytics, notifications, scheduling,
+    versioning/media (Phases 12--16)
+-   Intelligence & control: AI analyst, HITL approval engine, operator
+    console, security hardening, QA engineering, observability,
+    resilience/cost (Phases 17--23)
+-   Portability: vendor-neutral provider/storage/channel contracts
+    (Phase 24; D-129--D-132)
+-   Full-system E2E ladder with fault injection and self-healing
+    (Phase 25; D-133--D-136)
+-   Launch readiness: D-137 control matrix, D-138 fail-closed Go/No-Go
+    attestation, D-139 controlled activation protocol (owner-gated),
+    D-140 evidence battery (Phase 26)
+-   Disaster recovery closeout: D-125 verified-freeze compaction,
+    transactional + decision-ledger drills (EV-BAC-001), off-host
+    archive replication via Phase 24 `MediaStoreContract`, two-leg
+    D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Next milestone: **Phase 1 --- Project Architecture**
+Verified state at closeout (commit `8ed3574`): full battery
+**891/891 ×2 consecutive green, zero warnings**; canonical census
+T1=769 · T2=44 · T3=68 · T4=10 = 891 (36 modules); ladder 46/46;
+AST CLEAN (72 files) / entropy CLEAN (83 files); stack 5/5 healthy;
+launch attestation **GO** with both DR legs RECOVERED and 533 human
+decisions reconciled.
 
-First tasks:
-
-1.  Validate planning documents.
-2.  Create README.md.
-3.  Create ARCHITECTURE.md.
-4.  Create DATA_MODEL.md.
-5.  Create SECURITY.md.
+Next milestone: **owner-authorized controlled activation** (D-139
+preflight → dry run → canary → observation → promotion) --- a
+separate, explicit, one-time owner decision; a technical GO is
+necessary but NOT sufficient. Provider selection for Iranian payment
+(open decision 10) and shipping (open decision 11) remains open and
+is required before payment-capture and shipping-purchase go-live.
 6.  Create DECISIONS.md.
 7.  Create TODO.md.
 8.  Create docs/.

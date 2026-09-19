@@ -10,8 +10,18 @@ The architecture must later be reusable for other online businesses
 with minimal change. The guiding principle: **build on existing
 technology; do not rebuild mature systems without a strong reason.**
 
-**Status:** Phase 1 — Project Architecture (documentation foundation).
-No systems are built, connected, or configured yet.
+**Status:** Phases 0–26 implemented through the **Phase 26 launch
+readiness closeout** — a deterministic Go/No-Go launch candidate at
+**technical GO** (attested by the unified `launch_attestation.py`
+run: both disaster-recovery drill legs RECOVERED, 533 human decisions
+reconciled against the transactional store, AST/entropy sweeps CLEAN,
+full battery 891/891 ×2 green). **This is a launch CANDIDATE, not a
+launch:** live activation, payment capture, shipment purchase, and
+public publishing remain behind explicit one-time owner authorization
+(D-139); the Iranian payment and shipping providers are still
+unselected (open decisions 10–11). The engine runs strictly local-first
+(D-053): every subsystem operates on the local Docker stack with mock
+providers; no production credentials exist (D-045).
 
 ---
 
@@ -60,6 +70,9 @@ meaningful work (`PROJECT_RULES.md` §2).
 - Priorities: Correctness → Security → Simplicity → Maintainability →
   Cost efficiency → Scalability → Documentation.
 - No production WooCommerce, n8n, payment, shipping, or Instagram work
-  before the architecture foundation is approved (MASTER_PLAN §16).
+  before the architecture foundation is approved (MASTER_PLAN §16);
+  production activation additionally requires the D-137 readiness
+  matrix, a D-138 GO attestation, and the one-time D-139 owner
+  approval token.
 - Payment and shipping providers (Iranian market) are **not yet
   selected** — see the open decision register in `DECISIONS.md`.
