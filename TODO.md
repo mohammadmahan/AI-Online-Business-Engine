@@ -645,7 +645,11 @@ these even if they seem helpful:
       reachability. Completion produces a launch CANDIDATE + verdict
       — NOT a launch; live activation requires a separate explicit
       one-time owner authorization.** Spec:
-      `docs/phases/phase-26-launch.md`.
+      `docs/phases/phase-26-launch.md`. **Extension (2026-09-19):**
+      resilience drill — catastrophic recovery (destroy → restore →
+      verify over the live D-027 store via the D-125 verified-freeze
+      primitives; forged/missing archives fail closed) — shipped and
+      PASSED (4/4 ×2 green, zero skips, `EV-BAC-001` evidence).
 - [x] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **CLOSED
       (2026-09-18), D-133–D-136 all owner-approved same-day**:
       D-133 conductor (`canonical/e2e_contracts.py` +

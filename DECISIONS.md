@@ -3188,6 +3188,14 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   rehearsal debris pruned, Phase 19-23 chain history intact
   (rows 1-432, verify_chain ok). Result: launch CANDIDATE
   only - no activation performed.
+- **Verification (Resilience drill, 2026-09-19):** catastrophic-
+  recovery drill shipped and PASSED — a real D-027 store flow
+  archived with the D-125 verified-freeze primitives, PROVEN
+  destroyed, restored only after archive re-verification, then
+  fold- and store-verified byte-equal; forged and missing
+  archives fail closed with the Class-B CompactionError
+  (4/4 x2 consecutive green, zero skips; `EV-BAC-001` evidence
+  bound to the candidate commit + config fingerprint).
 
 ## D-138 — Deterministic Go/No-Go attestation
 
@@ -3199,18 +3207,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   matrix producing `GO` (all mandatory controls PASS, no blockers),
   `CONDITIONAL_GO` (only for explicitly declared limited-scope /
   non-production activation — never silently full production), or
-  `NO_GO` (any manda
-- **Verification (Phase 26 closeout, 2026-09-19):** shipped
-  and battery-attested. Suite 46/46 zero-skip (43 offline +
-  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
-  zero warnings; ladder 46/46; census reconciles exactly
-  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
-  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
-  defects fixed in-batch: explicit audit_seq insert with
-  ::bigint cast, None-sentinel parity (PG vs JSON vault);
-  rehearsal debris pruned, Phase 19-23 chain history intact
-  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
-  only - no activation performed.tory FAIL/BLOCKED/stale/unevaluable). Properties:
+  `NO_GO` (any mandatory FAIL/BLOCKED/stale/unevaluable). Properties:
   fail closed; stable finding ordering; identical inputs ⇒
   byte-identical output; evidence bound to candidate commit +
   configuration fingerprint (secrets excluded, D-124); machine +
@@ -3221,11 +3218,6 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   invalidates a prior attestation. A technical GO is necessary but
   NOT sufficient — explicit owner approval remains mandatory.
 
-## D-139 — Controlled activation, canary & rollback protocol
-
-- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
-- **Situation:** production activation must be a sequence of
-  independently gated, reversible steps — never one global switch
 - **Verification (Phase 26 closeout, 2026-09-19):** shipped
   and battery-attested. Suite 46/46 zero-skip (43 offline +
   3 live-PG) x3 consecutive green; battery 860/860 x2 green,
@@ -3236,7 +3228,21 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   ::bigint cast, None-sentinel parity (PG vs JSON vault);
   rehearsal debris pruned, Phase 19-23 chain history intact
   (rows 1-432, verify_chain ok). Result: launch CANDIDATE
-  only - no activation performed. —
+  only - no activation performed.
+- **Verification (Resilience drill, 2026-09-19):** catastrophic-
+  recovery drill shipped and PASSED — a real D-027 store flow
+  archived with the D-125 verified-freeze primitives, PROVEN
+  destroyed, restored only after archive re-verification, then
+  fold- and store-verified byte-equal; forged and missing
+  archives fail closed with the Class-B CompactionError
+  (4/4 x2 consecutive green, zero skips; `EV-BAC-001` evidence
+  bound to the candidate commit + config fingerprint).
+
+## D-139 — Controlled activation, canary & rollback protocol
+
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
+- **Situation:** production activation must be a sequence of
+  independently gated, reversible steps — never one global switch —
   with tested rollback at every side-effect-capable state.
 - **Decision:** activation state machine `DRAFT →
   ASSESSED → (NO_GO | GO_ATTESTED) → OWNER_APPROVED → DRY_RUN →
@@ -3258,9 +3264,6 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   `admin.control_audit` hash-chained chain. NO real activation in
   M0 or before explicit one-time owner authorization.
 
-## D-140 — Launch verification battery & operational evidence pack
-
-- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real produ
 - **Verification (Phase 26 closeout, 2026-09-19):** shipped
   and battery-attested. Suite 46/46 zero-skip (43 offline +
   3 live-PG) x3 consecutive green; battery 860/860 x2 green,
@@ -3271,7 +3274,38 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   ::bigint cast, None-sentinel parity (PG vs JSON vault);
   rehearsal debris pruned, Phase 19-23 chain history intact
   (rows 1-432, verify_chain ok). Result: launch CANDIDATE
-  only - no activation performed.ction activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
+  only - no activation performed.
+- **Verification (Resilience drill, 2026-09-19):** catastrophic-
+  recovery drill shipped and PASSED — a real D-027 store flow
+  archived with the D-125 verified-freeze primitives, PROVEN
+  destroyed, restored only after archive re-verification, then
+  fold- and store-verified byte-equal; forged and missing
+  archives fail closed with the Class-B CompactionError
+  (4/4 x2 consecutive green, zero skips; `EV-BAC-001` evidence
+  bound to the candidate commit + config fingerprint).
+
+## D-140 — Launch verification battery & operational evidence pack
+
+- **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
+- **Verification (Phase 26 closeout, 2026-09-19):** shipped
+  and battery-attested. Suite 46/46 zero-skip (43 offline +
+  3 live-PG) x3 consecutive green; battery 860/860 x2 green,
+  zero warnings; ladder 46/46; census reconciles exactly
+  (T1=710 - T2=46 - T3=56 - T4=13 = 860, 33 modules); AST /
+  entropy / channel sweeps CLEAN; stack 5/5 healthy. Live-leg
+  defects fixed in-batch: explicit audit_seq insert with
+  ::bigint cast, None-sentinel parity (PG vs JSON vault);
+  rehearsal debris pruned, Phase 19-23 chain history intact
+  (rows 1-432, verify_chain ok). Result: launch CANDIDATE
+  only - no activation performed.
+- **Verification (Resilience drill, 2026-09-19):** catastrophic-
+  recovery drill shipped and PASSED — a real D-027 store flow
+  archived with the D-125 verified-freeze primitives, PROVEN
+  destroyed, restored only after archive re-verification, then
+  fold- and store-verified byte-equal; forged and missing
+  archives fail closed with the Class-B CompactionError
+  (4/4 x2 consecutive green, zero skips; `EV-BAC-001` evidence
+  bound to the candidate commit + config fingerprint).
 - **Situation:** the launch verdict itself needs a dedicated,
   zero-skip battery and a durable, machine-readable evidence pack
   generated from canonical results only.

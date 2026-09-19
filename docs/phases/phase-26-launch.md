@@ -228,3 +228,59 @@ evidence pack generated from canonical results with attestation hash.
   deterministic verdict machinery is shipped and attested; live
   production activation requires a separate, explicit, one-time
   owner authorization (D-139).
+
+---
+
+## 9. Resilience drill — catastrophic recovery (extension, 2026-09-19)
+
+- **Scope:** the BAC-001 backup/recovery control executed FOR REAL
+  against the live D-027 store: a run-scoped flow seeded through the
+  real `PgEventStore` API (receive → begin → succeed + one
+  skipped-duplicate terminal), archived with the D-125
+  verified-freeze primitives (`write_snapshot`/`verify_snapshot`),
+  PROVEN destroyed (counted `DELETE … RETURNING`), then restored from
+  the archive — only after the archive re-verified (the D-125 gate:
+  a backup counts only after its attestation holds).
+- **Fail-closed gates proven:** a forged archive (single flipped
+  byte) and a missing archive both raise the Class-B
+  `CompactionError` and restore NOTHING — missing or negative
+  evidence can never yield a pass (D-137 anti-fail-open).
+- **Verification performed:** canonical fold equality (pre-catastrophe
+  state == post-restore state == archive-attested fold), store-level
+  equality via `get_record`/`succeeded_references` in deterministic
+  order, global store count byte-identical across the disaster (zero
+  collateral damage to other namespaces), per-run namespace isolation
+  with post-run cleanup.
+- **Suite:** `local/tests/test_phase26_resilience_drill.py` — 4 tests
+  (2 offline T1 + 2 live-PG T3), two consecutive green runs, zero
+  skips; BAC-001 evidence bound to the runtime-resolved candidate
+  commit and the configuration fingerprint.
+- **Anti-fabrication note:** an externally supplied drill script
+  referenced non-existent modules (`RestoreEngine`,
+  `EvidenceCollector.generate_census`) and a non-existent archive and
+  would have appended an unearned certificate BEFORE any run. It was
+  reimplemented on the real primitives; the certificate below
+  reflects only the machine-verified runs.
+
+### Census correction (recorded 2026-09-19)
+
+The Phase 26 closeout block above recorded the census as
+`T1=710 · T2=46 · T3=56 · T4=13` — those figures came from a manual
+module-level tally and do not reproduce under the canonical D-120
+toolkit (module tally missed class-based T3/T4 rules). The canonical
+recount of that same closeout state is **T1=749 · T2=44 · T3=57 ·
+T4=10 = 860**. The current state (with the drill) reconciles as
+**T1=751 · T2=44 · T3=59 · T4=10 = 864 (34 modules), green=True**.
+Totals were always exact; only the tier split was mis-recorded.
+
+### Recovery certificate
+
+- Date: 2026-09-19
+- Drill: catastrophic recovery (destroy → restore → verify)
+- Result: **PASSED** — machine-verified (4/4 ×2 consecutive runs,
+  zero skips, live PostgreSQL stack 5/5 healthy)
+- Evidence: `EV-BAC-001` (commit-bound, config-fingerprint-bound)
+- Primitives: D-125 `write_snapshot`/`verify_snapshot` over the live
+  `events.event_record` D-027 store (run-scoped namespace only)
+- Exclusions: production rows untouched; rehearsal namespaced and
+  cleaned; no wall-clock identity material (D-085/D-093).
