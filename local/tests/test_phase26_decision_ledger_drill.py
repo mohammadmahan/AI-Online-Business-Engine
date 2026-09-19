@@ -183,8 +183,11 @@ class TestDecisionLedgerLivePgE2E(unittest.TestCase):
         result = dld.run_drill()
         self.assertTrue(result["ok"], json.dumps(result, indent=2))
         self.assertEqual(result["verdict"], "RECOVERED")
+        # 7 stages since the off-host replication stage (D-060 DR
+        # closeout): seed/fold, archive, catastrophe, rehydrate,
+        # verify, off-host replicate, evidence certification.
         self.assertEqual([s["index"] for s in result["stages"]],
-                         [1, 2, 3, 4, 5, 6])
+                         [1, 2, 3, 4, 5, 6, 7])
         self.assertEqual(result["evidence"]["evidence_id"], "EV-BAC-001")
         self.assertEqual(result["evidence"]["commit"], _candidate_commit())
         # the rehydrated chain is byte-equal: same row count, same head

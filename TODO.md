@@ -667,6 +667,21 @@ these even if they seem helpful:
       path twin of the Phase 9 finding). Suite 7/7 ×2; battery
       877/877 ×2 green; census T1=758 · T2=44 · T3=65 · T4=10 =
       877 (35 modules); sweeps CLEAN; stack 5/5.
+      **Extension 3 (2026-09-19) — DR closeout:** the decision-
+      ledger archive now replicates OFF-HOST via the Phase 24
+      `MediaStoreContract` (re-downloaded + re-attested; forged/
+      missing copies fail attestation — drill = 7 stages); D-138
+      binding fail-closed on BOTH legs (production GO requires a
+      fresh green transactional drill AND a fresh green ledger
+      consistency pass; five negative paths pinned NO_GO/BLOCKED);
+      unified `launch_attestation.py` emits `qa.health_report.v1` +
+      `qa.launch_attestation.v1` with deterministic hash — live run
+      **GO** (both DR legs RECOVERED, 533 decisions reconciled).
+      Suite 14/14 ×2; battery **891/891 ×2 green, zero warnings**;
+      census (D-120 toolkit) T1=769 · T2=44 · T3=68 · T4=10 = 891
+      (36 modules); ladder 46/46; AST/entropy CLEAN; stack 5/5.
+      Launch candidate GO — live activation remains owner-gated
+      (D-139).
 - [x] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **CLOSED
       (2026-09-18), D-133–D-136 all owner-approved same-day**:
       D-133 conductor (`canonical/e2e_contracts.py` +

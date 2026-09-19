@@ -153,7 +153,9 @@ def canonical_matrix(collector: EvidenceCollector, *,
                      probes_report: Dict, escalation_cfg: Dict,
                      battery_ok: bool, census_ok: bool,
                      ladder_ok: bool,
-                     drill_result: Optional[Dict] = None) -> LaunchMatrix:
+                     drill_result: Optional[Dict] = None,
+                     ledger_consistency: Optional[Dict] = None,
+                     require_dr_evidence: bool = False) -> LaunchMatrix:
     """The canonical nine-domain control matrix with evidence bound
     from the measured results (D-137)."""
     specs = (
@@ -200,18 +202,57 @@ def canonical_matrix(collector: EvidenceCollector, *,
         write_ok = all(stage_ok.get(i, False) for i in (1, 2))
         verify_ok = all(stage_ok.get(i, False) for i in (2, 4))
         bac_ok = bool(drill_result.get("ok")) and write_ok and verify_ok
-        bac_detail = (
-            f"operator drill {drill_result.get('verdict', 'UNKNOWN')} "
-            f"stages={len(stage_ok)} "
-            "evidence=" + drill_result.get("evidence", {}).get(
-                "evidence_id", "EV-BAC-001"))
         restore_ok = bac_ok
+        # provenance: carry the drill's own evidence detail (e.g.
+        # "operator drill: 6/6 stages ok") when present — callers
+        # assert the drill source flows into the matrix record.
+        bac_detail = str(
+            (drill_result.get("evidence") or {}).get("detail")
+            or ("transactional drill "
+                + str(drill_result.get("verdict", "UNKNOWN"))))
     else:
+        bac_ok = restore_ok
         bac_detail = "write+verify snapshot rehearsal"
+
+    # D-138 launch-gate binding (owner directive): a production GO
+    # requires BOTH a fresh green transactional restore drill AND a
+    # fresh green decision-ledger consistency pass. Under
+    # require_dr_evidence the absence of either leg is NOT a pass:
+    # no drill result at all → BAC-001 BLOCKED (missing evidence);
+    # a drill result with a missing or failed consistency leg →
+    # NEGATIVE outcome (FAIL). Fail closed, per D-137.
+    if require_dr_evidence:
+        cons_ok = bool(ledger_consistency
+                       and ledger_consistency.get("ok"))
+        if drill_result is None:
+            bac_ok = False
+            bac_detail = ("transactional drill MISSING; ledger "
+                          "consistency "
+                          + (str(ledger_consistency.get("reason"))
+                             if ledger_consistency else "MISSING"))
+        else:
+            bac_ok = bac_ok and cons_ok
+            # the evidence record must carry the COMBINED verdict: a
+            # drill result with a missing or failed consistency leg
+            # is NEGATIVE evidence (fail closed), never a pass —
+            # restore_ok is the field the BAC-001 record is built
+            # from, so it must move in lockstep with bac_ok here.
+            restore_ok = bac_ok
+            bac_detail = (
+                "transactional drill "
+                f"{drill_result.get('verdict', 'UNKNOWN')}; ledger "
+                "consistency "
+                + (str(ledger_consistency.get("reason"))
+                   if ledger_consistency else "MISSING"))
+        if drill_result is None and ledger_consistency is None:
+            # no evidence at all for the recovery control → BLOCKED
+            restore_ok = None
     evidence = {
         "SEC-001": collector.sweep_evidence(ast_report, entropy_report, bounds_report),
-        "BAC-001": collector.restore_rehearsal_evidence(
-            restore_ok, restore_ok, detail=bac_detail),
+        "BAC-001": (None if require_dr_evidence and drill_result is None
+                    else collector.restore_rehearsal_evidence(
+                        bool(restore_ok), bool(restore_ok),
+                        detail=bac_detail)),
         "PAY-001": pay,
         "INV-001": collector.battery_evidence(
             "EV-INV-001", "phase12-battery", battery_ok=battery_ok,

@@ -3267,6 +3267,17 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   (4/4 x2 consecutive green, zero skips; `EV-BAC-001` evidence
   bound to the candidate commit + config fingerprint).
 
+- **Verification (DR closeout, 2026-09-19):** binding made fail-closed
+  on BOTH legs — a production GO requires a fresh green
+  transactional restore drill AND a fresh green decision-ledger
+  consistency pass. Five negative paths pinned by battery
+  (`test_phase26_dr_closeout.py`): no drill → BLOCKED; consistency
+  missing → NO_GO; consistency failed → NO_GO; drill failed →
+  NO_GO; forged/missing off-host copy → attestation failure. The
+  BAC-001 evidence record carries the combined verdict + drill
+  provenance. First-cut fail-open holes (missing/failed consistency
+  passing; stale restore_ok) caught and fixed.
+
 ## D-139 — Controlled activation, canary & rollback protocol
 
 - **Status:** **Approved** (2026-09-19, owner-approved same-day with all six rulings: no real production activation by implementation; missing operational evidence always NO_GO, never an assumed pass; activation sequence preflight→dry run→limited canary→observation→explicit promotion→rollback on breach approved; audit destinations D-121 engine.log.v1 for machine telemetry + Phase 19 admin.control_audit for human approvals/break-glass; final commit establishes a launch CANDIDATE only — live activation requires a separate explicit one-time owner authorization)
@@ -3365,6 +3376,16 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   LAUNCH CANDIDATE + readiness verdict — it does not launch; live
   activation requires a separate explicit one-time owner
   authorization.
+
+- **Verification (DR closeout, 2026-09-19):** unified attestation
+  shipped (`local/scripts/launch_attestation.py`) —
+  `qa.launch_attestation.v1` + `qa.health_report.v1` probes
+  (transactional drill, decision-ledger drill + consistency,
+  AST/entropy, stack, worktree) with a deterministic attestation
+  hash. Live run: GO — both DR legs RECOVERED, 533 decisions
+  reconciled, sweeps CLEAN. Battery 891/891 ×2 green, zero
+  warnings; census T1=769 · T2=44 · T3=68 · T4=10 = 891 (36
+  modules); ladder 46/46.
 
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 

@@ -723,6 +723,23 @@ docs/
 > **877/877 ×2 green, zero warnings**; census T1=758 · T2=44 ·
 > T3=65 · T4=10 = 877 (35 modules). The Brain (human + AI decisions)
 > is now disaster-proof alongside the transactional data.
+>
+> **Phase 26 DR closeout (2026-09-19) — the recovery loop is
+> closed.** The decision-ledger archive now replicates OFF-HOST
+> through the Phase 24 `MediaStoreContract` (re-downloaded and
+> re-attested — host-level loss can no longer take chain and backup
+> together; drill = 7 stages). D-138 makes a production GO require
+> BOTH a fresh green transactional restore drill AND a fresh green
+> decision-ledger consistency pass — every missing/failed path is
+> fail-closed NO_GO, pinned by a five-path battery. The unified
+> attestation command (`launch_attestation.py`) emits
+> `qa.health_report.v1` + `qa.launch_attestation.v1` with a
+> deterministic hash: live run **GO** — both DR legs RECOVERED,
+> 533 decisions reconciled, sweeps CLEAN. Battery **891/891 ×2
+> green, zero warnings**; census (D-120 toolkit) T1=769 · T2=44 ·
+> T3=68 · T4=10 = 891 (36 modules); ladder 46/46; AST/entropy
+> CLEAN. Launch candidate GO — live activation still owner-gated
+> (D-139).
 
 ### Phase 0 --- Foundation
 

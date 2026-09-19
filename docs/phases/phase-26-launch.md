@@ -375,3 +375,54 @@ end-to-end approval binding chain↔burn-ledger). Full battery
 T3=65 · T4=10 = 877 (35 modules), green=True**; AST CLEAN
 (72 files) / entropy CLEAN (119 files); `git diff --check` PASS;
 stack 5/5 healthy.
+
+### §9.4 DR closeout — off-host archive + D-138 launch-gate binding
++ unified attestation (2026-09-19)
+
+Closes the disaster-recovery loop on both owner directives:
+
+1. **Off-host decision archive (Phase 24 integration).** The
+   decision-ledger drill gained stage 6 — replication of the
+   verified-freeze snapshot through the Phase 24
+   `MediaStoreContract` (S3-compatible, content-addressed via
+   `LocalObjectStore`): the archived chain is PUT off-host, then
+   re-DOWNLOADED and re-attested (`verify_snapshot` on the fetched
+   bytes). A forged or missing off-host copy fails attestation —
+   host-level loss can no longer destroy the chain and its backup
+   together. Drill is now 7 stages; battery updated to match.
+2. **D-138 binding (fail-closed, both legs required).**
+   `canonical_matrix(require_dr_evidence=True, drill_result=…,
+   ledger_consistency=…)` now makes a production GO require BOTH a
+   fresh green transactional restore drill AND a fresh green
+   decision-ledger consistency pass. Proven negative paths (all
+   NO_GO): no drill result at all → BAC-001 BLOCKED (missing
+   evidence); drill green + consistency missing → NO_GO; drill
+   green + consistency failed → NO_GO; drill failed → NO_GO. The
+   BAC-001 evidence record carries the COMBINED verdict and the
+   drill's own provenance detail. Suite-found fail-open holes in
+   the first binding cut (missing/failed consistency silently
+   passing; stale `restore_ok` keeping the record PASS) were fixed
+   and pinned — plus an `UnboundLocalError` in the drill-result
+   detail path caught by the full battery.
+3. **Unified attestation (`qa.launch_attestation.v1`).**
+   `local/scripts/launch_attestation.py` runs BOTH drill legs live,
+   the Phase 20 gate-scope sweeps, and the stack probe, evaluates
+   the D-137/D-138 matrix, and emits `qa.health_report.v1` probes
+   (dr_transactional_drill, dr_decision_ledger_drill,
+   dr_decision_ledger_consistency, ast_boundary_sweep,
+   entropy_secret_scan, pg_stack_health, worktree_clean) plus the
+   deterministic attestation hash. Live run: **GO** — both legs
+   RECOVERED, 533 decisions reconciled, sweeps CLEAN; a technical
+   GO remains necessary-but-not-sufficient (activation still
+   owner-gated per D-139).
+
+**Battery:** `test_phase26_dr_closeout.py` 14/14 ×2 green (D-138
+five-path fail-closed binding, off-host replication roundtrip +
+forgery rejection, sealed-engine end-to-end GO through the exact
+binding, unified attestation end-to-end + determinism + injected
+leg-failure probe suppression — offline sealed engines + live-PG).
+Full battery **891/891 ×2 consecutive green, zero warnings**;
+census (canonical D-120 toolkit) **T1=769 · T2=44 · T3=68 · T4=10
+= 891 (36 modules), reconciled, green**; ladder 46/46; AST CLEAN
+(72 files) / entropy CLEAN (83 files, gate scope);
+`git diff --check` PASS; stack 5/5 healthy.

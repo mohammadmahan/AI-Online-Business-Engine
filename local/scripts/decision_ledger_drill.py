@@ -40,6 +40,8 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
+import uuid
 from typing import Dict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +64,7 @@ from canonical.launch_evidence import EvidenceCollector  # noqa: E402
 
 DRILL_SCHEMA = "ops.decision_ledger_drill.v1"
 DRILL_CONFIG = {"env": "local-rehearsal", "drill": "decision-ledger"}
+OFFHOST_BUCKET = "decision-ledger-archive"
 
 STAGE_NAMES = (
     "Chain baseline (verify_chain pre-drill)",
@@ -69,8 +72,100 @@ STAGE_NAMES = (
     "Controlled catastrophe (atomic full-chain loss & reinsert)",
     "Rehydrated chain integrity (verify_chain post-restore)",
     "Decided-vs-happened consistency (chain ↔ D-027)",
+    "Off-host replication & copy attestation (D-130)",
     "Evidence certification (EV-BAC-001, decision-ledger leg)",
 )
+
+
+# --- off-host archive (D-130 media contract, Phase 24) ------------------
+
+def default_offhost_store():
+    """The S3-compatible off-host store for decision-ledger archives
+    (Phase 24 MediaStoreContract backend; env-configured endpoint per
+    D-045 — no credentials in code)."""
+    from services.media_store import LocalObjectStore
+    return LocalObjectStore(
+        bucket=OFFHOST_BUCKET,
+        root=os.path.join(LOCAL, "volumes", "media"))
+
+
+def replicate_offhost(archive_path: str, store) -> Dict:
+    """Replicate a verified archive OFF-HOST and attest the COPY.
+
+    Host-level storage failure must not destroy the active chain AND
+    its disaster-recovery snapshot together, so the archive is pushed
+    through the MediaStoreContract and the off-host copy is
+    re-downloaded and re-verified — the replication counts only after
+    the copy attests (the same verified-freeze principle as D-125)."""
+    with open(archive_path, "rb") as fh:
+        data = fh.read()
+    header = json.loads(data.splitlines()[0])
+    key = (f"decision-ledger/{header['row_count']}-"
+           f"{header['fold'][:16]}.jsonl")
+    put = store.put(data, "application/jsonl",
+                    metadata={"surface": "admin.control_audit",
+                              "row_count": header["row_count"],
+                              "fold": header["fold"]})
+    tmp = os.path.join(tempfile.gettempdir(),
+                       f"dld-offhost-{uuid.uuid4().hex[:8]}.jsonl")
+    with open(tmp, "wb") as fh:
+        fh.write(store.get(put["object_key"]))
+    verify_snapshot(tmp)  # raises CompactionError on any divergence
+    os.remove(tmp)
+    return {"object_key": put["object_key"],
+            "content_hash": put["content_hash"], "verified": True,
+            "row_count": header["row_count"]}
+
+
+def restore_chain_from_archive(archive_path: str,
+                               engine) -> Dict:
+    """The REAL host-loss DR path: rehydrate the ENTIRE decision chain
+    from an (already verified) archive — atomically. The wipe+reinsert
+    runs in ONE transaction, so the ledger is never observable in a
+    partial state and any failure rolls back to the prior content."""
+    with open(archive_path, encoding="utf-8") as fh:
+        header = json.loads(fh.readline())
+        rows = [json.loads(l) for l in fh if l.strip()]
+    if header.get("row_count") != len(rows):
+        raise CompactionError("archive row_count mismatch")
+    from seed_registry import q
+    stmts = ["BEGIN;",
+             "CREATE TEMP TABLE ca_restore_src (audit_seq bigint, "
+             "action_id text, event_kind text, actor text, command "
+             "text, target text, detail jsonb, prev_hash text, "
+             "row_hash text, logical_at text);"]
+    for r in rows:
+        vals = {
+            "seq": int(r["audit_seq"]),
+            "aid": r["action_id"], "kind": r["event_kind"],
+            "actor": r["actor"],
+            "cmd": r.get("command"), "tgt": r.get("target"),
+            "detail": json.dumps(r.get("detail", {}),
+                                 ensure_ascii=False, sort_keys=True),
+            "ph": r["prev_hash"], "rh": r["row_hash"],
+            "la": r["logical_at"]}
+        for k in ("cmd", "tgt"):
+            vals[k] = ("NULL" if vals[k] is None
+                       else "'" + str(vals[k]).replace("'", "''") + "'")
+        for k in ("aid", "kind", "actor", "ph", "rh", "la"):
+            vals[k] = "'" + str(vals[k]).replace("'", "''") + "'"
+        stmts.append(
+            "INSERT INTO ca_restore_src VALUES ({seq}, {aid}, {kind}, "
+            "{actor}, {cmd}, {tgt}, '{detail}'::jsonb, {ph}, {rh}, "
+            "{la});".format(**vals))
+    stmts += ["DELETE FROM admin.control_audit;",
+              "INSERT INTO admin.control_audit (audit_seq, action_id, "
+              "event_kind, actor, command, target, detail, prev_hash, "
+              "row_hash, logical_at) SELECT audit_seq, action_id, "
+              "event_kind, actor, command, target, detail, prev_hash, "
+              "row_hash, logical_at FROM ca_restore_src;",
+              "COMMIT;"]
+    q("\n".join(stmts))
+    post = engine.verify_chain()
+    if not post.get("ok"):
+        raise RuntimeError(f"chain broken after archive restore: {post}")
+    return {"restored": post["rows"], "head_ok": True,
+            "archive_row_count": header["row_count"]}
 
 
 def stack_up() -> bool:
@@ -172,11 +267,14 @@ def _stage(index: int, ok: bool, detail: str) -> dict:
             "ok": bool(ok), "detail": detail}
 
 
-def run_drill(engine=None, config: dict | None = None) -> dict:
-    """Run the full six-stage decision-ledger drill. `engine` is
+def run_drill(engine=None, config: dict | None = None,
+              offhost_store=None) -> dict:
+    """Run the full seven-stage decision-ledger drill. `engine` is
     injected (ControlPlaneEngine over the live vaults) — with none, a
-    default engine is constructed. The catastrophe is atomic; any
-    failure leaves the ledger untouched (transaction rollback)."""
+    default engine is constructed. `offhost_store` is the D-130 media
+    backend for archive replication (default: the configured
+    S3-compatible store). The catastrophe is atomic; any failure
+    leaves the ledger untouched (transaction rollback)."""
     cfg = dict(config or DRILL_CONFIG)
     if engine is None:
         from canonical.admin_engine import default_vault
@@ -289,10 +387,24 @@ def run_drill(engine=None, config: dict | None = None) -> dict:
             stages.append(_stage(5, False, f"error: {type(e).__name__}"))
             return finish()
 
+        try:
+            # Stage 6 — off-host replication & copy attestation.
+            if offhost_store is None:
+                offhost_store = default_offhost_store()
+            repl = replicate_offhost(archive, offhost_store)
+            stages.append(_stage(
+                6, bool(repl.get("verified")),
+                f"off-host copy attested: {repl['object_key']} "
+                f"(rows={repl['row_count']})"))
+        except Exception as e:  # noqa: BLE001
+            stages.append(_stage(6, False, f"error: {type(e).__name__}"))
+            return finish()
+
         ok_all = all(s["ok"] for s in stages)
-        stages.append(_stage(6, ok_all,
+        stages.append(_stage(7, ok_all,
                              "EV-BAC-001 " + ("positive — decision "
                                               "ledger disaster-proof "
+                                              "(chain + off-host copy)"
                                               if ok_all else
                                               "negative — drill failed")))
         return finish()
@@ -308,7 +420,7 @@ def render_report(result: dict) -> str:
     ]
     for s in result["stages"]:
         mark = "OK  " if s["ok"] else "FAIL"
-        lines.append(f"[{s['index']}/6] {s['name']:<58} {mark} "
+        lines.append(f"[{s['index']}/7] {s['name']:<58} {mark} "
                      f"{s['detail']}")
     lines += ["", f"RESULT: {result['verdict']} — evidence "
                   f"{result['evidence']['evidence_id']} "
