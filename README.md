@@ -47,7 +47,8 @@ providers; no production credentials exist (D-045).
 | [SECURITY.md](SECURITY.md) | Security baseline, secrets policy, AI safety rules, incident handling |
 | [DECISIONS.md](DECISIONS.md) | Decision log — approved decisions and open decisions (nothing silent) |
 | [TODO.md](TODO.md) | Current phase checklist, blocked items, next phase preview |
-| [docs/](docs/README.md) | Supporting docs: glossary, per-phase scope documents |
+| [docs/](docs/README.md) | Supporting docs: glossary, per-phase scope documents, deployment/runbook plans |
+| [docs/deployment/dokploy-plan.md](docs/deployment/dokploy-plan.md) | “Dokploy Deployment Integration” work package (D-141 Proposed, PLANNED — optional/replaceable deployment layer; nothing installed) |
 
 **Start here:** read `MASTER_PLAN.md` and `PROJECT_RULES.md` before any
 meaningful work (`PROJECT_RULES.md` §2).

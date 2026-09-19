@@ -740,6 +740,22 @@ docs/
 > T3=68 · T4=10 = 891 (36 modules); ladder 46/46; AST/entropy
 > CLEAN. Launch candidate GO — live activation still owner-gated
 > (D-139).
+>
+> **Post-baseline work package — “Dokploy Deployment Integration”
+> (2026-09-20, PLANNED; D-141 Proposed).** Optional, replaceable
+> deployment-management layer for Staging/Production, anchored to
+> the open Phase 4 G1 hosting gate (the D-058 deferral stands;
+> nothing is reopened). Documentation only:
+> `docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks —
+> staged adoption A–H, per-stage owner authorizations, release
+> governance (GitHub push ≠ production authorization; approvals
+> stay in the Phase 19 chain + D-139 burn tokens; the append-only
+> decision ledger keeps D-125 verified-freeze semantics — never
+> tool-managed compaction), backups supplement D-125/drills
+> (never replace), mandatory Stage-H exit drill preserves the
+> Phase 24 lock-in-reduction goals. Facts sourced from official
+> Dokploy documentation (reviewed 2026-09-20). Nothing installed,
+> provisioned, connected, or deployed.
 
 ### Phase 0 --- Foundation
 

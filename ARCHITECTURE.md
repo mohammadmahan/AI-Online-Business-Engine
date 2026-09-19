@@ -108,6 +108,14 @@ Development -> Testing/Staging -> Production
   high-risk changes.
 - Concrete hosting, staging topology, and deployment tooling are Open
   decisions (Phases 3–4).
+- **Deployment-management layer candidate (D-141, Proposed — PLANNED
+  only):** Dokploy is documented as an *optional, replaceable*
+  deployment-orchestration layer for Staging/Production
+  (`docs/deployment/dokploy-plan.md`). It manages operational
+  deployment/access only — never business rules, human approvals,
+  data correctness, decision-ledger integrity, launch readiness, or
+  production authorization. The local-first compose workflow is
+  unchanged; a mandatory exit drill keeps the layer swappable.
 
 ## 7. AI autonomy in the architecture
 

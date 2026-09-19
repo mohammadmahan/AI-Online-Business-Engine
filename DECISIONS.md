@@ -3387,6 +3387,41 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   warnings; census T1=769 · T2=44 · T3=68 · T4=10 = 891 (36
   modules); ladder 46/46.
 
+## D-141 — Optional deployment-management layer (Dokploy): governed integration plan
+
+- **Status:** **Proposed** (2026-09-20, documentation-only planning —
+  nothing installed, provisioned, connected, or deployed; no
+  credentials requested)
+- **Situation:** MASTER_PLAN Phase 4 (Infrastructure) — hosting,
+  deployment, backups — remains owner-deferred (D-058) while Phases
+  0–26 are complete with a technical-GO launch candidate. Deployment
+  tooling selection is the open G1-adjacent question; the local
+  compose workflow (D-054) is the only deployment manifest today.
+- **Decision (proposed):** adopt **Dokploy** as an *optional,
+  replaceable deployment-management layer* for Staging and
+  Production, tracked as the post-baseline work package
+  **“Dokploy Deployment Integration”** (`docs/deployment/dokploy-plan.md`
+  + `docs/runbooks/dokploy-{deployment,disaster-recovery,exit-plan}.md`,
+  stages A–H). Authority boundaries are non-negotiable: business
+  rules, human approvals (Phase 19 control-audit chain + D-139
+  burn tokens), transactional correctness (D-027), decision-ledger
+  integrity (D-125 verified-freeze only — never tool-managed
+  compaction of the append-only chain), launch readiness
+  (D-137/D-138), and production authorization (D-139) stay OUTSIDE
+  the deployment tool. Local-first compose workflow unchanged
+  (D-053/D-054). Every deployment-fact claim is sourced from
+  official Dokploy documentation (reviewed 2026-09-20, links in
+  plan §18); zero-downtime is not promised for ordinary Compose
+  deployments; no native human-approval gate is assumed.
+- **Consequences:** per-stage owner authorizations gate all
+  provisioning/install/connection actions (plan §17); GitHub pushes
+  never auto-authorize Production; backups supplement — never
+  replace — D-125 archives, the DR drills, and EV-BAC-001 evidence;
+  a mandatory Stage-H exit drill keeps the layer replaceable
+  (Phase 24 lock-in goals preserved); completed phases are not
+  reopened. Adoption itself requires owner approval of this record
+  before Stage A starts.
+
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4063,6 +4098,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
+| 43 | Optional deployment-management layer (Dokploy) — **D-141 (Proposed 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; facts from official docs (2026-09-20) — **PLANNED only, nothing installed or deployed**. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
 | 40 | Vendor lock-in & neutral portability — **D-129–D-132 (Approved 2026-09-18)**: provider-neutrality contract with token-accounting write-through and conformance harness; storage/database parity boundaries (BackendPair harness, MediaStoreContract, AST-enforced SQL portability); pluggable channel-adapter interchange protocol with hot-swap registry and workflow-isolation AST rule; portability & port-swapping verification battery.

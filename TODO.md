@@ -619,6 +619,20 @@ these even if they seem helpful:
       provenance-surface mismatch. Standing owner gate: payment
       gateway and live store credentials (D-045) — none exist, none
       requested.
+- [ ] Work package — **Dokploy Deployment Integration** — **PLANNED
+      (2026-09-20; D-141 Proposed)**: optional, replaceable
+      deployment-management layer for Staging/Production, anchored
+      architecturally to the open Phase 4 G1 hosting gate (D-058
+      deferral stands). Plan + runbooks written
+      (`docs/deployment/dokploy-plan.md`,
+      `docs/runbooks/dokploy-{deployment,disaster-recovery,exit-plan}.md`):
+      stages A–H, per-stage owner authorizations, release governance
+      (GitHub push ≠ production authorization; approval stays in the
+      Phase 19 chain + D-139 burn tokens), backups as supplement to
+      D-125/drills (never replacement), mandatory exit drill
+      (Phase 24 lock-in goals preserved). **Nothing installed,
+      provisioned, connected, or deployed.** Next: owner approval of
+      D-141 → Stage A (architecture & repository assessment).
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

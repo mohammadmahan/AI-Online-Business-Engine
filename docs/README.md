@@ -13,6 +13,10 @@ supporting material: shared vocabulary and per-phase working documents.
 | --- | --- |
 | [glossary.md](glossary.md) | Shared vocabulary: entities, provenance states, autonomy tiers, conventions. |
 | [phases/](phases/) | Per-phase scope, entry/exit criteria, and Definition-of-Done tracking. |
+| [deployment/dokploy-plan.md](deployment/dokploy-plan.md) | Work package “Dokploy Deployment Integration” (D-141 **Proposed**, PLANNED): optional/replaceable deployment layer — architecture, environments, release governance, security, backup model, stages A–H, risks, exit strategy, official references. |
+| [runbooks/dokploy-deployment.md](runbooks/dokploy-deployment.md) | PLANNED deployment runbook: preconditions, onboarding, promotion gates, rollback, stop conditions. |
+| [runbooks/dokploy-disaster-recovery.md](runbooks/dokploy-disaster-recovery.md) | PLANNED DR runbook: backup architecture, server-loss/corruption/migration/credential scenarios, restoration-evidence requirements. |
+| [runbooks/dokploy-exit-plan.md](runbooks/dokploy-exit-plan.md) | PLANNED exit runbook (Stage H): configuration provenance map, exit drill, verification requirements. |
 | [phases/phase-01-project-architecture.md](phases/phase-01-project-architecture.md) | Phase 1 — Project Architecture. |
 | [phases/phase-02-product-data-system.md](phases/phase-02-product-data-system.md) | Phase 2 — Product Data System (closed; decision set D-014–D-030). |
 | [phases/phase-02-5-business-data-configuration.md](phases/phase-02-5-business-data-configuration.md) | Phase 2.5 — Business Data Configuration (owner-approved store structure, Batches 1–3). |

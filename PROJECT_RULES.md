@@ -30,9 +30,53 @@ Before meaningful work:
 5.  Read `TODO.md` when it exists.
 6.  Read relevant architecture, data-model, and security documents when
     they exist.
+7.  Read `DECISIONS.md` (decision ledger) and the relevant phase,
+    runbook, and report documents.
+8.  Inspect the actual implementation and Git state (branch, HEAD,
+    working tree, recent commits).
+9.  Confirm the task belongs to the approved roadmap scope.
+10. Resolve or report material inconsistencies **before**
+    implementing; never infer current project status from stale
+    historical documents alone.
 
 If a document does not yet exist because its phase has not started, do
 not invent it. Report that it is missing.
+
+### 2.1 Documentation-first working protocol (durable)
+
+This protocol binds every implementation task and integrates with the
+rules above; where a stricter rule exists elsewhere, the stricter rule
+wins.
+
+**During every implementation task:**
+
+-   Follow approved decisions and safety boundaries (§3/§4); stop and
+    request owner approval for high-risk or Production actions.
+-   Preserve unrelated user changes; never revert work that is not
+    part of the task.
+-   Avoid undocumented scope expansion; record newly discovered
+    risks, assumptions, and decision requirements in the task report
+    (and in `DECISIONS.md` when they need owner rulings).
+
+**Before completing every implementation task:**
+
+-   Run the applicable tests and validation gates; report results as
+    **PASS**, **FAIL**, **SKIPPED**, or **BLOCKED** — a check that did
+    not run is never reported as passing.
+-   Update `MASTER_PLAN.md`, `TODO.md`, `DECISIONS.md`, architecture,
+    security, phase documents, runbooks, and reports when the task
+    changes their truth; documentation must describe actual verified
+    behavior, not intended behavior — distinguish **PLANNED**,
+    **IMPLEMENTED**, and **VERIFIED** states explicitly.
+-   Review documentation and implementation for consistency; review
+    the final diff; check for secrets and generated artifacts.
+-   Commit and push only when explicitly authorized; report anything
+    left uncommitted, unpushed, skipped, blocked, or awaiting owner
+    approval.
+
+Never rewrite historical completion records to match newer state;
+append reconciliation notes instead (the decision-ledger convention:
+nothing resolved silently, §4).
 
 ## 3. Human Authority
 

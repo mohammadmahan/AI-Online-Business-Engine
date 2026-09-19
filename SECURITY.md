@@ -184,6 +184,16 @@ Development -> Testing/Staging -> Production
   customer systems (RULES §18).
 - High-risk changes follow Development → Test → Review → Approval →
   Production (RULES §43).
+- **Deployment tooling (D-141, Proposed — PLANNED):** if Dokploy is
+  adopted (`docs/deployment/dokploy-plan.md`), its administrative
+  surface follows the same secrets posture as everything else
+  (D-045): UI never public, key-only SSH, scoped least-privilege
+  credentials for GitHub/webhooks/S3 backups, per-environment
+  credential isolation, and rotation entries in the DR runbook.
+  Deployment-tool credentials never carry production authority —
+  production activation stays behind D-139 one-time owner tokens,
+  and a GitHub push or webhook event never authorizes a Production
+  deployment.
 
 ## 11. Error handling, logging, observability
 
