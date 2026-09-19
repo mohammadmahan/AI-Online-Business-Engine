@@ -324,3 +324,54 @@ injection, CLI JSON contract, matrix integration). Full battery
 toolkit) **T1=754 · T2=44 · T3=62 · T4=10 = 870 (34 modules),
 green=True**; AST CLEAN (72 files) / entropy CLEAN (118 files);
 `git diff --check` PASS; stack 5/5 healthy.
+
+### Decision-ledger resilience — the human decision chain (2026-09-19)
+
+**Scope extension (owner-directed):** the disaster-proof boundary now
+includes the Phase 19 `admin.control_audit` hash-chained ledger —
+the durable record of human-AI steering decisions (operator
+commands, launch approvals, break-glass, promotions, rollbacks).
+
+**Governance (D-125/26):** the chain is NEVER teardown-eligible —
+every `row_hash` binds to its predecessor, so removing any row
+permanently breaks tamper evidence for every later row.
+`compact()` now REFUSES the surface deterministically; its
+disaster treatment is full verified-freeze archive + atomic
+rehydration.
+
+**Operator command:** `local/scripts/decision_ledger_drill.py`
+(`--json`, `--consistency-only`): (1) chain baseline —
+`verify_chain()` must pass pre-drill; (2) verified-freeze archive
+of the FULL chain via D-125 `write_snapshot`/`verify_snapshot`;
+(3) controlled catastrophe — delete + reinsert of every row inside
+ONE `BEGIN..COMMIT` transaction (no partial state ever observable;
+rollback safety net on any failure); (4) rehydrated chain
+integrity — `verify_chain()` passes with the same head hash;
+(5) decided-vs-happened consistency against the D-027 store;
+(6) EV-BAC-001 certification (fail-closed: any failed stage ⇒
+NEGATIVE evidence).
+
+**Decided-vs-happened consistency:** every decision row is
+reconciled against the transactional history — action events must
+exist in the D-027 store with terminal statuses
+(`admin|action|<id>|0`); launch-approval rows are counted; missing
+counterparts (pre-store rows) are surfaced as history depth, never
+silently green; a wrong-status counterpart is a FAILURE.
+
+**Suite-found live defect (fixed):** `PgEventStore.get_record`
+silently DROPPED its explicit `source_system` argument and fell
+back to the constructor default (the read-path twin of the Phase 9
+write-path finding) — a store constructed for one source could
+never read another source's records. Unmasked by the consistency
+check; fixed and pinned.
+
+**Battery:** `test_phase26_decision_ledger_drill.py` 7/7 ×2 green
+(4 offline: no-teardown invariant, sealed-engine drill, corrupt
+and missing counterpart semantics, tamper fail-closed; 3 live-PG:
+full-chain drill RECOVERED with 564-row history byte-identical,
+live decided-vs-happened over 463 decisions + 18 approvals,
+end-to-end approval binding chain↔burn-ledger). Full battery
+**877/877 ×2 green, zero warnings**; census **T1=758 · T2=44 ·
+T3=65 · T4=10 = 877 (35 modules), green=True**; AST CLEAN
+(72 files) / entropy CLEAN (119 files); `git diff --check` PASS;
+stack 5/5 healthy.

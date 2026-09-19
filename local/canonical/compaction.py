@@ -164,7 +164,19 @@ def compact(surface: str, *, rows_provider: Callable[[], List[Dict]],
     CompactionError (fail-closed) on ANY verify failure BEFORE any
     delete_fn call — a snapshot that doesn't verify means no
     teardown.
+
+    Phase 26 governance: hash-chained audit ledgers (e.g.
+    `admin.control_audit`, the Phase 19 human decision chain) are
+    NEVER teardown-eligible — every row_hash binds to its
+    predecessor, so removing any row permanently breaks tamper
+    evidence for every later row. Their disaster-proofing is FULL
+    verified-freeze snapshot + atomic rehydration (see
+    scripts/decision_ledger_drill.py), and this gate refuses them
+    deterministically.
     """
+    if surface.startswith("admin.control_audit"):
+        _fail("hash-chained audit ledger is not teardown-eligible "
+              "(snapshot + rehydrate only, D-125/26)")
     rows = rows_provider()
     if surface == "events.event_record":
         elig = eligible_event_rows(rows)

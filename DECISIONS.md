@@ -2840,6 +2840,17 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   OPERATOR-TRIGGERED via the Phase 19 control plane
   (`COMPACT_RETIREABLE`), with optional automated hooks during
   declared maintenance windows only.
+- **Verification (Decision-ledger drill, 2026-09-19):** the
+  hash-chained human decision ledger is declared NOT teardown-
+  eligible (compact() refuses the surface — row removal would
+  break the chain permanently); disaster treatment is full
+  verified-freeze archive + atomic rehydration via the
+  `decision_ledger_drill.py` operator command. Chain re-verifies
+  with identical head hash after a full-chain loss; decided-vs-
+  happened consistency reconciles every decision row against the
+  D-027 store. Suite-found defect fixed: PgEventStore.get_record
+  dropped its explicit source_system (read-path twin of the
+  Phase 9 finding). Suite 7/7 ×2; battery 877/877 ×2 green.
 - **Verification (Phase 23 closeout, 2026-09-18):** battery-proven —
   forgery detection (byte flip / dropped line / reordered row),
   fail-closed (write failure and count mismatch ⇒ zero deletes,
@@ -3177,6 +3188,17 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   recovery). Evidence-validity model: commit-bound, configuration-
   bound, logically-expiring, and human-attested classes; staleness
   computed from declared logical horizons — never wall clock.
+- **Verification (Decision-ledger drill, 2026-09-19):** the
+  hash-chained human decision ledger is declared NOT teardown-
+  eligible (compact() refuses the surface — row removal would
+  break the chain permanently); disaster treatment is full
+  verified-freeze archive + atomic rehydration via the
+  `decision_ledger_drill.py` operator command. Chain re-verifies
+  with identical head hash after a full-chain loss; decided-vs-
+  happened consistency reconciles every decision row against the
+  D-027 store. Suite-found defect fixed: PgEventStore.get_record
+  dropped its explicit source_system (read-path twin of the
+  Phase 9 finding). Suite 7/7 ×2; battery 877/877 ×2 green.
 - **Verification (Phase 26 closeout, 2026-09-19):** shipped
   and battery-attested. Suite 46/46 zero-skip (43 offline +
   3 live-PG) x3 consecutive green; battery 860/860 x2 green,

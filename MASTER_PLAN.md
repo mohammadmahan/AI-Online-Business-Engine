@@ -709,6 +709,20 @@ docs/
 > **870/870 ×2 green, zero warnings**; census (canonical D-120
 > toolkit) T1=754 · T2=44 · T3=62 · T4=10 = 870 (34 modules);
 > AST/entropy CLEAN; stack 5/5. Details: §9 of the phase doc.
+>
+> **Phase 26 extension — decision-ledger resilience (2026-09-19).**
+> The disaster-proof boundary now includes the Phase 19 hash-chained
+> human decision ledger: `compact()` refuses it for teardown (D-125
+> governance — row removal breaks the chain permanently); the
+> `decision_ledger_drill.py` operator command archives the FULL
+> chain (verified-freeze), catastrophically destroys + reinserts it
+> atomically, re-verifies tamper evidence (same head hash), and
+> reconciles decided-vs-happened against the D-027 store. Suite-
+> found defect fixed: `PgEventStore.get_record` dropped its explicit
+> source (read-path twin of the Phase 9 finding). Battery
+> **877/877 ×2 green, zero warnings**; census T1=758 · T2=44 ·
+> T3=65 · T4=10 = 877 (35 modules). The Brain (human + AI decisions)
+> is now disaster-proof alongside the transactional data.
 
 ### Phase 0 --- Foundation
 

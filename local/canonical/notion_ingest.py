@@ -253,6 +253,14 @@ class PgEventStore:
         whitespace-stripped on read and chr(31) counts as whitespace in
         Python, so trailing EMPTY fields would otherwise be truncated
         (M4 audit fix).
+
+        Phase 26 decision-ledger drill finding: the explicit
+        `source_system` argument was silently DROPPED here — the
+        lookup fell back to the constructor default (the same defect
+        family as the Phase 9 write-path finding), so a store
+        constructed for one source could never read another source's
+        records. Masked in the battery because every caller used a
+        store whose constructor source equalled the lookup source.
         """
         row = _exec(
             "SELECT processing_status || chr(31) || payload_hash "
@@ -260,7 +268,7 @@ class PgEventStore:
             "coalesce(last_error_class, '') || chr(31) || "
             "coalesce(result_reference, '') || chr(31) || 'END' "
             f"FROM events.event_record WHERE {self._where()}",
-            self._params(event_id),
+            self._params(event_id, source_system),
         ).strip()
         if not row:
             return None

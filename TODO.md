@@ -656,6 +656,17 @@ these even if they seem helpful:
       drill_result=…)` → BAC-001 → D-138 bundle). Suite 10/10 ×2;
       battery 870/870 ×2 green; census T1=754 · T2=44 · T3=62 ·
       T4=10 = 870 (34 modules); sweeps CLEAN; stack 5/5.
+      **Extension 2 (2026-09-19):** decision-ledger resilience — the
+      Phase 19 hash-chained human decision chain is now disaster-
+      proof: `compact()` refuses it for teardown (D-125 governance);
+      `decision_ledger_drill.py` operator command (full-chain
+      verified-freeze archive → atomic catastrophe → tamper-evident
+      rehydration → decided-vs-happened consistency vs the D-027
+      store). Suite-found defect fixed:
+      `PgEventStore.get_record` dropped its explicit source (read-
+      path twin of the Phase 9 finding). Suite 7/7 ×2; battery
+      877/877 ×2 green; census T1=758 · T2=44 · T3=65 · T4=10 =
+      877 (35 modules); sweeps CLEAN; stack 5/5.
 - [x] Phase 25 — Full System Test & E2E Failure/Recovery Ladder — **CLOSED
       (2026-09-18), D-133–D-136 all owner-approved same-day**:
       D-133 conductor (`canonical/e2e_contracts.py` +
