@@ -764,8 +764,13 @@ docs/
 > requirements battery-tested), environment contract 23+6,
 > synthetic-data policy, volume backup/retention template
 > (`docs/deployment/staging-volume-backup-policy.md`); structural
-> suite 15/15 ×2 green. **Nothing installed, provisioned,
-> connected, or deployed.** Stage C is owner-gated (plan §21.6).
+> suite 15/15 ×2 green, later extended to 25 ×2 with the Stage B
+> amendment: explicit isolated network topology (data
+> internal:true + frontend, wordpress-only), `.env.staging.example`
+> env contract (30 variables, secrets placeholder-only), and the
+> pre-deploy validator `local/scripts/validate_staging_compose.py`
+> (VALID rc=0). **Nothing installed, provisioned, connected, or
+> deployed.** Stage C is owner-gated (plan §21.6).
 >
 > **Post-baseline work item — “Portable multi-agent shared-memory
 > layer (MemWal)” (2026-09-20, D-142 Approved, PLANNED).** Adopt

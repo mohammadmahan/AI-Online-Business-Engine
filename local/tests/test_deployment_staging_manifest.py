@@ -21,7 +21,9 @@ Gates proven here:
 """
 import json
 import os
+import re
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -246,11 +248,126 @@ class TestStagingManifestStageB(unittest.TestCase):
         text = STAGING.read_text(encoding="utf-8")
         self.assertIn("mock_state: {}", text)
 
-    def test_no_explicit_networks_block(self):
-        self.assertNotIn(
-            "networks:", STAGING.read_text(encoding="utf-8"),
-            "staging keeps the default-bridge model (plan §20.2); "
-            "the deployment layer attaches its proxy network",
+    def test_explicit_network_topology_declared(self):
+        """Stage B amendment (D-141 §21.7): the default-bridge model was
+        replaced by an explicit isolated topology — data (internal) +
+        frontend (wordpress-only); detailed assertions live in
+        TestStagingNetworkIsolation."""
+        text = STAGING.read_text(encoding="utf-8")
+        self.assertIn("networks:", text)
+        self.assertIn("internal: true", text)
+
+
+class TestStagingNetworkIsolation(unittest.TestCase):
+    """Stage B amendment: explicit isolated network topology."""
+
+    @classmethod
+    def setUpClass(cls):
+        rc, cls.resolved, cls.stderr = _resolve()
+        if rc != 0:
+            raise AssertionError(
+                f"manifest resolution failed: {cls.stderr[:300]}"
+            )
+
+    def test_data_network_is_internal(self):
+        self.assertTrue(
+            self.resolved["networks"]["data"].get("internal"),
+            "data network must be internal (no outbound routing)",
+        )
+
+    def test_frontend_network_exists(self):
+        self.assertIn("frontend", self.resolved["networks"])
+
+    def test_topology_matches_design(self):
+        for name in ("canonical-db", "woodb", "media", "n8n"):
+            self.assertEqual(
+                set(self.resolved["services"][name].get("networks", {})),
+                {"data"}, f"{name} must be data-only",
+            )
+        self.assertEqual(
+            set(self.resolved["services"]["wordpress"].get("networks", {})),
+            {"data", "frontend"},
+            "wordpress is the only frontend-attached service",
+        )
+
+    def test_no_service_on_frontend_but_wordpress(self):
+        for name, svc in self.resolved["services"].items():
+            if name != "wordpress":
+                self.assertNotIn(
+                    "frontend", svc.get("networks", {}),
+                    f"{name} must not attach to frontend",
+                )
+
+
+class TestStagingEnvContractTemplate(unittest.TestCase):
+    """Stage B amendment: .env.staging.example completeness (zero secrets)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.template = {}
+        for line in (REPO / ".env.staging.example").read_text(
+            encoding="utf-8"
+        ).splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                cls.template[k] = v
+
+    def test_template_exists_and_is_documented(self):
+        self.assertGreaterEqual(len(self.template), 25,
+                                "env template must document the full contract")
+
+    def test_all_six_deploy_secrets_are_placeholder_only(self):
+        for var in SYNTHETIC_ENV:
+            self.assertEqual(
+                self.template.get(var),
+                "<SET-BY-DEPLOYMENT-LAYER>",
+                f"{var} must be placeholder-only in the committed template",
+            )
+
+    def test_no_hardcoded_secret_values_anywhere(self):
+        for var, val in self.template.items():
+            if var in SYNTHETIC_ENV:
+                continue
+            self.assertFalse(
+                re.search(r"(?i)(password|secret|key|token)=", val)
+                and val not in ("<SET-BY-DEPLOYMENT-LAYER>",),
+                f"{var} looks like a secret value: {val!r}",
+            )
+
+    def test_no_local_throwaway_credentials_leaked(self):
+        text = (REPO / ".env.staging.example").read_text(encoding="utf-8")
+        for literal in ("wp-local-only", "root-local-only",
+                        "engine-local-only", "engine-local-encryption-only",
+                        "engine-local-media-only"):
+            self.assertNotIn(literal, text)
+
+    def test_no_ai_credential_grant_in_staging_template(self):
+        self.assertNotIn("AI_CREDENTIAL_REF", self.template,
+                         "staging grants NO AI credentials (G-B4)")
+
+    def test_env_template_matches_script_contract(self):
+        """The operator script's drift categories must cover the template
+        exactly — single source of truth, no silent divergence."""
+        sys.path.insert(0, str(REPO / "local" / "scripts"))
+        import validate_staging_compose as vsc  # noqa: E402
+        manifest_vars = set()
+        for line in STAGING.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            for m in re.finditer(r"\$\{([A-Z][A-Z0-9_]*)(?::[-?])?", line):
+                manifest_vars.add(m.group(1))
+        covered = (manifest_vars & set(self.template)) \
+            | vsc.APP_ENV_CONTRACT | vsc.PLACEHOLDER_ONLY
+        self.assertEqual(
+            set(self.template), covered,
+            "every template variable must be compose-consumed, "
+            "app-env contract, or placeholder-only",
+        )
+        self.assertTrue(
+            vsc.REQUIRED_SECRET_VARS and
+            set(vsc.REQUIRED_SECRET_VARS) == set(SYNTHETIC_ENV),
+            "script and battery must agree on the required-secret set",
         )
 
 

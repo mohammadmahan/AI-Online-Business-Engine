@@ -3438,6 +3438,15 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   23+6, synthetic-data policy, volume backup/retention template
   (`docs/deployment/staging-volume-backup-policy.md`); structural
   suite 15/15 ×2 green. Stages C–H remain owner-gated.
+- **Verification (Stage B amendment, 2026-09-20):** explicit
+  isolated network topology (data internal:true + frontend,
+  wordpress-only), `.env.staging.example` env contract (30 vars,
+  secrets placeholder-only), and the pre-deploy validator
+  `local/scripts/validate_staging_compose.py` (schema, fail-closed,
+  topology, contract-drift checks — VALID rc=0); battery extended
+  to 25 tests ×2 green. Directive reconciliation recorded (plan
+  §21.7): the repository's actual core services are wired — no
+  Redis/API/Workers invented. Stages C–H remain owner-gated.
 
 ## D-142 — Portable multi-agent shared-memory layer (MemWal)
 

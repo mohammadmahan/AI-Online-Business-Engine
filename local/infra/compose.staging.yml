@@ -36,6 +36,7 @@ services:
     # documented 80/443/3000; direct raw exposure is controlled by the host
     # firewall (Stage C, owner-gated). Domain/TLS is attached by the
     # deployment layer's proxy, never encoded here (vendor-neutral).
+    # Networks: `frontend` (gateway/proxy attachable) + `data` (isolated).
     image: wordpress:6.5-php8.3-apache@sha256:a9ea04325159fcf4a724c7fdd2d2db5454befb2f99fa59934838a46dbe348398
     container_name: engine-staging-wordpress
     depends_on:
@@ -51,6 +52,9 @@ services:
       WORDPRESS_DEBUG: "0"         # staging is production-like: no debug
     volumes:
       - woo_data:/var/www/html
+    networks:
+      - frontend
+      - data
     restart: unless-stopped        # F-3: hosted semantics (local had "no")
     healthcheck:
       test: ["CMD", "php", "-r", "exit(0);"]
@@ -69,6 +73,8 @@ services:
       TZ: Asia/Tehran              # local-store semantics carried over (§20.2)
     volumes:
       - woo_data_db:/var/lib/mysql
+    networks:
+      - data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
@@ -89,6 +95,8 @@ services:
       - canonical_data:/var/lib/postgresql/data
       # Schema applied by scripts/apply_schema.py (idempotent) as locally —
       # kept out of /docker-entrypoint-initdb.d so resets stay explicit.
+    networks:
+      - data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -119,6 +127,8 @@ services:
       - DB_SQLITE_POOL_SIZE=5
     volumes:
       - n8n_data:/home/node/.n8n
+    networks:
+      - data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5678/healthz || exit 1"]
@@ -139,6 +149,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?staging secret required — provide via environment, never commit}
     volumes:
       - media_data:/data
+    networks:
+      - data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "mc ready local || exit 1"]
@@ -155,6 +167,8 @@ services:
     profiles: ["deferred"]
     volumes:
       - mock_state:/state
+    networks:
+      - data
     restart: unless-stopped
 
 volumes:
@@ -165,10 +179,22 @@ volumes:
   media_data: {}        # object storage
   mock_state: {}
 
-# No networks block: same model as local — per-project default bridge; the
-# deployment layer attaches its proxy network at deploy time. Inter-service
-# DNS names (woodb, canonical-db) are re-verified in Stage C (plan §20.2).
-#
+# Isolated networks (Stage B amendment, D-141): explicit topology replaces
+# the default-bridge model —
+#   `data`  : INTERNAL (no outbound routing) — every stateful plane
+#             (canonical-db, woodb, media) plus the services that reach
+#             them (wordpress, n8n, deferred mock-woo). A compromised data
+#             container cannot egress; nothing here is gateway-reachable.
+#   `frontend`: gateway/proxy attachable — WordPress only. The deployment
+#             layer joins its proxy network to this one at deploy time.
+# Vendor-neutral: plain `docker compose up` produces the same topology.
+networks:
+  frontend:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+
 # G-B4 staging prohibitions encoded above: WORDPRESS_DEBUG=0, AI credentials
 # absent entirely (no AI_CREDENTIAL_REF grant in staging), no production
 # credential names or values anywhere, MySQL/PG database+user names are

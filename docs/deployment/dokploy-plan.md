@@ -818,3 +818,45 @@ drills, and EV-BAC-001.
 **Stage B acceptance criterion met:** overlay validated by local
 compose lint + battery-attested structural test; no server, no DNS,
 no secrets committed.
+
+### 21.7 Stage B amendment — networks, env template, validator (2026-09-20)
+
+Amendment under the same D-141 Stage B scope, adding three artifacts
+in response to operator review:
+
+1. **Isolated network topology** (replaces the §21.1
+   default-bridge note): the manifest now declares an explicit
+   topology — `data` (bridge, `internal: true`, no outbound routing)
+   carrying every stateful plane plus its consumers, and `frontend`
+   (attachable by the deployment layer's proxy) carrying **WordPress
+   only**. A compromised data-plane container cannot egress; nothing
+   on `data` is gateway-reachable. Vendor-neutral: plain
+   `docker compose up` yields the same topology. Battery-tested
+   (resolved view) in `TestStagingNetworkIsolation`.
+2. **`.env.staging.example`** — the full staging env contract
+   documented (30 variables) with the six deploy secrets as
+   `<SET-BY-DEPLOYMENT-LAYER>` placeholders and zero hardcoded
+   secret values (battery-asserted). Variables are categorized:
+   compose-consumed (9) · app-env contract consumed by the engine
+   process/deployment environment (12) · placeholder-only (9).
+3. **`local/scripts/validate_staging_compose.py`** — pre-deploy
+   operator validation: schema resolution, per-variable fail-closed
+   proof (config refuses without each of the six secrets), resolved
+   structure (digest pins, exposure model, network isolation,
+   restart/healthchecks, volumes), and bidirectional env-contract
+   drift detection (manifest ⇄ template). Exit codes: 0 valid ·
+   1 validation failure · 2 environment unavailable. Current run:
+   **VALID, rc=0** (schema, 6×fail-closed, topology, contract
+   complete).
+
+**Directive reconciliation (operator scope note):** the Stage B
+execution directive listed "Postgres, Redis, API/Backend, n8n,
+Workers" as the core services. Repository evidence (Stage A §20.1,
+manifest inventory, full-text search: zero Redis/Worker/API-service
+references anywhere in the repo) shows this repository's core set is
+WordPress/Woo, MySQL, PostgreSQL (canonical), n8n, MinIO (+ deferred
+mock-woo). The manifest wires the ACTUAL core services; no Redis,
+API container, or worker processes are invented — the engine runs
+in-process today, and the validation script fails any service-set
+drift from the base manifest. If/when engine API or worker services
+materialize, they are added here by a future amendment.

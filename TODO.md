@@ -650,10 +650,17 @@ these even if they seem helpful:
       variables), env contract 23+6 (battery-tested), synthetic-data
       policy, volume backup/retention template
       (`docs/deployment/staging-volume-backup-policy.md`); suite
-      15/15 ×2 green. **Nothing installed, provisioned, connected,
-      or deployed.** Next: Stage C is owner-gated — checklist in
-      plan §21.6 (VPS, installer, firewall, GitHub connect, staging
-      DNS, backup credentials, RPO/RTO approval, operator-access and
+      15/15 ×2 green. **Stage B amendment (same day):** explicit
+      isolated network topology (data internal + frontend,
+      wordpress-only), `.env.staging.example` (30-var contract,
+      secrets placeholder-only), pre-deploy validator
+      `local/scripts/validate_staging_compose.py` (VALID rc=0);
+      battery extended to 25 tests ×2 green; directive
+      reconciliation recorded (plan §21.7 — no Redis/API/Workers
+      invented). **Nothing installed, provisioned, connected, or
+      deployed.** Next: Stage C is owner-gated — checklist in plan
+      §21.6 (VPS, installer, firewall, GitHub connect, staging DNS,
+      backup credentials, RPO/RTO approval, operator-access and
       webhook decisions, edition pinning).
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
