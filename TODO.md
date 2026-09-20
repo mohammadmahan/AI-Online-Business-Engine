@@ -527,7 +527,12 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       gate report `docs/reports/phase-5-n8n-foundation-gate-report.md`):
       standards, sandbox, error router with D-052 dead-letter → HITL
       bridge (D-026 provenance); production sync workflows still await
-      the real WooCommerce connection
+      the real WooCommerce connection. **Live wiring core side shipped
+      (2026-09-20, report §8):** webhook contracts + HMAC auth +
+      deterministic dispatcher (`canonical/n8n_webhook_contracts.py`)
+      and `local/scripts/validate_n8n_live.py` (offline + live modes;
+      API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
+      battery 18/18 ×2 green.
 
 ## Blocked / do-not-start
 

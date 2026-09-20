@@ -383,7 +383,10 @@ docs/
 > foundation level (local-first architecture + executable local stack,
 > D-053–D-056); Phase 4 infrastructure gates deferred by owner decision
 > (D-058); Phase 5 closed at foundation level (n8n standards, error
-> routing, HITL dead-letters — activation steps pending); Phase 6
+> routing, HITL dead-letters — activation steps pending) with the
+> core-side live wiring shipped 2026-09-20 (webhook contracts, HMAC
+> auth, deterministic dispatcher, live verification script — report
+> §8); Phase 6
 > closed at foundation level (Notion Business OS contracts, ingestion,
 > adapter/poller, conformance proof — live Notion connectivity
 > owner-gated/deferred); **Phase 7 closed at foundation level** (AI

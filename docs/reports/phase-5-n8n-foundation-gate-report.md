@@ -121,3 +121,44 @@ workflows are live-imported, validated, and inactive-by-design; the
 D-052 terminal route terminates in the human review queue with
 attributable provenance. **Phase 5 is formally closed at the
 foundation level; activation is a 5-minute owner step (§5).**
+
+---
+
+## 8. Addendum (2026-09-20) — Live automation wiring (core side)
+
+The core-engine half of live n8n automation is now implemented and
+battery-attested (roadmap §2 step 8 scope), completing the seam the
+foundation-level closure pointed at:
+
+- **Webhook contracts** (`local/canonical/n8n_webhook_contracts.py`,
+  pure/deterministic): HMAC-SHA256 webhook-signature verification over
+  exact raw bytes (constant-time compare; fail-closed on an unset
+  `N8N_WEBHOOK_SECRET` reference — D-045 pattern, no default secret
+  exists); strict bounded event parsing (`event_type` enum:
+  `workflow.completed` / `workflow.failed` / `hitl.request` /
+  `ops.ping`, ≤64 KiB, exact key set); deterministic D-027-lineage
+  event keys (SHA256 over event_type + workflow_ref + event_id —
+  same delivery ⇒ same key, distinct event ⇒ distinct key, no wall
+  clock).
+- **Event dispatcher** (`N8nEventDispatcher`): core-engine ↔ n8n
+  event wiring with INJECTED handlers (RULES §35) and exactly-once
+  idempotency via the key store (dispatched → `skipped_duplicate`);
+  handler failures are recorded per-event, never silent, and never
+  abort the batch.
+- **Live verification script** (`local/scripts/validate_n8n_live.py`):
+  OFFLINE mode validates the manifest reachability contract (n8n
+  image, loopback `127.0.0.1:15678→5678`, `/healthz` healthcheck,
+  canonical-db dependency) plus the full webhook-contract drill;
+  LIVE mode probes the RUNNING local container (`/healthz` → 200
+  verified against the live stack) and re-runs the contract drill;
+  an authenticated n8n API round-trip is available ONLY behind the
+  explicit owner flag `N8N_API_PROBE=true` + `N8N_API_KEY`
+  (D-045 credential gate — skipped by design otherwise, key material
+  never printed).
+- **Battery** — `local/tests/test_phase5_live_wiring.py` (18 tests,
+  ×2 green): HMAC round-trip/tamper/malformed/fail-closed, parsing
+  rejections, dispatcher idempotency and error semantics, and the
+  validation script's contract terms including the credential gate.
+
+Live workflow activation remains the owner step described in §5;
+no secret exists or is required for the verified paths.
