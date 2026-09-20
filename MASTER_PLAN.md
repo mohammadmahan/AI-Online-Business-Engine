@@ -742,10 +742,10 @@ docs/
 > (D-139).
 >
 > **Post-baseline work package — “Dokploy Deployment Integration”
-> (2026-09-20, PLANNED; D-141 Proposed).** Optional, replaceable
-> deployment-management layer for Staging/Production, anchored to
-> the open Phase 4 G1 hosting gate (the D-058 deferral stands;
-> nothing is reopened). Documentation only:
+> (2026-09-20, ACTIVE; D-141 Approved — planning + Stage A only).**
+> Optional, replaceable deployment-management layer for
+> Staging/Production, anchored to the open Phase 4 G1 hosting gate
+> (the D-058 deferral stands; nothing is reopened).
 > `docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks —
 > staged adoption A–H, per-stage owner authorizations, release
 > governance (GitHub push ≠ production authorization; approvals
@@ -754,8 +754,14 @@ docs/
 > tool-managed compaction), backups supplement D-125/drills
 > (never replace), mandatory Stage-H exit drill preserves the
 > Phase 24 lock-in-reduction goals. Facts sourced from official
-> Dokploy documentation (reviewed 2026-09-20). Nothing installed,
-> provisioned, connected, or deployed.
+> Dokploy documentation (reviewed 2026-09-20). **Stage A VERIFIED**
+> — architecture & repository assessment committed (plan §20):
+> manifest fully portable (registry images, zero build contexts),
+> six named volumes, 23-variable env contract with credential-REF
+> pattern, self-hosted edition capability gaps identified with
+> compensating controls, digest-pin promotion feasible; findings
+> F-1..F-8 and Stage B gates recorded. **Nothing installed,
+> provisioned, connected, or deployed.**
 
 ### Phase 0 --- Foundation
 

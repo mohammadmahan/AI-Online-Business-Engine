@@ -109,8 +109,8 @@ fragment is not used for any status claim here.
 
 | Item | Status |
 |---|---|
-| D-141 (Dokploy adoption as optional deployment layer) | **Proposed** — requires owner approval before Stage A |
-| This plan document | Complete (planning artifact) |
+| D-141 (Dokploy adoption as optional deployment layer) | **Approved** (2026-09-20) — planning + Stage A only; stages B–H gated by separate per-stage authorizations |
+| This plan document | Complete (planning artifact) + Stage A assessment (§20) |
 | Runbooks (deployment, DR, exit) | Written as PLANNED procedures — none executed |
 | Any Dokploy environment | Does not exist |
 
@@ -414,11 +414,11 @@ capabilities the selected edition may lack:
 
 Status vocabulary: **PLANNED** (this document), **IMPLEMENTED**
 (exists and runs), **VERIFIED** (tested with evidence), **BLOCKED**
-(waiting on owner gate). Nothing has left PLANNED.
+(waiting on owner gate). Only Stage A has left PLANNED.
 
 | Stage | Scope | Key exclusions | Owner approval needed | Acceptance criteria (summary) | Status |
 |---|---|---|---|---|---|
-| **A — Architecture & repository assessment** | Verify service inventory, volume/manifest portability, compose→Dokploy mapping notes, edition capability check (2FA/audit/roles), digest-based promotion feasibility | No installs, no accounts, no credentials | D-141 approval | Assessment notes committed; no environment touched | PLANNED |
+| **A — Architecture & repository assessment** | Verify service inventory, volume/manifest portability, compose→Dokploy mapping notes, edition capability check (2FA/audit/roles), digest-based promotion feasibility | No installs, no accounts, no credentials | D-141 approval | Assessment notes committed; no environment touched | **VERIFIED** (§20, 2026-09-20) |
 | **B — Portable deployment preparation** | Version-controlled, secret-free staging compose overlay; env-var contract (`.env` non-auto-injection documented); named-volume policy; digest/build strategy | No server, no DNS, no secrets committed | Provisioning gate (below) | Overlay validated by local compose lint/parity test | PLANNED |
 | **C — Isolated Staging proof of concept** | Provision staging host per approved G1 path; install Dokploy (specific pinned version, reviewed installer); deploy the *staging overlay only*; synthetic data; webhooks off or staging-scoped | No production data import; no auto-deploy to prod; no DNS for production | **VPS + installer + firewall + GitHub connect + DNS (staging)** — each separately authorized | Staging serves the stack from the approved manifest; battery-compatible checks pass against staging; deploy identity recorded | PLANNED |
 | **D — Security, failure, rollback, backup, recovery verification** | DR scenarios (§12.10); restore drills incl. decision-ledger chain verification; rollback rehearsal with actual app/DB versions; credential-compromise procedure; webhook-abuse test | No destructive action against any live ledger | Import/migration/backup-credential gates as reached | Every scenario has recorded evidence; rollback proven with real versions | PLANNED |
@@ -535,3 +535,163 @@ selected, and update this section's review date.
    exists).
 8. Whether any webhook-based auto-deploy is wanted for Staging at
    all, or manual/CLI-triggered deploys only.
+
+## 20. Stage A assessment — architecture & repository (VERIFIED 2026-09-20)
+
+Executed under D-141 **Approved** (2026-09-20). Scope honored:
+analytical only — no install, no provisioning, no server setup, no
+DNS change, no credential connection, no operational change to any
+environment. Every claim below is grounded in the manifest at this
+commit (`local/infra/docker-compose.yml`, 140 lines) and
+`.env.example` — re-verified at assessment time.
+
+### 20.1 Service inventory — re-verified
+
+Five active services + one disabled entry, exactly as §8 declared:
+
+| Service | Image (registry) | Volumes | Healthcheck | depends_on |
+|---|---|---|---|---|
+| `wordpress` | `wordpress:6.5-php8.3-apache` | `woo_data` | CMD php | `woodb` (service_healthy) |
+| `woodb` | `mysql:8.0` | `woo_data_db` | mysqladmin ping | — |
+| `canonical-db` | `postgres:16-alpine` | `canonical_data` | pg_isready | — |
+| `n8n` | `n8nio/n8n:latest` | `n8n_data` | /healthz | `canonical-db` (service_healthy) |
+| `media` | `minio/minio:latest` | `media_data` | mc ready | — |
+| `mock-woo` | `python:3.12-alpine` (placeholder) | `mock_state` | — | — (profile `deferred`) |
+
+Confirmed: **zero `build:` contexts, zero Dockerfiles anywhere in
+the repository** (filesystem search at assessment time). All
+currently deployable units are registry images. The engine codebase
+itself runs in-process locally — no application image exists yet.
+
+### 20.2 Compose → Dokploy mapping notes
+
+- **Compose-type deployment is the correct Dokploy service type**
+  for this manifest (Stack/Swarm mode is not required and would
+  change semantics — §18).
+- `depends_on: condition: service_healthy` (wordpress→woodb,
+  n8n→canonical-db) is standard compose semantics; per-service
+  healthchecks already exist on all five active services — a good
+  fit for Dokploy's health-check display, and a Stage C validation
+  point that start-order conditions behave as locally observed.
+- **Networks:** the manifest declares no explicit networks (compose
+  default per-project bridge). Dokploy composes services with its
+  own network naming — mapping is expected to be transparent, but
+  inter-service DNS names (`woodb:3306`, `woodb:3306` style
+  `WORDPRESS_DB_HOST`, canonical-db service name) must be
+  re-verified in Stage C.
+- `TZ: Asia/Tehran` on woodb/canonical-db and
+  `GENERIC_TIMEZONE=Asia/Tehran` on n8n must carry into the staging
+  overlay unchanged (deterministic chronology assumptions).
+
+### 20.3 Environment-variable contract — assessed
+
+`.env.example` declares **23 variables** (APP_ENV; 5 canonical-DB;
+4 Woo; 2 n8n; 4 media; 2 AI; 2 logging; 3 mock-woo). The
+**credential-REFERENCE pattern** (`WOO_CREDENTIAL_REF`,
+`N8N_CREDENTIAL_REF`, `MEDIA_CREDENTIAL_REF`, `AI_CREDENTIAL_REF`)
+means no secret value ever needs to exist in Git — exactly what the
+per-environment env handling requires. Two structural facts shape
+Stage B: (1) Dokploy does **not** auto-inject a `.env` file into
+compose services (§18) — the overlay must declare the environment
+block explicitly; (2) `APP_ENV` is the promotion-contract switch
+(phase-03-3 §19) — the staging overlay pins `APP_ENV=staging` and
+the battery's existing environment-awareness is the enforcement
+point.
+
+### 20.4 Storage surfaces — assessed
+
+All six volumes are Docker **named volumes**; no bind mounts
+anywhere. Every storage surface is therefore eligible for Dokploy
+Volume Backups per official documentation (named-volumes-only).
+Boundaries that do not move: D-125 verified-freeze archives, the
+two-leg DR drills, and EV-BAC-001 remain the integrity/recovery
+authority; Dokploy backups are a supplement (§12). Restore
+preconditions (destination volume must not exist; consuming
+containers stopped; `{appName}_{volumeName}` naming) are recorded
+in the DR runbook and become Stage D rehearsal material.
+
+### 20.5 Edition capability check (2FA / audit / roles)
+
+Per official docs (§18, reviewed 2026-09-20): Owner/Admin/Member
+roles with granular member permissions are standard; **custom roles
+are Enterprise; 2FA/passkeys are paid-plan; audit logs are
+Enterprise.** Consequence for a self-hosted/free deployment: the
+deployment layer's own audit trail cannot be assumed. Compensating
+controls required in Stage B/C: management-interface firewall
+restriction, SSH hardening, and the project's authoritative audit
+surfaces (D-121 `engine.log.v1`, Phase 19 `admin.control_audit`)
+remain the only approval/audit record — D-141 already makes
+Dokploy non-authoritative for approvals; Stage A confirms the
+free edition forces that boundary rather than merely preferring it.
+
+### 20.6 Digest-based promotion feasibility
+
+Compose files natively support digest pinning
+(`image: repo@sha256:…`), so "Staging validates the exact artifact
+Production receives" is implementable **without any Dokploy-specific
+promotion feature**: Stage B pins all five third-party images to
+verified digests; when the future engine image exists, the §10
+build-once/promote-digest pattern applies unchanged. No blocker.
+
+### 20.7 Findings
+
+- **F-1 (portable):** the manifest is fully portable to Dokploy —
+  no build infrastructure needed; Stage B is overlay + digest
+  pinning, not image engineering.
+- **F-2 (exposure remodel):** the manifest's `127.0.0.1` port
+  bindings are local-only semantics and cannot survive verbatim:
+  naively copied they make services unreachable from the gateway;
+  naively dropped they publish every service. The staging overlay
+  must expose only the intended public surface (initially
+  WordPress) via domain/TLS and keep canonical-db, media, n8n
+  internal to the Dokploy network.
+- **F-3 (restart semantics):** every service sets `restart: "no"`
+  — correct locally, wrong for a hosted environment. The overlay
+  must set explicit restart policies so containers survive host
+  restarts.
+- **F-4 (storage):** named-volumes-only means all surfaces are
+  backup-eligible; restore preconditions noted; supplement-only
+  boundary preserved.
+- **F-5 (env contract):** 23-variable contract with credential-REF
+  pattern maps cleanly; explicit environment declaration in the
+  overlay required (no `.env` auto-injection); `APP_ENV=staging` is
+  the hard non-production guard.
+- **F-6 (edition gap):** free/self-hosted edition lacks audit logs,
+  2FA, custom roles — compensating controls mandatory; project
+  audit surfaces stay authoritative.
+- **F-7 (zero-downtime):** not promised for ordinary Compose
+  deployments (stop-then-start; Swarm health-checks required per
+  §18) — staging/production acceptance includes an explicit deploy
+  window; ZDD is out of scope for this plan.
+- **F-8 (promotion):** digest-pinning promotion is feasible
+  vendor-neutrally; no Dokploy-proprietary mechanism is required or
+  assumed.
+
+### 20.8 Stage B gates (what Stage B must deliver before Stage C)
+
+1. **G-B1:** version-controlled, secret-free staging compose overlay
+   implementing F-2/F-3/F-5 (exposure remodel, restart policies,
+   `APP_ENV=staging`, digest pins per F-8) — validated by local
+   compose config/lint and a battery-attested parity test; no
+   server exists yet.
+2. **G-B2:** env-var contract table (all 23 variables → source per
+   environment; credential-REFs unchanged; staging values synthetic
+   only).
+3. **G-B3:** named-volume policy: backup schedule proposal,
+   retention, restore preconditions — integrated with (not
+   replacing) D-125/drill evidence.
+4. **G-B4:** staging data policy: synthetic data only; all
+   §7 staging prohibitions encoded as manifest/config facts where
+   possible (e.g., AI_ENABLED=false, no production credentials).
+5. **G-B5 (hand-off):** Stage C **cannot start** without its
+   separate owner authorizations (VPS provisioning, installer
+   execution, firewall ports, GitHub connection, staging DNS,
+   S3/backup credentials — each individually granted per §14/§17).
+   Stage B produces only files and local validation evidence.
+
+> Note on stage numbering: the Isolated Staging proof of concept is
+> **Stage C** in this plan; Stage B is the local, secret-free
+> preparation that gates it.
+
+**Stage A acceptance criterion met:** assessment notes committed;
+no environment touched; no tooling installed.
