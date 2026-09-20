@@ -620,7 +620,7 @@ these even if they seem helpful:
       gateway and live store credentials (D-045) — none exist, none
       requested.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
-      (2026-09-20; D-141 Approved — planning + Stage A only)**:
+      (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for
       Staging/Production, anchored architecturally to the open
       Phase 4 G1 hosting gate (D-058 deferral stands). Plan +
@@ -631,14 +631,18 @@ these even if they seem helpful:
       Phase 19 chain + D-139 burn tokens), backups as supplement to
       D-125/drills (never replacement), mandatory exit drill
       (Phase 24 lock-in goals preserved). **Stage A VERIFIED** —
-      architecture & repository assessment committed (plan §20:
-      manifest portable, 6 named volumes, 23-var env contract,
-      edition capability gaps, digest-pin promotion feasible;
-      findings F-1..F-8). **Nothing installed, provisioned,
-      connected, or deployed.** Next: Stage B (local secret-free
-      staging overlay + env contract, per plan §20.8) — then Stage C
-      requires separate owner authorizations (VPS, installer,
-      firewall, GitHub connect, staging DNS, backup credentials).
+      architecture & repository assessment committed (plan §20).
+      **Stage B VERIFIED** — secret-free staging manifest
+      (`local/infra/compose.staging.yml`: digest-pinned images,
+      exposure remodel, hosted restart policies, fail-closed secret
+      variables), env contract 23+6 (battery-tested), synthetic-data
+      policy, volume backup/retention template
+      (`docs/deployment/staging-volume-backup-policy.md`); suite
+      15/15 ×2 green. **Nothing installed, provisioned, connected,
+      or deployed.** Next: Stage C is owner-gated — checklist in
+      plan §21.6 (VPS, installer, firewall, GitHub connect, staging
+      DNS, backup credentials, RPO/RTO approval, operator-access and
+      webhook decisions, edition pinning).
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

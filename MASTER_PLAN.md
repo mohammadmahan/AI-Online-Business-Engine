@@ -742,7 +742,7 @@ docs/
 > (D-139).
 >
 > **Post-baseline work package — “Dokploy Deployment Integration”
-> (2026-09-20, ACTIVE; D-141 Approved — planning + Stage A only).**
+> (2026-09-20, ACTIVE; D-141 Approved — planning + Stages A–B only).**
 > Optional, replaceable deployment-management layer for
 > Staging/Production, anchored to the open Phase 4 G1 hosting gate
 > (the D-058 deferral stands; nothing is reopened).
@@ -755,13 +755,17 @@ docs/
 > (never replace), mandatory Stage-H exit drill preserves the
 > Phase 24 lock-in-reduction goals. Facts sourced from official
 > Dokploy documentation (reviewed 2026-09-20). **Stage A VERIFIED**
-> — architecture & repository assessment committed (plan §20):
-> manifest fully portable (registry images, zero build contexts),
-> six named volumes, 23-variable env contract with credential-REF
-> pattern, self-hosted edition capability gaps identified with
-> compensating controls, digest-pin promotion feasible; findings
-> F-1..F-8 and Stage B gates recorded. **Nothing installed,
-> provisioned, connected, or deployed.**
+> — architecture & repository assessment committed (plan §20).
+> **Stage B VERIFIED** — secret-free staging manifest
+> (`local/infra/compose.staging.yml`: digest-pinned images incl. a
+> documented quay.io source substitution for the media image,
+> exposure remodel with WordPress as the only published surface,
+> hosted restart policies, fail-closed `${VAR:?}` secret
+> requirements battery-tested), environment contract 23+6,
+> synthetic-data policy, volume backup/retention template
+> (`docs/deployment/staging-volume-backup-policy.md`); structural
+> suite 15/15 ×2 green. **Nothing installed, provisioned,
+> connected, or deployed.** Stage C is owner-gated (plan §21.6).
 
 ### Phase 0 --- Foundation
 

@@ -109,8 +109,8 @@ fragment is not used for any status claim here.
 
 | Item | Status |
 |---|---|
-| D-141 (Dokploy adoption as optional deployment layer) | **Approved** (2026-09-20) — planning + Stage A only; stages B–H gated by separate per-stage authorizations |
-| This plan document | Complete (planning artifact) + Stage A assessment (§20) |
+| D-141 (Dokploy adoption as optional deployment layer) | **Approved** (2026-09-20) — planning + Stages A–B only; stages C–H gated by separate per-stage authorizations |
+| This plan document | Complete (planning artifact) + Stage A assessment (§20) + Stage B record (§21) |
 | Runbooks (deployment, DR, exit) | Written as PLANNED procedures — none executed |
 | Any Dokploy environment | Does not exist |
 
@@ -419,7 +419,7 @@ Status vocabulary: **PLANNED** (this document), **IMPLEMENTED**
 | Stage | Scope | Key exclusions | Owner approval needed | Acceptance criteria (summary) | Status |
 |---|---|---|---|---|---|
 | **A — Architecture & repository assessment** | Verify service inventory, volume/manifest portability, compose→Dokploy mapping notes, edition capability check (2FA/audit/roles), digest-based promotion feasibility | No installs, no accounts, no credentials | D-141 approval | Assessment notes committed; no environment touched | **VERIFIED** (§20, 2026-09-20) |
-| **B — Portable deployment preparation** | Version-controlled, secret-free staging compose overlay; env-var contract (`.env` non-auto-injection documented); named-volume policy; digest/build strategy | No server, no DNS, no secrets committed | Provisioning gate (below) | Overlay validated by local compose lint/parity test | PLANNED |
+| **B — Portable deployment preparation** | Version-controlled, secret-free staging compose overlay; env-var contract (`.env` non-auto-injection documented); named-volume policy; digest/build strategy | No server, no DNS, no secrets committed | Provisioning gate (below) | Overlay validated by local compose lint/parity test | **VERIFIED** (§21, 2026-09-20) |
 | **C — Isolated Staging proof of concept** | Provision staging host per approved G1 path; install Dokploy (specific pinned version, reviewed installer); deploy the *staging overlay only*; synthetic data; webhooks off or staging-scoped | No production data import; no auto-deploy to prod; no DNS for production | **VPS + installer + firewall + GitHub connect + DNS (staging)** — each separately authorized | Staging serves the stack from the approved manifest; battery-compatible checks pass against staging; deploy identity recorded | PLANNED |
 | **D — Security, failure, rollback, backup, recovery verification** | DR scenarios (§12.10); restore drills incl. decision-ledger chain verification; rollback rehearsal with actual app/DB versions; credential-compromise procedure; webhook-abuse test | No destructive action against any live ledger | Import/migration/backup-credential gates as reached | Every scenario has recorded evidence; rollback proven with real versions | PLANNED |
 | **E — Production-readiness evaluation** | Run the D-137 matrix + D-138 evaluator with Dokploy-specific evidence legs; RPO/RTO proposal; exit-drill dry check | No production deployment | — | D-138 verdict GO for the production *candidate* only | PLANNED |
@@ -695,3 +695,126 @@ build-once/promote-digest pattern applies unchanged. No blocker.
 
 **Stage A acceptance criterion met:** assessment notes committed;
 no environment touched; no tooling installed.
+
+## 21. Stage B record — staging preparation (VERIFIED 2026-09-20)
+
+Executed under D-141 **Approved** (planning + stages A–B scope).
+Documentation/configuration-only: no host, no install, no DNS, no
+credentials, no deployment. Artifacts committed at this commit:
+
+- `local/infra/compose.staging.yml` — the staging manifest (§21.1)
+- `docs/deployment/staging-volume-backup-policy.md` — volume backup &
+  retention template (§21.4, G-B3)
+- `local/tests/test_deployment_staging_manifest.py` — battery suite
+  machine-checking G-B1..G-B4 (15 tests, green ×2)
+
+### 21.1 The staging manifest (G-B1)
+
+**Standalone, not a merge overlay — deviation from the word
+"overlay" is deliberate and technical:** F-2 requires *replacing*
+the local manifest's 127.0.0.1-only port bindings, and Compose merge
+semantics *append* port lists — a merge overlay cannot express that
+replacement. The file is complete and self-contained, deployable
+with plain `docker compose -f compose.staging.yml up` (Phase 24
+exit-drill requirement).
+
+- **Exposure remodel (F-2):** WordPress is the ONLY published
+  service (host port 18080 → container 80, deliberately avoiding the
+  deployment gateway's documented 80/443/3000). canonical-db, woodb,
+  media, n8n publish nothing. Direct raw exposure of 18080 is a
+  Stage C firewall decision (owner-gated); domain/TLS is attached by
+  the deployment layer's proxy, never encoded in the manifest.
+- **Restart policies (F-3):** every service `restart: unless-stopped`
+  (hosted semantics; local's `"no"` replaced).
+- **Digest pinning (F-8):** all six images pinned
+  `tag@sha256:<index-digest>`; digests verified 2026-09-20 against
+  registry `Docker-Content-Digest` headers (multi-arch index digests).
+  **Source substitution:** media = `quay.io/minio/minio` —
+  docker.io/minio/minio is no longer anonymously resolvable (Hub
+  metadata API: object not found; registry API: 401; quay.io
+  verified 2026-09-20). One self-review fix during authoring: the
+  mock-woo placeholder digest was initially drafted unverified and
+  was fetched-and-corrected before validation (recorded for honesty).
+- **Health/start-order parity:** healthchecks on all five active
+  services; `service_healthy` start conditions preserved; TZ
+  Asia/Tehran carried over.
+- **Vendor neutrality:** no deployment-layer labels, no UI-only
+  settings, no networks block — the layer attaches its proxy network
+  at deploy time; inter-service DNS re-verified in Stage C (§20.2).
+
+### 21.2 Environment contract (G-B2)
+
+The 23 `.env.example` variables (§20.3) extend to **23 + 6** for
+staging deployment: the manifest requires six **fail-closed deploy
+secrets** (`${VAR:?…}` — `docker compose config` REFUSES without
+them; refusal behavior battery-tested):
+
+| Variable | Feeds | Local analogue (throwaway) | Staging source |
+|---|---|---|---|
+| `CANONICAL_DB_PASSWORD` | canonical-db | `engine-local-only` (contract var) | deployment-layer env / secret store — never Git |
+| `WORDPRESS_DB_PASSWORD` | wordpress | `wp-local-only` (hardcoded locally) | same |
+| `MYSQL_PASSWORD` | woodb | `wp-local-only` | same |
+| `MYSQL_ROOT_PASSWORD` | woodb | `root-local-only` | same |
+| `N8N_ENCRYPTION_KEY` | n8n | `engine-local-encryption-only` | same |
+| `MINIO_ROOT_PASSWORD` | media | `engine-local-media-only` | same |
+
+Non-secret staging defaults are synthetic and inline
+(`wordpress_staging`, `wp_staging`, `business_engine_staging`,
+`engine_staging`, `staging-media`). Credential-REF pattern unchanged;
+**staging grants NO AI credential ref at all** (`AI_ENABLED` unused,
+no `AI_CREDENTIAL_REF` in any environment — G-B4). No local
+throwaway credential literal appears in the staging file
+(battery-asserted).
+
+### 21.3 Synthetic-data policy (G-B4)
+
+Staging runs **synthetic data only**: schema applied by
+`scripts/apply_schema.py` (idempotent, as locally); no production
+data import (Stage C/D owner gates). Prohibitions encoded as
+manifest facts: `WORDPRESS_DEBUG=0`; staging-synthetic DB/user
+names; no AI credentials; mock-woo stays profile-gated (never a
+real Woo — D-052); no published ports on any data plane. Prohibitions
+that live in process, not config: no real publishing, no customer
+communications, no payments, no production social actions — enforced
+by the §7 environment-separation model and Stage C scope review.
+
+### 21.4 Volume backup & retention template (G-B3)
+
+`docs/deployment/staging-volume-backup-policy.md`: per-volume
+schedules/retention (proposals — RPO/RTO owner-approved pending),
+off-host + separate-credential requirements, upload ≠ restoration
+evidence, restore preconditions (destination volume must not exist;
+consuming containers stopped; `{appName}_{volumeName}` naming), and
+the explicit supplement-only relationship to D-125 archives, both DR
+drills, and EV-BAC-001.
+
+### 21.5 Validation evidence (this commit)
+
+- `docker compose -f local/infra/compose.staging.yml config` —
+  schema-valid, resolves cleanly with synthetic env (rc=0); **refuses
+  without any of the six secrets (rc=1, variable named in stderr)**.
+- Battery suite `local/tests/test_deployment_staging_manifest.py`:
+  **15/15 green ×2** — digest pins, exposure model, restart policies,
+  fail-closed secrets, no credential literals, guardrails, parity,
+  healthchecks, volumes, neutrality.
+
+### 21.6 Stage C gate checklist (hand-off — all required BEFORE Stage C)
+
+1. Separate owner authorizations, each individually granted: VPS
+   provisioning; installer execution (pinned version); firewall
+   ports (18080 or the approved proxy surface); GitHub connection;
+   staging DNS; S3/backup credentials.
+2. Owner-approved RPO/RTO values (§21.4 proposals).
+3. Owner decision: staging operator access to n8n — SSH tunnel
+   default vs staging-scoped authenticated domain (§19 Q8).
+4. Owner decision: any webhook-triggered deploy for staging, or
+   manual deploys only (§19 Q8).
+5. Selected Dokploy edition/version pinned (§19 Q5) — 2FA/audit
+   capability set re-verified against the selected version (§18).
+6. Staging host sizing (≥2GB/30GB floor; 5-service stack may want
+   more — §19 Q4).
+7. Stateful-service management choice (§19 Q2) — informed by §21.4.
+
+**Stage B acceptance criterion met:** overlay validated by local
+compose lint + battery-attested structural test; no server, no DNS,
+no secrets committed.

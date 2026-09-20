@@ -1,0 +1,175 @@
+# ============================================================================
+# compose.staging.yml — STAGING deployment manifest (Stage B artifact, D-141)
+#
+# Status: PLANNED/VALIDATED — schema-validated locally only. NO host exists,
+# nothing deployed (stages C+ are owner-gated; see docs/deployment/
+# dokploy-plan.md §17/§21).
+#
+# STANDALONE manifest, not a merge overlay: Stage A finding F-2 requires
+# REPLACING the local manifest's 127.0.0.1-only port bindings, and Compose
+# merge semantics APPEND port lists — a merge overlay cannot express that
+# replacement. This file is a complete, self-contained staging manifest that
+# remains deployable WITHOUT any deployment layer (Phase 24 exit-drill
+# requirement: plain `docker compose -f compose.staging.yml up` must work).
+#
+# Secret-free by construction (G-B1/D-045):
+#   - NO credential values appear in this file, committed or default.
+#   - Every secret-bearing variable is fail-closed: `${VAR:?message}` makes
+#     `docker compose config` (and any deploy) REFUSE to run unless the
+#     value is provided by the environment / deployment-layer env config.
+#   - Credential *references* (WOO_CREDENTIAL_REF etc.) keep the D-045 REF
+#     pattern: they point at a per-environment secret store; the REF string
+#     is synthetic and carries no secret material.
+#
+# Image pinning (F-8): every image is pinned `tag@sha256:<index digest>`.
+# Digests verified 2026-09-20 against registry `Docker-Content-Digest`
+# headers (multi-arch index digests, not platform children). Note: the media
+# image moved to quay.io — docker.io/minio/minio is no longer anonymously
+# resolvable (Hub metadata API: object not found; registry API: 401),
+# verified 2026-09-20.
+# ============================================================================
+
+services:
+  wordpress:
+    # F-8: digest-pinned. Public surface ONLY (F-2): sole published port.
+    # Host port 18080 deliberately avoids the deployment gateway's
+    # documented 80/443/3000; direct raw exposure is controlled by the host
+    # firewall (Stage C, owner-gated). Domain/TLS is attached by the
+    # deployment layer's proxy, never encoded here (vendor-neutral).
+    image: wordpress:6.5-php8.3-apache@sha256:a9ea04325159fcf4a724c7fdd2d2db5454befb2f99fa59934838a46dbe348398
+    container_name: engine-staging-wordpress
+    depends_on:
+      woodb:
+        condition: service_healthy
+    ports:
+      - "18080:80"                 # gateway/proxy target; firewall at Stage C
+    environment:
+      WORDPRESS_DB_HOST: woodb:3306
+      WORDPRESS_DB_USER: wp_staging
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?staging secret required — provide via environment, never commit}
+      WORDPRESS_DB_NAME: wordpress_staging
+      WORDPRESS_DEBUG: "0"         # staging is production-like: no debug
+    volumes:
+      - woo_data:/var/www/html
+    restart: unless-stopped        # F-3: hosted semantics (local had "no")
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  woodb:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    container_name: engine-staging-mysql
+    environment:
+      MYSQL_DATABASE: wordpress_staging
+      MYSQL_USER: wp_staging
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?staging secret required — provide via environment, never commit}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?staging secret required — provide via environment, never commit}
+      TZ: Asia/Tehran              # local-store semantics carried over (§20.2)
+    volumes:
+      - woo_data_db:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # NO published ports (F-2): MySQL is internal to the staging network only.
+
+  canonical-db:
+    image: postgres:16-alpine@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    container_name: engine-staging-postgres
+    environment:
+      POSTGRES_DB: ${CANONICAL_DB_NAME:-business_engine_staging}
+      POSTGRES_USER: ${CANONICAL_DB_USER:-engine_staging}
+      POSTGRES_PASSWORD: ${CANONICAL_DB_PASSWORD:?staging secret required — provide via environment, never commit}
+      TZ: Asia/Tehran
+    volumes:
+      - canonical_data:/var/lib/postgresql/data
+      # Schema applied by scripts/apply_schema.py (idempotent) as locally —
+      # kept out of /docker-entrypoint-initdb.d so resets stay explicit.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # NO published ports (F-2): the canonical store is never network-exposed.
+    # Operator access in staging = SSH tunnel or an explicit Stage C owner
+    # decision; never a public domain.
+
+  n8n:
+    image: n8nio/n8n@sha256:b73045abaddb40cb4024e86eea1b1f69093501a7339f685a4cd486b7743d23ae
+    container_name: engine-staging-n8n
+    depends_on:
+      canonical-db:
+        condition: service_healthy
+    # NO published ports (F-2): operator access via SSH tunnel, or a
+    # staging-scoped, authenticated domain IF and ONLY IF the Stage C owner
+    # decision (plan §19 Q8) grants it. Secure cookie stays off while access
+    # is http-over-tunnel; revisit only with TLS termination in front.
+    environment:
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?staging secret required — provide via environment, never commit}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_SECURE_COOKIE=false    # http-over-tunnel access model (see above)
+      - GENERIC_TIMEZONE=Asia/Tehran
+      - DB_TYPE=sqlite
+      - DB_SQLITE_POOL_SIZE=5
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  media:
+    # Source substitution documented (plan §21): quay.io — docker.io/minio/minio
+    # is no longer anonymously resolvable (verified 2026-09-20).
+    # S3 API + console are INTERNAL (F-2); media_store.py reaches it over the
+    # compose network. No public domain, ever, without an owner decision.
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    container_name: engine-staging-minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-staging-media}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?staging secret required — provide via environment, never commit}
+    volumes:
+      - media_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mock-woo:
+    # Parity with the local manifest: deferred placeholder, disabled unless
+    # the profile is activated explicitly. Never a real WooCommerce (D-052).
+    image: python:3.12-alpine@sha256:c4634f578a412db396771b61b064c6e546c9d6414c7fb5b1b05d5871f1885f7b
+    container_name: engine-staging-mockwoo
+    entrypoint: ["sh", "-c", "echo 'mock-woo service wrapper deferred; use services/mock_woo.py in-process' && sleep infinity"]
+    profiles: ["deferred"]
+    volumes:
+      - mock_state:/state
+    restart: unless-stopped
+
+volumes:
+  woo_data: {}          # WordPress/Woo files
+  woo_data_db: {}       # MySQL data
+  canonical_data: {}    # PostgreSQL data (canonical/registry/events/provenance)
+  n8n_data: {}
+  media_data: {}        # object storage
+  mock_state: {}
+
+# No networks block: same model as local — per-project default bridge; the
+# deployment layer attaches its proxy network at deploy time. Inter-service
+# DNS names (woodb, canonical-db) are re-verified in Stage C (plan §20.2).
+#
+# G-B4 staging prohibitions encoded above: WORDPRESS_DEBUG=0, AI credentials
+# absent entirely (no AI_CREDENTIAL_REF grant in staging), no production
+# credential names or values anywhere, MySQL/PG database+user names are
+# staging-synthetic, and every secret is fail-closed-required.

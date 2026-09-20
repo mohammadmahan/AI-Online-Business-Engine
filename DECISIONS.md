@@ -3430,6 +3430,14 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   surfaces, and build contexts evaluated against official-doc
   constraints; findings (F-1..F-8) and Stage B gates recorded.
   Documentation-only: no operational change; no tooling installed.
+- **Verification (Stage B, 2026-09-20):** staging preparation
+  complete and battery-attested — secret-free staging manifest
+  (`local/infra/compose.staging.yml`: digest-pinned images,
+  exposure remodel per F-2, hosted restart policies, fail-closed
+  `${VAR:?}` secrets with refusal battery-tested), env contract
+  23+6, synthetic-data policy, volume backup/retention template
+  (`docs/deployment/staging-volume-backup-policy.md`); structural
+  suite 15/15 ×2 green. Stages C–H remain owner-gated.
 
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
