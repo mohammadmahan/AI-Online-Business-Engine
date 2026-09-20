@@ -3439,6 +3439,45 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   (`docs/deployment/staging-volume-backup-policy.md`); structural
   suite 15/15 ×2 green. Stages C–H remain owner-gated.
 
+## D-142 — Portable multi-agent shared-memory layer (MemWal)
+
+- **Status:** **Approved** (2026-09-20, owner-directed) — adoption
+  approved for the live-AI-integration horizon; implementation is
+  **PLANNED**, gated behind Dokploy staging/production stabilization
+  (D-141 stages C+) and a dedicated future work authorization. Nothing
+  installed, connected, or integrated in this registration.
+- **Situation:** Phases 7–10 shipped the AI runtime strictly local —
+  `AiProvider` boundary (D-062/D-129) with a deterministic
+  `MockAiProvider` (D-053), proposal lifecycle (D-064), and
+  observability — so agent context is siloed per process today. When
+  agents go live, interactive context would be lost across sessions
+  and apps (context siloing) without an external shared-memory layer.
+- **Decision:** adopt **MystenLabs/MemWal** (Walrus Memory —
+  https://github.com/MystenLabs/MemWal, owner-selected; repository
+  existence and description verified 2026-09-20: portable, verifiable
+  agent-memory layer storing encrypted memories on Walrus decentralized
+  storage, SDK `@mysten-incubation/memwal` + relayer backend) as the
+  external, encrypted, portable shared-memory layer for AI agents,
+  integrated at live-AI-integration time per the repository's official
+  guidance.
+- **Consequences (boundaries carried into any future integration):**
+  (1) D-045 — MemWal's Walrus/relayer services are EXTERNAL network
+  dependencies; any connectivity requires explicit owner authorization
+  and credentials (account/delegated key) never enter Git, logs, or
+  docs; (2) provider-neutral seam (D-129/D-131 pattern) — the memory
+  layer sits behind an injected interface with a local deterministic
+  parity backend, so it stays replaceable (Phase 24 lock-in goals) and
+  the battery remains air-gapped; (3) D-026/D-027 — memory writes are
+  never authority: business truth and approvals stay in the canonical
+  store and Phase 19 chain; (4) zero-leak redaction (D-114/D-124)
+  applies before any context leaves the process; (5) owner-referenced
+  future optimization workstreams "Phases 27–28" are recorded as the
+  owner's stated scope — no such phase records exist in this register
+  and none are invented here.
+- **Verification:** none — planning registration only; the tool was
+  not executed, downloaded, or connected. Reference review date
+  2026-09-20 (public repository/description check only).
+
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4115,6 +4154,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 36 | Security hardening & threat model — **D-113–D-116 (Approved 2026-09-17)**: canonical threat taxonomy (credential leakage D-045, replay attacks, ledger tampering, race injection, oversized/malformed payloads, error-surface probing) mapped control-to-test with no untested claims; a system-wide InputHardeningGate (size/charset/depth limits, duplicate-key + homoglyph rejection, NFC canonicalization); chain-head attestations over the Phase 18/19 hash chains with O(1) verification and chain-anchored replay-key burns; deterministic rate limits + lockouts on the injected clock; and a repository-wide extended AST + entropy sweep as a battery-executed test artifact. |
 | 37 | Testing & quality engineering — **D-117–D-120 (Approved 2026-09-17)**: formal state-machine invariant auditing across all five Phase 12–19 machines (edge matrices closed, terminals exitless, refused writes leave zero partial rows on live PG, crash-reconciled attestation); deterministic fault injection & local chaos at injected seams only (handler/dispatcher exceptions, transient dispatch, mid-transaction PG aborts, ledger contention — with clean-rollback, audit-truth and ledger-integrity invariants); seeded mutational fuzz hardening of every D-114 entry point (deterministic Class-B or clean acceptance, never unhandled exceptions/hangs/mutation); and a four-tier suite taxonomy (Unit → Subsystem Ladder → Local-PG Integration → Full E2E) with machine-readable reports and a zero-skip gate. |
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
+| 44 | Portable multi-agent shared-memory layer (MemWal) — **D-142 (Approved 2026-09-20, owner-directed)**: adopt `MystenLabs/MemWal` (Walrus Memory) as the external, encrypted, portable shared-memory layer for AI agents at live-AI-integration time (owner scope: Phases 7–10 surfaces + future optimization workstreams), after Dokploy infrastructure stabilization; boundaries preserved — D-045 external-connectivity/credential gating, provider-neutral seam with local parity backend (D-129/D-131, Phase 24 replaceability), memory writes never authority (D-026/D-027), zero-leak redaction (D-114/D-124) — **PLANNED, nothing installed or connected**. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.

@@ -766,6 +766,20 @@ docs/
 > (`docs/deployment/staging-volume-backup-policy.md`); structural
 > suite 15/15 ×2 green. **Nothing installed, provisioned,
 > connected, or deployed.** Stage C is owner-gated (plan §21.6).
+>
+> **Post-baseline work item — “Portable multi-agent shared-memory
+> layer (MemWal)” (2026-09-20, D-142 Approved, PLANNED).** Adopt
+> `MystenLabs/MemWal` (Walrus Memory) as the external, encrypted,
+> portable shared-memory layer for AI agents at live-AI-integration
+> time — composing with the Phase 7–10 surfaces (`AiProvider`
+> boundary, proposal lifecycle, observability) and the owner-stated
+> future optimization workstreams — gated behind Dokploy
+> infrastructure stabilization (D-141 stages C+). Boundaries:
+> D-045 external-connectivity/credential gating, provider-neutral
+> seam with a local deterministic parity backend (D-129/D-131,
+> Phase 24 replaceability), memory writes never authority
+> (D-026/D-027), zero-leak redaction (D-114/D-124). **Nothing
+> installed, connected, or integrated.**
 
 ### Phase 0 --- Foundation
 
