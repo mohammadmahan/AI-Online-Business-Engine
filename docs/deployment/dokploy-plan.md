@@ -900,3 +900,46 @@ gated per §17/§21.6 and has not occurred:
 has not been downloaded or run; no firewall has changed; no DNS record
 exists; no GitHub connection or backup credential exists. The runbook's
 verification log is the execution evidence surface and is empty.
+
+## 23. Stages D–H readiness record (2026-09-20) — READY, execution owner-gated
+
+The Stage D–H verification frameworks are delivered and
+battery-attested; EXECUTION (deploy, backup, restore, drill) remains
+owner-gated and has not occurred:
+
+- **Health & E2E validation** —
+  `local/scripts/validate_staging_health.py`, two modes: MANIFEST
+  (offline; health surface + synthetic probe plan for the five core
+  services) and LIVE (read-only SSH drill: container health states,
+  in-network synthetic probes via `compose exec`, and the DEPLOYED-side
+  isolation invariants — data-plane containers must be gateway-less
+  (internal network), frontend may carry WordPress only). Exit
+  0/1/2 semantics; the read-only discipline is allowlist-pinned by
+  battery.
+- **Staging DR & backup drill runbook** —
+  `docs/runbooks/staging-disaster-recovery.md`: per-store backup
+  procedures (PostgreSQL logical dump + physical copy, MySQL
+  single-transaction dump, MinIO mirror, n8n volume archive),
+  off-host transfer + failure-alert requirements, the step-by-step
+  restoration drill with official restore preconditions, the
+  integrity acceptance (decision-ledger consistency + fold equality +
+  health exit 0 — never dashboard status), the RPO/RTO verification
+  checklist (measures the policy §2 proposals), and uniform evidence
+  requirements. Boundaries: supplement-only vs D-125/drills; the
+  decision ledger is never destructively touched.
+- **Exit drill runbook** — `docs/runbooks/dokploy-exit-drill.md`:
+  the zero-lock-in verification with invariants I1–I5 (manifest
+  self-sufficiency, independence, data survival, parity, reversibility),
+  scoped control-plane removal (never compose-project containers or
+  volumes), and an append-only verification log (currently EMPTY).
+- **Battery** — `local/tests/test_stage_dh_readiness.py`: 13 offline
+  tests covering the health script (both modes, read-only payloads),
+  DR runbook coverage (all four stores, integrity gates, boundaries,
+  RPO/RTO consistency with the policy), exit-drill invariants, and
+  manifest self-sufficiency (no layer-specific fields in non-comment
+  lines). 13/13 ×2 green.
+
+**Boundary restatement:** Stages D–H are *READY*, not *EXECUTED*. No
+staging host exists, so no live drill, backup, restore, or exit run
+has occurred; both new runbooks' verification logs are empty and are
+the execution evidence surfaces.

@@ -3459,6 +3459,15 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   green. **Stage C is READY, not EXECUTED** — no host provisioned,
   no installer run, no firewall/DNS/credential change; per-item
   owner authorizations (§21.6) remain mandatory before execution.
+- **Verification (Stages D–H readiness, 2026-09-20):** health &
+  E2E validation script (manifest + read-only live modes, deployed-
+  side isolation invariants), staging DR/backup drill runbook
+  (per-store procedures, integrity acceptance, RPO/RTO checklist),
+  exit-drill runbook (I1–I5 zero-lock-in invariants, scoped control-
+  plane removal, empty verification log), and manifest self-
+  sufficiency pinned in battery (13/13 ×2 green, plan §23).
+  Stages D–H are READY, not EXECUTED — no live drill, backup,
+  restore, or exit run has occurred.
 
 ## D-142 — Portable multi-agent shared-memory layer (MemWal)
 

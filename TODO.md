@@ -669,7 +669,17 @@ these even if they seem helpful:
       plan §21.6 (VPS, installer, firewall, GitHub connect, staging
       DNS, backup credentials, RPO/RTO approval, operator-access and
       webhook decisions, edition pinning) — run the probe, then the
-      runbook, under those grants.
+      runbook, under those grants. **Stages D–H READY (2026-09-20,
+      not executed, plan §23):** health/E2E validation script
+      (`local/scripts/validate_staging_health.py`: manifest +
+      read-only live modes, deployed-side isolation invariants),
+      staging DR/backup drill runbook
+      (`docs/runbooks/staging-disaster-recovery.md`: per-store
+      backup/restore, integrity acceptance, RPO/RTO checklist),
+      exit-drill runbook (`docs/runbooks/dokploy-exit-drill.md`:
+      I1–I5 zero-lock-in invariants, empty verification log);
+      battery suite 13/13 ×2 green. Execution follows the Stage C
+      gates.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
