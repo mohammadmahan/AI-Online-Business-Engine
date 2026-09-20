@@ -769,8 +769,11 @@ docs/
 > internal:true + frontend, wordpress-only), `.env.staging.example`
 > env contract (30 variables, secrets placeholder-only), and the
 > pre-deploy validator `local/scripts/validate_staging_compose.py`
-> (VALID rc=0). **Nothing installed, provisioned, connected, or
-> deployed.** Stage C is owner-gated (plan §21.6).
+> (VALID rc=0). **Stage C READY (2026-09-20, not executed):**
+> provisioning runbook + read-only VPS readiness probe delivered and
+> battery-attested (plan §22); execution remains gated by the
+> §21.6/§17 per-item owner authorizations. **Nothing installed,
+> provisioned, connected, or deployed.**
 >
 > **Post-baseline work item — “Portable multi-agent shared-memory
 > layer (MemWal)” (2026-09-20, D-142 Approved, PLANNED).** Adopt

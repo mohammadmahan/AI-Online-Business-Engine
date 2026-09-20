@@ -3447,6 +3447,18 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   to 25 tests ×2 green. Directive reconciliation recorded (plan
   §21.7): the repository's actual core services are wired — no
   Redis/API/Workers invented. Stages C–H remain owner-gated.
+- **Verification (Stage C readiness, 2026-09-20):** provisioning
+  runbook (`docs/runbooks/dokploy-vps-provisioning.md`: G1–G6
+  fail-closed owner gates, host requirements per official floors,
+  firewall/SSH hardening, pinned installer with review + logging,
+  initial security config, acceptance checklist, host-level
+  rollback, EMPTY verification log) + read-only VPS readiness probe
+  (`local/scripts/validate_vps_readiness.py`: batch-mode SSH,
+  thresholds, idempotent port checks, battery-pinned read-only
+  guarantee; exit 0/1/2 semantics exercised). Battery suite 14/14 ×2
+  green. **Stage C is READY, not EXECUTED** — no host provisioned,
+  no installer run, no firewall/DNS/credential change; per-item
+  owner authorizations (§21.6) remain mandatory before execution.
 
 ## D-142 — Portable multi-agent shared-memory layer (MemWal)
 

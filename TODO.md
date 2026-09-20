@@ -657,11 +657,19 @@ these even if they seem helpful:
       `local/scripts/validate_staging_compose.py` (VALID rc=0);
       battery extended to 25 tests ×2 green; directive
       reconciliation recorded (plan §21.7 — no Redis/API/Workers
-      invented). **Nothing installed, provisioned, connected, or
-      deployed.** Next: Stage C is owner-gated — checklist in plan
-      §21.6 (VPS, installer, firewall, GitHub connect, staging DNS,
-      backup credentials, RPO/RTO approval, operator-access and
-      webhook decisions, edition pinning).
+      invented). **Stage C READY (2026-09-20, not executed):**
+      provisioning runbook `docs/runbooks/dokploy-vps-provisioning.md`
+      (G1–G6 owner gates, requirements per official floors, UFW/SSH
+      hardening, pinned installer, initial security config, rollback,
+      empty verification log) + read-only VPS readiness probe
+      `local/scripts/validate_vps_readiness.py` (battery-pinned
+      read-only guarantee; exit 0/1/2); suite 14/14 ×2 green.
+      **Nothing installed, provisioned, connected, or deployed.**
+      Next: execution requires the per-item owner authorizations in
+      plan §21.6 (VPS, installer, firewall, GitHub connect, staging
+      DNS, backup credentials, RPO/RTO approval, operator-access and
+      webhook decisions, edition pinning) — run the probe, then the
+      runbook, under those grants.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

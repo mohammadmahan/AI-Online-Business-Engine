@@ -860,3 +860,43 @@ API container, or worker processes are invented — the engine runs
 in-process today, and the validation script fails any service-set
 drift from the base manifest. If/when engine API or worker services
 materialize, they are added here by a future amendment.
+
+## 22. Stage C readiness record (2026-09-20) — READY, execution owner-gated
+
+Stage C deliverables are complete and battery-attested; EXECUTION
+(host provisioning, installer, firewall, DNS, credentials) remains
+gated per §17/§21.6 and has not occurred:
+
+- **Provisioning runbook** —
+  `docs/runbooks/dokploy-vps-provisioning.md`: owner-gate table
+  (G1–G6, fail-closed), host requirements (OS/≥2GB RAM floor with
+  4 GB recommended/≥30GB disk floor with 60 GB recommended per
+  official docs), firewall & port plan (22 admin-restricted; 80/443
+  public via Traefik; **3000 never public**; 18080 closed by
+  default), SSH hardening (key-only, no root, no password), pinned
+  installer procedure with human review + hash/version logging,
+  initial security configuration (2FA where supported, read-scoped
+  GitHub, separate minimum-privilege backup credentials, staging-only
+  toggles), post-install acceptance checklist, host-level rollback,
+  append-only verification log (currently EMPTY — nothing executed),
+  and stop conditions.
+- **Read-only VPS readiness probe** —
+  `local/scripts/validate_vps_readiness.py`: SSH batch-mode (key
+  only, `ConnectTimeout` bounded) checks of connectivity, OS family,
+  RAM/disk floors, gateway-port occupancy (idempotent Dokploy/Traefik
+  rerun support), SSH hardening state, Docker/compose presence, UFW
+  status. **Mutates nothing** — the read-only guarantee is
+  battery-pinned (every SSH payload must match an allowlist of
+  read-only commands; forbidden operations scanned). Exit 0 ready /
+  1 findings / 2 cannot-assess; the exit-2 path is exercised
+  (unreachable host).
+- **Battery** — `local/tests/test_stage_c_vps_readiness.py`: 14
+  offline tests pinning thresholds (runbook ⇄ script agreement on
+  the official floors), OS/port classification fixtures, exit
+  semantics, and the read-only guarantee. 14/14 ×2 green.
+
+**Boundary restatement:** this record marks Stage C as *READY* — not
+*EXECUTED*. No host exists; no VPS has been provisioned; the installer
+has not been downloaded or run; no firewall has changed; no DNS record
+exists; no GitHub connection or backup credential exists. The runbook's
+verification log is the execution evidence surface and is empty.
