@@ -386,7 +386,11 @@ docs/
 > routing, HITL dead-letters — activation steps pending) with the
 > core-side live wiring shipped 2026-09-20 (webhook contracts, HMAC
 > auth, deterministic dispatcher, live verification script — report
-> §8); Phase 6
+> §8); Phase 10 Telegram live wiring shipped 2026-09-21 (D-077
+> ingress: webhook secret-token verification fail-closed under
+> D-045, strict update parsing, long-poll offset/dedup contracts;
+> egress completion on the D-074/D-075/D-076 seam; validation drill
+> with opt-in live probe); Phase 6
 > closed at foundation level (Notion Business OS contracts, ingestion,
 > adapter/poller, conformance proof — live Notion connectivity
 > owner-gated/deferred); **Phase 7 closed at foundation level** (AI

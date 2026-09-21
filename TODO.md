@@ -1389,6 +1389,25 @@ these even if they seem helpful:
       classifier: A backoff / B terminal reject→DLQ / C
       retry_after-honoring cooldown / E queue freeze + HITL alert,
       D-026 provenance on every outcome).
+      **Live wiring shipped 2026-09-21 (D-077 ingress + completion of
+      the D-075 seam):** `local/canonical/telegram_ingress.py` —
+      webhook secret-token verification (constant-time compare over
+      the exact raw header, fail-closed: unset `TELEGRAM_WEBHOOK_SECRET`
+      ⇒ refuse; Telegram-documented charset/length validated on the
+      effective secret regardless of source), strict update parsing
+      (UTF-8 JSON, bounded, exact keys, Class-B on violation), and
+      long-poll ingress contracts (monotonic `update_id` offset,
+      dedup via the durable seen-set — same discipline as the D-070
+      idempotency vault). Egress dispatcher wiring reuses the shipped
+      D-074 vault/pacer + D-076 retry taxonomy — no new retry logic.
+      Health/contract drill `local/scripts/validate_telegram_live.py`:
+      offline synthetic round-trip (ingress verify/tamper/refuse,
+      egress publish→duplicate-block→invalid-payload, redaction
+      active) + opt-in live Bot API probe behind
+      `TELEGRAM_LIVE_ENABLED=true` + token (exit 2 without — none
+      exist). Suite 21/21 ×2; battery 982/982 ×2, zero skips.
+      Standing owner gate: live Telegram Bot API credentials (D-045)
+      — none exist, none requested.
       Phase 10 suite 51/51 (incl. 10-thread single-winner concurrency,
       live-PG E2E with restart safety, durable audit reconstruction);
       battery 411/411 zero-skip; ladder 46/46; AST audit clean (no
