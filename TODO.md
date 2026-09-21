@@ -583,6 +583,31 @@ these even if they seem helpful:
       deferred, owner-gated — no credentials used or created**).
       Standing owner gate: no Notion workspace automation; live
       connectivity verification = separate owner-gated milestone.
+      **Live wiring shipped 2026-09-21 (outbound client contracts on
+      the D-060 seam):** `local/canonical/notion_live.py` —
+      `LiveNotionClient` (construction-gated under D-045:
+      `NOTION_LIVE_ENABLED=true` + `NOTION_API_KEY` both required,
+      injected transport mandatory — direct HTTP forbidden; token
+      redacted from every escaping error), safe block/page mapping
+      (`to_notion_blocks`/`from_notion_page`: content model ⇄ Notion
+      children byte-equal, local Class-B rejections BEFORE any
+      request build, unknown block types skipped forward-safely),
+      deterministic `NotionPacer` at Notion's documented 3 req/sec
+      average (1-second sliding window; waits returned as verdicts,
+      caller owns sleeping), jitter-free exponential backoff PLANS
+      with Retry-After floor (deterministic, D-126 precedent; no
+      sleeps in the pure module), D-052-aligned classification
+      (429→C carrying retry_after, 401/403→E human-gated,
+      5xx→A transient, 400 validation→B terminal), and
+      `redact_notion` stripping token material AND object ids
+      (D-124 zero-leak). Health/contract drill
+      `local/scripts/validate_notion_live.py`: offline synthetic
+      round-trip (gate matrix, mapping, limiter, taxonomy,
+      redaction) + opt-in read-only `/v1/users/me` live probe behind
+      the same gate (exit 2 without — none exist). Suite 31/31 ×2;
+      battery 1013/1013 ×2, zero skips. Standing owner gate: no
+      Notion credentials exist, none requested (D-045) — live
+      workspace automation remains the owner-gated milestone.
 - [x] Phase 12 — Order Management System — **CLOSED at foundation
       level (2026-09-16), D-081–D-084 all owner-approved**:
       D-081 order contract (`local/canonical/oms_contracts.py`:
@@ -1389,8 +1414,8 @@ these even if they seem helpful:
       classifier: A backoff / B terminal reject→DLQ / C
       retry_after-honoring cooldown / E queue freeze + HITL alert,
       D-026 provenance on every outcome).
-      **Live wiring shipped 2026-09-21 (D-077 ingress + completion of
-      the D-075 seam):** `local/canonical/telegram_ingress.py` —
+      **Live wiring shipped 2026-09-21 (ingress contracts on the
+      D-075 seam + egress completion):** `local/canonical/telegram_ingress.py` —
       webhook secret-token verification (constant-time compare over
       the exact raw header, fail-closed: unset `TELEGRAM_WEBHOOK_SECRET`
       ⇒ refuse; Telegram-documented charset/length validated on the
