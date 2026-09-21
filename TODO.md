@@ -745,9 +745,18 @@ these even if they seem helpful:
       `local/scripts/validate_dokploy_runtime.py` (MANIFEST/RUNTIME/
       GATE modes, exit 0/1/2); SSOT `schema.sql` ordering defect fixed
       (hitl/admin tables preceded their CREATE SCHEMA — fatal on a
-      fresh database, guarded by battery); battery
+      fresh database, guarded by battery);
       `test_dokploy_runtime.py` 13/13 ×2, full battery 1125/1125 ×2
-      zero-skip.
+      zero-skip. **Stage C sizing & target validation (2026-09-22,
+      plan §25 — PLANNED artifacts, execution owner-gated):**
+      `docs/deployment/stage-c-readiness.md` (host baseline derived
+      from the validated manifest: 3328 MiB / 4.0 CPU ceilings ⇒ 6 GiB
+      RAM floor, 2 vCPU floor, 40 GB disk floor, cgroup v2 + Docker
+      ≥ 24 required; UFW/SSH baselines; 9-key credential inventory;
+      exit criteria) + `local/scripts/validate_vps_target.py` (offline
+      plan verification incl. D-045 fail-closed secret-in-planning-env
+      refusal + opt-in READ-ONLY SSH target probe behind a pinned
+      command allowlist) + `test_stage_c_readiness.py` 21/21 ×2.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

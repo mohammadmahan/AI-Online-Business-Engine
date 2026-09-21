@@ -1008,3 +1008,37 @@ not a deployment. No production host, domain, credential, or DNS
 change exists or was made; the manifest has never run outside the
 isolated local `prodcheck` project; D-139 remains the sole
 production-activation authority and Stage C+ the owner-gated path.
+
+## 25. Stage C sizing & target-validation record (2026-09-22)
+
+Status: **PLANNED readiness artifacts delivered, executed only against
+the local plan — no host exists, nothing provisioned.** Complements
+§22 (host probe) with the sizing + target layer:
+
+- **Sizing report** — `docs/deployment/stage-c-readiness.md`: host
+  baseline derived STRICTLY from the validated `compose.prod.yml`
+  (3328 MiB / 4.0 CPU container ceilings ⇒ 6 GiB RAM floor / 8 GiB
+  recommended, 2 vCPU floor / 4 recommended, 40 GB disk floor / 80
+  recommended, SSD required, cgroup v2 + Docker ≥ 24 + compose v2
+  required); UFW/SSH baselines, zero-public-ports posture, the 9-key
+  `${VAR:?}` credential inventory, volume layout, and Stage C exit
+  criteria.
+- **Target harness** — `local/scripts/validate_vps_target.py`, two
+  strictly separated modes (exit 0/1/2): OFFLINE plan verification
+  (env-contract documentation, D-045 planning hygiene — REFUSES to run
+  when a real mandatory secret is present in the shell, sizing totals
+  pinned to the manifest, durable volume plan, subnet guard) and an
+  opt-in READ-ONLY SSH target probe (OS/CPU/RAM/disk, docker ≥ 24 +
+  compose v2, cgroup v2, UFW, public-3000 guard, live docker-network
+  subnet collisions) behind a command allowlist pinned by tests — no
+  mutating remote command is possible.
+- **Battery** — `local/tests/test_stage_c_readiness.py`: 21 tests
+  (sizing pins vs report, real-output parsers, offline subprocess
+  green run, fail-closed secret-in-planning-env ⇒ exit 2 with key
+  names but never values, probe decision logic on a stub transport,
+  per-dimension degraded findings, read-only allowlist guarantee,
+  D-124 redaction).
+
+All Stage C *execution* (provisioning, installer, firewall, DNS)
+remains behind the §17/§21.6 per-item owner authorizations; the probe
+mutates nothing on any host it inspects.

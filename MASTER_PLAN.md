@@ -472,7 +472,14 @@ docs/
 > (`runtime_preflight.py`), three-mode runtime validator, and a
 > fresh-database schema-ordering fix in `db/schema.sql` (hitl/admin
 > before use); deployment itself remains owner-gated (Stage C+,
-> D-139). **Phase 12 closed at
+> D-139). **Stage C sizing & target validation (2026-09-22, D-141
+> plan §25):** `stage-c-readiness.md` sizing report derived from the
+> validated manifest (6 GiB RAM / 2 vCPU / 40 GB floors, cgroup v2 +
+> Docker ≥ 24 required) plus `validate_vps_target.py` — offline plan
+> verification with D-045 fail-closed secret-in-planning-env refusal,
+> and an opt-in READ-ONLY SSH target probe behind a test-pinned
+> command allowlist; no host exists, provisioning owner-gated.
+> **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle
