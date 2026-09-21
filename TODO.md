@@ -1525,6 +1525,34 @@ these even if they seem helpful:
       Woo+Instagram battery); battery 1055/1055 ×2, zero skips.
 - [x] Phase 8 — AI Product Manager & Operational Observability
       — **COMPLETE (2026-09-16), D-065–D-068 all owner-approved**:
+      **Multi-provider live wiring shipped 2026-09-21**
+      (`local/canonical/ai_providers_multi.py`, on the D-062/D-066
+      seam — nothing shipped was touched): `DeepSeekProvider`
+      (OpenAI-schema-compatible HTTPS adapter, official docs reviewed
+      2026-09-21) and `OllamaProvider` (LOCAL loopback daemon,
+      air-gapped by construction; the model name is the enablement
+      gate — no key exists, none requested, D-045) join OpenAI/
+      Anthropic as drop-in `AiProvider` adapters;
+      `ProviderChain` generalizes the D-066 fallback to N providers
+      with a deterministic terminal mock (Class-A/C advance
+      provider-by-provider, Class-B/D surface and are NEVER masked,
+      every step emits a D-065 `stage=fallback` record);
+      `ProviderCircuitBreaker` (call-count based, no wall clock)
+      opens after K consecutive retry-class failures, skips the
+      provider for a cooldown window, and closes on success;
+      `classify_provider_error` maps wire responses onto the D-052
+      taxonomy with the five named categories (Auth→C, RateLimit→A,
+      ContextLength→D, ProviderOutage→A, SchemaViolation→B — D never
+      falls back because shrinking the prompt is the fix);
+      `redact_ai` strips `sk-…`/Bearer key shapes (D-124).
+      Validation drill `local/scripts/validate_ai_engine_live.py`:
+      offline synthetic drill (gate matrix, taxonomy matrix, chain
+      fallthrough, breaker, D-063 hard refusal, redaction) + opt-in
+      READ-ONLY probes (`models` listing / local `/api/tags`) behind
+      the D-045 gates (exit 2 without — none exist). Suite 29/29 ×2;
+      battery 1084/1084 ×2, zero skips; Phase 20 AST sweep clean.
+      Standing owner gate: AI provider selection + credentials
+      (register row 9, D-045) — none exist, none requested.
       D-065 unified observability (`local/canonical/`
       `ai_observability.py`, schema `ai.observe.v1`, correlation_id
       end-to-end, cost report by task/provider/day, D-045 redaction

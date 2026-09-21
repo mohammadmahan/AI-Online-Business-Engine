@@ -401,7 +401,12 @@ docs/
 > RED-tier payload gates + approved-registry taxonomy validation;
 > D-069..D-072 graph error taxonomy on the publisher's carriers,
 > usage tracking, pinned v26.0; read-only live probes both behind
-> D-045 gates); Phase 6
+> D-045 gates); Phase 7/8 multi-provider AI routing shipped
+> 2026-09-21 (DeepSeek + local-Ollama drop-in adapters on the
+> D-062/D-066 seam, deterministic ProviderChain with terminal mock
+> fallback, call-count circuit breaker, five-category wire error
+> taxonomy incl. ContextLength→D, D-063 budget ceilings, read-only
+> live probes behind D-045); Phase 6
 > closed at foundation level (Notion Business OS contracts, ingestion,
 > adapter/poller, conformance proof — live Notion connectivity
 > owner-gated/deferred); **Phase 7 closed at foundation level** (AI
