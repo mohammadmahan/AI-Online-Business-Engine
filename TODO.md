@@ -455,6 +455,29 @@ run in parallel and stay owner-gated):
       validation concludes; local-first strategy continues; closure
       evidence in `docs/reports/phase-4-infrastructure-gates-status.md`.
       Reopening any gate requires its own owner decision record
+- [x] **Live Woo REST client shipped 2026-09-21** (`local/canonical/`
+      `woo_live.py`): the real adapter implementing the SAME interface
+      as `services/mock_woo.py` (that module's stated design intent).
+      HTTP Basic auth over HTTPS (Woo REST v3 documented pattern) with
+      credentials resolved from `WOO_LIVE_ENABLED` + `WOO_STORE_URL`
+      + `WOO_CONSUMER_KEY`/`WOO_CONSUMER_SECRET` env references only
+      (fail-closed, D-045); **D-050 enforced at the PAYLOAD level** —
+      publish/private status, `catalog_visibility=visible`, and price
+      writes on published products are RED-tier and refuse BEFORE any
+      request is built unless `authorized=True` (hidden/draft
+      projections and taxonomy seeding stay YELLOW, matching the
+      SyncEngine tier table); taxonomy validated against the approved
+      registries (D-031/D-033 pairs, D-032 codes, D-030 O/I/L gate
+      with the D-057 LRG sanction) locally; product/post publishing
+      contracts + media-reference seam (D-040/D-049 — Woo holds
+      references only); deterministic D-052-aligned error carriers
+      (401/403→E, 429→C Retry-After, 5xx→A, 400→B) and ck_/cs_
+      redaction (D-124). Health/contract drill
+      `local/scripts/validate_wordpress_live.py`: offline synthetic
+      drill + opt-in READ-ONLY `/wc/v3/system_status` probe behind
+      the full gate (exit 2 without — none exist). Standing owner
+      gate: no Woo store credentials exist, none requested (D-045);
+      live store connection = owner-gated Phase 4 G1/G2 territory.
 - [x] Owner: ~~resolve register row 24 (alpha/L LG code)~~ —
       **RESOLVED 2026-09-13 via D-057 (`LRG`)**; full vocabulary
       seed and alpha-size sync unblocked
@@ -1478,6 +1501,28 @@ these even if they seem helpful:
       re-verified green (122 tests). Standing owner gate: live
       Instagram Graph API credentials (D-045) — none exist, none
       requested.
+      **Live wiring shipped 2026-09-21 (classified graph layer on the
+      D-071 adapter):** `local/canonical/instagram_live.py` —
+      `classify_graph_error` maps documented Graph error bodies
+      (rate codes 4/17/32/613 and `is_transient` → Class-C cooldown
+      carrier; permission/OAuth codes 10/190/200/2500 → Class-E
+      freeze carrier; unknown codes → Class-B terminal) onto the
+      D-070 PUBLISHER's existing exception carriers, so live failures
+      flow through the shipped cooldown/freeze/backoff/DLQ machinery
+      with ZERO publisher changes (fail-closed: malformed bodies are
+      Class-B, never silently retried); `GraphUsageTracker` records
+      documented X-App-Usage / X-Business-Use-Case-Usage percentages
+      with a deterministic ≥75% warn signal (no wall clock);
+      `ClassifiedGraphAdapter` (D-071 subclass, same D-045 gate and
+      redaction) pins GRAPH_API_VERSION v26.0 per the official
+      changelog (reviewed 2026-09-21) and tracks usage on every
+      dispatch. Health/contract drill
+      `local/scripts/validate_instagram_live.py`: offline synthetic
+      publishing-graph drill (gate matrix, local Class-B validators,
+      mock two-step workflow, taxonomy matrix, usage tracker,
+      redaction) + opt-in READ-ONLY business-fields probe behind the
+      full gate (exit 2 without — none exist). Suite 42/42 ×2 (joint
+      Woo+Instagram battery); battery 1055/1055 ×2, zero skips.
 - [x] Phase 8 — AI Product Manager & Operational Observability
       — **COMPLETE (2026-09-16), D-065–D-068 all owner-approved**:
       D-065 unified observability (`local/canonical/`

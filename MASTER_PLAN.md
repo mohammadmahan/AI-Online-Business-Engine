@@ -396,7 +396,12 @@ docs/
 > transport, byte-equal block/page mapping, deterministic 3 req/sec
 > pacer + jitter-free backoff plans, D-052 error classification,
 > token/id redaction; validation drill with opt-in read-only live
-> probe); Phase 6
+> probe); Phase 3/4 Woo live REST client + Phase 9 classified Graph
+> API layer shipped 2026-09-21 (D-043/D-047 real adapter with D-050
+> RED-tier payload gates + approved-registry taxonomy validation;
+> D-069..D-072 graph error taxonomy on the publisher's carriers,
+> usage tracking, pinned v26.0; read-only live probes both behind
+> D-045 gates); Phase 6
 > closed at foundation level (Notion Business OS contracts, ingestion,
 > adapter/poller, conformance proof — live Notion connectivity
 > owner-gated/deferred); **Phase 7 closed at foundation level** (AI
