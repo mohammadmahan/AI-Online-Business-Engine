@@ -455,7 +455,15 @@ docs/
 > re-triggers served targets, HITL cancellation that never reverts
 > published platforms, and a reconciliation worker that rebuilds
 > job state from durable event-store data alone. Live platform
-> credentials remain owner-gated (D-045). **Phase 12 closed at
+> credentials remain owner-gated (D-045). **Phase 11 live pipeline
+> hardening (2026-09-21):** content-to-channel pipeline
+> (`canonical/content_pipeline.py`) composes AI generation → HUMAN
+> review gate (D-050) → product staging (SyncEngine, RED-tier
+> proposal-gated) → fan-out (D-077/D-078) → real D-070/D-074 outbox
+> publishers with duplicate-content blocking, per-target crash
+> isolation, and append-only compensation markers; operator drill
+> `validate_orchestration_live.py` (offline 15/15 + read-only
+> ORCH_LIVE_ENABLED live probe). **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

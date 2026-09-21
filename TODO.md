@@ -1414,6 +1414,23 @@ these even if they seem helpful:
       cancel semantics (terminal_reject targets are abortable).
       Standing owner gate: live platform credentials (D-045) — none
       exist, none requested.
+      **Live pipeline hardening (2026-09-21)**: content-to-channel
+      pipeline (`local/canonical/content_pipeline.py`) composes the
+      shipped engines — AI generation (Phase 7/8 router) → HUMAN
+      review gate (D-050: PROPOSED/IN_REVIEW/REJECTED proposals
+      refused before any dispatch; missing lifecycle fails closed) →
+      product staging (Phase 4 SyncEngine, RED-tier proposal-gated,
+      defense in depth) → channel fan-out (D-077/D-078) → REAL D-070/
+      D-074 outbox publishers (duplicate content across jobs blocked
+      by terminal guards — no double posts; Class-C cooldown vs
+      Class-E freeze+DLQ boundaries verified end-to-end); crash
+      isolation per target; compensation = durable APPEND-ONLY
+      COMPENSATED marker + deterministic per-target verdicts
+      (COMPLETED / RETRY_SCHEDULED / REFUNDED) — no ledger mutation;
+      drill `local/scripts/validate_orchestration_live.py`
+      (offline 15/15 + opt-in read-only ORCH_LIVE_ENABLED probe,
+      exit 2 gated); battery `test_phase11_orchestration_e2e.py`
+      28/28 (incl. drill fail-closed regression proof).
 - [x] Phase 10 — Telegram Platform Integration — **CLOSED at
       foundation level (2026-09-16), D-073–D-076 all owner-approved**:
       D-073 contracts (`local/canonical/telegram_contracts.py`:
