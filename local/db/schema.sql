@@ -422,6 +422,10 @@ CREATE TABLE IF NOT EXISTS analytics.business_insight (
 -- D-105/D-106 HITL review tickets: ticket_id PK is the atomic claim
 -- lock (exactly one CLAIMED winner); created/decided_at_logical are
 -- injected logical-clock values, never wall clock.
+-- (schema creation MUST precede the table — a fresh production database
+-- with no pre-existing hitl schema would fail; ordering defect found
+-- by the D-141 production runtime validation 2026-09-21)
+CREATE SCHEMA IF NOT EXISTS hitl;
 CREATE TABLE IF NOT EXISTS hitl.review_tickets (
     ticket_id         text PRIMARY KEY,
     queue_type        text NOT NULL,
@@ -455,6 +459,9 @@ CREATE TABLE IF NOT EXISTS hitl.review_ledger (
 -- D-109/D-110 operator actions: action_id PK is the application
 -- guard (one durable application per action); confirmation_key is
 -- single-use for APPLY-mode replay (burned + recorded, D-110).
+-- (schema creation MUST precede the table — same ordering-defect
+-- class as hitl, found by the D-141 production runtime validation)
+CREATE SCHEMA IF NOT EXISTS admin;
 CREATE TABLE IF NOT EXISTS admin.operator_actions (
     action_id         text PRIMARY KEY,
     command           text NOT NULL,

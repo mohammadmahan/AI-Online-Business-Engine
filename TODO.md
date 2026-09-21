@@ -732,7 +732,22 @@ these even if they seem helpful:
       exit-drill runbook (`docs/runbooks/dokploy-exit-drill.md`:
       I1–I5 zero-lock-in invariants, empty verification log);
       battery suite 13/13 ×2 green. Execution follows the Stage C
-      gates.
+      gates. **Production runtime hardening (2026-09-21, plan §24,
+      VALIDATED LOCALLY — deployment still owner-gated):**
+      `local/infra/compose.prod.yml` (hardened runtime manifest:
+      no-new-privileges everywhere, read-only rootfs + tmpfs seams on
+      the four data services, non-root n8n uid 1000, CPU/mem limits,
+      ZERO published ports, internal data network — all verified
+      RUNNING in the isolated prodcheck project, not just declared);
+      fail-closed startup pre-flight
+      (`local/canonical/runtime_preflight.py`: mandatory-key matrix,
+      prohibited production keys, secret values never echoed);
+      `local/scripts/validate_dokploy_runtime.py` (MANIFEST/RUNTIME/
+      GATE modes, exit 0/1/2); SSOT `schema.sql` ordering defect fixed
+      (hitl/admin tables preceded their CREATE SCHEMA — fatal on a
+      fresh database, guarded by battery); battery
+      `test_dokploy_runtime.py` 13/13 ×2, full battery 1125/1125 ×2
+      zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

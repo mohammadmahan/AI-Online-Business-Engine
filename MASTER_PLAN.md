@@ -463,7 +463,16 @@ docs/
 > publishers with duplicate-content blocking, per-target crash
 > isolation, and append-only compensation markers; operator drill
 > `validate_orchestration_live.py` (offline 15/15 + read-only
-> ORCH_LIVE_ENABLED live probe). **Phase 12 closed at
+> ORCH_LIVE_ENABLED live probe). **Dokploy production runtime
+> hardening (2026-09-21, D-141 plan §24):** hardened prod manifest
+> `compose.prod.yml` (no-new-privileges, read-only rootfs + tmpfs
+> seams, non-root n8n, resource limits, zero published ports,
+> internal data network — empirically verified running in the
+> isolated prodcheck project), fail-closed startup pre-flight
+> (`runtime_preflight.py`), three-mode runtime validator, and a
+> fresh-database schema-ordering fix in `db/schema.sql` (hitl/admin
+> before use); deployment itself remains owner-gated (Stage C+,
+> D-139). **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

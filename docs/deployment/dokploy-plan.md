@@ -943,3 +943,68 @@ owner-gated and has not occurred:
 staging host exists, so no live drill, backup, restore, or exit run
 has occurred; both new runbooks' verification logs are empty and are
 the execution evidence surfaces.
+
+## 24. Production runtime hardening record (2026-09-21) — VALIDATED LOCALLY, deployment owner-gated
+
+Fulfills the owner directive "Phase 12 / Stage B — Dokploy deployment
+manifests, container runtime hardening & integrated health probes"
+(the repository's Phase 12 record is Order Management, D-081–D-084;
+this work belongs to the D-141 Dokploy work package). Delivered and
+**empirically executed** on the local Docker daemon with synthetic
+credentials in an isolated compose project (`prodcheck`); nothing
+provisioned, no host exists, D-139 activation authority untouched:
+
+- **Production runtime manifest** — `local/infra/compose.prod.yml`:
+  five services (wordpress, woodb, canonical-db, n8n, media), digest-
+  pinned identical to staging, with hardening verified RUNNING, not
+  just declared: `no-new-privileges:true` everywhere, **read-only
+  rootfs** on canonical-db/woodb/n8n/media with explicit tmpfs+volume
+  write seams (postgres PGDATA, mysql socket+datadir, n8n cache
+  uid-1000-owned, minio tmp), non-root n8n (`user: "1000:1000"`),
+  CPU/memory limits on every service, **ZERO published ports**
+  (gateway-only frontend; data network `internal: true` — verified
+  link-scope routes, no default gateway, no egress), APP_ENV
+  production-fixed, mock-woo structurally absent (production reaches
+  the real Woo via the D-043/D-047 live client).
+  Runtime-caught fixes during validation: n8n requires a writable
+  `/home/node/.cache` (root-owned tmpfs → EACCES crash) and an
+  explicit `NODE_OPTIONS=--max-old-space-size` under cgroup limits
+  (V8 heap OOM); both fixed in the manifest, not waived.
+- **Fail-closed startup pre-flight** —
+  `local/canonical/runtime_preflight.py`: `check_environment`
+  refuses startup on ANY missing/malformed mandatory key (APP_ENV,
+  canonical-DB SSOT five, media three, N8N_URL), any active
+  prohibited key (WORDPRESS_DEBUG, AI_LIVE_ENABLED — D-045,
+  N8N_DIAGNOSTICS_ENABLED), or short secrets; error messages carry
+  key names, never values (D-124). `readiness_probe` composes
+  pool + schema + media + n8n verdicts — missing evidence is
+  NOT_READY, never a pass.
+- **Health & pre-flight harness** —
+  `local/scripts/validate_dokploy_runtime.py`, three modes:
+  MANIFEST (offline hardening surface: nnp/limits/zero-ports/
+  internal-data/frontend-wordpress-only, per-secret fail-closed
+  resolution, no default credential literals, healthcheck plan);
+  RUNTIME (empirical: isolated up → inspect hardening → seam
+  writability → gateway-less egress checks → SSOT migration
+  integrity `13/13` schemas → idempotent re-apply → scope-limited
+  teardown that refuses any other project); GATE (pre-flight
+  rehearsal). Exit 0/1/2 = verified/findings/environment gap.
+- **SSOT schema ordering defect fixed** — the production validation
+  exposed a latent `local/db/schema.sql` bug invisible locally:
+  `hitl.review_tickets` and `admin.operator_actions` were created
+  BEFORE their `CREATE SCHEMA` statements (fatal on a fresh database
+  where the schemas do not pre-exist). Ordering corrected; guarded by
+  `TestSchemaOrdering` (every schema must precede its first CREATE
+  TABLE use).
+- **Battery** — `local/tests/test_dokploy_runtime.py`: 13 tests
+  (preflight contract incl. per-key refusal + value-withholding;
+  readiness fail-closed; schema ordering guard; validator manifest/
+  gate modes via subprocess; optional empirical RUNTIME mode that
+  skips honestly on daemon-unreachable). 13/13 ×2 green; full
+  battery 1125/1125 ×2 zero-skip.
+
+**Boundary restatement:** this is a runtime-hardening deliverable,
+not a deployment. No production host, domain, credential, or DNS
+change exists or was made; the manifest has never run outside the
+isolated local `prodcheck` project; D-139 remains the sole
+production-activation authority and Stage C+ the owner-gated path.

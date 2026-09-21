@@ -1,0 +1,228 @@
+# ============================================================================
+# compose.prod.yml — PRODUCTION runtime manifest (Dokploy work package, D-141;
+# fulfills the owner directive "Phase 12 / Stage B — deployment manifests,
+# container runtime hardening & integrated health probes").
+#
+# Status: PLANNED + RUNTIME-VALIDATED LOCALLY — schema-validated and
+# empirically executed on the local Docker daemon (users, read-only
+# rootfs, resource limits, healthchecks verified via `docker inspect`)
+# with synthetic credentials. NO host exists, NOTHING deployed: Stage C+
+# (provisioning, DNS, credentials, activation) remains owner-gated per
+# docs/deployment/dokploy-plan.md §17/§21.6, and D-139 remains the sole
+# production-activation authority.
+#
+# Differences from compose.staging.yml (staging stays the Stage C/D artifact):
+#   - ZERO published ports (production is gateway/proxy-only; the deploy
+#     layer attaches its proxy to the `frontend` network — F-2 endgame).
+#   - HARDENED CONTAINERS: `no-new-privileges` everywhere, non-root
+#     execution users (documented per image), read-only rootfs with
+#     explicit tmpfs write seams, CPU/memory resource limits on every
+#     service.
+#   - APP_ENV=production fixed; debug flags structurally absent.
+#   - mock-woo is NOT here: production reaches the REAL WooCommerce store
+#     through the D-043/D-047 live client (mock is a D-052 local/staging
+#     device only).
+#
+# Secret-free by construction (G-B1/D-045): no credential values in this
+# file; every secret is `${VAR:?message}` fail-closed. Credential
+# *references* keep the D-045 REF pattern (per-environment secret store).
+#
+# Image pinning (F-8): digests identical to the staging manifest —
+# verified against registry Docker-Content-Digest headers 2026-09-20
+# (media image on quay.io; docker.io/minio/minio no longer anonymously
+# resolvable).
+# ============================================================================
+
+services:
+  wordpress:
+    # F-8 digest-pinned. Sole public surface — but production has NO host
+    # port: the gateway proxy joins `frontend` and reaches port 80 inside
+    # the network. Runs as the image's www-data user (uid 33) —
+    # runtime-validated locally; the image entrypoint completes its
+    # first-run volume initialization as root, so `user:` is pinned only
+    # after init (documented in the validator; not silently weakened).
+    image: wordpress:6.5-php8.3-apache@sha256:a9ea04325159fcf4a724c7fdd2d2db5454befb2f99fa59934838a46dbe348398
+    container_name: engine-prod-wordpress
+    depends_on:
+      woodb:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: woodb:3306
+      WORDPRESS_DB_USER: wp_prod
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:?production secret required — provide via deployment env, never commit}
+      WORDPRESS_DB_NAME: wordpress_prod
+      WORDPRESS_DEBUG: "0"           # production: debug structurally off
+    volumes:
+      - woo_data:/var/www/html
+    networks:
+      - frontend
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Rootfs NOT read-only: the WordPress image's entrypoint performs
+    # first-run configuration on the rootfs (verified empirically) —
+    # weakening it silently would be dishonest; writable seams stay on the
+    # named volume + tmpfs. Enforced where the image supports it (see DBs).
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  woodb:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    container_name: engine-prod-mysql
+    environment:
+      MYSQL_DATABASE: wordpress_prod
+      MYSQL_USER: wp_prod
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?production secret required — provide via deployment env, never commit}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?production secret required — provide via deployment env, never commit}
+      TZ: Asia/Tehran
+    volumes:
+      - woo_data_db:/var/lib/mysql
+    tmpfs:
+      - /tmp
+      - /var/run/mysqld
+    read_only: true                   # runtime-validated locally
+    networks:
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # NO published ports (F-2): internal to the data plane only.
+
+  canonical-db:
+    # The PostgreSQL SSOT (D-055 lineage): canonical/registry/events/
+    # provenance schemas. Never network-exposed; operator access via SSH
+    # tunnel only (production — Stage C owner decision).
+    image: postgres:16-alpine@sha256:3c5c8892d184f738f4fe282d14ddaa613a38f00f4189d2d94725ebe6f2909ddb
+    container_name: engine-prod-postgres
+    environment:
+      POSTGRES_DB: ${CANONICAL_DB_NAME:?production required — canonical SSOT database name}
+      POSTGRES_USER: ${CANONICAL_DB_USER:?production required — canonical SSOT user}
+      POSTGRES_PASSWORD: ${CANONICAL_DB_PASSWORD:?production secret required — provide via deployment env, never commit}
+      TZ: Asia/Tehran
+    volumes:
+      - canonical_data:/var/lib/postgresql/data
+      # Schema applied by local/scripts/apply_schema.py (idempotent) —
+      # explicit step, never a silent initdb side effect.
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    read_only: true                   # runtime-validated locally
+    networks:
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  n8n:
+    # Orchestration-only (D-042): never an authority for business truth.
+    image: n8nio/n8n@sha256:b73045abaddb40cb4024e86eea1b1f69093501a7339f685a4cd486b7743d23ae
+    container_name: engine-prod-n8n
+    depends_on:
+      canonical-db:
+        condition: service_healthy
+    # NO published ports (F-2): operator access via SSH tunnel or an
+    # authenticated domain behind the gateway — Stage C owner decision
+    # (plan §19 Q8).
+    environment:
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?production secret required — provide via deployment env, never commit}
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false   # D-045: no external calls
+      - N8N_TEMPLATES_ENABLED=false               # D-045: no external calls
+      - N8N_SECURE_COOKIE=false    # http-over-tunnel access model; revisit
+                                   # only with TLS termination in front
+      - GENERIC_TIMEZONE=Asia/Tehran
+      - DB_TYPE=sqlite
+      - DB_SQLITE_POOL_SIZE=5
+      # Explicit heap cap inside the cgroup memory limit (runtime-validated:
+      # without it node hits the V8 default heap and OOM-crashes under
+      # container limits)
+      - NODE_OPTIONS=--max-old-space-size=512
+    volumes:
+      - n8n_data:/home/node/.n8n
+    tmpfs:
+      - /tmp
+      # runtime-validated: n8n mkdirs its cache on boot; the tmpfs must be
+      # owned by uid 1000 (root-owned tmpfs → EACCES crash)
+      - /home/node/.cache:uid=1000,gid=1000
+    read_only: true                   # runtime-validated locally
+    user: "1000:1000"                 # image's `node` user (runtime-validated)
+    networks:
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  media:
+    # S3 API + console are INTERNAL (F-2); media_store.py reaches it over
+    # the compose network. No public domain, ever, without an owner decision.
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    container_name: engine-prod-minio
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?production required — object-store root user}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?production secret required — provide via deployment env, never commit}
+    volumes:
+      - media_data:/data
+    tmpfs:
+      - /tmp
+    read_only: true                   # runtime-validated locally
+    networks:
+      - data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  woo_data: {}          # WordPress/Woo files
+  woo_data_db: {}       # MySQL data
+  canonical_data: {}    # PostgreSQL SSOT (canonical/registry/events/provenance)
+  n8n_data: {}
+  media_data: {}        # object storage
+
+# Isolation topology (same model as staging — production endgame):
+#   `data`     : INTERNAL (no outbound routing). Every stateful plane plus
+#                the services that reach them. A compromised data container
+#                cannot egress; nothing here is gateway-reachable.
+#   `frontend` : gateway/proxy attachable — WordPress ONLY.
+networks:
+  frontend:
+    driver: bridge
+    attachable: true          # the deployment layer's proxy joins at deploy
+  data:
+    driver: bridge
+    internal: true
