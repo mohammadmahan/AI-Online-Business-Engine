@@ -512,7 +512,11 @@ docs/
 > `local/src/ai/memory_interceptor.py` (zero-blockage degradation,
 > D-127 `memory_ops` metering, canonical boundary untouched);
 > Stage D smoke embeds the Stage H re-hydration parity proof (S-07);
-> 17-test battery. **Phase 12 closed at
+> 17-test battery. **Publishing feedback loop (2026-09-22):**
+> `local/src/publishing/` orchestrator composes the Phase 10/11
+> engines with deterministic retry/DLQ hardening and D-142 engagement
+> feedback into memory (10-test battery); canonical engines
+> untouched, at-most-once delivery preserved end-to-end. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

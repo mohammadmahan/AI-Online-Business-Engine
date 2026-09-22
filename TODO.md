@@ -696,6 +696,15 @@ these even if they seem helpful:
       canonical AI boundary is untouched. Stage D smoke gains S-07
       (Stage H export→dry-run-import parity proof inside every smoke
       run; 11/11). `test_memory_ai_integration.py` 17/17 ×2.
+      **Publishing feedback loop (2026-09-22):**
+      `local/src/publishing/` — context-aware orchestrator over the
+      canonical Phase 10 calendar + Phase 11 outbox publishers
+      (schedule → DUE → per-target dispatch → deterministic retry
+      ladder → durable DLQ rows in the SSOT → budget-gated engagement
+      feedback into VectorStore + WAL export). At-most-once preserved
+      end-to-end (terminal-post skip + canonical vault guard);
+      receipts/deep-redacted everywhere; `memory_interceptor` reused
+      for budget gating. `test_publishing_pipeline_e2e.py` 10/10 ×2.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for

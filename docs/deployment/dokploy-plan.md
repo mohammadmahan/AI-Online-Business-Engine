@@ -1250,3 +1250,27 @@ per-item owner authorizations.
   injection, degradation/fallback, budget gating both directions,
   redaction through the full pipeline, S-07 smoke integration.
   Full battery 1238/1238 ×2 green (§29 → +17).
+
+## 31. Publishing pipeline E2E + memory feedback loop record (2026-09-22)
+
+- **`local/src/publishing/`** (D-142 consumer extension): the
+  Phase 9–12 multi-channel pipeline composed with the memory layer —
+  `orchestrator.py` (schedule → DUE → per-target dispatch through the
+  canonical outbox publishers → deterministic retry circuit →
+  durable DLQ rows in the SSOT → budget-gated engagement feedback
+  into VectorStore + portable WAL export), `telegram.py` /
+  `instagram.py` (receipt-normalizing dispatchers over the canonical
+  publishers), `receipts.py` (D-124 normalization), `retry_policy.py`
+  (deterministic exponential backoff, 2/4/8 logical ticks, DLQ after
+  3 retries; crashes and Class-B terminal violations dead-letter
+  immediately — D-126 no-jitter).
+- **Guarantees proven:** at-most-once per publish key (terminal-post
+  skip + canonical vault guard, zero duplicate platform sends);
+  canonical engines untouched (injected composition only); every
+  degraded path (store failure, budget refusal, missing memory)
+  fails open to the pipeline with honest reports.
+- **Battery:** `test_publishing_pipeline_e2e.py` 10 tests — full
+  lifecycle with feedback memory, schedule idempotency, slot
+  conflicts, concurrent duplicate refusal, retry ladder, durable DLQ,
+  budget-gated feedback, memory fail-open, redaction sweep over
+  receipts/DLQ/memory. Full battery 1248/1248 ×2 green (§30 → +10).

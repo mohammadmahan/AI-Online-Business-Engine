@@ -48,6 +48,7 @@ _EXTRA_PATTERNS = (
     (re.compile(r"ghp_[A-Za-z0-9]{30,}"), "[REDACTED]"),
     (re.compile(r"AKIA[0-9A-Z]{16}"), "[REDACTED]"),
     (re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"), "[REDACTED]"),
+    (re.compile(r"bot[0-9]{6,}:[A-Za-z0-9_-]{20,}"), "[REDACTED]"),
 )
 
 
