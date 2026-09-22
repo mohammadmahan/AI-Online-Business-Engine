@@ -1145,3 +1145,50 @@ per-item owner authorizations.
   originally split the whole manifest, so the network names
   `frontend:`/`data:` were misparsed as services — fixed by scoping
   to the `services:` block (test-pinned).
+
+## 28. Stage F authorization gate + Stage G acceptance record (2026-09-22) — PLANNED artifacts, execution owner-gated
+
+- **Stage F** — `docs/deployment/stage-f-authorization.md`: the
+  Stage E §6 sign-off matrix synthesized into seven blocking
+  authorizations **SF-1..SF-7** (window-scoped SSH, deploy secret
+  staging by key NAME only, DNS/TLS, off-host MediaStore creds,
+  single-use commit-bound promotion token, break-glass ack, rotation
+  plan) with the five-step token rotation procedure (Phase 19
+  control-audit issuance → out-of-band delivery → single D-139
+  consumption → audit-recorded; abort ⇒ NEW token, never reuse) and
+  gate-exit criteria binding V-gates + `--snapshot` + `--stage-f` +
+  D-138 GO on the SAME commit. Machine-verified by
+  `verify_cutover_readiness.py --stage-f` (F-1 matrix integrity,
+  F-2 runbook §6 ↔ SF-1..SF-6 mapping, F-3 unsigned rows reported by
+  name — an empty execution log is the honest default, F-4 D-045
+  leak refusal exit 2 before any evaluation). Today's honest state:
+  F-3 FAILS (nothing signed); the gate converts to pass only when
+  the owner completes §2.
+- **Stage E edge evidence → D-138** —
+  `launch_evidence.monitoring_evidence` now accepts the Stage E
+  `--edge` probe report as MON-001 monitoring evidence: edge
+  findings or an unassessable edge are NEGATIVE evidence (fail
+  closed); green edge keeps the verdict; absent report stays
+  backward-compatible. `launch_attestation.run_attestation` threads
+  it through to the matrix. The nine-domain owner-approved matrix
+  (D-137) is unchanged — no new control, honest folding only.
+- **Stage G** — `docs/deployment/stage-g-acceptance.md`: post-cutover
+  acceptance specification with automated probe definitions
+  GA-1..GA-7 (container surface, SSOT integrity + zero-data-loss
+  fold/chain checks, business metric lifecycle sanity, telemetry
+  liveness, live edge policy conformance, budget/breaker posture,
+  FRESH recovery evidence) and the evaluation protocol: explicit
+  ACCEPTED/REJECTED, no partial acceptance, two consecutive green
+  cycles with a synthetic business flow between them, any
+  FAIL/CANNOT_ASSESS ⇒ REJECTED, rollback interlock via the Stage E
+  RB-1..RB-6 ordering, fresh evidence after any rollback. Probe
+  executor (`run_stage_g_acceptance.py`) is planned and authored
+  only when a cutover is authorized.
+- **Battery** — `local/tests/test_stage_f_authorization.py`: 23
+  tests (CLI structure + rc=1-on-unsigned + D-045 exit-2 refusal,
+  truncated-matrix/malformed-signature fail-closed, D-138 edge
+  binding incl. backward compatibility and failing-probe dominance,
+  Stage G rule pins, redaction).
+- **Runbook amendment** — Stage E §6 checklist split into the six
+  entry-window items (SF-1..SF-6) and the post-window rotation
+  execution (SF-7) so the gate mapping is exact.

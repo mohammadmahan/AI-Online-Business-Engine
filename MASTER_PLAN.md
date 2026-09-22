@@ -493,7 +493,13 @@ docs/
 > `verify_cutover_readiness.py` (offline V-01..V-07 fail-closed,
 > `--snapshot` tamper evidence, opt-in `--edge` probe) +
 > `test_stage_e_cutover.py` 15/15 ×2 — PLANNED artifacts; execution
-> owner-gated under D-139. **Phase 12 closed at
+> owner-gated under D-139. **Stage F/G (2026-09-22, D-141 plan
+> §28):** Stage F authorization gate (`stage-f-authorization.md`,
+> SF-1..SF-7 + token rotation; `--stage-f` machine verification,
+> unsigned ⇒ fail closed) and Stage G acceptance spec
+> (`stage-g-acceptance.md`, GA-1..GA-7, two-cycle protocol);
+> Stage E edge evidence folded into D-138 MON-001; 23-test battery —
+> all PLANNED; execution owner-gated under D-139. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

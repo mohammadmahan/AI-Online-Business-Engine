@@ -112,7 +112,13 @@ then reconcile; durable evidence is preserved, never deleted** (D-139).
 - [ ] Off-host backup destination credentials (Phase 24 MediaStore)
 - [ ] Promotion approval token issued (single-use, commit-bound) — Phase 19 control-audit recorded
 - [ ] Break-glass contacts acknowledged
-- [ ] Post-window: rotate any credential that transited the operator shell
+
+(Entry-window items map onto Stage F authorizations SF-1..SF-6 in
+`stage-f-authorization.md`; the rotation PLAN is SF-7 — the rotation
+itself is executed at gate exit.)
+
+- [ ] Post-window: execute the accepted rotation plan (SF-7) — rotate
+      every credential that transited the operator shell
 
 ## 7. Stop conditions (fail closed)
 

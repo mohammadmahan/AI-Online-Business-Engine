@@ -779,7 +779,19 @@ these even if they seem helpful:
       composition — DIRTY tree fails closed; `--snapshot` D-125
       tamper-evidence proof; opt-in `--edge` live header/redirect
       probe, unreachable ⇒ exit 2); `test_stage_e_cutover.py` 15/15
-      ×2 zero-skip.
+      ×2 zero-skip. **Stage F authorization gate + Stage G
+      acceptance spec (2026-09-22, plan §28 — PLANNED artifacts,
+      execution owner-gated under D-139):**
+      `stage-f-authorization.md` (SF-1..SF-7 blocking authorizations,
+      single-use commit-bound token rotation procedure, gate-exit
+      criteria) machine-verified by `verify_cutover_readiness.py
+      --stage-f` (F-1..F-4 fail-closed; honest default = unsigned ⇒
+      rc 1); Stage E `--edge` probe folded into D-138 MON-001 as
+      monitoring evidence (findings/unassessable ⇒ negative,
+      backward-compatible); `stage-g-acceptance.md` (GA-1..GA-7
+      probes, two-cycle ACCEPTED/REJECTED protocol, rollback
+      interlock); `test_stage_f_authorization.py` 23/23 ×2
+      zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

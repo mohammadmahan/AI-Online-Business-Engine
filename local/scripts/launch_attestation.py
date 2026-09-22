@@ -73,9 +73,16 @@ def stack_up() -> bool:
     return bool(rows) and all(r[-1] == "running" for r in rows)
 
 
-def run_attestation(n_events: int = 12) -> Dict:
+def run_attestation(n_events: int = 12,
+                    edge_report: Dict | None = None) -> Dict:
     """Run both DR legs + the sweeps, evaluate the launch matrix, and
-    return the unified qa.health_report.v1 attestation dict."""
+    return the unified qa.health_report.v1 attestation dict.
+
+    `edge_report` (optional) is the Stage E `--edge` probe result
+    ({"assessable": bool, "findings": [...]}) — monitoring-domain
+    evidence under MON-001: a failing or unassessable edge is negative
+    evidence and blocks the GO verdict (fail closed).
+    """
     import resilience_drill as rd
     import decision_ledger_drill as dld
     from canonical.admin_engine import default_vault, ControlPlaneEngine
@@ -120,6 +127,7 @@ def run_attestation(n_events: int = 12) -> Dict:
         battery_ok=True, census_ok=True, ladder_ok=True,
         drill_result=drill_result,
         ledger_consistency=ledger_consistency,
+        edge_report=edge_report,
         require_dr_evidence=True)
     evaluation = evaluate_candidate(matrix, commit, fingerprint)
 

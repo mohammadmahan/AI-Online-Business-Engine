@@ -55,6 +55,7 @@ for p in (str(HERE), str(LOCAL)):
         sys.path.insert(0, p)
 
 RUNBOOK = ROOT / "docs" / "deployment" / "stage-e-cutover-runbook.md"
+STAGE_F_DOC = ROOT / "docs" / "deployment" / "stage-f-authorization.md"
 PROD_MANIFEST = LOCAL / "infra" / "compose.prod.yml"
 ENV_EXAMPLE = ROOT / ".env.example"
 
@@ -200,6 +201,15 @@ def production_secrets_in_shell(env: dict[str, str] | None = None) -> tuple[str,
     return tuple(k for k in SECRET_KEYS
                  if src.get(k) and src.get(k) != "synthetic-drill-only-0"
                  and len(str(src[k])) >= 8)
+
+
+def exec_log_text() -> str:
+    """The runbook's execution log — the surface where Stage F
+    signatures are recorded. Empty (or absent) until execution."""
+    log = RUNBOOK.parent / "stage-e-execution-log.md"
+    if not log.exists():
+        return ""
+    return log.read_text(encoding="utf-8")
 
 
 def preflight_contract_ok() -> tuple[bool, str]:
@@ -387,10 +397,120 @@ def edge_mode(url: str) -> int:
     return 0 if ok else 1
 
 
+def stage_f_checklist(text: str | None = None) -> dict:
+    """Structural parse of the Stage F sign-off matrix (SF-1..SF-7):
+    {"sf-1": {"owner": ..., "binding": ...}, ...} — raises on a
+    missing row so checklist drift fails loudly."""
+    if text is None:
+        text = STAGE_F_DOC.read_text(encoding="utf-8")
+    rows: dict[str, dict] = {}
+    for m in re.finditer(
+            r"^\| (SF-\d) \| (.+?) \| ([a-z +]+) \| .+? \| ([a-z-]+) \|",
+            text, re.M):
+        rows[m.group(1).lower()] = {"item": m.group(2).strip(),
+                                    "owner": m.group(3).strip(),
+                                    "binding": m.group(4).strip()}
+    expected = {f"sf-{i}" for i in range(1, 8)}
+    missing = sorted(expected - set(rows))
+    if missing:
+        raise ValueError(f"Stage F matrix rows missing: {missing}")
+    return rows
+
+
+def runbook_signoff_rows(text: str | None = None) -> list[str]:
+    """The runbook §6 ENTRY-WINDOW checklist items (checkbox lines
+    before the SF-7 cross-reference note; the post-window rotation
+    item is SF-7's execution and is not part of the entry gate)."""
+    if text is None:
+        text = RUNBOOK.read_text(encoding="utf-8")
+    section = re.search(r"## 6\..*?(?=\n## 7\.)", text, re.S)
+    if not section:
+        raise ValueError("runbook has no §6 owner-signoff section")
+    body = section.group(0)
+    note = body.find("(Entry-window items map")
+    if note != -1:
+        body = body[:note]
+    return re.findall(r"^- \[ \] (.+)$", body, re.M)
+
+
+def signed_entries(exec_log_text: str) -> dict[str, str]:
+    """Parse SF-n signature entries from the runbook execution log.
+    Expected entry shape (one per line):
+        SF-1 | signed | <name> | <date> | <evidence-ref>
+    Returns {"SF-1": line, ...} for signed rows only."""
+    signed: dict[str, str] = {}
+    for line in exec_log_text.splitlines():
+        m = re.match(r"^\s*(SF-\d) \| signed \|", line)
+        if m:
+            signed[m.group(1)] = line.strip()
+    return signed
+
+
+def stage_f_mode() -> int:
+    """Stage F authorization-gate integrity check (fail closed).
+
+    F-1 matrix rows structurally complete · F-2 runbook §6 maps 1:1
+    onto SF-1..SF-7 · F-3 unsigned rows reported by name (the honest
+    default) · F-4 D-045 planning-shell hygiene (exit 2 on leak).
+    """
+    res = Results()
+    print("=== STAGE F — AUTHORIZATION GATE (D-141) ===")
+
+    leaks = production_secrets_in_shell()
+    if leaks:
+        print("  [FAIL] F-4 planning hygiene — production secret values "
+              f"present in shell: {', '.join(leaks)}")
+        print("  Refusing to continue (D-045).")
+        return 2
+    res.ok("F-4 no production secrets in planning shell (D-045)")
+
+    try:
+        rows = stage_f_checklist()
+    except (ValueError, OSError) as e:
+        res.fail("F-1 sign-off matrix integrity", str(e))
+        print(res.render())
+        return 1
+    bad = [k for k, v in rows.items()
+           if not (v["item"] and v["owner"] and v["binding"])]
+    (res.ok if not bad else res.fail)(
+        "F-1 sign-off matrix integrity",
+        f"{len(rows)} rows (SF-1..SF-7), owner+binding declared"
+        if not bad else f"incomplete rows: {bad}")
+
+    try:
+        rb = runbook_signoff_rows()
+    except (ValueError, OSError) as e:
+        res.fail("F-2 runbook §6 mapping", str(e))
+        print(res.render())
+        return 1
+    # SF-7 (rotation plan) is signed at gate EXIT; the runbook §6
+    # checklist covers the six entry-window items.
+    (res.ok if len(rb) == 6 else res.fail)(
+        "F-2 runbook §6 checklist maps onto SF-1..SF-6",
+        f"{len(rb)} runbook items vs 6 entry-window authorizations")
+
+    signed = signed_entries(exec_log_text())
+    unsigned = [f"SF-{i}" for i in range(1, 8) if f"SF-{i}" not in signed]
+    if unsigned:
+        res.fail("F-3 owner sign-offs",
+                 f"unsigned (gate NOT satisfied): {', '.join(unsigned)}")
+    else:
+        res.ok("F-3 owner sign-offs", "SF-1..SF-7 signed and bound")
+
+    print(res.render())
+    print("=== STAGE F GATE SATISFIED — cutover may proceed to "
+          "runbook §1 ===" if not res.failed() else
+          "=== STAGE F GATE NOT SATISFIED — findings above block "
+          "cutover (fail closed) ===")
+    return 1 if res.failed() else 0
+
+
 def main(argv: list | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if "--snapshot" in argv:
         return snapshot_mode()
+    if "--stage-f" in argv:
+        return stage_f_mode()
     if "--edge" in argv:
         i = argv.index("--edge")
         if i + 1 >= len(argv):

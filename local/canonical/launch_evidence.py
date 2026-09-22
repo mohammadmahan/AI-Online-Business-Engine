@@ -129,15 +129,35 @@ class EvidenceCollector:
             bool(battery_ok and census_ok and ladder_ok),
             reference, "battery+census+ladder")
 
-    def monitoring_evidence(self, health_report: Dict) -> EvidenceRecord:
-        """MON-001: D-123 qa.health_report.v1 verdicts all green."""
+    def monitoring_evidence(self, health_report: Dict,
+                            edge_report: Optional[Dict] = None) -> EvidenceRecord:
+        """MON-001: D-123 qa.health_report.v1 verdicts all green.
+
+        When an edge report is supplied (Stage E `--edge` probe:
+        {"assessable": bool, "findings": [..]}), it is monitoring-
+        domain evidence too: a failing or unassessable edge is NEGATIVE
+        evidence — fail closed, never an assumed pass. Absent report
+        (None) leaves the verdict to the probe set alone.
+        """
         probes = health_report.get("probes", {})
         bad = [n for n, p in probes.items()
                if str(p.get("verdict", "")).upper() != "PASS"]
+        ok = not bad
+        detail = f"probes={len(probes)} failing={sorted(bad)}"
+        if edge_report is not None:
+            edge_findings = list(edge_report.get("findings") or [])
+            assessable = bool(edge_report.get("assessable"))
+            if not assessable:
+                ok = False
+                detail += " edge=CANNOT_ASSESS"
+            elif edge_findings:
+                ok = False
+                detail += f" edge_findings={edge_findings}"
+            else:
+                detail += " edge=PASS"
         return self._record(
-            "EV-MON-001", "logically_expiring", not bad,
-            "d123-health-report",
-            f"probes={len(probes)} failing={sorted(bad)}")
+            "EV-MON-001", "logically_expiring", ok,
+            "d123-health-report", detail)
 
     def escalation_evidence(self, cfg: Dict[str, Any]) -> EvidenceRecord:
         """ESC-001: role-based escalation configuration."""
@@ -155,6 +175,7 @@ def canonical_matrix(collector: EvidenceCollector, *,
                      ladder_ok: bool,
                      drill_result: Optional[Dict] = None,
                      ledger_consistency: Optional[Dict] = None,
+                     edge_report: Optional[Dict] = None,
                      require_dr_evidence: bool = False) -> LaunchMatrix:
     """The canonical nine-domain control matrix with evidence bound
     from the measured results (D-137)."""
@@ -258,7 +279,8 @@ def canonical_matrix(collector: EvidenceCollector, *,
             "EV-INV-001", "phase12-battery", battery_ok=battery_ok,
             census_ok=census_ok, ladder_ok=ladder_ok),
         "SHI-001": shp,
-        "MON-001": collector.monitoring_evidence(probes_report),
+        "MON-001": collector.monitoring_evidence(
+            probes_report, edge_report=edge_report),
         "ESC-001": collector.escalation_evidence(escalation_cfg),
         "E2E-001": collector.battery_evidence(
             "EV-E2E-001", "phase25-suite", battery_ok=battery_ok,
