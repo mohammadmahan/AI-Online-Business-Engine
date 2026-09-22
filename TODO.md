@@ -757,6 +757,17 @@ these even if they seem helpful:
       plan verification incl. D-045 fail-closed secret-in-planning-env
       refusal + opt-in READ-ONLY SSH target probe behind a pinned
       command allowlist) + `test_stage_c_readiness.py` 21/21 ×2.
+      **Stage D staging verification (2026-09-22, plan §26 — runbook
+      + harnesses EXECUTED on a live local staging project, external
+      deployment owner-gated):** `stage-d-staging-runbook.md`
+      (health-gated per-tier launch, recovery procedures, abort
+      gates); `bootstrap_staging.py` (fail-closed preflight, idempotent
+      13-schema apply + O/I/L seed, transport guard refusing any DB
+      target outside engine-staging-* — kills the staging→local SSOT
+      cross-environment defect class); `run_staging_smoke_tests.py`
+      21/21 (10 synthetic canonical-engine checks + 11 stack checks,
+      label-based so verification needs no secret env);
+      `test_stage_d_smoke.py` 10/10 zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

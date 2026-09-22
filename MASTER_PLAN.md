@@ -479,7 +479,13 @@ docs/
 > verification with D-045 fail-closed secret-in-planning-env refusal,
 > and an opt-in READ-ONLY SSH target probe behind a test-pinned
 > command allowlist; no host exists, provisioning owner-gated.
-> **Phase 12 closed at
+> **Stage D staging verification (2026-09-22, D-141 plan §26):**
+> staging runbook + bootstrap (`bootstrap_staging.py`, transport-
+> guarded against cross-environment SSOT targets) + smoke harness
+> (`run_staging_smoke_tests.py`, 21/21 incl. live stack checks) +
+> `test_stage_d_smoke.py` 10/10 — executed against a running local
+> staging project with synthetic credentials; external deployment
+> remains owner-gated. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

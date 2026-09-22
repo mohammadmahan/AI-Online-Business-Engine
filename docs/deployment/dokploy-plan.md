@@ -1042,3 +1042,52 @@ the local plan — no host exists, nothing provisioned.** Complements
 All Stage C *execution* (provisioning, installer, firewall, DNS)
 remains behind the §17/§21.6 per-item owner authorizations; the probe
 mutates nothing on any host it inspects.
+
+## 26. Stage D execution record (2026-09-22) — VERIFIED ON THE LIVE STAGING STACK
+
+Status: **runbook + harnesses delivered AND executed against a running
+staging compose project locally** (synthetic credentials; no host, no
+Dokploy installation, no external mutation). Delivered:
+
+- **Runbook** — `docs/deployment/stage-d-staging-runbook.md`: health-
+  gated per-tier launch sequence (`up -d --wait`), bootstrap and smoke
+  harness contracts, recovery procedures (partial failure, SSOT
+  suspicion, failed rollout), abort gates, and Stage D exit criteria.
+- **Bootstrap** — `local/scripts/bootstrap_staging.py`: fail-closed
+  preflight (prohibited production keys abort BEFORE migration),
+  idempotent 13-schema apply + O/I/L-gated seed via the proven
+  seed_registry primitives, staging smoke fixture, container-scoped
+  permission seam. **Transport guard:** the shared `q()` prefers host
+  psql against LOCAL_* defaults — bootstrap pins the container
+  transport and refuses any DB target outside `engine-staging-*`,
+  eliminating the cross-environment (staging→local SSOT) defect class.
+  Verified green ×2 consecutively (idempotency proof: second run
+  reports the fixture "already present").
+- **Smoke harness** — `local/scripts/run_staging_smoke_tests.py`,
+  21/21 verified: 10 SYNTHETIC checks over the real canonical engines
+  (env contract + production-leak refusal; happy path generation →
+  review gate → Woo staging DRAFT (RED publish refused) → IG/TG
+  dispatch with queued→published outbox transitions; D-070 dedup on
+  identical key material; D-081 order replay ⇒ skipped_duplicate;
+  unreviewed refusal; per-target crash isolation + durable COMPENSATED
+  marker; D-124 redaction) + 11 STACK checks over the live project
+  (5 healthy services, 13/13 schemas, n8n healthz inside the data
+  network, isolation probes, zero published DB ports). Stack mode is
+  label-based — verification needs NO secret env (health evidence
+  never requires credentials). Redis/Celery reconciled: none exist in
+  this stdlib-only repository; the durable outbox IS the queued-work
+  plane and is what the harness verifies.
+- **Battery** — `local/tests/test_stage_d_smoke.py`: 10 tests, all
+  green with the stack up (synthetic subprocess run, stack-down
+  degraded-honestly behavior, transport guard, preflight-before-
+  migration, --check mutation-free, secret-value hygiene,
+  deterministic reruns), zero skips.
+
+Empirical findings folded in during validation: mock-woo is a deferred
+profile (absent by design, not a failure); `docker compose ps` port
+`null` means declared-but-unmapped (NOT published); staging and local
+dev gateway share port 18080 — concurrent projects on one dev machine
+must stagger the gateway (documented in the runbook).
+
+Stage D *external* execution (remote host, DNS, real deployment)
+remains owner-gated per plan §17.
