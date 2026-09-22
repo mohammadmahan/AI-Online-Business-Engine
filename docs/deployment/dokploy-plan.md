@@ -1192,3 +1192,38 @@ per-item owner authorizations.
 - **Runbook amendment** — Stage E §6 checklist split into the six
   entry-window items (SF-1..SF-6) and the post-window rotation
   execution (SF-7) so the gate mapping is exact.
+
+## 29. Stage H vendor-exit & restore harness record (2026-09-22) — PLANNED procedure, OFFLINE-PROVEN harness
+
+- **Status:** the Stage H *procedure* remains owner-gated (no host
+  exists); the *harness* is implemented and offline-proven.
+- **Delivered:**
+  - `docs/deployment/stage-h-vendor-exit.md` — the data-plane exit
+    procedure composing `dokploy-exit-plan.md` (what lives where) and
+    `dokploy-exit-drill.md` (I1–I5): freeze → export → **prove
+    before teardown** (dry-run import parity + drill invariants) →
+    teardown → re-hydrate on any vanilla target → attest. No
+    forensic record is ever deleted; every destructive step is a
+    separate owner-authorized action.
+  - `local/scripts/verify_vendor_exit.py` — exit 0/1/2; `check`
+    (offline self-proof + D-045 shell hygiene), `export` (read-only
+    SSOT dump, 13 declared surfaces incl. the HITL decision ledger
+    and Phase-19 control audit, D-124-redacted), `dry-run-import`
+    (per-surface fold + row-count parity = 100% schema integrity and
+    row parity). Armoring: PBKDF2-HMAC-SHA256 + NIST SP 800-90A
+    HMAC_DRBG keystream + HMAC tag (stdlib-only defense-in-depth;
+    storage-layer encryption remains the primary control).
+- **D-142 memory foundation** (same battery): `local/src/memory/`
+  — `vector_store.py` (pgvector DDL as pinned text, HNSW hook,
+  injected-executor adapter, deterministic summarization pruning,
+  deep zero-leak redaction on write AND read) and
+  `memwal_adapter.py` (deterministic hash-chained `memwal.wal.v1`
+  portable artifacts, offline-first sync with transparent
+  local-SSOT fallback that never raises to the agent, D-125
+  snapshot composition). Walrus/relayer NOT connected (D-045):
+  remote transport is injected-only; battery fully air-gapped.
+- **Battery:** 27 tests (`local/tests/test_stage_h_and_memwal.py`)
+  — export/import round trip, tamper detection, armored round trip
+  with wrong-passphrase refusal, pgvector DDL pins, KNN SQL shape,
+  pruning determinism, WAL determinism/tamper/fallback, D-045
+  refusal. Full battery 1221/1221 ×2 green (§30 verification).

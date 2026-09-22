@@ -499,7 +499,14 @@ docs/
 > unsigned ⇒ fail closed) and Stage G acceptance spec
 > (`stage-g-acceptance.md`, GA-1..GA-7, two-cycle protocol);
 > Stage E edge evidence folded into D-138 MON-001; 23-test battery —
-> all PLANNED; execution owner-gated under D-139. **Phase 12 closed at
+> all PLANNED; execution owner-gated under D-139. **Stage H + D-142
+> foundation (2026-09-22, D-141 plan §29):** vendor-exit harness
+> (`stage-h-vendor-exit.md` + `verify_vendor_exit.py` — SSOT export
+> to tamper-evident/armored archive, dry-run import with 100%
+> row-parity proof; procedure owner-gated) and the portable agent
+> memory foundation (`local/src/memory/` pgvector store +
+> MemWal-pattern WAL adapter, offline-first, Walrus NOT connected
+> per D-045); 27-test battery. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

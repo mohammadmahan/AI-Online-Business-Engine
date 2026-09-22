@@ -673,17 +673,20 @@ these even if they seem helpful:
       gateway and live store credentials (D-045) — none exist, none
       requested.
 - [ ] Work item — **Portable multi-agent shared-memory layer (MemWal)**
-      — **PLANNED (2026-09-20; D-142 Approved, owner-directed)**: adopt
-      `MystenLabs/MemWal` (Walrus Memory) as the external, encrypted,
-      portable shared-memory layer for AI agents at live-AI-integration
-      time (Phases 7–10 surfaces + owner-stated future optimization
-      workstreams), after Dokploy infrastructure stabilization (D-141
-      stages C+). Integration must sit behind an injected,
-      provider-neutral seam with a local deterministic parity backend
-      (D-129/D-131, Phase 24 replaceability); external connectivity and
-      credentials are owner-gated (D-045); memory writes are never
-      authority (D-026/D-027); zero-leak redaction applies (D-114/D-124).
-      **Nothing installed, connected, or integrated.**
+      — **FOUNDATION IMPLEMENTED (2026-09-22; D-142 Approved)**:
+      local-first memory layer shipped behind the injected,
+      provider-neutral seam — `local/src/memory/vector_store.py`
+      (pgvector-compatible SSOT store: pinned DDL, HNSW hook,
+      deterministic summarization pruning, deep zero-leak redaction
+      on write AND read) and `local/src/memory/memwal_adapter.py`
+      (portable hash-chained `memwal.wal.v1` artifacts, offline-first
+      sync with transparent local-SSOT fallback, D-125 snapshot
+      composition). Remaining: Walrus/relayer connectivity at
+      live-AI-integration time — external connectivity and
+      credentials remain owner-gated (D-045); **nothing installed,
+      connected, or integrated** on the external side; memory writes
+      stay non-authoritative (D-026/D-027); zero-leak redaction
+      enforced (D-114/D-124).
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for
@@ -791,6 +794,16 @@ these even if they seem helpful:
       backward-compatible); `stage-g-acceptance.md` (GA-1..GA-7
       probes, two-cycle ACCEPTED/REJECTED protocol, rollback
       interlock); `test_stage_f_authorization.py` 23/23 ×2
+      zero-skip. **Stage H vendor-exit harness + D-142 memory
+      foundation (2026-09-22, plan §29 — procedure PLANNED,
+      harness OFFLINE-PROVEN):** `stage-h-vendor-exit.md`
+      (data-plane exit procedure; prove-before-teardown);
+      `verify_vendor_exit.py` (check/export/dry-run-import, exit
+      0/1/2, D-045 hygiene, D-124 redaction, fold parity, tamper
+      detection, PBKDF2+HMAC_DRBG armoring);
+      `local/src/memory/` pgvector-compatible store + MemWal-pattern
+      portable WAL adapter with offline-first fallback (Walrus NOT
+      connected, D-045); `test_stage_h_and_memwal.py` 27/27 ×2
       zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,

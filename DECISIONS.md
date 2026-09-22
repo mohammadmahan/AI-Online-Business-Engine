@@ -3469,6 +3469,16 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   Stages D–H are READY, not EXECUTED — no live drill, backup,
   restore, or exit run has occurred.
 
+- **Verification (Stage H artifacts, 2026-09-22):** exit harness
+  implemented and offline-proven —
+  `local/scripts/verify_vendor_exit.py` (`check`/`export`/
+  `dry-run-import`; exit 0/1/2, D-045 shell hygiene, D-124 redaction
+  of exported rows, fold parity, tamper detection, PBKDF2+HMAC_DRBG
+  armored round trip with wrong-passphrase refusal) +
+  `docs/deployment/stage-h-vendor-exit.md` (data-plane exit
+  procedure, §4, owner-gated). NO live export, teardown, or host
+  action performed — no staging/production host exists.
+
 ## D-142 — Portable multi-agent shared-memory layer (MemWal)
 
 - **Status:** **Approved** (2026-09-20, owner-directed) — adoption
@@ -3507,6 +3517,19 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Verification:** none — planning registration only; the tool was
   not executed, downloaded, or connected. Reference review date
   2026-09-20 (public repository/description check only).
+
+- **Verification (memory foundation, 2026-09-22):** local-first
+  implementation shipped per the approved boundaries —
+  `local/src/memory/vector_store.py` (pgvector DDL as pure text,
+  injected-executor adapter, HNSW index hook, deterministic
+  summarization pruning; zero-leak deep redaction on write AND read)
+  and `local/src/memory/memwal_adapter.py` (portable hash-chained
+  `memwal.wal.v1` artifacts, offline-first sync with transparent
+  local-SSOT fallback that never raises to the agent, D-125 snapshot
+  composition). Walrus/relayer NOT connected (D-045): the remote
+  transport is injected-only and the battery is fully air-gapped.
+  No external SDK installed; the MemWal side remains the portable
+  artifact format + seam.
 
 ## D-120 — Test-suite taxonomy, deterministic reporting & no-skip gate
 
