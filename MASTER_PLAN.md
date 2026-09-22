@@ -485,7 +485,15 @@ docs/
 > (`run_staging_smoke_tests.py`, 21/21 incl. live stack checks) +
 > `test_stage_d_smoke.py` 10/10 — executed against a running local
 > staging project with synthetic credentials; external deployment
-> remains owner-gated. **Phase 12 closed at
+> remains owner-gated. **Stage E cutover readiness (2026-09-22,
+> D-141 plan §27):** cutover runbook (preflight → D-125 snapshot
+> proof → health-gated transition → post-cutover smoke; RB-1..RB-6
+> rollback matrix with stop→compensate→reconcile ordering; edge
+> header policy; D-045 sign-off; D-139 promotion gate) +
+> `verify_cutover_readiness.py` (offline V-01..V-07 fail-closed,
+> `--snapshot` tamper evidence, opt-in `--edge` probe) +
+> `test_stage_e_cutover.py` 15/15 ×2 — PLANNED artifacts; execution
+> owner-gated under D-139. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

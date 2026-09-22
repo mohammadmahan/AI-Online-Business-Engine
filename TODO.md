@@ -767,7 +767,19 @@ these even if they seem helpful:
       cross-environment defect class); `run_staging_smoke_tests.py`
       21/21 (10 synthetic canonical-engine checks + 11 stack checks,
       label-based so verification needs no secret env);
-      `test_stage_d_smoke.py` 10/10 zero-skip.
+      `test_stage_d_smoke.py` 10/10 zero-skip. **Stage E cutover
+      readiness (2026-09-22, plan §27 — runbook + harness PLANNED,
+      execution owner-gated under D-139):**
+      `stage-e-cutover-runbook.md` (preflight → backup → transition →
+      post-cutover smoke; RB-1..RB-6 rollback matrix with the
+      stop→compensate→reconcile ordering; edge header policy; D-045
+      credential-handoff sign-off; D-139 promotion gate);
+      `verify_cutover_readiness.py` (OFFLINE V-01..V-07 fail-closed
+      incl. D-045 planning-shell secret refusal and D-138 attestation
+      composition — DIRTY tree fails closed; `--snapshot` D-125
+      tamper-evidence proof; opt-in `--edge` live header/redirect
+      probe, unreachable ⇒ exit 2); `test_stage_e_cutover.py` 15/15
+      ×2 zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

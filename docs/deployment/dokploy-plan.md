@@ -1091,3 +1091,57 @@ must stagger the gateway (documented in the runbook).
 
 Stage D *external* execution (remote host, DNS, real deployment)
 remains owner-gated per plan §17.
+
+## 27. Stage E record (2026-09-22) — CUTOVER RUNBOOK + READINESS HARNESS (PLANNED artifacts, execution owner-gated)
+
+Stage E readiness deliverables authored and machine-verified offline;
+**no cutover has been performed and no production host exists** —
+execution requires the D-139 promotion gate plus the plan §17/§21.6
+per-item owner authorizations.
+
+- **Runbook** — `docs/deployment/stage-e-cutover-runbook.md`:
+  - §2 sequence: preflight (`verify_cutover_readiness.py` offline
+    V-01..V-07 all green) → **D-125 snapshot/backup proof**
+    (`--snapshot`: write_snapshot → verify_snapshot → bit-flip →
+    verify MUST refuse; live drill via `resilience_drill.py`) →
+    controlled container transition (compose `up -d` rolling,
+    health-gated per service) → post-cutover smoke
+    (`run_staging_smoke_tests.py` harness, prod project) → D-139
+    promotion requires the Phase-19 one-time owner approval token.
+  - §3 rollback matrix **RB-1..RB-6** with the deterministic ordering
+    invariant **stop new work → compensate in-flight work → reconcile
+    outbox/locks/reservations** — rollback never deletes forensic
+    records; a post-rollback state-verification report is mandatory.
+  - §4 edge policy: HSTS ≥ 31536000, `X-Content-Type-Options: nosniff`,
+    `X-Frame-Options: DENY`, CSP present, HTTP→HTTPS 301/308 redirect;
+    TLS termination at the edge (Traefik/Dokploy); our manifests
+    publish zero ports, so the edge is the ONLY public surface.
+  - §5 owner sign-off: every live credential handoff itemized under
+    D-045 (Dokploy → env secret store only; never in Git, never in
+    the planning shell).
+- **Harness** — `local/scripts/verify_cutover_readiness.py`
+  (exit 0 = ready · 1 = findings · 2 = cannot assess):
+  - OFFLINE V-01..V-07: D-138 attestation GO for a CLEAN candidate
+    (composed with `launch_attestation.run_attestation` — both DR
+    legs + sweeps + matrix; a dirty tree ⇒ DIRTY, fail closed);
+    D-045 planning-shell refusal — a real production secret value in
+    the environment aborts with exit 2 BEFORE any evaluation; env
+    contract (9 `${VAR:?}` keys documented in `.env.example`);
+    manifest posture scoped to the `services:` block (restart +
+    cpu/mem on all five); preflight fail-closed contract proof;
+    RB-1..RB-6 + header policy declared in the runbook.
+  - `--snapshot`: synthetic point-in-time D-125 proof (tamper
+    evidence verified).
+  - `--edge URL`: opt-in live read-only probe of the cutover target
+    (headers + HTTPS redirect; unreachable edge ⇒ exit 2, never a
+    guess).
+- **Battery** — `local/tests/test_stage_e_cutover.py`: 15 tests ×2
+  consecutive green (offline CLI structure, DIRTY fail-closed, V-02
+  secret refusal with redaction asserted, posture parsers incl. the
+  services-block scoping regression, header accept/flag matrices,
+  snapshot tamper evidence, attestation composition, runbook
+  invariants).
+- **Empirical finding folded in:** `manifest_service_posture`
+  originally split the whole manifest, so the network names
+  `frontend:`/`data:` were misparsed as services — fixed by scoping
+  to the `services:` block (test-pinned).

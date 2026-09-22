@@ -8,6 +8,8 @@
 
 # --- Local runtime volumes (data, media binaries, logs) ----------------------
 local/volumes/
+# accidental doubled-path artifact (drills must write local/volumes, never local/local/volumes)
+local/local/
 *.log
 logs/
 
