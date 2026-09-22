@@ -680,13 +680,22 @@ these even if they seem helpful:
       deterministic summarization pruning, deep zero-leak redaction
       on write AND read) and `local/src/memory/memwal_adapter.py`
       (portable hash-chained `memwal.wal.v1` artifacts, offline-first
-      sync with transparent local-SSOT fallback, D-125 snapshot
-      composition). Remaining: Walrus/relayer connectivity at
+      sync with transparent local-SSOT fallback, D-125      snapshot composition). Remaining: Walrus/relayer connectivity at
       live-AI-integration time — external connectivity and
       credentials remain owner-gated (D-045); **nothing installed,
       connected, or integrated** on the external side; memory writes
       stay non-authoritative (D-026/D-027); zero-leak redaction
-      enforced (D-114/D-124).
+      enforced (D-114/D-124). **Consumers wired (2026-09-22):**
+      `local/src/ai/memory_interceptor.py` — Phase 7/8 pipelines get
+      memory context via `prompt_payload["memory_context"]`
+      (guidelines / similar interactions / session summary) and
+      completed interactions + evaluation summaries are written back
+      behind a new D-127 `memory_ops` budget resource; EVERY memory
+      hop degrades gracefully (store failure, budget refusal, missing
+      store ⇒ zero-shot continuation, honest per-op reports) and the
+      canonical AI boundary is untouched. Stage D smoke gains S-07
+      (Stage H export→dry-run-import parity proof inside every smoke
+      run; 11/11). `test_memory_ai_integration.py` 17/17 ×2.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for

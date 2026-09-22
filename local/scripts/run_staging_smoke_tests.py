@@ -409,6 +409,45 @@ def check_fault_ladder(world: StagingWorld, res: Results) -> None:
               f"comp={comp} markers={len(markers)}"))
 
 
+# --------------------------------------------------------------------------
+# S-07 Stage-H re-hydration parity (compose-only surfaces)
+# --------------------------------------------------------------------------
+
+def check_rehydration(res: Results) -> None:
+    """Stage H harness, composed: synthetic export → dry-run import
+    with 100% per-surface fold + row-count parity. Proves the exit
+    data-plane guarantee INSIDE every staging smoke run, on the same
+    compose-only surfaces the staging store uses."""
+    sys.path.insert(0, HERE)
+    import verify_vendor_exit as vve
+
+    surfaces = [("canonical", "content_items"), ("canonical", "review_events"),
+                ("orchestration", "outbox"), ("events", "event_store")]
+    rows = {
+        "canonical.content_items": [
+            {"id": "ci-1", "payload": json.dumps({"title": "s1"})},
+            {"id": "ci-2", "payload": json.dumps({"title": "s2"})}],
+        "canonical.review_events": [{"id": "rv-1", "verdict": "accepted"}],
+        "orchestration.outbox": [{"id": "ob-1", "state": "published"}],
+        "events.event_store": [{"id": "ev-1", "kind": "content.proposed"}],
+    }
+    # D-124: rows pass the same redactor the real exporter applies.
+    data = {k: [{kk: (vve.redact_text(vv) if isinstance(vv, str) else vv)
+                 for kk, vv in r.items()} for r in v] for k, v in rows.items()}
+    archive = vve.build_archive(data, candidate="staging-smoke-s07")
+    text = vve.archive_plaintext(archive)
+    try:
+        manifest, imported = vve.parse_archive_plaintext(text)
+        verdict = vve.verify_parity(manifest, imported)
+    except vve.ExitError as e:
+        res.fail("S-07 Stage-H re-hydration parity (export→import fold",
+                 str(e)[:140])
+        return
+    res.ok("S-07 Stage-H re-hydration parity (export→import fold",
+           f"{verdict['surfaces']} surfaces, {verdict['rows']} rows, "
+           "100% schema integrity + row parity")
+
+
 def check_redaction(world: StagingWorld, res: Results) -> None:
     blob = json.dumps(
         [outbox_refs(world.ig_pub), outbox_refs(world.tg_pub)],
@@ -556,6 +595,8 @@ def main() -> int:
         check_fault_ladder(world4, res)
         world5 = StagingWorld(tmp)
         check_redaction(world5, res)
+
+    check_rehydration(res)
 
     if args.stack:
         print("\n--- deployment plane (stack) ---")

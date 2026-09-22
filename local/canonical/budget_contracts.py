@@ -19,7 +19,8 @@ import os
 from typing import Dict, List, Optional, Tuple
 
 RESOURCES = ("llm_tokens", "llm_calls", "api_calls",
-             "container_cpu_seconds", "container_memory_mb")
+             "container_cpu_seconds", "container_memory_mb",
+             "memory_ops")
 WINDOWS = ("per_run", "per_logical_day")
 SCOPES = ("green", "yellow")
 
@@ -33,6 +34,7 @@ DEFAULT_BASELINES: Dict[str, int] = {
     "api_calls": 1_000,
     "container_cpu_seconds": 3_600,
     "container_memory_mb": 8_192,
+    "memory_ops": 10_000,
 }
 
 _SOFT_RATIO = 0.8  # D-063-identical: ≥80% ⇒ budget_warning

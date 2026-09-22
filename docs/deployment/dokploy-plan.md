@@ -1227,3 +1227,26 @@ per-item owner authorizations.
   with wrong-passphrase refusal, pgvector DDL pins, KNN SQL shape,
   pruning determinism, WAL determinism/tamper/fallback, D-045
   refusal. Full battery 1221/1221 ×2 green (§30 verification).
+
+## 30. Stage H re-hydration wired into staging smoke + D-142 consumer record (2026-09-22)
+
+- **S-07 (Stage D smoke):** `run_staging_smoke_tests.py` now composes
+  `verify_vendor_exit` directly — synthetic export → dry-run import
+  with 100% per-surface fold + row-count parity over the compose-only
+  surfaces — so every staging smoke run re-proves the Stage H
+  data-plane guarantee (11/11 checks).
+- **D-142 consumers:** `local/src/ai/memory_interceptor.py` wires the
+  memory layer into the Phase 7/8 AI pipelines: `MemoryContextProvider`
+  (brand guidelines / similar interactions / session summary into
+  `prompt_payload["memory_context"]`), `MemoryWritingInterceptor`
+  (completed interactions + evaluation summaries, deep-redacted, WAL
+  export + offline-first sync), `MemoryEnabledAiRuntime` (composing
+  wrapper; the canonical `ai_runtime` boundary is untouched). Every
+  memory hop is guarded: store failures, missing stores, and D-127
+  refusals degrade to honest per-op reports and zero-shot generation
+  continues. New D-127 resource `memory_ops` (baseline 10,000/run,
+  env-overridable `PHASE23_BUDGET_MEMORY_OPS`).
+- **Battery:** `test_memory_ai_integration.py` 17 tests — context
+  injection, degradation/fallback, budget gating both directions,
+  redaction through the full pipeline, S-07 smoke integration.
+  Full battery 1238/1238 ×2 green (§29 → +17).
