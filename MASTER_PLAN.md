@@ -538,7 +538,16 @@ docs/
 >  schedule/category/theme recommendations; fail-closed telemetry
 >  circuit latching open on alert-pipeline failure; missing or
 >  malformed telemetry is never reported healthy); 25-test battery.
->  **Phase 12 closed at
+>  **Alerting & learning loop closed (2026-09-22):** the Phase 18
+>  telemetry circuit's alerts map onto the canonical D-089 boundary
+>  (`telemetry_notification_bridge.py` — severity-tiered
+>  missing/malformed=CRITICAL, breaches=HIGH; epoch-keyed D-090
+>  dedup coalesces repeats while latched; transport failures surface
+>  as structured reports, never silent delivery), and the persisted
+>  `campaign-winners` memory session enters Phase 7/8 prompt
+>  construction (`campaign_winner_context.py` — bounded, seq-desc
+>  deterministic retrieval; D-127 gated; zero-blockage degradation);
+>  20-test battery. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

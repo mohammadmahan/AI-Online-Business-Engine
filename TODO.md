@@ -735,8 +735,27 @@ these even if they seem helpful:
       recommendations, and a fail-closed telemetry circuit
       (publish-failure / webhook-drop / cart-abandonment thresholds;
       missing or malformed telemetry alerts rather than passing;
-      sink failure latches the circuit OPEN until operator reset).
+      sink failure latches the      circuit OPEN until operator reset).
       `test_analytics_and_strategy_e2e.py` 25/25 ×2.
+      **Alerting & learning loop closed (2026-09-22):**
+      `local/src/analytics/telemetry_notification_bridge.py` —
+      `TelemetryCircuit` sink mapping onto the canonical D-089
+      boundary (validate → policy → D-090 vault → durable QUEUED):
+      missing/malformed telemetry pages CRITICAL (bypasses quiet
+      hours), breaches page HIGH; epoch-keyed `event_key` coalesces
+      repeated breaches while the circuit is latched (D-090
+      DUPLICATE_BLOCKED), operator `reset()` + `on_circuit_reset()`
+      opens a new epoch; deep-redacted variables only; transport
+      failure ⇒ structured `BridgeReport` (rejected/transport_error)
+      — never silently marked delivered.
+      `local/src/ai/campaign_winner_context.py` — Phase 7/8 prompt
+      adapter over the persisted `campaign-winners` session:
+      bounded retrieval (`max_winners`, `max_chars`), seq-desc
+      deterministic total order, defensive parser (redacted themes
+      dropped), D-127 `memory_ops` pre-dispatch gate, non-mutating
+      payload merge under `memory_context.winners_block`, zero-shot
+      degradation on any store/budget failure.
+      `test_notification_and_winner_context_e2e.py` 20/20 ×2.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for

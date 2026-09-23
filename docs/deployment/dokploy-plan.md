@@ -1343,3 +1343,31 @@ Canonical engines untouched; all collectors and sinks injected
 stays authoritative). Battery: `test_analytics_and_strategy_e2e.py`
 25 tests; full regression 1297/1297 ×2 consecutive green across 56
 modules (1272 + 25, census machine-reconciled).
+
+## 34. Alert Escalation & Winner-Context Loop (2026-09-22)
+
+Closes both open loops from §33 on the deployment-facing system.
+`local/src/analytics/telemetry_notification_bridge.py` maps
+`TelemetryCircuit` alerts onto the canonical D-089 notification
+boundary AS SHIPPED (strict local validation → policy → D-090 vault
+claim → durable QUEUED record): missing or malformed telemetry pages
+CRITICAL (the observability surface itself is dead — bypasses quiet
+hours), threshold breaches page HIGH; epoch-keyed logical identities
+coalesce repeated breaches while the circuit is latched (D-090
+duplicate protection does the spam control), and an operator reset
+opens a new epoch so re-breaches alert again. All variables pass the
+D-124 deep redactor before the event is built; transport or contract
+failures surface as structured `BridgeReport`s — an alert is never
+silently marked delivered.
+`local/src/ai/campaign_winner_context.py` feeds the persisted
+`campaign-winners` memory session back into Phase 7/8 prompt
+construction: bounded, deterministic (seq-desc) retrieval through
+the D-142 store's re-redacting read path, defensive line parsing,
+D-127 `memory_ops` pre-dispatch gating, non-mutating payload merge,
+and zero-shot degradation on any failure — the generation pipeline
+never raises because of memory.
+
+Canonical engines untouched; offline-hermetic battery
+`test_notification_and_winner_context_e2e.py` (20 tests); full
+regression 1317/1317 ×2 consecutive green across 57 modules
+(1297 + 20, census machine-reconciled).
