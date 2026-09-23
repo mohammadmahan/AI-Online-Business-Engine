@@ -1371,3 +1371,34 @@ Canonical engines untouched; offline-hermetic battery
 `test_notification_and_winner_context_e2e.py` (20 tests); full
 regression 1317/1317 ×2 consecutive green across 57 modules
 (1297 + 20, census machine-reconciled).
+
+## 35. Infrastructure Stage B–H provisioning artifacts (2026-09-22)
+
+- Status: **IMPLEMENTED as readiness artifacts — nothing provisioned,
+  installed, or deployed.** Stage B–H remain owner-gated per §17/§21.6.
+- Delivered under `local/infra/dokploy/`:
+  - `README.md` — stage map, authority boundaries, and the rule that
+    every value is a fail-closed reference injected from the secret
+    store at deploy time (D-045/D-124; zero credential values in Git).
+  - `postgres-ssot.env.example` — Stage B SSOT provisioning contract:
+    non-secret identity + fail-closed `CANONICAL_DB_PASSWORD`, D-125
+    drill-required `archive_command`/`archive_timeout` WAL parameters,
+    and the Postgres being the only authoritative data service.
+  - `redis.env.example` — Stage C broker/cache contract: fail-closed
+    AUTH (`REDIS_PASSWORD`), `noeviction` durability policy, AOF
+    persistence enabled.
+  - `deploy_orchestrator.sh` — Stage H shell orchestration skeleton:
+    preflight env validation (fails closed on any missing variable),
+    stage-by-stage reachability probes, `--dry-run` mode, Stage H
+    transactional spot-check (`SELECT 1`), and Stage D-125 drill
+    invocation — exit 0 only on a fully green chain.
+- Delivered under `local/src/infra/`:
+  - `infra_health_probe.py` — Part B verification bridge: probes the
+    five core surfaces (PostgreSQL SSOT, Redis broker, worker
+    heartbeat, telemetry circuit state, orchestrator path) with
+    INJECTED connector callables, deep-redacts every diagnostic detail
+    (D-124), and fails closed with a structured report on any failure —
+    internal connection strings never surface.
+- Verification: new battery `test_dokploy_infrastructure.py` (24
+  tests); full regression **1341/1341 ×2 consecutive green** across
+  58 modules (1317 + 24, census machine-reconciled).

@@ -3473,11 +3473,20 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   implemented and offline-proven —
   `local/scripts/verify_vendor_exit.py` (`check`/`export`/
   `dry-run-import`; exit 0/1/2, D-045 shell hygiene, D-124 redaction
-  of exported rows, fold parity, tamper detection, PBKDF2+HMAC_DRBG
-  armored round trip with wrong-passphrase refusal) +
-  `docs/deployment/stage-h-vendor-exit.md` (data-plane exit
-  procedure, §4, owner-gated). NO live export, teardown, or host
+  of exported rows, fold parity, tamper  detection, PBKDF2+HMAC_DRBG armored round trip with wrong-passphrase
+  refusal) + `docs/deployment/stage-h-vendor-exit.md` (data-plane
+  exit procedure, §4, owner-gated). NO live export, teardown, or host
   action performed — no staging/production host exists.
+
+- **Verification (Stage B–H infrastructure provisioning artifacts,
+  2026-09-22, plan §35):** stage contracts implemented as readiness
+  artifacts — `local/infra/dokploy/` (SSOT Postgres env template with
+  D-125 WAL archiving parameters, Redis AUTH/noeviction/AOF template,
+  fail-closed `deploy_orchestrator.sh` Stage H skeleton) +
+  `local/src/infra/infra_health_probe.py` (injected-connector health
+  bridge, D-124 redaction, fail-closed halt). Suite 24/24 ×2; full
+  battery 1341/1341 ×2 zero-skip. NOTHING provisioned, installed, or
+  deployed — Stage B–H execution remains owner-gated (§17/§21.6).
 
 ## D-142 — Portable multi-agent shared-memory layer (MemWal)
 

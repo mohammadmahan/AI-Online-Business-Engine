@@ -873,7 +873,19 @@ these even if they seem helpful:
       `local/src/memory/` pgvector-compatible store + MemWal-pattern
       portable WAL adapter with offline-first fallback (Walrus NOT
       connected, D-045); `test_stage_h_and_memwal.py` 27/27 ×2
-      zero-skip.
+      zero-skip. **Infrastructure Stage B–H provisioning artifacts
+      (2026-09-22, plan §35 — readiness only, execution owner-gated):**
+      `local/infra/dokploy/` (README stage map + authority boundaries,
+      `postgres-ssot.env.example` Stage B SSOT contract with D-125
+      WAL-archiving parameters, `redis.env.example` Stage C
+      AUTH/noeviction/AOF contract, `deploy_orchestrator.sh` Stage H
+      fail-closed shell skeleton with `--dry-run` and per-stage health
+      gates) + `local/src/infra/infra_health_probe.py` (Part B
+      verification bridge: injected-connector probes over SSOT,
+      broker, worker heartbeat, telemetry circuit; deep-redacted
+      diagnostics per D-124; fail-closed halt on any core failure);
+      `test_dokploy_infrastructure.py` 24/24 ×2, full battery
+      1341/1341 ×2 zero-skip.
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

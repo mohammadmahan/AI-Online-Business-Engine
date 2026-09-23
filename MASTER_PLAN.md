@@ -547,7 +547,16 @@ docs/
 >  `campaign-winners` memory session enters Phase 7/8 prompt
 >  construction (`campaign_winner_context.py` — bounded, seq-desc
 >  deterministic retrieval; D-127 gated; zero-blockage degradation);
->  20-test battery. **Phase 12 closed at
+>  20-test battery. **Dokploy infrastructure Stage B–H provisioning
+>  artifacts (2026-09-22, plan §35 — readiness only, deployment owner-
+>  gated under D-141/D-139):** `local/infra/dokploy/` stage contracts
+>  (SSOT Postgres env template with D-125 WAL archiving parameters,
+>  Redis AUTH/noeviction/AOF template, `deploy_orchestrator.sh`
+>  fail-closed stage-by-stage shell skeleton with `--dry-run`) plus
+>  `local/src/infra/infra_health_probe.py` (injected-connector health
+>  probe over SSOT/broker/heartbeat/telemetry; deep-redacted
+>  diagnostics; halts the deployment chain on any failure); 24-test
+>  battery. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle
