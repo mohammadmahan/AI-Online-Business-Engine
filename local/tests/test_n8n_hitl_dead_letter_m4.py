@@ -229,7 +229,7 @@ class TestBridgeEndToEnd(unittest.TestCase):
         # Feed the bridge the synthetic log line via stdin-like argv:
         # the bridge's parse path is exercised directly (unit level) and
         # through its public functions — no docker dependency in tests.
-        import importlib
+        import importlib.util
         spec = importlib.util.spec_from_file_location("dlb", BRIDGE)
         dlb = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(dlb)

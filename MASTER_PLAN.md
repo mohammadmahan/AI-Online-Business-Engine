@@ -516,7 +516,20 @@ docs/
 > `local/src/publishing/` orchestrator composes the Phase 10/11
 > engines with deterministic retry/DLQ hardening and D-142 engagement
 > feedback into memory (10-test battery); canonical engines
-> untouched, at-most-once delivery preserved end-to-end. **Phase 12 closed at
+> untouched, at-most-once delivery preserved end-to-end. **Commerce
+> & workspace sync (2026-09-22):** Phase 13–16 facades compose the
+> canonical engines with the D-142 memory layer — `local/src/
+> commerce/sync_orchestrator.py` (HMAC fail-closed WooCommerce
+> webhook intake into the D-081 lifecycle with fingerprint-deduped
+> at-most-once semantics; SSOT-first outbound transition sync with
+> D-052 classification; refunds via the canonical lifecycle),
+> `local/src/integrations/notion_adapter.py` (injected-provider
+> replication through the canonical Notion ingest path with
+> backpressure and redaction), and `local/src/commerce/
+> support_memory_bridge.py` (support agent semantic retrieval over
+> redacted knowledge vectors + injected SSOT order context,
+> deterministic template fallback, memory never order-authority);
+> 24-test battery. **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

@@ -1274,3 +1274,48 @@ per-item owner authorizations.
   conflicts, concurrent duplicate refusal, retry ladder, durable DLQ,
   budget-gated feedback, memory fail-open, redaction sweep over
   receipts/DLQ/memory. Full battery 1248/1248 ×2 green (§30 → +10).
+
+## 32. Commerce & workspace sync record (2026-09-22) — Phase 13–16 facades, hermetic-proven
+
+- **Scope:** Phase 13 (WooCommerce orders/webhooks), Phase 14 (Notion
+  workspace sync), Phase 15 (catalog/stock authority), Phase 16
+  (customer support AI) composed with the canonical engines and the
+  D-142 memory layer. No new infrastructure; no live provider touched
+  (D-045 — WooCommerce transport and Notion provider are injected
+  only; every default path refuses without them).
+- **Delivered:**
+  `local/src/commerce/sync_orchestrator.py` — HMAC-SHA256
+  fail-closed webhook intake (`verify_webhook` + explicit-verified
+  requirement; a payload alone is NEVER trusted) → canonical OMS
+  `place_order` lifecycle with order-intent fingerprint dedup
+  (replay ⇒ `duplicate`, conflicting payload ⇒ `conflict` verdict,
+  D-027 integrity violations surface as deterministic conflicts, not
+  exceptions); SSOT-FIRST outbound transition sync (state committed
+  before the HTTP attempt; transport failures classified via the
+  D-052 taxonomy and reported, never fatal to the SSOT); refunds
+  routed through `OmsEngine.transition` (COMPLETED→REFUNDED is the
+  only audit-legal terminal exit — no raw HTTP drift).
+  `local/src/integrations/notion_adapter.py` — replication facade
+  over the shipped `services/notion_adapter.py` boundary (canonical
+  `PollingEngine`/`ingest_notion_event` path, D-060 contract shape,
+  bounded-queue backpressure that fails closed, deep-redacted payload
+  builders).
+  `local/src/commerce/support_memory_bridge.py` — Phase 16 support
+  resolution: `SupportKnowledgeIndex` embeds FAQ/product/policy
+  knowledge into the D-142 vector store (redacted BEFORE embedding,
+  D-127 `memory_ops` gated); `SupportMemoryBridge` composes semantic
+  KNN retrieval with an injected SSOT order lookup (refs/states/ids
+  only — no PII, no payment material) and degrades to deterministic
+  template responses on ANY memory/SSOT failure; memory is never
+  order-authority (a poisoned knowledge base cannot fabricate order
+  state).
+- **Battery:** `test_commerce_and_workspace_e2e.py` 24 tests — HMAC
+  rejection matrices, idempotent replay, conflicting-payload
+  conflict, full OMS lifecycle with failing transport, inventory
+  guard, D-045 refusals, canonical-ingest idempotency, backpressure,
+  semantic retrieval, order-context flow, vector/lookup failure
+  degradation, budget-gated hops,  canary never persisted, router context redaction, memory-not-
+  authority. Full battery 1272/1272 ×2 green (§31 → +24 net census;
+  24 new tests, zero losses — census machine-reconciled across all
+  55 modules, module sets and per-module counts identical across
+  both runs).

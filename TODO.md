@@ -705,6 +705,23 @@ these even if they seem helpful:
       end-to-end (terminal-post skip + canonical vault guard);
       receipts/deep-redacted everywhere; `memory_interceptor` reused
       for budget gating. `test_publishing_pipeline_e2e.py` 10/10 ×2.
+      **Commerce & workspace sync (2026-09-22, Phase 13–16 facades):**
+      `local/src/commerce/sync_orchestrator.py` — bidirectional
+      WooCommerce ⇄ SSOT: HMAC-SHA256 fail-closed webhook intake →
+      canonical OMS lifecycle (fingerprint-addressed at-most-once;
+      replay ⇒ duplicate, conflicting payload ⇒ conflict verdict),
+      SSOT-first outbound transitions with D-052-classified sync
+      results, refunds routed through the canonical lifecycle;
+      `local/src/integrations/notion_adapter.py` — replication facade
+      over the shipped Notion boundary (injected provider D-045,
+      canonical ingest idempotency, backpressure fails closed,
+      D-124-redacted payload builders); `local/src/commerce/
+      support_memory_bridge.py` — Phase 16 support agent reads the
+      D-142 vector store (FAQ/product/policy knowledge, budget-gated,
+      redacted before embedding) plus an injected SSOT order lookup
+      (PII-safe refs only), zero-blockage template fallback on any
+      failure, memory never order-authority.
+      `test_commerce_and_workspace_e2e.py` 24/24 ×2.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for
