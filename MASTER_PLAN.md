@@ -525,11 +525,20 @@ docs/
 > D-052 classification; refunds via the canonical lifecycle),
 > `local/src/integrations/notion_adapter.py` (injected-provider
 > replication through the canonical Notion ingest path with
-> backpressure and redaction), and `local/src/commerce/
-> support_memory_bridge.py` (support agent semantic retrieval over
-> redacted knowledge vectors + injected SSOT order context,
-> deterministic template fallback, memory never order-authority);
-> 24-test battery. **Phase 12 closed at
+> backpressure and redaction), and `local/src/commerce/>  support_memory_bridge.py` (support agent semantic retrieval over
+>  redacted knowledge vectors + injected SSOT order context,
+>  deterministic template fallback, memory never order-authority);
+>  24-test battery. **Analytics & strategy (2026-09-22):** Phase 17/18
+>  facades compose the canonical D-087/D-088 read model with the
+>  D-142 memory layer — `local/src/analytics/campaign_correlator.py`
+>  (deterministic ROAS/funnel/attribution ratios over the canonical
+>  correlator; winning-campaign summaries deep-redacted and persisted
+>  through the budget-gated memory write path + portable WAL) and
+>  `local/src/analytics/strategy_optimizer.py` (heuristic floor for
+>  schedule/category/theme recommendations; fail-closed telemetry
+>  circuit latching open on alert-pipeline failure; missing or
+>  malformed telemetry is never reported healthy); 25-test battery.
+>  **Phase 12 closed at
 > foundation level (Order Management System, D-081–D-084 all
 > owner-approved):** canonical order contract with line items bound
 > to Product ID / Variant ID / SKU (D-017 discipline), lifecycle

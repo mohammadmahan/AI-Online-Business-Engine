@@ -722,6 +722,21 @@ these even if they seem helpful:
       (PII-safe refs only), zero-blockage template fallback on any
       failure, memory never order-authority.
       `test_commerce_and_workspace_e2e.py` 24/24 ×2.
+      **Analytics & strategy (2026-09-22, Phase 17/18 facades):**
+      `local/src/analytics/campaign_correlator.py` — deterministic
+      ROAS / funnel / engagement-to-revenue attribution over the
+      canonical D-087 correlator (48h window, latest-publication
+      join, unattributed orders preserved); winning-campaign
+      summaries deep-redacted BEFORE embedding and persisted through
+      the D-142 memory write path (D-127 `memory_ops` gated) plus
+      portable `memwal.wal.v1` WAL export; `local/src/analytics/
+      strategy_optimizer.py` — deterministic heuristic floor for
+      posting-bucket / product-category / content-theme
+      recommendations, and a fail-closed telemetry circuit
+      (publish-failure / webhook-drop / cart-abandonment thresholds;
+      missing or malformed telemetry alerts rather than passing;
+      sink failure latches the circuit OPEN until operator reset).
+      `test_analytics_and_strategy_e2e.py` 25/25 ×2.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for

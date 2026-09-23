@@ -1319,3 +1319,27 @@ per-item owner authorizations.
   24 new tests, zero losses — census machine-reconciled across all
   55 modules, module sets and per-module counts identical across
   both runs).
+
+## 33. Analytics & Strategy Wiring (2026-09-22)
+
+Phase 17/18 facades close the learning loop on the deployment-facing
+system: `local/src/analytics/campaign_correlator.py` folds Phase 9–12
+engagement and Phase 13–16 order streams through the canonical D-087
+correlator into deterministic ROAS / funnel / attribution ratios, and
+persists WINNING-campaign summaries through the D-142 memory layer
+(deep-redacted before embedding, D-127 `memory_ops` pre-dispatch
+gated, `memwal.wal.v1` WAL export for portability) so future Phase 7/8
+generation starts from proven winners.
+`local/src/analytics/strategy_optimizer.py` provides the deterministic
+heuristic floor for schedule/category/theme recommendations and a
+fail-closed telemetry circuit: publish-failure, webhook-drop and
+cart-abandonment rates are evaluated against declared thresholds —
+missing or malformed telemetry emits an alert (never a silent pass),
+and any alert-pipeline failure LATCHES the circuit open until an
+explicit operator reset.
+
+Canonical engines untouched; all collectors and sinks injected
+(D-045); analytics remains read-model only (D-026/D-027 — the SSOT
+stays authoritative). Battery: `test_analytics_and_strategy_e2e.py`
+25 tests; full regression 1297/1297 ×2 consecutive green across 56
+modules (1272 + 25, census machine-reconciled).
