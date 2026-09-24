@@ -917,6 +917,20 @@ these even if they seem helpful:
       `test_dokploy_stage_d_generator.py` 18/18 ×2, full battery
       1377/1377 ×2 zero-skip. **Generation is a local configuration
       act — real deployment remains owner-gated (D-139).**
+- [x] Dokploy Stage E — cutover readiness wire & manifest fingerprint
+      binding — **COMPLETE (2026-09-24; D-145 Approved, owner-directed)**:
+      `verify_cutover_readiness.py` extended with V-08 (Stage D manifest
+      SHA-256 fingerprint + envelope binding — VERIFY / NO_MANIFEST /
+      NO_ENVELOPE / MISMATCH / MALFORMED, everything but VERIFY blocks,
+      network isolation re-asserted on the bound bytes) and V-09
+      (health-probe contract parity — every generated container
+      healthcheck must map onto an `infra_health_probe.py` semantic,
+      fail-closed otherwise); `docs/deployment/stage-e-cutover-fingerprint-binding.md`
+      (V-01..V-09 cutover verification matrix, evidence-validity model,
+      Stage F handoff); `test_dokploy_stage_e_cutover_wire.py` 15/15 ×2,
+      full battery 1392/1392 ×2 zero-skip. **V-01..V-09 is technical
+      clearance only — cutover/activation authority stays with the
+      Stage F owner sign-offs and D-139.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

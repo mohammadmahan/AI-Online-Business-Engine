@@ -3652,6 +3652,56 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   audit). Full regression 1377/1377 ×2 consecutive green across 60
   modules (1359 + 18, census machine-reconciled identical).
 
+## D-145 — Stage E manifest fingerprint & cutover verification binding
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** Stage D made the cutover manifest deterministic and
+  isolated, but nothing BOUND the exact reviewed bytes to the cutover
+  decision — a manifest re-generated or edited after review would
+  still pass the Stage E checks. "Reviewed ≠ deployed" drift was
+  structurally invisible.
+- **Decision:** the cutover verification matrix extends to V-01..V-09
+  with the Stage D manifest cryptographically bound:
+  - **V-08 fingerprint binding + isolation** —
+    `stage_d_fingerprint.envelope` records the SHA-256 of the exact
+    `docker-compose.dokploy.yaml` bytes cleared for cutover; the
+    harness recomputes and compares (verdicts VERIFY / NO_MANIFEST /
+    NO_ENVELOPE / MISMATCH / MALFORMED — everything but VERIFY
+    blocks). Any one-byte drift, re-generation with different pins,
+    or template/generator change voids the previous clearance and
+    requires re-review + re-binding (the D-138 evidence-validity
+    model at the manifest layer). The same check re-asserts the D-144
+    network contract on the bound bytes: zero `ports:` on backend
+    services, backend-only attachment, the app-orchestrator the sole
+    `edge` surface, strict `${VAR:?…}` references only.
+  - **V-09 probe-contract parity** — every declared container
+    healthcheck must map onto an `infra_health_probe.py` semantic
+    (pg_isready↔pg_ssot, ping→PONG↔redis_broker, /healthz/worker↔
+    worker_heartbeat, /-/healthy↔telemetry_circuit); a declared
+    service without a healthcheck or with an off-contract check is
+    unverifiable ⇒ fail closed (mirroring the probe's own rule for
+    unwired verifiers).
+  - Composition: all of V-01..V-09 green is the TECHNICAL clearance;
+    the Stage F owner sign-off gate (SF-1..SF-7) independently blocks
+    cutover until signed, and D-139 remains the sole activation
+    authority. The matrix spec lives in
+    `docs/deployment/stage-e-cutover-fingerprint-binding.md`.
+- **Boundaries preserved:** findings carry hash prefixes, service
+  names, and masked keys — never secret values or manifest content
+  (D-124); the offline path gains no network imports (AST-pinned; the
+  opt-in --edge probe remains the only networked surface); nothing is
+  deployed and no cutover has occurred.
+- **Verification (2026-09-24):** battery
+  `local/tests/test_dokploy_stage_e_cutover_wire.py` 15/15 ×2
+  (committed-pair VERIFY, deterministic re-render reproduces the bound
+  hash, single-byte tamper ⇒ MISMATCH, missing artifacts ⇒ fail
+  closed, isolation/parity refusals, CLI wiring with the real files,
+  canary redaction, AST module-level import audit). Full regression
+  1392/1392 ×2 consecutive green across 61 modules (1377 + 15, census
+  machine-reconciled identical; one unreproducible first-pass blip in
+  `test_phase10_telegram` cleared across 30+ reruns and the full
+  chunk re-run — zero persistent flake).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4306,6 +4356,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 44 | Portable multi-agent shared-memory layer (MemWal) — **D-142 (Approved 2026-09-20, owner-directed)**: adopt `MystenLabs/MemWal` (Walrus Memory) as the external, encrypted, portable shared-memory layer for AI agents at live-AI-integration time (owner scope: Phases 7–10 surfaces + future optimization workstreams), after Dokploy infrastructure stabilization; boundaries preserved — D-045 external-connectivity/credential gating, provider-neutral seam with local parity backend (D-129/D-131, Phase 24 replaceability), memory writes never authority (D-026/D-027), zero-leak redaction (D-114/D-124) — **PLANNED, nothing installed or connected**. |
 | 45 | Stage C validation gate — **D-143 (Approved 2026-09-24, owner-directed)**: machine-enforced Stage C runbook-prerequisites validator (`local/infra/dokploy/stage_c_runbook_validator.py`, VC-01..VC-14) over an INJECTED host-adapter/facts-file interface — OS/kernel/Docker/cgroup floors, gateway-port collision checks (80/443 free), public-binding refusals for management/SSOT/broker ports (3000/5432/6379), UFW profile contract, required planning-env names (values never read out; sha256 fingerprint binding only), pinned installer ref, domain shape, and G1–G5 owner attestations; verdicts READY/NOT_READY/CANNOT_ASSESS fail closed; host-prerequisites spec `docs/deployment/stage-c-host-prerequisites.md`. The opt-in SSH target probe REMAINS in `local/scripts/validate_vps_target.py` (single probing surface). Nothing provisioned — live execution stays owner-gated per D-141 §17/§21.6 and D-139. |
 | 46 | Stage D configuration & network isolation contract — **D-144 (Approved 2026-09-24, owner-directed)**: Stage D compose configuration is GENERATED, not hand-written — `stage_d_compose_generator.py` renders `docker-compose.dokploy.yaml` from canonical template `dokploy_compose_template.yaml` with deterministic byte-identical output; `backend` network `internal: true` hosting postgres-ssot/redis/telemetry with ZERO published ports, `app-orchestrator` the sole `edge` attachment (80/443 terminate at the gateway); strict `${VAR:?reason}` credential references only (missing secrets fail closed with masked keys, values never emitted — sha256 fingerprint binding only, D-124); digest-pinned image slots; healthchecks mirroring `infra_health_probe.py` semantics. Architecture spec `docs/deployment/stage-d-compose-architecture.md`. Generation is local-only — deployment remains owner-gated (D-139, §17/§21.6). |
+| 47 | Stage E manifest fingerprint & cutover verification binding — **D-145 (Approved 2026-09-24, owner-directed)**: the cutover verification matrix extends to V-01..V-09 in `verify_cutover_readiness.py` — V-08 binds the exact Stage D manifest bytes via `stage_d_fingerprint.envelope` (SHA-256; VERIFY/NO_MANIFEST/NO_ENVELOPE/MISMATCH/MALFORMED, everything but VERIFY blocks; any drift voids clearance and requires re-review + re-binding per the D-138 evidence-validity model) and re-asserts network isolation on the bound bytes; V-09 requires every container healthcheck to map onto an `infra_health_probe.py` semantic (unverifiable ⇒ fail closed). All of V-01..V-09 is the technical clearance; Stage F sign-offs and D-139 stay the sole cutover/activation authority. Matrix spec `docs/deployment/stage-e-cutover-fingerprint-binding.md`. Nothing deployed; findings carry hashes/names only (D-124). |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.

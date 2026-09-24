@@ -1458,3 +1458,42 @@ regression 1317/1317 ×2 consecutive green across 57 modules
   ×2; full regression 1377/1377 ×2 consecutive green across 60
   modules (1359 + 18, census machine-reconciled identical). Nothing
   deployed — real deployment remains owner-gated (§17/§21.6, D-139).
+
+## 38. Stage E cutover readiness wire — manifest fingerprint & probe parity (2026-09-24, D-145)
+
+**Status: WIRED — technical clearance extended, nothing deployed.** The
+Stage D manifest is now a first-class cutover prerequisite, closing the
+gap where a drifted or tampered generated manifest could pass the
+V-01..V-07 checks.
+
+- **`local/scripts/verify_cutover_readiness.py` (V-08/V-09):**
+  - **V-08 manifest fingerprint binding (D-144/D-145):** the cutover
+    gate reads `local/infra/dokploy/stage_d_fingerprint.envelope`
+    (sha256 of the exact generated manifest bytes + manifest path) and
+    recomputes the digest of `docker-compose.dokploy.yaml` at gate
+    time. Verdicts: `VERIFY` (bound + byte-identical + network
+    isolation re-asserted on the bound bytes), `NO_MANIFEST`,
+    `NO_ENVELOPE`, `MISMATCH` (any byte differs), `MALFORMED`. Every
+    non-VERIFY verdict is a cutover **blocker** — fail closed. Any
+    drift voids prior clearance: the manifest must be regenerated and
+    the envelope re-bound (and re-reviewed) before V-08 can pass again
+    (D-138 evidence-validity model).
+  - **V-09 health-probe contract parity:** every service declared in
+    the bound manifest must carry a healthcheck whose shape maps onto
+    an `infra_health_probe.py` semantic (pg SELECT-1, Redis PING,
+    heartbeat, telemetry circuit). A service without a mappable
+    healthcheck fails closed — the deployment layer may never declare
+    healthy what the probe contract cannot verify.
+  - Reports carry hashes, paths, and verdict words only — never env
+    values or credential-shaped material (D-124).
+- **`docs/deployment/stage-e-cutover-fingerprint-binding.md`:** the
+  V-01..V-09 cutover verification matrix, the fingerprint as immutable
+  prerequisite, the evidence-validity model, and the Stage F handoff
+  (all nine checks are necessary-not-sufficient; owner sign-offs and
+  D-139 remain the sole activation authority).
+- **Verification:** `test_dokploy_stage_e_cutover_wire.py` 15/15 ×2 —
+  clearance with matching fingerprint + aligned probe specs,
+  fail-closed on manifest tamper / envelope mismatch / missing
+  artifacts / probe-spec deviation, canary scrub in all report paths,
+  AST no-socket audit. Full battery 1392/1392 ×2 consecutive green
+  across 61 modules, zero skips, census reconciled.

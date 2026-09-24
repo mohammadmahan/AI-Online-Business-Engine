@@ -24,6 +24,17 @@ transition. Three strictly separated modes:
           rows and the ordering invariant (stop → compensate → reconcile)
     V-07  edge header policy — the runbook declares HSTS/nosniff/
           frame-deny/CSP/HTTPS-redirect with the attested values
+    V-08  Stage D manifest fingerprint binding (D-144) — the generated
+          `docker-compose.dokploy.yaml` matches its recorded SHA-256
+          envelope, declares ZERO published ports on backend services
+          (postgres/redis/telemetry), keeps the app as the sole `edge`
+          attachment, and uses ONLY strict `${VAR:?…}` credential
+          references (tampered/drifting manifest ⇒ fail closed)
+    V-09  health-probe contract parity — every generated container
+          healthcheck maps onto an `infra_health_probe.py` probe
+          semantic (pg SELECT-1 readiness, broker PING→PONG, worker
+          heartbeat, telemetry circuit state); a container the probe
+          cannot see is an unverifiable service (fail closed)
 
   --snapshot
     Synthetic point-in-time backup proof (D-125): write_snapshot a
@@ -42,6 +53,7 @@ Secrets are never read, stored, printed, or transmitted (D-124/D-045).
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import sys
@@ -58,6 +70,14 @@ RUNBOOK = ROOT / "docs" / "deployment" / "stage-e-cutover-runbook.md"
 STAGE_F_DOC = ROOT / "docs" / "deployment" / "stage-f-authorization.md"
 PROD_MANIFEST = LOCAL / "infra" / "compose.prod.yml"
 ENV_EXAMPLE = ROOT / ".env.example"
+# Stage D artifacts (D-144): the generated manifest + its fingerprint
+# envelope. The envelope file records the SHA-256 of the exact manifest
+# bytes cleared for cutover; any drift is a V-08 failure.
+STAGE_D_DIR = LOCAL / "infra" / "dokploy"
+STAGE_D_MANIFEST = STAGE_D_DIR / "docker-compose.dokploy.yaml"
+STAGE_D_ENVELOPE = STAGE_D_DIR / "stage_d_fingerprint.envelope"
+STAGE_D_TEMPLATE = STAGE_D_DIR / "dokploy_compose_template.yaml"
+STAGE_D_GENERATOR = STAGE_D_DIR / "stage_d_compose_generator.py"
 
 # Synthetic, contract-shaped values used ONLY to prove the preflight
 # admits a complete production env. Never real credentials.
@@ -195,6 +215,126 @@ def edge_policy_declared(text: str | None = None) -> tuple[bool, list[str]]:
     return (not missing), missing
 
 
+# --------------------------------------------------------------------------
+# Stage D fingerprint & parity helpers (D-144/D-145) — pure, injected-text
+# versions are battery-pinned; file-reading versions used by the CLI.
+# --------------------------------------------------------------------------
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def manifest_fingerprint(manifest_text: str | None = None,
+                         envelope_text: str | None = None) -> tuple[str, str]:
+    """(verdict, detail): VERIFY if the manifest's SHA-256 equals the
+    envelope's recorded hash. Verdicts: VERIFY · NO_ENVELOPE ·
+    NO_MANIFEST · MISMATCH · MALFORMED. Hashes only — no content ever
+    leaves this function (D-124)."""
+    if manifest_text is None:
+        if not STAGE_D_MANIFEST.is_file():
+            return "NO_MANIFEST", ("generated Stage D manifest not found "
+                                   "— run the Stage D generator first")
+        manifest_text = STAGE_D_MANIFEST.read_text(encoding="utf-8")
+    if envelope_text is None:
+        if not STAGE_D_ENVELOPE.is_file():
+            return "NO_ENVELOPE", ("fingerprint envelope not found — the "
+                                   "manifest was never bound for cutover")
+        envelope_text = STAGE_D_ENVELOPE.read_text(encoding="utf-8")
+    m = re.search(r"^manifest_sha256:\s*([0-9a-f]{64})\s*$", envelope_text, re.M)
+    if not m:
+        return "MALFORMED", "envelope has no manifest_sha256 row — fail closed"
+    recorded, actual = m.group(1), sha256_text(manifest_text)
+    if recorded == actual:
+        return "VERIFY", f"manifest_sha256 {actual[:16]}… matches envelope"
+    return "MISMATCH", (f"manifest hash {actual[:16]}… != envelope "
+                        f"{recorded[:16]}… — tampered or re-generated "
+                        "without re-binding")
+
+
+_BACKEND_SERVICES = ("postgres-ssot", "redis", "telemetry-circuit")
+_EDGE_SERVICE = "app-orchestrator"
+_LOOSE_VAR = re.compile(r"(?<!\$)\$\([A-Z_][A-Z0-9_]*\)"
+                        r"|(?<!\$)\$\{[A-Z_][A-Z0-9_]*\}"
+                        r"|(?<!\$)\$[A-Z_][A-Z0-9_]*")
+
+
+def _service_blocks(manifest_text: str) -> dict[str, str]:
+    """Top-level service name -> body, scoped to the services: block."""
+    m = re.search(r"^services:\n(.*?)(?=^[a-z-]+:\s*$|\Z)", manifest_text,
+                  flags=re.M | re.S)
+    if not m:
+        return {}
+    parts = re.split(r"^  ([a-z][a-z0-9_-]*):\n", m.group(1), flags=re.M)[1:]
+    return {n: b for n, b in zip(parts[0::2], parts[1::2])}
+
+
+def manifest_isolation_ok(manifest_text: str | None = None) -> tuple[bool, list[str]]:
+    """V-08 isolation half: zero `ports:` on backend services, backend
+    services not on `edge`, app attached to `edge`, no loose variable
+    forms anywhere in the services block."""
+    if manifest_text is None:
+        if not STAGE_D_MANIFEST.is_file():
+            return False, ["generated Stage D manifest not found"]
+        manifest_text = STAGE_D_MANIFEST.read_text(encoding="utf-8")
+    problems: list[str] = []
+    blocks = _service_blocks(manifest_text)
+    if not blocks:
+        return False, ["manifest has no parseable services block"]
+    if _LOOSE_VAR.search(manifest_text):
+        problems.append("non-strict variable form present "
+                        "(strict ${VAR:?…} only)")
+    for name, body in blocks.items():
+        on_edge = re.search(r"^\s+-\s+edge\s*$", body, re.M) is not None
+        has_ports = re.search(r"^\s*ports:\s*$", body, re.M) is not None
+        if name in _BACKEND_SERVICES:
+            if has_ports:
+                problems.append(f"{name} declares ports: — backend services "
+                                "are never externally bound")
+            if on_edge:
+                problems.append(f"{name} attaches to edge — refused")
+        elif name == _EDGE_SERVICE and not on_edge:
+            problems.append("app-orchestrator is not attached to edge — "
+                            "no gateway-routable surface")
+    return (not problems), problems
+
+
+# Probe-parity contract (D-145): each generated service must carry a
+# healthcheck whose command maps onto an infra_health_probe semantic.
+# Battery-pinned shapes; a service without a matching check cannot be
+# verified by the deployment gate.
+_PROBE_PARITY = {
+    "postgres-ssot":     ("pg_isready",),
+    "redis":             ("ping", "PONG"),
+    _EDGE_SERVICE:       ("/healthz/worker",),
+    "telemetry-circuit": ("/-/healthy",),
+}
+
+
+def manifest_probe_parity(manifest_text: str | None = None) -> tuple[bool, list[str]]:
+    """V-09: every declared service's healthcheck maps onto an
+    infra_health_probe.py semantic; a declared service without a
+    healthcheck at all fails closed."""
+    if manifest_text is None:
+        if not STAGE_D_MANIFEST.is_file():
+            return False, ["generated Stage D manifest not found"]
+        manifest_text = STAGE_D_MANIFEST.read_text(encoding="utf-8")
+    problems: list[str] = []
+    blocks = _service_blocks(manifest_text)
+    for name, tokens in _PROBE_PARITY.items():
+        body = blocks.get(name)
+        if body is None:
+            continue  # absence is V-08's scope (no service declared)
+        if "healthcheck:" not in body:
+            problems.append(f"{name} has no healthcheck — unverifiable by "
+                            "the deployment gate (fail closed)")
+            continue
+        test_line = " ".join(re.findall(r"test:\s*\[(.*?)\]", body, re.S))
+        if not all(t in test_line for t in tokens):
+            problems.append(f"{name} healthcheck does not map onto the "
+                            f"probe contract (expected {'+'.join(tokens)})")
+    return (not problems), problems
+
+
 def production_secrets_in_shell(env: dict[str, str] | None = None) -> tuple[str, ...]:
     """Real values for mandatory prod secret keys present in the shell."""
     src = dict(os.environ if env is None else env)
@@ -302,6 +442,25 @@ def offline_mode() -> int:
     ok, missing = edge_policy_declared()
     (res.ok if ok else res.fail)("V-07 edge header policy declared",
                                  "declared" if ok else f"missing: {missing}")
+
+    # V-08 Stage D manifest fingerprint binding + isolation (D-145)
+    verdict, detail = manifest_fingerprint()
+    iso_ok, iso_problems = manifest_isolation_ok()
+    if verdict != "VERIFY":
+        res.fail("V-08 Stage D manifest fingerprint binding (D-144)",
+                 f"{verdict}: {detail}")
+    elif not iso_ok:
+        res.fail("V-08 Stage D manifest fingerprint binding (D-144)",
+                 f"{verdict}: {detail}; isolation violations: {iso_problems}")
+    else:
+        res.ok("V-08 Stage D manifest fingerprint + isolation (D-144)", detail)
+
+    # V-09 health-probe contract parity (D-145)
+    ok, problems = manifest_probe_parity()
+    (res.ok if ok else res.fail)(
+        "V-09 health-probe contract parity (D-144/D-142)",
+        "every container check maps onto an infra_health_probe semantic"
+        if ok else f"; ".join(problems))
 
     print(res.render())
     print("=== CUTOVER READY — proceed to runbook §2 (backup) ==="

@@ -1,0 +1,8 @@
+# Stage D manifest fingerprint envelope (D-144/D-145)
+# Records the SHA-256 of the manifest bytes cleared for Stage E cutover.
+# ANY change to docker-compose.dokploy.yaml invalidates this binding
+# and the manifest must be re-generated + re-bound (fail closed).
+# Secrets: none — the envelope carries hashes only, never values (D-124).
+manifest_sha256: 7ca497057bd0976a5ebc94c8b90dc38cd5fcef9cc911fe99568c6f806c055928
+bound_for: stage-e-cutover
+generator: stage_d_compose_generator.py
