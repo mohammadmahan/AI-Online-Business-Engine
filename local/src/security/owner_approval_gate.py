@@ -229,8 +229,18 @@ class OwnerApprovalGate:
         report = verdict.to_dict()
         report["observed_tick"] = self._clock()
         # D-124 belt-and-braces: the serialized report itself passes the
-        # redactor before it leaves the engine.
-        self._sink(json.loads(deep_redact(json.dumps(report))))
+        # redactor before it leaves the engine. The manifest fingerprint
+        # is public binding data (it is committed in the D-144 envelope
+        # and verified against public bytes), so it is RESTORED after
+        # redaction — everything else stays redacted.
+        redacted = json.loads(deep_redact(json.dumps(report)))
+        # token_id and manifest_sha256 are PUBLIC binding commitments
+        # (sha256 prefixes of bindable data, verified against bytes
+        # committed in Git) — restored after redaction; everything
+        # else stays redacted.
+        redacted["manifest_sha256"] = report["manifest_sha256"]
+        redacted["token_id"] = report["token_id"]
+        self._sink(redacted)
         return verdict
 
     def _refuse(self, reason: str, token_id: str, detail: str,

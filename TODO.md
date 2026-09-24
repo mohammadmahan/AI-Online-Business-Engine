@@ -947,6 +947,21 @@ these even if they seem helpful:
       1411/1411 ×2 zero-skip. **Nothing authorized or deployed — the
       gate is a necessary input to activation; D-139 remains the sole
       cutover authority.**
+- [x] Dokploy Stage F attestation integration & cutover orchestration
+      wire — **COMPLETE (2026-09-24; D-147 Approved, owner-directed)**:
+      cutover matrix extended to V-01..V-10 (the Stage F verdict
+      record is a fail-closed prerequisite bound to the V-08 manifest
+      fingerprint; forbidden-material/expiry/mismatch all refuse);
+      `local/scripts/cutover_orchestrator.py` (ordered transaction
+      Stage C → D/E → Stage F → immutable `cutover.bundle.v1` with
+      SHA-256 bundle_hash; abort-before-burn on technical failure;
+      replay refusal; one audited bundle per call; AST-pinned zero
+      I/O) + `docs/deployment/stage-f-attestation-orchestration.md`
+      (V-10 spec, lifecycle, Stage G handoff via D-112 bundle-hash
+      recording) + `test_cutover_orchestrator_stage_f.py` 20/20 ×2,
+      full battery 1431/1431 ×2 zero-skip. **Nothing authorized or
+      deployed — Stage G requires a READY bundle plus an explicit
+      owner command; D-139 remains the sole activation authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

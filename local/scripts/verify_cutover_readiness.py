@@ -78,6 +78,10 @@ STAGE_D_MANIFEST = STAGE_D_DIR / "docker-compose.dokploy.yaml"
 STAGE_D_ENVELOPE = STAGE_D_DIR / "stage_d_fingerprint.envelope"
 STAGE_D_TEMPLATE = STAGE_D_DIR / "dokploy_compose_template.yaml"
 STAGE_D_GENERATOR = STAGE_D_DIR / "stage_d_compose_generator.py"
+# Stage F owner-authorization verdict record (D-146/D-147): written by
+# the gate on every evaluation (GO or NO_GO). A RUNTIME artifact —
+# never committed; a GO verdict is consumed exactly once.
+STAGE_F_VERDICT = LOCAL / "volumes" / "security" / "stage_f_verdict.json"
 
 # Synthetic, contract-shaped values used ONLY to prove the preflight
 # admits a complete production env. Never real credentials.
@@ -222,6 +226,71 @@ def edge_policy_declared(text: str | None = None) -> tuple[bool, list[str]]:
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def stage_f_verdict_check(verdict_record: dict | None = None,
+                          now_tick: int | None = None,
+                          manifest_hash: str | None = None) -> tuple[bool, str]:
+    """V-10 (D-146/D-147): validate the Stage F owner-authorization
+    verdict record produced by `owner_approval_gate.py`.
+
+    Fail-closed: NO record, a NO_GO record, an expired TTL, a verdict
+    bound to a different manifest fingerprint, or a record carrying
+    forbidden material (raw signature/nonce/key fields) is a refusal —
+    absence is NEVER a pass. Detail strings carry ids, hashes and
+    phrases only (D-124).
+    """
+    if manifest_hash is None:
+        verdict, detail = manifest_fingerprint()
+        if verdict != "VERIFY":
+            return False, f"V-10 prerequisite: manifest binding {verdict}"
+        manifest_hash = sha256_text(STAGE_D_MANIFEST.read_text("utf-8"))
+    if verdict_record is None:
+        if not STAGE_F_VERDICT.is_file():
+            return False, ("no Stage F authorization verdict record — "
+                           "the owner gate has not authorized THIS cutover")
+        try:
+            verdict_record = json.loads(
+                STAGE_F_VERDICT.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            return False, "Stage F verdict record unreadable — fail closed"
+    if not isinstance(verdict_record, dict):
+        return False, "Stage F verdict record malformed — fail closed"
+    # Forbidden material must never appear in a record we consume.
+    for field in ("signature", "sig", "signing_key", "nonce", "token"):
+        if field in verdict_record:
+            return False, (f"Stage F verdict record carries forbidden "
+                           f"material ({field}) — refuse and re-mint")
+    if verdict_record.get("gate") != "GO":
+        return False, ("Stage F owner gate verdict is not GO — "
+                       "cutover not authorized")
+    fp = verdict_record.get("manifest_sha256", "")
+    if not re.fullmatch(r"[0-9a-f]{64}", fp or ""):
+        return False, "Stage F verdict fingerprint malformed — fail closed"
+    if fp != manifest_hash:
+        return False, ("Stage F verdict bound to a different manifest "
+                       "fingerprint — re-mint after re-binding")
+    issued = verdict_record.get("issued_tick")
+    expires = verdict_record.get("expires_tick")
+    observed = verdict_record.get("observed_tick")
+    if not all(isinstance(v, int) and not isinstance(v, bool)
+               for v in (issued, expires, observed)):
+        return False, "Stage F verdict ticks malformed — fail closed"
+    if not (0 < expires - issued <= 10_000):
+        return False, "Stage F verdict TTL window invalid — fail closed"
+    if now_tick is None:
+        now_tick = observed  # no wall clock: the record's own tick is
+        # the freshest attested observation; the orchestrator injects
+        # a live logical clock for the real gate evaluation.
+    if now_tick >= expires:
+        return False, (f"Stage F authorization expired {now_tick - expires} "
+                       "ticks ago — re-mint required")
+    if now_tick < issued:
+        return False, "Stage F verdict not yet valid — fail closed"
+    tid = verdict_record.get("token_id", "")
+    tid = tid if re.fullmatch(r"[0-9a-f]{16}", tid or "") else "—"
+    return True, (f"owner-authorized (token {tid}, window "
+                  f"{issued}..{expires}, bound {fp[:16]}…)")
 
 
 def manifest_fingerprint(manifest_text: str | None = None,
@@ -461,6 +530,11 @@ def offline_mode() -> int:
         "V-09 health-probe contract parity (D-144/D-142)",
         "every container check maps onto an infra_health_probe semantic"
         if ok else f"; ".join(problems))
+
+    # V-10 Stage F owner authorization verdict (D-146/D-147)
+    ok, detail = stage_f_verdict_check()
+    (res.ok if ok else res.fail)("V-10 Stage F owner authorization (D-146)",
+                                 detail)
 
     print(res.render())
     print("=== CUTOVER READY — proceed to runbook §2 (backup) ==="

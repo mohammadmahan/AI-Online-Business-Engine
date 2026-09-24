@@ -1545,3 +1545,41 @@ arm the switch without an explicit owner token.
   (1392 + 19), zero skips, census machine-reconciled. (First RUN1
   attempt honestly failed with 31 skips — Docker daemon down after a
   session restart; stack restored 5/5 and both runs clean.)
+
+## 40. Stage F attestation integration & cutover orchestration (2026-09-24, D-147)
+
+**Status: IMPLEMENTED — nothing authorized, nothing deployed.** The
+pre-cutover pipeline is now one ordered, audited, hash-bound
+transaction, and the Stage F verdict is a first-class cutover check.
+
+- **V-10 in `verify_cutover_readiness.py` (matrix V-01..V-10):** the
+  gate's Stage F verdict record (runtime artifact, never committed)
+  must be present, GO, unexpired, bound to the exact V-08 manifest
+  fingerprint, and free of forbidden material (signature/nonce/key
+  fields) — otherwise `CUTOVER READY` is unreachable. Records carry
+  token ids, public fingerprints, verdict words, and ticks only; the
+  gate's redactor preserves exactly the two public commitments
+  (`token_id`, `manifest_sha256`) and scrubs everything else
+  secret-shaped (D-124).
+- **`local/scripts/cutover_orchestrator.py`:** Step 1 Stage C host
+  prerequisites → Step 2 Stage D/E fingerprint + V-01..V-10 →
+  Step 3 Stage F owner authorization (V-10) → Step 4 an immutable
+  `cutover.bundle.v1` attestation (SHA-256 `bundle_hash`).
+  **Abort-before-burn** on any technical failure (the single-use
+  nonce is consumed only when Steps 1–2 are green); replayed tokens
+  abort with `stage_f_not_authorized`; replayed bundles are inert
+  (the burn is the only consumption); exactly one audited bundle per
+  call; gate exceptions surface as BLOCKED bundles. Pure core —
+  injected clock/steps/sink, AST-pinned zero I/O.
+- **Stage G handoff:** provisioning only on a `READY_FOR_CUTOVER`
+  bundle whose `bundle_hash` is recorded in the D-112 control-audit
+  chain AND an explicit owner command for that hash; manifest
+  regeneration invalidates the bundle; D-139 remains the sole
+  activation authority.
+- **Verification:** `test_cutover_orchestrator_stage_f.py` 20/20 ×2
+  (V-10 rules with a REAL D-146 gate; clearance + bundle-hash
+  determinism/drift sensitivity; Stage C/D failures abort before the
+  burn; expired-gate refusal; replay abort; gate-exception BLOCKED;
+  redaction across bundles/persisted records/audited copies; doc
+  parity; AST audit). Full battery 1431/1431 ×2 consecutive green
+  across 63 modules (1411 + 20), zero skips, census reconciled.

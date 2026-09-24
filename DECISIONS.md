@@ -3756,6 +3756,60 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   with 31 skips because the Docker daemon was down after a session
   restart — stack restored to 5/5 and both runs executed clean).
 
+## D-147 — Stage F attestation integration & cutover orchestration wire
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** D-146 made the owner token verifiable, but the
+  cutover matrix stopped at V-09 and no artifact joined the technical
+  and human halves into one decision record.
+- **Decision:**
+  - **V-10 (cutover matrix extends to V-01..V-10)** —
+    `verify_cutover_readiness.py` consumes the gate's Stage F verdict
+    record (runtime artifact `local/volumes/security/stage_f_verdict.json`,
+    never committed) fail-closed: missing/unreadable/non-GO,
+    forbidden material (signature/nonce/key fields), fingerprint
+    mismatch against the V-08-bound manifest, malformed ticks/TTL,
+    expired, or not-yet-valid all refuse. There is no path from a
+    missing, stale, mismatched, or negative Stage F verdict to
+    `CUTOVER READY`. Records carry token ids, public fingerprints,
+    verdict words, and ticks only (D-124); the gate's redactor now
+    preserves exactly the two public commitments (`token_id`,
+    `manifest_sha256`) and scrubs everything else secret-shaped.
+  - **Cutover transaction coordinator** —
+    `local/scripts/cutover_orchestrator.py` runs the ordered pipeline
+    Stage C (D-143 host prerequisites) → Stage D/E (V-01..V-10) →
+    Stage F (D-146 gate evaluation; V-10) → an immutable
+    `cutover.bundle.v1` attestation (SHA-256 `bundle_hash` over
+    canonical bytes). **Abort-before-burn**: the token is evaluated —
+    and its single-use nonce consumed — only AFTER Stages C and D/E
+    are green, so a technical failure never wastes an owner
+    authorization. Replayed tokens abort with `stage_f_not_authorized`
+    (`replay_rejected`); replayed BUNDLES are inert by construction
+    (the nonce burn is the only consumption); exactly one audited
+    bundle per call to the injected D-121 sink; any gate exception
+    surfaces as a BLOCKED bundle, never a silent pass or a crash with
+    side effects. Pure core — injected clock/steps/sink, AST-pinned
+    zero I/O.
+  - **Stage G handoff** — provisioning may begin only on a
+    `READY_FOR_CUTOVER` bundle whose `bundle_hash` is recorded in the
+    D-112 control-audit chain AND an explicit owner command for THAT
+    hash; manifest regeneration invalidates the bundle (V-08
+    re-binding → new bundle); D-139 remains the sole activation
+    authority.
+  - Spec: `docs/deployment/stage-f-attestation-orchestration.md`.
+- **Boundaries preserved:** nothing authorized, nothing deployed; the
+  bundle is a necessary input to Stage G, never the activation itself.
+- **Verification (2026-09-24):** battery
+  `local/tests/test_cutover_orchestrator_stage_f.py` 20/20 ×2 (V-10
+  rules incl. forbidden-material and expiry refusals with a REAL D-146
+  gate; full-pipeline clearance with bundle hash determinism and
+  drift sensitivity; Stage C/D failures abort before the burn;
+  expired-gate refusal; replay abort; gate-exception BLOCKED;
+  no key/signature/canary in bundles, persisted records, or audited
+  copies; doc parity; AST no-I/O audit). Full regression 1431/1431 ×2
+  consecutive green across 63 modules (1411 + 20, census
+  machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4412,6 +4466,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 46 | Stage D configuration & network isolation contract — **D-144 (Approved 2026-09-24, owner-directed)**: Stage D compose configuration is GENERATED, not hand-written — `stage_d_compose_generator.py` renders `docker-compose.dokploy.yaml` from canonical template `dokploy_compose_template.yaml` with deterministic byte-identical output; `backend` network `internal: true` hosting postgres-ssot/redis/telemetry with ZERO published ports, `app-orchestrator` the sole `edge` attachment (80/443 terminate at the gateway); strict `${VAR:?reason}` credential references only (missing secrets fail closed with masked keys, values never emitted — sha256 fingerprint binding only, D-124); digest-pinned image slots; healthchecks mirroring `infra_health_probe.py` semantics. Architecture spec `docs/deployment/stage-d-compose-architecture.md`. Generation is local-only — deployment remains owner-gated (D-139, §17/§21.6). |
 | 47 | Stage E manifest fingerprint & cutover verification binding — **D-145 (Approved 2026-09-24, owner-directed)**: the cutover verification matrix extends to V-01..V-09 in `verify_cutover_readiness.py` — V-08 binds the exact Stage D manifest bytes via `stage_d_fingerprint.envelope` (SHA-256; VERIFY/NO_MANIFEST/NO_ENVELOPE/MISMATCH/MALFORMED, everything but VERIFY blocks; any drift voids clearance and requires re-review + re-binding per the D-138 evidence-validity model) and re-asserts network isolation on the bound bytes; V-09 requires every container healthcheck to map onto an `infra_health_probe.py` semantic (unverifiable ⇒ fail closed). All of V-01..V-09 is the technical clearance; Stage F sign-offs and D-139 stay the sole cutover/activation authority. Matrix spec `docs/deployment/stage-e-cutover-fingerprint-binding.md`. Nothing deployed; findings carry hashes/names only (D-124). |
 | 48 | Stage F context-bound owner authorization engine — **D-146 (Approved 2026-09-24, owner-directed)**: the final cutover switch arms only against an explicit, single-use, context-bound, TTL-bounded owner token — HMAC-SHA256 over (manifest_sha256 from the D-144 envelope, session id, target env, issued/expires logical ticks, owner nonce), wire format `<token_id>.<sig>` with the token id as a recomputed commitment. Fail-closed taxonomy (malformed/drifted/expired/not-yet-valid/replayed/unknown-binding ⇒ refusal; absence is never a pass); nonce burns once through an injected durable replay store; every GO/NO_GO emits one deep-redacted report to the injected audit sink (D-121); key and signature material never surface (D-124); engine is pure — injected clock/store/sink only, AST-pinned no I/O. Revocation: manifest regeneration, session change, re-binding, expiry, or consumption each void outstanding tokens; D-139 kill switch remains the runtime halt. Spec `docs/deployment/stage-f-owner-authorization.md`. Nothing authorized or deployed — the gate is a necessary input to activation, not the activation itself. |
+| 49 | Stage F attestation integration & cutover orchestration wire — **D-147 (Approved 2026-09-24, owner-directed)**: the cutover matrix extends to V-01..V-10 — the gate's Stage F verdict record is a fail-closed prerequisite (missing/non-GO/expired/fingerprint-mismatched/forbidden-material all refuse; absence is never a pass) bound to the exact V-08 manifest fingerprint; `cutover_orchestrator.py` composes the ordered transaction Stage C → Stage D/E (V-01..V-10) → Stage F (D-146 gate) → an immutable `cutover.bundle.v1` attestation with SHA-256 `bundle_hash`, aborting BEFORE the single-use burn on any technical failure, refusing replays, and emitting exactly one audited bundle per call (injected clock/steps/sink; AST-pinned zero I/O). Stage G requires a READY bundle hash recorded in the D-112 control-audit chain plus an explicit owner command for that hash; D-139 remains the sole activation authority. Spec `docs/deployment/stage-f-attestation-orchestration.md`. Nothing authorized or deployed. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
