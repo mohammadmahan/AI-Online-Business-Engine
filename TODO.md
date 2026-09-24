@@ -885,7 +885,23 @@ these even if they seem helpful:
       broker, worker heartbeat, telemetry circuit; deep-redacted
       diagnostics per D-124; fail-closed halt on any core failure);
       `test_dokploy_infrastructure.py` 24/24 ×2, full battery
-      1341/1341 ×2 zero-skip.
+      1341/1341 ×2 zero-skip. **Stage C validation gate (2026-09-24,
+      plan §36 — D-143 Approved, hermetic validator only):**
+      `local/infra/dokploy/stage_c_runbook_validator.py` (VC-01..VC-14
+      over an injected host-adapter/facts-file interface: OS/kernel/
+      Docker/cgroup floors, 80/443 gateway-collision + 3000/5432/6379
+      public-binding refusals, UFW profile contract, planning-env
+      NAMES with sha256 fingerprint binding (values never read out),
+      pinned installer ref, domain shape, G1–G5 owner attestations;
+      READY/NOT_READY/CANNOT_ASSESS fail-closed) + host-prerequisites
+      spec `docs/deployment/stage-c-host-prerequisites.md` (sizing,
+      UFW boundaries, installer isolation, TLS termination, sign-off
+      procedure, evidence validity); SSH probe stays in
+      `validate_vps_target.py` (single probing surface, battery-
+      asserted); `test_dokploy_stage_c_validator.py` 18/18 ×2, full
+      battery 1359/1359 ×2 zero-skip. **Nothing provisioned — Stage C
+      execution still requires the §17/§21.6 owner authorizations
+      (VPS, installer, firewall, DNS, credentials).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

@@ -1402,3 +1402,33 @@ regression 1317/1317 ×2 consecutive green across 57 modules
 - Verification: new battery `test_dokploy_infrastructure.py` (24
   tests); full regression **1341/1341 ×2 consecutive green** across
   58 modules (1317 + 24, census machine-reconciled).
+
+## 36. Stage C validation gate — runbook-prerequisites validator (2026-09-24)
+
+- Decision: **D-143 (Approved)** — Stage C prerequisites become a
+  machine-enforced gate before any real provisioning.
+- `local/infra/dokploy/stage_c_runbook_validator.py` — hermetic
+  (injected HostAdapter / facts-file; zero sockets/subprocess/clock)
+  validator over VC-01..VC-14: OS family, kernel ≥ 5.10, Docker ≥ 24.0
+  + compose v2 + cgroup v2 (floors identical to §25 readiness
+  numbers); gateway ports 80/443 must be FREE; 3000/5432/6379 must
+  never be publicly bound (loopback = warning); UFW active + default
+  deny + ingress allowlist ⊆ {22, 80, 443} with fail-closed parsing;
+  required planning-env NAMES (values never read out — sha256
+  fingerprint binding only), pinned installer ref (semver; `latest`
+  refused), domain shape, and G1–G5 owner attestations. Verdicts
+  READY (0) / NOT_READY (1) / CANNOT_ASSESS (2) — missing/unparseable
+  observations are CANNOT_ASSESS, never passes; every finding detail
+  is deep-redacted (D-124).
+- `docs/deployment/stage-c-host-prerequisites.md` — the host-
+  prerequisites contract: sizing floors, port boundary table, UFW
+  policy, installer isolation, TLS termination expectations, owner
+  sign-off procedure, and the evidence-validity model (fingerprint
+  binding; READY must be re-earned after any change).
+- Boundary preserved: the opt-in SSH target probe stays in
+  `local/scripts/validate_vps_target.py` — this validator is
+  dry-run/hermetic only (battery-asserted single probing surface).
+- Verification: `local/tests/test_dokploy_stage_c_validator.py` 18/18
+  ×2; full regression 1359/1359 ×2 consecutive green across 59
+  modules (1341 + 18, census machine-reconciled identical). Nothing
+  provisioned — Stage C execution remains owner-gated (§17/§21.6).
