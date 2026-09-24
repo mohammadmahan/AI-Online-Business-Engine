@@ -998,6 +998,24 @@ these even if they seem helpful:
       deployed — the fingerprint is evidence for the owner's final
       activation decision; D-139 remains the sole activation
       authority.**
+- [x] Stage G post-provisioning live probe engine — **COMPLETE
+      (2026-09-24; D-150 Approved, owner-directed)**:
+      `local/scripts/verify_stage_g_live_probes.py` (fail-closed
+      entry gate on a valid ACCEPTED untampered D-149 report with
+      matching manifest fingerprint; GA-1..GA-7 — container lifecycle,
+      SSOT read/write roundtrip, broker PONG+auth+TTL with exposure
+      refusal, app loopback, worker heartbeat freshness, zero
+      published ports, zero secret material in output streams —
+      through INJECTED executors, absent executor ⇒ FAIL, transport
+      exceptions type-only; leak detection on raw text before
+      redaction, any leak flips the run; canonical
+      `stage_g_live_probe_report.v1` with SHA-256 probe digest; one
+      audited report per run; AST-pinned zero-I/O core) +
+      `docs/deployment/stage-g-live-probes.md` (probe mechanics,
+      executor interface, timeout discipline, D-112 handoff) +
+      `test_stage_g_live_probes.py` 20/20 ×2, full battery
+      1491/1491 ×2 zero-skip. **Nothing provisioned or probed live;
+      D-139 remains the sole activation authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

@@ -3931,6 +3931,71 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   consecutive green across 65 modules (1451 + 20, census
   machine-reconciled identical).
 
+## D-150 — Stage G post-provisioning live probes engine
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** D-149 certified the deployment CONFIGURATION, but
+  nothing verified the RUNTIME surface after provisioning — the
+  stage-g-acceptance GA-1..GA-7 probe definitions needed a
+  machine-enforced executor producing a cryptographically bound
+  verdict.
+- **Decision:** `local/scripts/verify_stage_g_live_probes.py` — the
+  live probe verification engine:
+  - **Entry gate (fail-closed):** a valid `stage_g_acceptance_report.v1`
+    (D-149) with verdict `ACCEPTED` is mandatory; missing/malformed
+    reports, non-ACCEPTED verdicts, malformed or mismatched manifest
+    fingerprints, and acceptance reports whose recorded fingerprint
+    fails recomputation (TAMPERED) all abort with an audited REJECTED
+    report naming the gate — no probe executes.
+  - **Injected executor interface (RULES §35):** each probe binds one
+    injected executor to one pure judge; the core performs zero
+    I/O (no sockets, no subprocess, no wall clock — AST-pinned).
+    An ABSENT executor is a probe FAIL (never skipped — the
+    `infra_health_probe` fail-closed precedent); transport exceptions
+    surface as FAIL with the exception TYPE only (payloads never
+    cross the boundary, D-124).
+  - **GA-1..GA-7:** GA-1 all core services healthy, restarts ≤ 3
+    (crash-loop bound); GA-2 SSOT read/write transaction roundtrip
+    (connectivity alone is not enough); GA-3 broker PONG with auth
+    enforced, TTL/eviction confirmed, and external exposure a hard
+    refusal; GA-4 app core loopback responsiveness (diagnostic text
+    from the executor is judged through the redaction gate); GA-5
+    worker registration + heartbeat fresher than 120 ticks; GA-6
+    zero published ports on ALL services (edge is the sole public
+    surface); GA-7 zero tokens/credentials/keys in captured
+    stdout/stderr — leak detection runs on the RAW text (redaction
+    would mask the evidence), then every detail is deep-redacted and
+    a leak in ANY probe detail flips that probe and the run to FAIL.
+  - **Canonical artifact:** `stage_g_live_probe_report.v1` with the
+    probed manifest fingerprint, the D-149 acceptance fingerprint,
+    GA verdicts with redacted details, the injected logical tick,
+    and a deterministic SHA-256 **probe digest** over the canonical
+    bytes — exactly one report emitted and audited per run (including
+    aborts) to the injected D-121 sink. `PROBES_ACCEPTED` requires
+    every probe to pass — unknown is failure (D-137 precedent).
+  - **Audit handoff:** the probe digest is recorded in the D-112
+    chain next to the acceptance fingerprint and bundle hash (the
+    three-way join key: cleared → accepted → observed live);
+    REJECTED reports feed the Stage E §5 rollback matrix; production
+    activation remains exclusively owner-gated (D-139, plan
+    §17/§21.6). Spec: `docs/deployment/stage-g-live-probes.md`.
+- **Boundaries preserved:** nothing provisioned, nothing deployed —
+  the engine is a verdict machine over injected executors; no real
+  container has been probed; D-139 remains the sole activation
+  authority.
+- **Verification (2026-09-24):** battery
+  `local/tests/test_stage_g_live_probes.py` 20/20 ×2 — entry-gate
+  aborts (missing/malformed/REJECTED/fingerprint-mismatch/tampered
+  acceptance), healthy-stack full pass with digest determinism +
+  drift sensitivity, every fail-closed path (crash loop, SSOT down,
+  transport exception with payload suppression, exposed/unauthed
+  broker, stale/unregistered/malformed heartbeat, published-port
+  breach, log leakage, unwired executor, leak-flipped probe),
+  report shape and three-way bindings, exactly-one-audit discipline,
+  canary scrub, doc parity, AST audit. Full regression 1491/1491 ×2
+  consecutive green across 66 modules (1471 + 20, census
+  machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4590,6 +4655,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 49 | Stage F attestation integration & cutover orchestration wire — **D-147 (Approved 2026-09-24, owner-directed)**: the cutover matrix extends to V-01..V-10 — the gate's Stage F verdict record is a fail-closed prerequisite (missing/non-GO/expired/fingerprint-mismatched/forbidden-material all refuse; absence is never a pass) bound to the exact V-08 manifest fingerprint; `cutover_orchestrator.py` composes the ordered transaction Stage C → Stage D/E (V-01..V-10) → Stage F (D-146 gate) → an immutable `cutover.bundle.v1` attestation with SHA-256 `bundle_hash`, aborting BEFORE the single-use burn on any technical failure, refusing replays, and emitting exactly one audited bundle per call (injected clock/steps/sink; AST-pinned zero I/O). Stage G requires a READY bundle hash recorded in the D-112 control-audit chain plus an explicit owner command for that hash; D-139 remains the sole activation authority. Spec `docs/deployment/stage-f-attestation-orchestration.md`. Nothing authorized or deployed. |
 | 50 | PostgreSQL durable replay store & Stage G pre-flight contract — **D-148 (Approved 2026-09-24, owner-directed)**: nonce burns persist to the D-055 SSOT (`security.consumed_owner_nonces`, idempotent DDL, PK (nonce_hash, scope), public commitments only) with atomic `INSERT … ON CONFLICT DO NOTHING RETURNING` adjudication (live-proven 1 winner / 5 losers under a 6-thread race) and fail-closed transport (a lost DB is never an approval); burns survive restarts and gate re-instantiation. Stage G provisioning is gated by G-01..G-04 in `stage_g_preflight_validator.py`: bundle schema+hash integrity, strictly-READY unexpired status, the owner command carrying the IDENTICAL bundle hash as authorization, and a D-112 control-audit record joining the decision — all fail-closed to `PREFLIGHT_CLEARED`/`PREFLIGHT_BLOCKED` with named rule ids (D-124 reports; injected providers; AST-pinned zero I/O). Spec `docs/deployment/stage-g-preflight-contract.md`. Nothing provisioned or deployed; D-139 remains the sole activation authority. |
 | 51 | Stage G acceptance executor & cutover readiness verification — **D-149 (Approved 2026-09-24, owner-directed)**: `run_stage_g_acceptance.py` runs after pre-flight clearance and before provisioning — fail-closed entry gate (blocked/absent/tampered-bundle aborts before any check), ACC-01 manifest conformance against the bound Stage D template (isolation, probe parity, edge-leaf graph, zero drift), ACC-02 strict env-contract validation with secret-literal refusal (D-124), ACC-03 hardening baseline at template parity (ceilings, restart, no-new-privileges, read-only where the template pins it, named-volume-only mounts), ACC-04 the canonical `stage_g_acceptance_report.v1` with a deterministic SHA-256 acceptance fingerprint binding manifest+template+bundle — one audited report per run to the injected D-121 sink. The fingerprint joins the D-112 chain and the owner's final activation decision; the live GA-1..GA-7 probes and production activation remain owner-gated (D-139, plan §17/§21.6). Spec `docs/deployment/stage-g-acceptance-execution.md`. Nothing provisioned or deployed. |
+| 52 | Stage G post-provisioning live probes engine — **D-150 (Approved 2026-09-24, owner-directed)**: `verify_stage_g_live_probes.py` runs GA-1..GA-7 against the deployed stack through INJECTED executors (core performs zero I/O; absent executor ⇒ FAIL; transport exceptions surface as type-only failures) behind a fail-closed entry gate requiring a valid, ACCEPTED, fingerprint-matching, untampered `stage_g_acceptance_report.v1` (D-149). Probes: container lifecycle without crash loops, SSOT read/write roundtrip, broker PONG+auth+TTL with external exposure a hard refusal, app loopback, worker heartbeat freshness (≤120 ticks), zero published ports on all services, and zero secret material in output streams — leak detection on RAW text before redaction, any leak flipping the probe and the run to FAIL. Emits `stage_g_live_probe_report.v1` with a deterministic SHA-256 probe digest binding the probed manifest + acceptance fingerprint; the digest joins the D-112 chain (cleared → accepted → observed live); REJECTED feeds the Stage E rollback matrix; production activation remains owner-gated (D-139, plan §17/§21.6). Spec `docs/deployment/stage-g-live-probes.md`. Nothing provisioned or probed live. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.

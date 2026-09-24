@@ -1663,3 +1663,44 @@ probes.
   tamper class refused, report shape/binding, redaction scrubs, AST
   audit. Full battery 1471/1471 ×2 consecutive green across 65
   modules (1451 + 20), zero skips, census reconciled.
+
+## 43. Stage G live probe engine (2026-09-24, D-150)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing probed live.**
+The post-provisioning runtime-assurance half of Stage G is now
+machine-enforced, consuming the D-149 acceptance verdict and emitting
+the cryptographically bound live verdict.
+
+- **Entry gate (fail-closed):** a valid `stage_g_acceptance_report.v1`
+  with verdict `ACCEPTED` and a matching, well-formed manifest
+  fingerprint is mandatory; a recorded acceptance fingerprint that
+  fails recomputation (TAMPERED) aborts as well. Every abort emits an
+  audited REJECTED report naming the gate — no probe executes.
+- **`local/scripts/verify_stage_g_live_probes.py` (GA-1..GA-7):** each
+  probe binds an INJECTED executor to a pure judge; the core performs
+  zero I/O (AST-pinned), an absent executor is a FAIL (never
+  skipped), and transport exceptions surface as type-only failures.
+  GA-1 container lifecycle (healthy, restarts ≤ 3); GA-2 SSOT
+  read/write roundtrip; GA-3 broker PONG + auth + TTL with external
+  exposure a hard refusal; GA-4 app loopback; GA-5 worker heartbeat
+  ≤ 120 ticks; GA-6 zero published ports on ALL services; GA-7 zero
+  secret material in output streams — leak detection on the RAW text
+  (before redaction masks it), any leak flipping the probe and the
+  run to FAIL.
+- **Canonical artifact:** `stage_g_live_probe_report.v1` with the
+  probed manifest fingerprint, the D-149 acceptance fingerprint, GA
+  verdicts (deep-redacted details), the injected logical tick, and a
+  deterministic SHA-256 probe digest — exactly one audited report per
+  run. `PROBES_ACCEPTED` requires every probe to pass (D-137
+  fail-closed precedent).
+- **Audit handoff:** the probe digest joins the D-112 chain next to
+  the acceptance fingerprint and bundle hash (cleared → accepted →
+  observed live); REJECTED feeds the Stage E §5 rollback matrix;
+  production activation remains exclusively owner-gated (D-139, plan
+  §17/§21.6). Spec: `docs/deployment/stage-g-live-probes.md`.
+- **Verification:** `test_stage_g_live_probes.py` 20/20 ×2 — entry-gate
+  aborts (missing/malformed/REJECTED/mismatch/tampered), healthy-stack
+  full pass with digest determinism and drift sensitivity, every
+  fail-closed path, redaction scrubs (canary never in reports), AST
+  audit. Full battery 1491/1491 ×2 consecutive green across 66
+  modules (1471 + 20), zero skips, census reconciled.
