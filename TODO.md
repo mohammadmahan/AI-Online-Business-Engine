@@ -931,6 +931,22 @@ these even if they seem helpful:
       full battery 1392/1392 ×2 zero-skip. **V-01..V-09 is technical
       clearance only — cutover/activation authority stays with the
       Stage F owner sign-offs and D-139.**
+- [x] Dokploy Stage F — context-bound owner authorization engine —
+      **COMPLETE (2026-09-24; D-146 Approved, owner-directed)**:
+      `local/src/security/owner_approval_gate.py` (HMAC-SHA256 token
+      binding manifest fingerprint + session + target env + logical
+      TTL window + owner nonce; `<token_id>.<sig>` wire format with
+      recomputed commitment; fail-closed rejection taxonomy incl.
+      replay burn through an injected durable store; injected logical
+      clock — no wall clock; every GO/NO_GO audited to an injected
+      sink with deep redaction, key/sig never surfaced; AST-pinned
+      zero-I/O core) + `docs/deployment/stage-f-owner-authorization.md`
+      (token lifecycle, owner↔orchestrator handoff, rejection
+      taxonomy, revocation model, evidence validity) +
+      `test_owner_approval_gate.py` 19/19 ×2, full battery
+      1411/1411 ×2 zero-skip. **Nothing authorized or deployed — the
+      gate is a necessary input to activation; D-139 remains the sole
+      cutover authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

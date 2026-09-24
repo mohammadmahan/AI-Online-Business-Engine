@@ -1497,3 +1497,51 @@ V-01..V-07 checks.
   artifacts / probe-spec deviation, canary scrub in all report paths,
   AST no-socket audit. Full battery 1392/1392 ×2 consecutive green
   across 61 modules, zero skips, census reconciled.
+
+## 39. Stage F owner authorization engine (2026-09-24, D-146)
+
+**Status: IMPLEMENTED (engine + battery) — nothing authorized,
+nothing deployed.** The human half of the cutover gate is now
+machine-enforced: technical clearance (V-01..V-09, D-145) can never
+arm the switch without an explicit owner token.
+
+- **`local/src/security/owner_approval_gate.py`:**
+  - **Token model** — HMAC-SHA256 over the canonical JSON binding of
+    (manifest_sha256 from the D-144 envelope, cutover session id,
+    target environment, issued/expires logical ticks, owner nonce);
+    wire format `<token_id>.<sig>`; the token id is the sha256
+    commitment of the binding, recomputed and constant-time compared
+    before signature evaluation. The owner mints offline
+    (`mint_token`); the orchestrator verifies with
+    `OwnerApprovalGate.evaluate`.
+  - **Fail-closed taxonomy** — 15 named refusal reasons (malformed
+    shape/context/draft, envelope invalid or drifted, draft minted
+    for another manifest, unknown binding, invalid signature, TTL
+    malformed/out-of-bounds/expired/not-yet-valid, nonce malformed,
+    replay) plus a default-refuse for anything unlisted. Absence of
+    a token or gate is never a pass.
+  - **Single-use** — the nonce burns through an injected durable
+    replay store (`consume(key) -> bool`); replay refusal survives
+    gate re-instantiation (battery-proven across instances).
+  - **Purity & audit** — injected logical clock (no wall clock);
+    zero network/subprocess/file I/O (AST-pinned); exactly one
+    deep-redacted report per evaluation to the injected audit sink
+    (D-121 `engine.log.v1` in production); sink failure raises.
+    Key and signature material never appear in reports, errors, or
+    artifacts (D-124).
+  - **Revocation** — manifest regeneration (any byte), session
+    change, gate re-binding, TTL expiry, or prior consumption each
+    void outstanding tokens; the D-139 kill switch remains the
+    runtime halt path.
+- **`docs/deployment/stage-f-owner-authorization.md`:** binding
+  structure, owner↔orchestrator handoff protocol, rejection
+  taxonomy, emergency halt/revocation triggers, evidence-validity
+  model.
+- **Verification:** `test_owner_approval_gate.py` 19/19 ×2 — GO +
+  burn + determinism, tamper/wrong-key refusal, expiry and window
+  bounds, manifest/session/context mismatches, cross-instance replay,
+  redaction across all report and error paths, AST no-I/O audit.
+  Full battery 1411/1411 ×2 consecutive green across 62 modules
+  (1392 + 19), zero skips, census machine-reconciled. (First RUN1
+  attempt honestly failed with 31 skips — Docker daemon down after a
+  session restart; stack restored 5/5 and both runs clean.)
