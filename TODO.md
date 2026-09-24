@@ -898,10 +898,25 @@ these even if they seem helpful:
       UFW boundaries, installer isolation, TLS termination, sign-off
       procedure, evidence validity); SSH probe stays in
       `validate_vps_target.py` (single probing surface, battery-
-      asserted); `test_dokploy_stage_c_validator.py` 18/18 ×2, full
+      asserted);      `test_dokploy_stage_c_validator.py` 18/18 ×2, full
       battery 1359/1359 ×2 zero-skip. **Nothing provisioned — Stage C
       execution still requires the §17/§21.6 owner authorizations
-      (VPS, installer, firewall, DNS, credentials).**
+      (VPS, installer, firewall, DNS, credentials).** **Stage D
+      configuration engine (2026-09-24, plan §37 — D-144 Approved,
+      hermetic generator only):**
+      `local/infra/dokploy/dokploy_compose_template.yaml` (canonical
+      template: postgres-ssot/redis/app-orchestrator/telemetry-circuit,
+      internal backend network, probe-parity healthchecks, resource
+      ceilings) + `local/infra/dokploy/stage_d_compose_generator.py`
+      (deterministic byte-identical render; strict `${VAR:?}` secret
+      contract with masked-key fail-closed and sha256 fingerprint
+      binding; zero ports on backend services; app sole edge surface;
+      digest-pin enforcement; AST-pinned no-socket/no-subprocess/
+      no-environ) + `docs/deployment/stage-d-compose-architecture.md`
+      (topology, isolation matrix, injection sequence, rollback);
+      `test_dokploy_stage_d_generator.py` 18/18 ×2, full battery
+      1377/1377 ×2 zero-skip. **Generation is a local configuration
+      act — real deployment remains owner-gated (D-139).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

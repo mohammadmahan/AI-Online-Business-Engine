@@ -1432,3 +1432,29 @@ regression 1317/1317 ×2 consecutive green across 57 modules
   ×2; full regression 1359/1359 ×2 consecutive green across 59
   modules (1341 + 18, census machine-reconciled identical). Nothing
   provisioned — Stage C execution remains owner-gated (§17/§21.6).
+
+## 37. Stage D configuration engine & secret envelope (2026-09-24)
+
+- Decision: **D-144 (Approved)** — Stage D compose configuration is
+  generated from a canonical template, never hand-written.
+- `local/infra/dokploy/dokploy_compose_template.yaml` — four services
+  (postgres-ssot, redis, app-orchestrator, telemetry-circuit) with
+  `internal: true` backend network, zero published ports on data
+  services, probe-parity healthchecks (SELECT-1 / PING-PONG / worker
+  heartbeat / telemetry state per `infra_health_probe.py`), and
+  compose.prod.yml-inherited resource ceilings.
+- `local/infra/dokploy/stage_d_compose_generator.py` — deterministic
+  renderer: byte-identical output for identical inputs; strict
+  `${VAR:?reason}` credential references (loose forms refused;
+  `$$VAR` healthcheck escapes legitimate); missing required secrets
+  fail closed with masked keys; values never emitted anywhere (D-124,
+  sha256 fingerprint binding only); digest-pin warnings, missing-slot
+  refusal; AST-pinned zero sockets/subprocess/os.environ.
+- `docs/deployment/stage-d-compose-architecture.md` — service
+  topology, network isolation matrix, secret injection sequence,
+  rollback procedure (manifest rollback ≠ data recovery; D-125
+  archives govern the data plane; app vs DB rollback kept separate).
+- Verification: `local/tests/test_dokploy_stage_d_generator.py` 18/18
+  ×2; full regression 1377/1377 ×2 consecutive green across 60
+  modules (1359 + 18, census machine-reconciled identical). Nothing
+  deployed — real deployment remains owner-gated (§17/§21.6, D-139).

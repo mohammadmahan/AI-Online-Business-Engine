@@ -3607,6 +3607,51 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   1359/1359 ×2 consecutive green across 59 modules (1341 + 18, census
   machine-reconciled identical).
 
+## D-144 — Stage D configuration & network isolation contract
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** Stage C machine-verifies the HOST before provisioning,
+  but the manifest a deployment layer will consume did not yet exist —
+  hand-written compose files are where network-isolation mistakes and
+  secret leakage historically enter.
+- **Decision:** Stage D configuration is GENERATED, not hand-written.
+  `local/infra/dokploy/stage_d_compose_generator.py` renders
+  `docker-compose.dokploy.yaml` from the canonical template
+  `dokploy_compose_template.yaml` with deterministic, byte-identical
+  output. Contract (battery-pinned):
+  - Network isolation — `backend` network is `internal: true` and the
+    only network for `postgres-ssot`, `redis`, `telemetry-circuit`;
+    those services declare ZERO `ports:` (database/cache can never be
+    externally bound — VC-07 carried into the manifest layer);
+    `app-orchestrator` is the SOLE `edge` attachment (80/443 terminate
+    at the gateway, never on a container).
+  - Secret contract — credentials appear ONLY as strict
+    `${VAR:?reason}` references; any bare/`$(VAR)`/`${VAR}` form is a
+    refusal (`$$VAR` healthcheck escapes are legitimate compose
+    syntax); missing required variables (`CANONICAL_DB_NAME/USER/
+    PASSWORD`, `REDIS_PASSWORD`) fail closed naming only MASKED keys;
+    values never reach stdout, stderr, reports, or artifacts (D-124) —
+    reports carry the sha256 env fingerprint only; secret-shaped
+    literals are refused redacted.
+  - Image slots are digest-pinned or warned; a missing slot never
+    renders (no half-pinned manifest).
+  - Healthchecks mirror `infra_health_probe.py` probe semantics
+    (pg SELECT-1/PING-PONG/worker heartbeat/telemetry state) so the
+    Stage D→E gate maps 1:1 onto container checks.
+  Architecture documented in
+  `docs/deployment/stage-d-compose-architecture.md` (topology,
+  isolation matrix, injection sequence, rollback). The generator
+  performs zero I/O beyond the explicit template/env-file inputs — no
+  sockets, no subprocess, no `os.environ`.
+- **Boundaries preserved:** generation is a local configuration act;
+  real deployment remains owner-gated (D-139, plan §17/§21.6).
+- **Verification (2026-09-24):** battery
+  `local/tests/test_dokploy_stage_d_generator.py` 18/18 ×2
+  (determinism, isolation refusals, masked-key failures, canary
+  redaction across stdout/stderr/artifacts, AST no-network/no-environ
+  audit). Full regression 1377/1377 ×2 consecutive green across 60
+  modules (1359 + 18, census machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4260,6 +4305,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 38 | Observability & health telemetry — **D-121–D-124 (Approved 2026-09-18)**: local structured event log ledger (`engine.log.v1` JSONL + durable D-027-backed vault, deterministic trace/causal-chain ids, D-114 sanitization at the log boundary); deterministic metrics registry with localhost-only Prometheus text exposition (bounded declared cardinality, logical-timeline updates); composable health probes with the machine-readable `qa.health_report.v1` attestation (PG reachability/schema, ledger attestation validity, queue depth, breaker states); and zero-leak telemetry discipline (redaction + PII denylist + fixed `[REDACTED]` marker, battery-enforced, no engine imports from observability modules). |
 | 44 | Portable multi-agent shared-memory layer (MemWal) — **D-142 (Approved 2026-09-20, owner-directed)**: adopt `MystenLabs/MemWal` (Walrus Memory) as the external, encrypted, portable shared-memory layer for AI agents at live-AI-integration time (owner scope: Phases 7–10 surfaces + future optimization workstreams), after Dokploy infrastructure stabilization; boundaries preserved — D-045 external-connectivity/credential gating, provider-neutral seam with local parity backend (D-129/D-131, Phase 24 replaceability), memory writes never authority (D-026/D-027), zero-leak redaction (D-114/D-124) — **PLANNED, nothing installed or connected**. |
 | 45 | Stage C validation gate — **D-143 (Approved 2026-09-24, owner-directed)**: machine-enforced Stage C runbook-prerequisites validator (`local/infra/dokploy/stage_c_runbook_validator.py`, VC-01..VC-14) over an INJECTED host-adapter/facts-file interface — OS/kernel/Docker/cgroup floors, gateway-port collision checks (80/443 free), public-binding refusals for management/SSOT/broker ports (3000/5432/6379), UFW profile contract, required planning-env names (values never read out; sha256 fingerprint binding only), pinned installer ref, domain shape, and G1–G5 owner attestations; verdicts READY/NOT_READY/CANNOT_ASSESS fail closed; host-prerequisites spec `docs/deployment/stage-c-host-prerequisites.md`. The opt-in SSH target probe REMAINS in `local/scripts/validate_vps_target.py` (single probing surface). Nothing provisioned — live execution stays owner-gated per D-141 §17/§21.6 and D-139. |
+| 46 | Stage D configuration & network isolation contract — **D-144 (Approved 2026-09-24, owner-directed)**: Stage D compose configuration is GENERATED, not hand-written — `stage_d_compose_generator.py` renders `docker-compose.dokploy.yaml` from canonical template `dokploy_compose_template.yaml` with deterministic byte-identical output; `backend` network `internal: true` hosting postgres-ssot/redis/telemetry with ZERO published ports, `app-orchestrator` the sole `edge` attachment (80/443 terminate at the gateway); strict `${VAR:?reason}` credential references only (missing secrets fail closed with masked keys, values never emitted — sha256 fingerprint binding only, D-124); digest-pinned image slots; healthchecks mirroring `infra_health_probe.py` semantics. Architecture spec `docs/deployment/stage-d-compose-architecture.md`. Generation is local-only — deployment remains owner-gated (D-139, §17/§21.6). |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
