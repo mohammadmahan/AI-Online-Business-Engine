@@ -1583,3 +1583,41 @@ transaction, and the Stage F verdict is a first-class cutover check.
   redaction across bundles/persisted records/audited copies; doc
   parity; AST audit). Full battery 1431/1431 ×2 consecutive green
   across 63 modules (1411 + 20), zero skips, census reconciled.
+
+## 41. Durable replay store & Stage G pre-flight (2026-09-24, D-148)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing deployed.** The
+Stage F burn is now crash-resilient on the SSOT, and Stage G
+provisioning is machine-gated by a four-rule pre-flight.
+
+- **`local/src/security/pg_replay_store.py`:** single-use nonce
+  consumption persisted to `security.consumed_owner_nonces`
+  (idempotent DDL; PRIMARY KEY (nonce_hash, scope); token id, session,
+  env, and logical tick as audit metadata; only SHA-256 burn keys and
+  public commitments stored — D-124). Atomicity via one statement
+  (`INSERT … ON CONFLICT DO NOTHING RETURNING nonce_hash`) — Postgres
+  adjudicates concurrent burns with no read-modify-write window
+  (live-probe: 1 winner / 5 losers, 6-thread same-key race). The
+  transport and UTC stamp are injected; any transport failure raises
+  `ReplayStoreError` — a lost DB is never an approval. Composes into
+  the D-146 gate unchanged; replay refusal proven across gate
+  instances on the live SSOT.
+- **`local/scripts/stage_g_preflight_validator.py` (G-01..G-04):**
+  G-01 bundle schema + SHA-256 `bundle_hash` integrity (tamper
+  refused); G-02 verdict strictly `READY_FOR_CUTOVER` and unexpired
+  (5000-tick max age); G-03 the owner deployment command carries the
+  IDENTICAL bundle hash as its explicit authorization token; G-04 the
+  decision is recorded in the D-112 control-audit chain. Verdicts
+  `PREFLIGHT_CLEARED` / `PREFLIGHT_BLOCKED` with named rule ids;
+  injected bundle/audit/clock providers; AST-pinned zero
+  sockets/subprocess.
+- **`docs/deployment/stage-g-preflight-contract.md`:** schema, rule
+  table, failure modes, and the owner runbook for executing the
+  provisioning command (bundle → D-112 record → command hash →
+  pre-flight → provision).
+- **Verification:** `test_stage_g_preflight_and_pg_replay.py` 20/20 ×2
+  — offline atomicity/fail-closed/contract-violation/scope/redaction
+  coverage plus a live-PG tier (real-SSOT race, restart resilience
+  across store instances, gate-wiring replay across gate instances)
+  and AST audits. Full battery 1451/1451 ×2 consecutive green across
+  64 modules (1431 + 20), zero skips, census reconciled.

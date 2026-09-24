@@ -962,6 +962,25 @@ these even if they seem helpful:
       full battery 1431/1431 ×2 zero-skip. **Nothing authorized or
       deployed — Stage G requires a READY bundle plus an explicit
       owner command; D-139 remains the sole activation authority.**
+- [x] Stage F/G durable replay store & provisioning pre-flight —
+      **COMPLETE (2026-09-24; D-148 Approved, owner-directed)**:
+      `local/src/security/pg_replay_store.py` (crash-resilient nonce
+      burn on the D-055 SSOT — `security.consumed_owner_nonces` with
+      idempotent DDL and atomic `ON CONFLICT DO NOTHING RETURNING`
+      adjudication, live-proven 1 winner/5 losers under a 6-thread
+      race; injected transport + UTC stamp; transport failure ⇒
+      `ReplayStoreError`, a lost DB is never an approval; burns
+      survive restarts and gate re-instantiation) +
+      `local/scripts/stage_g_preflight_validator.py` (G-01..G-04:
+      bundle schema+hash integrity, strictly-READY unexpired,
+      owner-command hash identity, D-112 audit-chain join — all
+      fail-closed to `PREFLIGHT_CLEARED`/`PREFLIGHT_BLOCKED`) +
+      `docs/deployment/stage-g-preflight-contract.md` (schema,
+      failure modes, owner runbook) +
+      `test_stage_g_preflight_and_pg_replay.py` 20/20 ×2 (offline +
+      live-PG tier), full battery 1451/1451 ×2 zero-skip. **Nothing
+      provisioned or deployed; D-139 remains the sole activation
+      authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

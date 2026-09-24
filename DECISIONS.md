@@ -3810,6 +3810,69 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   consecutive green across 63 modules (1411 + 20, census
   machine-reconciled identical).
 
+## D-148 — PostgreSQL durable replay store & Stage G pre-flight contract
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** D-146's nonce burn lived in memory — a host restart
+  would resurrect a spent authorization — and Stage G provisioning
+  had no machine-enforced pre-flight joining the cutover bundle, the
+  owner command, and the D-112 audit chain.
+- **Decision:**
+  - **Durable replay store** (`local/src/security/pg_replay_store.py`)
+    — single-use nonce consumption persisted to the D-055 SSOT in
+    `security.consumed_owner_nonces` (idempotent DDL; PRIMARY KEY on
+    (nonce_hash, scope); token id/session/env/ticks as audit
+    metadata; burned_at_utc injected). Atomicity via ONE statement —
+    `INSERT … ON CONFLICT (nonce_hash, scope) DO NOTHING RETURNING
+    nonce_hash` — Postgres adjudicates the race with no
+    read-modify-write window (live-probe: 1 winner / 5 losers under a
+    6-thread same-key race). Only the SHA-256 burn key and public
+    commitments are stored — raw nonces/tokens/keys never reach the
+    table (D-124). The transport (`exec(sql) -> str`) and UTC stamp
+    are INJECTED (production: `seed_registry.q` under the D-126
+    ceiling; tests: in-process fake); any transport failure raises
+    `ReplayStoreError` — **a lost DB is never an approval**. Composes
+    into `OwnerApprovalGate` unchanged (same `consume(key) -> bool`
+    contract; replay refusal proven across gate instances on the
+    live SSOT).
+  - **Stage G pre-flight validator**
+    (`local/scripts/stage_g_preflight_validator.py`) — evaluated
+    immediately before any provisioning action, all rules fail-closed:
+    **G-01** bundle is `cutover.bundle.v1` and its `bundle_hash`
+    matches the SHA-256 recomputed over the canonical bytes (any
+    tamper refused); **G-02** verdict strictly `READY_FOR_CUTOVER`
+    and unexpired (`now − observed_tick < 5000` ticks — BLOCKED or
+    stale bundles are never promotable); **G-03** the owner deployment
+    command carries the IDENTICAL bundle hash as its explicit
+    authorization token (a command for a different bundle — or with
+    no hash — authorizes nothing); **G-04** the cutover decision is
+    recorded in the D-112 control-audit chain (a
+    `stage_g_preflight`/`cutover_bundle_recorded` row, or any row
+    whose detail embeds the bundle hash). Verdicts
+    `PREFLIGHT_CLEARED` / `PREFLIGHT_BLOCKED` with named rule ids;
+    reports carry hashes/ids/ticks only (D-124). Pure core — injected
+    bundle/audit/clock providers, AST-pinned zero sockets/subprocess.
+  - Spec: `docs/deployment/stage-g-preflight-contract.md` (schema,
+    failure modes, owner runbook).
+- **Boundaries preserved:** nothing provisioned, nothing deployed —
+  the validator gates provisioning and D-139 remains the sole
+  activation authority; the D-125 archive path still governs the data
+  plane (schema DDL touches only the new nonce table).
+- **Verification (2026-09-24):** battery
+  `local/tests/test_stage_g_preflight_and_pg_replay.py` 20/20 ×2 —
+  offline: atomic first-use/replay, 6-thread race single-winner,
+  transport-failure fail-closed, contract violations, scope
+  isolation, idempotent-DDL shape, no-secret-in-SQL; live-PG tier
+  (`skipUnless` stack guard): real-SSOT race, restart-resilience
+  across store instances, and gate-wiring replay across gate
+  instances; pre-flight: clearance, tamper/BLOCKED/expiry/mismatch/
+  missing-audit refusals, audit-kind and detail joins; redaction
+  scrubs; AST audits. Full regression 1451/1451 ×2 consecutive green
+  across 64 modules (1431 + 20, census machine-reconciled identical;
+  RUN2 chunked after two command-budget timeouts on the slow live-PG
+  orchestration suites — every module re-run to green, one
+  duplicate-coverage chunk reconciled out of the census).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4467,6 +4530,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 47 | Stage E manifest fingerprint & cutover verification binding — **D-145 (Approved 2026-09-24, owner-directed)**: the cutover verification matrix extends to V-01..V-09 in `verify_cutover_readiness.py` — V-08 binds the exact Stage D manifest bytes via `stage_d_fingerprint.envelope` (SHA-256; VERIFY/NO_MANIFEST/NO_ENVELOPE/MISMATCH/MALFORMED, everything but VERIFY blocks; any drift voids clearance and requires re-review + re-binding per the D-138 evidence-validity model) and re-asserts network isolation on the bound bytes; V-09 requires every container healthcheck to map onto an `infra_health_probe.py` semantic (unverifiable ⇒ fail closed). All of V-01..V-09 is the technical clearance; Stage F sign-offs and D-139 stay the sole cutover/activation authority. Matrix spec `docs/deployment/stage-e-cutover-fingerprint-binding.md`. Nothing deployed; findings carry hashes/names only (D-124). |
 | 48 | Stage F context-bound owner authorization engine — **D-146 (Approved 2026-09-24, owner-directed)**: the final cutover switch arms only against an explicit, single-use, context-bound, TTL-bounded owner token — HMAC-SHA256 over (manifest_sha256 from the D-144 envelope, session id, target env, issued/expires logical ticks, owner nonce), wire format `<token_id>.<sig>` with the token id as a recomputed commitment. Fail-closed taxonomy (malformed/drifted/expired/not-yet-valid/replayed/unknown-binding ⇒ refusal; absence is never a pass); nonce burns once through an injected durable replay store; every GO/NO_GO emits one deep-redacted report to the injected audit sink (D-121); key and signature material never surface (D-124); engine is pure — injected clock/store/sink only, AST-pinned no I/O. Revocation: manifest regeneration, session change, re-binding, expiry, or consumption each void outstanding tokens; D-139 kill switch remains the runtime halt. Spec `docs/deployment/stage-f-owner-authorization.md`. Nothing authorized or deployed — the gate is a necessary input to activation, not the activation itself. |
 | 49 | Stage F attestation integration & cutover orchestration wire — **D-147 (Approved 2026-09-24, owner-directed)**: the cutover matrix extends to V-01..V-10 — the gate's Stage F verdict record is a fail-closed prerequisite (missing/non-GO/expired/fingerprint-mismatched/forbidden-material all refuse; absence is never a pass) bound to the exact V-08 manifest fingerprint; `cutover_orchestrator.py` composes the ordered transaction Stage C → Stage D/E (V-01..V-10) → Stage F (D-146 gate) → an immutable `cutover.bundle.v1` attestation with SHA-256 `bundle_hash`, aborting BEFORE the single-use burn on any technical failure, refusing replays, and emitting exactly one audited bundle per call (injected clock/steps/sink; AST-pinned zero I/O). Stage G requires a READY bundle hash recorded in the D-112 control-audit chain plus an explicit owner command for that hash; D-139 remains the sole activation authority. Spec `docs/deployment/stage-f-attestation-orchestration.md`. Nothing authorized or deployed. |
+| 50 | PostgreSQL durable replay store & Stage G pre-flight contract — **D-148 (Approved 2026-09-24, owner-directed)**: nonce burns persist to the D-055 SSOT (`security.consumed_owner_nonces`, idempotent DDL, PK (nonce_hash, scope), public commitments only) with atomic `INSERT … ON CONFLICT DO NOTHING RETURNING` adjudication (live-proven 1 winner / 5 losers under a 6-thread race) and fail-closed transport (a lost DB is never an approval); burns survive restarts and gate re-instantiation. Stage G provisioning is gated by G-01..G-04 in `stage_g_preflight_validator.py`: bundle schema+hash integrity, strictly-READY unexpired status, the owner command carrying the IDENTICAL bundle hash as authorization, and a D-112 control-audit record joining the decision — all fail-closed to `PREFLIGHT_CLEARED`/`PREFLIGHT_BLOCKED` with named rule ids (D-124 reports; injected providers; AST-pinned zero I/O). Spec `docs/deployment/stage-g-preflight-contract.md`. Nothing provisioned or deployed; D-139 remains the sole activation authority. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
