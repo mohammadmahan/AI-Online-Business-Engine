@@ -3873,6 +3873,64 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   orchestration suites — every module re-run to green, one
   duplicate-coverage chunk reconciled out of the census).
 
+## D-149 — Stage G acceptance executor & cutover readiness verification
+
+- **Status:** **Approved** (2026-09-24, owner-directed).
+- **Situation:** D-148 gated provisioning, but nothing verified the
+  deployment CONFIGURATION before provisioning ran; the GA-1..GA-7
+  live probes needed a configuration-readiness half and a canonical
+  artifact the owner's activation decision could reference.
+- **Decision:** `local/scripts/run_stage_g_acceptance.py` — the
+  machine-enforced acceptance runner between pre-flight clearance and
+  provisioning:
+  - **Entry gate (fail-closed):** a `PREFLIGHT_CLEARED` D-148 verdict
+    is mandatory; blocked/malformed/absent/unavailable verdicts abort
+    immediately with an audited REJECTED report naming the gate — no
+    ACC check is evaluated. The gate also binds the bundle: a
+    supplied bundle must be hash-intact (recomputed against its
+    canonical bytes — a TAMPERED bundle is refused, never silently
+    unbound) and match the hash the pre-flight cleared.
+  - **ACC-01 manifest conformance** — required service set, backend
+    isolation (zero `ports:`, no edge attachment, internal backend
+    network), probe-parity healthchecks (D-145 contract), edge-leaf
+    dependency graph, and zero drift from the bound Stage D template.
+  - **ACC-02 env schema** — every `${VAR:?…}` reference maps onto the
+    declared contract (`runtime_preflight.MANDATORY_KEYS` + known
+    Stage D names); strict interpolation only (loose forms refused,
+    comments exempt); secret-shaped literals refused (D-124 — the
+    manifest never carries values).
+  - **ACC-03 hardening baseline (template parity)** — per-service
+    ceilings (`mem_limit`+`cpus`), `restart: unless-stopped`,
+    `no-new-privileges`; read-only rootfs + tmpfs pinned at template
+    parity; volume mounts restricted to declared named volumes (host
+    bind mounts refused).
+  - **ACC-04 canonical artifact** — `stage_g_acceptance_report.v1`
+    with manifest/template/bundle SHA-256 bindings, per-ACC verdicts,
+    injected logical tick, and a deterministic SHA-256 **acceptance
+    fingerprint** over the canonical bytes — exactly one report
+    emitted and audited per run (including aborts) to the injected
+    D-121 sink. Pure core — injected providers, AST-pinned zero
+    sockets/subprocess.
+  - **Handoff:** the acceptance fingerprint is recorded in the D-112
+    chain next to the bundle hash; provisioning proceeds under D-148
+    authority; live GA-1..GA-7 probes follow (`stage-g-acceptance.md`);
+    production activation remains exclusively owner-gated (D-139,
+    plan §17/§21.6). Spec:
+    `docs/deployment/stage-g-acceptance-execution.md` (lifecycle,
+    remediation matrix, handoff).
+- **Boundaries preserved:** nothing provisioned, nothing deployed —
+  the executor is a verdict machine with zero deployment side
+  effects; D-139 remains the sole activation authority.
+- **Verification (2026-09-24):** battery
+  `local/tests/test_stage_g_acceptance.py` 20/20 ×2 — entry-gate
+  aborts (blocked/absent/exception/bundle-mismatch), shipped-manifest
+  ACCEPTED with fingerprint determinism + drift sensitivity, every
+  tamper class refused (ports, loose var, unknown env, secret literal,
+  lost rootfs, host bind mount, template drift), report shape/binding,
+  redaction scrubs, AST audit. Full regression 1471/1471 ×2
+  consecutive green across 65 modules (1451 + 20, census
+  machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4531,6 +4589,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 48 | Stage F context-bound owner authorization engine — **D-146 (Approved 2026-09-24, owner-directed)**: the final cutover switch arms only against an explicit, single-use, context-bound, TTL-bounded owner token — HMAC-SHA256 over (manifest_sha256 from the D-144 envelope, session id, target env, issued/expires logical ticks, owner nonce), wire format `<token_id>.<sig>` with the token id as a recomputed commitment. Fail-closed taxonomy (malformed/drifted/expired/not-yet-valid/replayed/unknown-binding ⇒ refusal; absence is never a pass); nonce burns once through an injected durable replay store; every GO/NO_GO emits one deep-redacted report to the injected audit sink (D-121); key and signature material never surface (D-124); engine is pure — injected clock/store/sink only, AST-pinned no I/O. Revocation: manifest regeneration, session change, re-binding, expiry, or consumption each void outstanding tokens; D-139 kill switch remains the runtime halt. Spec `docs/deployment/stage-f-owner-authorization.md`. Nothing authorized or deployed — the gate is a necessary input to activation, not the activation itself. |
 | 49 | Stage F attestation integration & cutover orchestration wire — **D-147 (Approved 2026-09-24, owner-directed)**: the cutover matrix extends to V-01..V-10 — the gate's Stage F verdict record is a fail-closed prerequisite (missing/non-GO/expired/fingerprint-mismatched/forbidden-material all refuse; absence is never a pass) bound to the exact V-08 manifest fingerprint; `cutover_orchestrator.py` composes the ordered transaction Stage C → Stage D/E (V-01..V-10) → Stage F (D-146 gate) → an immutable `cutover.bundle.v1` attestation with SHA-256 `bundle_hash`, aborting BEFORE the single-use burn on any technical failure, refusing replays, and emitting exactly one audited bundle per call (injected clock/steps/sink; AST-pinned zero I/O). Stage G requires a READY bundle hash recorded in the D-112 control-audit chain plus an explicit owner command for that hash; D-139 remains the sole activation authority. Spec `docs/deployment/stage-f-attestation-orchestration.md`. Nothing authorized or deployed. |
 | 50 | PostgreSQL durable replay store & Stage G pre-flight contract — **D-148 (Approved 2026-09-24, owner-directed)**: nonce burns persist to the D-055 SSOT (`security.consumed_owner_nonces`, idempotent DDL, PK (nonce_hash, scope), public commitments only) with atomic `INSERT … ON CONFLICT DO NOTHING RETURNING` adjudication (live-proven 1 winner / 5 losers under a 6-thread race) and fail-closed transport (a lost DB is never an approval); burns survive restarts and gate re-instantiation. Stage G provisioning is gated by G-01..G-04 in `stage_g_preflight_validator.py`: bundle schema+hash integrity, strictly-READY unexpired status, the owner command carrying the IDENTICAL bundle hash as authorization, and a D-112 control-audit record joining the decision — all fail-closed to `PREFLIGHT_CLEARED`/`PREFLIGHT_BLOCKED` with named rule ids (D-124 reports; injected providers; AST-pinned zero I/O). Spec `docs/deployment/stage-g-preflight-contract.md`. Nothing provisioned or deployed; D-139 remains the sole activation authority. |
+| 51 | Stage G acceptance executor & cutover readiness verification — **D-149 (Approved 2026-09-24, owner-directed)**: `run_stage_g_acceptance.py` runs after pre-flight clearance and before provisioning — fail-closed entry gate (blocked/absent/tampered-bundle aborts before any check), ACC-01 manifest conformance against the bound Stage D template (isolation, probe parity, edge-leaf graph, zero drift), ACC-02 strict env-contract validation with secret-literal refusal (D-124), ACC-03 hardening baseline at template parity (ceilings, restart, no-new-privileges, read-only where the template pins it, named-volume-only mounts), ACC-04 the canonical `stage_g_acceptance_report.v1` with a deterministic SHA-256 acceptance fingerprint binding manifest+template+bundle — one audited report per run to the injected D-121 sink. The fingerprint joins the D-112 chain and the owner's final activation decision; the live GA-1..GA-7 probes and production activation remain owner-gated (D-139, plan §17/§21.6). Spec `docs/deployment/stage-g-acceptance-execution.md`. Nothing provisioned or deployed. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.

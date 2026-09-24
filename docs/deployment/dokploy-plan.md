@@ -1621,3 +1621,45 @@ provisioning is machine-gated by a four-rule pre-flight.
   across store instances, gate-wiring replay across gate instances)
   and AST audits. Full battery 1451/1451 ×2 consecutive green across
   64 modules (1431 + 20), zero skips, census reconciled.
+
+## 42. Stage G acceptance executor (2026-09-24, D-149)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing deployed.** The
+configuration-readiness half of Stage G is now machine-enforced,
+bridging pre-flight clearance and the live GA-1..GA-7 deployment
+probes.
+
+- **Entry gate (fail-closed):** a `PREFLIGHT_CLEARED` D-148 verdict is
+  mandatory — blocked/malformed/absent verdicts abort with an audited
+  REJECTED report and no ACC check runs. A supplied cutover bundle
+  must be hash-intact (recomputed vs its canonical bytes — tampered
+  bundles are refused) and match the hash the pre-flight cleared.
+- **`local/scripts/run_stage_g_acceptance.py` (ACC-01..ACC-04):**
+  - **ACC-01** manifest conformance against the bound Stage D
+    template: required services, backend isolation (no ports, no edge,
+    internal network), D-145 probe-parity healthchecks, edge-leaf
+    dependency graph, zero template drift.
+  - **ACC-02** env schema: every `${VAR:?…}` reference maps onto the
+    declared contract (`runtime_preflight.MANDATORY_KEYS` + Stage D
+    names); strict interpolation only; secret-shaped literals refused
+    (D-124).
+  - **ACC-03** hardening baseline at template parity: ceilings
+    (`mem_limit`+`cpus`), `restart: unless-stopped`,
+    `no-new-privileges`, read-only rootfs + tmpfs where the template
+    pins them, named-volume-only mounts (host bind mounts refused).
+  - **ACC-04** the canonical `stage_g_acceptance_report.v1` artifact
+    with manifest/template/bundle SHA-256 bindings and a deterministic
+    SHA-256 **acceptance fingerprint** — exactly one audited report
+    per run (including aborts) to the injected D-121 sink. Pure core —
+    injected providers, AST-pinned zero sockets/subprocess.
+- **Handoff:** the acceptance fingerprint is recorded in the D-112
+  chain next to the bundle hash; provisioning proceeds under D-148
+  authority; live GA-1..GA-7 probes follow; production activation
+  remains exclusively owner-gated (D-139, plan §17/§21.6). Spec:
+  `docs/deployment/stage-g-acceptance-execution.md`.
+- **Verification:** `test_stage_g_acceptance.py` 20/20 ×2 — entry-gate
+  aborts (blocked/absent/exception/bundle-mismatch), shipped-manifest
+  ACCEPTED with fingerprint determinism and drift sensitivity, every
+  tamper class refused, report shape/binding, redaction scrubs, AST
+  audit. Full battery 1471/1471 ×2 consecutive green across 65
+  modules (1451 + 20), zero skips, census reconciled.

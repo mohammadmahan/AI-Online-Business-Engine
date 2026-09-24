@@ -981,6 +981,23 @@ these even if they seem helpful:
       live-PG tier), full battery 1451/1451 ×2 zero-skip. **Nothing
       provisioned or deployed; D-139 remains the sole activation
       authority.**
+- [x] Stage G acceptance executor & cutover readiness verification —
+      **COMPLETE (2026-09-24; D-149 Approved, owner-directed)**:
+      `local/scripts/run_stage_g_acceptance.py` (fail-closed
+      PREFLIGHT_CLEARED entry gate incl. tampered-bundle refusal;
+      ACC-01 manifest conformance vs the bound Stage D template,
+      ACC-02 strict env-contract + secret-literal refusal, ACC-03
+      hardening baseline at template parity, ACC-04 canonical
+      `stage_g_acceptance_report.v1` with deterministic SHA-256
+      acceptance fingerprint binding manifest+template+bundle; one
+      audited report per run; AST-pinned zero-I/O pure core) +
+      `docs/deployment/stage-g-acceptance-execution.md` (lifecycle,
+      remediation matrix, D-112 fingerprint handoff, D-139 owner
+      activation) + `test_stage_g_acceptance.py` 20/20 ×2, full
+      battery 1471/1471 ×2 zero-skip. **Nothing provisioned or
+      deployed — the fingerprint is evidence for the owner's final
+      activation decision; D-139 remains the sole activation
+      authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
