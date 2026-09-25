@@ -1704,3 +1704,58 @@ the cryptographically bound live verdict.
   fail-closed path, redaction scrubs (canary never in reports), AST
   audit. Full battery 1491/1491 ×2 consecutive green across 66
   modules (1471 + 20), zero skips, census reconciled.
+
+## 44. Stage G production probe adapters & triad binding (2026-09-25, D-151)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing probed live.**
+The D-150 engine gains its production executors, and the launch
+attestation gains a mandatory triple-evidence gate.
+
+- **`local/scripts/stage_g_probe_adapters.py`:** the concrete D-150
+  executors — `DockerInspectExecutor` (GA-1 container lifecycle,
+  GA-6 published ports, via structured `docker inspect` JSON argv),
+  `ContainerExecExecutor` (GA-2 SSOT roundtrip as ONE self-cleaning
+  statement, GA-3 PING + runtime-vs-declared `maxmemory-policy`
+  agreement + exposure via port bindings, GA-4/GA-5 loopback
+  heartbeat — `docker exec` with fixed inner argv token lists),
+  `LogStreamScrubberExecutor` (GA-7 bounded stream slices,
+  deep-redacted before return). Safety boundaries: direct argv only
+  (zero `shell=True`, a single AST-pinned spawning seam, every
+  parameter allow-list validated before exec), `EXEC_TIMEOUT_S = 15`
+  on every child, fail-closed exit codes and malformed payloads,
+  deep redaction before any string escapes, sanitized bounded
+  errors (D-124) — secret-shaped RAW payloads are never echoed at
+  all (leak detection before redaction masks the evidence).
+  `build_executors()` wires all three into the D-150 runner kwargs.
+- **`local/src/security/launch_attestation_verifier.py`:**
+  `TripleEvidenceGate` binds `bundle_hash` (D-147),
+  `acceptance_fingerprint` (D-149) and `probe_digest` (D-150):
+  TRIAD-01 hash integrity (each digest recomputed from its
+  artifact's canonical bytes; mismatch = TAMPER); TRIAD-02
+  correlation (one manifest fingerprint across the three artifacts,
+  plus the probe's acceptance binding); TRIAD-03 D-112 rooting
+  (each digest present in the operator audit chain AND the chain
+  verifies end-to-end — a broken chain attests nothing); TRIAD-04
+  the READY → ACCEPTED → PROBES_ACCEPTED verdict chain. All
+  providers injected; the core is AST-pinned zero-I/O; every check
+  runs so one verdict names EVERY blocker.
+- **Integration:** `wire_into_registry` installs the gate as the
+  mandatory `stage_g_triple_evidence` probe inside every
+  `qa.health_report.v1` — LAUNCH_READY is probe PASS, anything else
+  is probe FAIL and pulls `overall` (and the D-138 attestation
+  verdict) down with it; launch evidence is binary, never degraded
+  (D-123 `ledger_integrity` precedent). The D-137/D-138 matrix
+  composition in `launch_attestation.py` is unchanged; production
+  activation remains exclusively owner-gated (D-139, plan
+  §17/§21.6). Spec: `docs/deployment/stage-g-probe-adapters.md`.
+- **Verification:** `test_stage_g_adapters_and_launch_attestation.py`
+  29/29 ×2 (adapter parsing without shell, fail-closed
+  timeout/exit-code sanitization, full-triad pass on real D-149/D-150
+  material, tamper/absence/divergence/unrooted/broken-chain
+  refusals, mandatory-probe wiring, canary scrub, AST audits).
+  Suite-found defects fixed in-batch: `TimeoutExpired` mis-mapped to
+  `spawn_failure` at the runner boundary; `PGPASSWORD=…`-shaped
+  payloads surviving `deep_redact` (word-boundary gap). Full battery
+  1520/1520 ×2 consecutive green across 67 modules (1491 + 29),
+  zero skips, census reconciled; unified launch attestation renders
+  GO on 9a12552.

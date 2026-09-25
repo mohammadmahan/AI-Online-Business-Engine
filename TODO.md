@@ -1016,6 +1016,28 @@ these even if they seem helpful:
       `test_stage_g_live_probes.py` 20/20 ×2, full battery
       1491/1491 ×2 zero-skip. **Nothing provisioned or probed live;
       D-139 remains the sole activation authority.**
+- [x] Stage G production probe adapters & launch attestation triad
+      binding — **COMPLETE (2026-09-25; D-151 Approved,
+      owner-directed)**: `local/scripts/stage_g_probe_adapters.py`
+      (concrete D-150 executors — DockerInspectExecutor GA-1/GA-6,
+      ContainerExecExecutor GA-2..GA-5 inside container namespaces,
+      LogStreamScrubberExecutor GA-7 — direct argv only, zero
+      `shell=True`, single AST-pinned spawning seam, allow-list
+      validated parameters, 15s hard timeouts, fail-closed exit
+      codes, deep redaction before return, secret-shaped raw
+      payloads never echoed) +
+      `local/src/security/launch_attestation_verifier.py`
+      (`TripleEvidenceGate` TRIAD-01..04 — hash integrity,
+      correlation, D-112 rooting with end-to-end chain verify,
+      verdict chain; `wire_into_registry` installs the mandatory
+      `stage_g_triple_evidence` probe in every `qa.health_report.v1`,
+      a blocked triad is probe FAIL) +
+      `docs/deployment/stage-g-probe-adapters.md` (adapter
+      interfaces, safety boundaries, timeout parameters, integration
+      flow) + `test_stage_g_adapters_and_launch_attestation.py`
+      29/29 ×2, full battery 1520/1520 ×2 zero-skip. **Nothing
+      provisioned or probed live; D-139 remains the sole activation
+      authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
