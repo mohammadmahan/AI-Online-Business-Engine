@@ -1038,6 +1038,25 @@ these even if they seem helpful:
       29/29 ×2, full battery 1520/1520 ×2 zero-skip. **Nothing
       provisioned or probed live; D-139 remains the sole activation
       authority.**
+- [x] Stage G formal closure & Stage H handoff seal — **COMPLETE
+      (2026-09-25; D-152 Approved, owner-directed)**:
+      `local/scripts/stage_g_closure_and_handoff.py`
+      (CLS-01..CLS-05 over the complete C→G artifact chain — host
+      readiness, Stage D manifest⇔envelope binding, Stage E
+      contract, Stage F bundle+token, Stage G acceptance+probes;
+      zero-drift fingerprint assertion; D-151 triad with zero
+      bypasses; RB-1..RB-6 rollback matrix + ordering invariant +
+      health-fallback trigger parsing; canonical
+      `stage_g_closure_seal.v1` with the SHA-256 `closure_digest` as
+      the Stage H entry root; one audited seal per run; AST-pinned
+      pure core) + `docs/deployment/stage-g-closure-and-handoff.md`
+      (closure report + Stage H owner runbook: handoff steps, D-112
+      seal-row verification, manifest-bound provisioning, rollback
+      thresholds, post-activation monitoring) +
+      `test_stage_g_closure_and_handoff.py` 23/23 ×2, full battery
+      1543/1543 ×2 zero-skip. **The seal authorizes a handoff
+      candidate only — nothing provisioned, nothing activated; D-139
+      remains the sole activation authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

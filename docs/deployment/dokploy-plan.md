@@ -1759,3 +1759,63 @@ attestation gains a mandatory triple-evidence gate.
   1520/1520 ×2 consecutive green across 67 modules (1491 + 29),
   zero skips, census reconciled; unified launch attestation renders
   GO on 9a12552.
+
+## 45. Stage G formal closure & Stage H handoff seal (2026-09-25, D-152)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing activated.**
+Stage G is concluded by a single master orchestrator that synthesizes
+the whole verification chain into one unforgeable handoff artifact.
+
+- **`local/scripts/stage_g_closure_and_handoff.py` (CLS-01..CLS-05):**
+  CLS-01 verifies the complete C→G artifact chain — Stage C host
+  readiness READY with every check green, Stage D manifest matching
+  its fingerprint envelope (bound for `stage-e-cutover`), Stage E
+  rollback contract present, Stage F `cutover.bundle.v1` hash-
+  verifying with its `stage_f_token_id`, Stage G acceptance ACCEPTED
+  + live probes PROBES_ACCEPTED (absent artifacts, raising providers
+  with type-only detail, and tampered links are named refusals);
+  CLS-02 asserts ZERO manifest-fingerprint drift across envelope,
+  raw manifest bytes, bundle, acceptance report and probe report,
+  plus the probe-to-acceptance binding; CLS-03 requires the D-151
+  TripleEvidenceGate verdict `LAUNCH_EVIDENCE_COMPLETE` with EVERY
+  TRIAD-01..04 rule present in `checks` and passing — a skipped
+  rule, a blocked rule, or a mislabeled verdict is a refusal (zero
+  warnings, zero bypasses); CLS-04 parses the atomic rollback
+  strategy — RB-1..RB-6 rows each carrying trigger / procedure /
+  post-verification, the stop → compensate/drain → reconcile
+  ordering invariant (whitespace-normalized match), and well-formed
+  health-fallback triggers (name, positive `threshold_ticks`,
+  action); CLS-05 emits the canonical `stage_g_closure_seal.v1` —
+  `STAGE_G_CLOSED` with the SHA-256 `closure_digest` over the
+  canonical bytes as the cryptographic Stage H entry root, or
+  `STAGE_G_OPEN` with named blockers (still emitted and audited —
+  an OPEN seal is itself evidence). Exactly one audited seal per
+  run; every digest field is verified against recomputation before
+  it is sealed; AST-pinned pure core (no sockets, no subprocess, no
+  file I/O, no wall clock), deep-redacted details (D-124).
+- **Spec:** `docs/deployment/stage-g-closure-and-handoff.md` — the
+  closure report and the Stage H owner runbook: re-close immediately
+  before handoff (a stale seal is not a handoff basis), verify the
+  seal row in the D-112 chain, invoke Dokploy provisioning with the
+  manifest whose SHA-256 equals the seal's `manifest_sha256`,
+  re-probe post-provisioning (D-150 via D-151 adapters), record the
+  `stage_h_activation` row, rollback thresholds (Stage E §5 matrix
+  + the declared fallback triggers), and post-activation monitoring
+  (`qa.health_report.v1` with the mandatory `stage_g_triple_evidence`
+  probe, `infra_health_probe.deploy_verdict()`, scheduled GA
+  re-probes, end-to-end chain verification each cycle).
+- **Verification:** `test_stage_g_closure_and_handoff.py` 23/23 ×2 —
+  full passing closure over REAL repo artifacts (Stage D
+  manifest+envelope, Stage E runbook §5, genuine
+  D-147/D-149/D-150/D-151 chains built from them) with a
+  deterministic, drift-sensitive `closure_digest`; refusal of every
+  missing link, raising provider, tampered/token-less bundle,
+  unready host, malformed/unbound/drifted envelope, fingerprint
+  drift, broken probe binding, blocked/skipped/mislabeled triad,
+  incomplete/hollow/uninvarianted rollback matrix, and malformed
+  fallback triggers; canary scrub on seal + audit copies; AST
+  purity audit. Full battery 1543/1543 ×2 consecutive green across
+  68 modules (1520 + 23), zero skips, census reconciled.
+- **Boundary:** the seal authorizes a HANDOFF CANDIDATE only —
+  necessary but never sufficient; production activation remains
+  exclusively owner-gated (D-139, plan §17/§21.6).
