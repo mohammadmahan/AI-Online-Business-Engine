@@ -1819,3 +1819,60 @@ the whole verification chain into one unforgeable handoff artifact.
 - **Boundary:** the seal authorizes a HANDOFF CANDIDATE only —
   necessary but never sufficient; production activation remains
   exclusively owner-gated (D-139, plan §17/§21.6).
+
+## 46. Stage H live cutover orchestration & owner activation record (2026-09-25, D-153)
+
+**Status: IMPLEMENTED — nothing provisioned, nothing activated.**
+The Stage H executor binds the D-152 seal, the fresh unspent Stage F
+owner token, and the pre-cutover environment assertions into one
+fail-closed activation.
+
+- **`local/scripts/stage_h_cutover_executor.py` (H-01..H-05):**
+  H-01 verifies the `stage_g_closure_seal.v1` (present,
+  `STAGE_G_CLOSED`, `closure_digest` recomputing, rooted in the
+  D-112 audit trail via kind `stage_g_closure` or digest-in-detail);
+  H-02 enforces the fresh unspent owner token — the Stage F gate
+  verdict must be GO (the nonce burns at GO; a replay arrives as
+  NO_GO), the draft's TTL window must cover the activation tick, and
+  the draft fingerprint must equal the seal's `manifest_sha256`;
+  H-03 asserts the Dokploy target state (all services running +
+  healthy, restarts ≤ 3, ZERO unmapped port exposure on backend
+  services) via the sanctioned `DokployStateAdapter` (direct argv
+  `docker inspect` JSON, strict timeouts, allow-listed parameters,
+  no shell, deep redaction before any string escapes); H-04
+  transitions the deployment to ACTIVE through the injected
+  transition provider and emits the immutable
+  `stage_h_activation_record.v1` with the SHA-256 `activation_digest`
+  over its canonical bytes; H-05 watches the critical window
+  (`CRITICAL_WINDOW_TICKS = 1_000`) and arms the atomic rollback
+  payload (`stage_h_rollback_payload.v1`, the Stage E §5 RB-1 shape
+  — a VERDICT the operator executes, never an engine action; an
+  unwatchable window arms rollback too, fail-closed). ANY refusal
+  aborts with ZERO side-effects — provably no transition invocation
+  — and exactly one audited `CUTOVER_ABORTED` record. The core is
+  AST-pinned pure (no sockets/subprocess/wall clock); public
+  commitments (manifest hash, closure digest, token id) are restored
+  after redaction in ledger copies (D-146 precedent); the signing
+  key and nonce never enter any record.
+- **Runbook:** `docs/deployment/stage-h-cutover-runbook.md` —
+  preconditions table, offline owner token minting/injection
+  (`mint_token` + `TokenDraft`), cutover steps 2–4, edge-only
+  traffic routing, critical-window rollback execution (stop →
+  compensate/drain → reconcile, evidence preserved), safety
+  properties, post-activation monitoring (`qa.health_report.v1`
+  with the mandatory triad probe, `deploy_verdict()`, scheduled GA
+  re-probes, chain verification).
+- **Verification:** `test_stage_h_cutover_executor.py` 25/25 ×2 —
+  the full cutover through the REAL D-152 closure runner and the
+  REAL Stage F gate (mint → evaluate → burn) with a deterministic,
+  immutable `activation_digest`; refusal of missing/OPEN/altered/
+  unrooted seals, stale/window-missed/divergent/replayed tokens,
+  degraded targets, exposed ports, failed transitions; zero-
+  side-effect proof; rollback arming + payload shape; redaction
+  scrub; AST audits. Full battery 1568/1568 ×2 consecutive green
+  across 69 modules (1543 + 25), zero skips, census reconciled.
+- **Boundary:** the executor performs no live action by itself — a
+  real cutover requires the owner's explicit single-use token and
+  the operator executing the runbook; the engine never mutates the
+  live stack on its own authority; D-139 remains the sole
+  activation authority.

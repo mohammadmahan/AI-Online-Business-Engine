@@ -1057,6 +1057,24 @@ these even if they seem helpful:
       1543/1543 ×2 zero-skip. **The seal authorizes a handoff
       candidate only — nothing provisioned, nothing activated; D-139
       remains the sole activation authority.**
+- [x] Stage H live cutover orchestration & owner activation record —
+      **COMPLETE (2026-09-25; D-153 Approved, owner-directed)**:
+      `local/scripts/stage_h_cutover_executor.py` (H-01..H-05 —
+      D-152 seal verification + D-112 rooting, fresh unspent Stage F
+      owner token with activation-tick window binding and divergent-
+      fingerprint refusal, Dokploy target-state assertions via the
+      direct-argv adapter, ACTIVE transition + immutable
+      `stage_h_activation_record.v1` with `activation_digest`,
+      critical-window watch arming the RB-1 rollback payload; ANY
+      refusal aborts with ZERO side-effects) +
+      `docs/deployment/stage-h-cutover-runbook.md` (owner token
+      minting/injection, cutover steps, edge-only traffic routing,
+      rollback execution, post-activation monitoring) +
+      `test_stage_h_cutover_executor.py` 25/25 ×2 through the real
+      D-152 closure runner and real Stage F gate, full battery
+      1568/1568 ×2 zero-skip. **Nothing provisioned, nothing
+      activated — the engine never mutates the live stack on its own
+      authority; D-139 remains the sole activation authority.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

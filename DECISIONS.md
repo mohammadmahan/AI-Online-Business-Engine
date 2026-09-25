@@ -4138,6 +4138,76 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   green across 68 modules (1520 + 23, census machine-reconciled
   identical).
 
+## D-153 — Stage H live cutover orchestration & owner activation record
+
+- **Status:** **Approved** (2026-09-25, owner-directed).
+- **Situation:** D-152 closed Stage G with the seal, but nothing
+  EXECUTED the handoff: Stage H — the transition to ACTIVE — had no
+  machine-enforced executor binding the seal, the fresh unspent
+  Stage F owner token, and the pre-cutover environment assertions
+  into one fail-closed activation with an immutable record.
+- **Decision:** `local/scripts/stage_h_cutover_executor.py` — the
+  Stage H execution engine with the H-01..H-05 rules (all fail-
+  closed; ANY refusal aborts with ZERO side-effects — no transition,
+  no state change, one audited `CUTOVER_ABORTED` record):
+  - **H-01 seal:** the D-152 `stage_g_closure_seal.v1` must be
+    present, `STAGE_G_CLOSED`, digest-recomputing, and ROOTED in the
+    D-112 audit trail (kind `stage_g_closure` or digest-in-detail);
+    a missing, OPEN, altered, or unrooted seal refuses instantly.
+  - **H-02 owner token:** the Stage F gate verdict must be GO (the
+    nonce burns at GO — a replay arrives as NO_GO and refuses), the
+    draft's TTL window must COVER the activation tick (minted
+    freshness, not just gate freshness), and the draft fingerprint
+    must equal the seal's manifest fingerprint (a token for a
+    different deployment authorizes nothing).
+  - **H-03 environment:** the Dokploy target state must show every
+    service running + healthy with restarts ≤ 3 and ZERO unmapped
+    port exposure on backend services — read via the sanctioned
+    `DokployStateAdapter` (direct argv `docker inspect` JSON, strict
+    timeouts, allow-listed parameters, no shell, deep redaction
+    before any string escapes, D-124).
+  - **H-04 transition:** the injected transition provider flips the
+    deployment state to ACTIVE; the immutable
+    `stage_h_activation_record.v1` is emitted exactly once with the
+    SHA-256 `activation_digest` over its canonical bytes; failed or
+    unconfirmed transitions abort without a record lie.
+  - **H-05 critical window:** post-activation probes are watched;
+    a failure arms the ATOMIC ROLLBACK PAYLOAD
+    (`stage_h_rollback_payload.v1`, the Stage E §5 RB-1 shape with
+    trigger, ordering invariant, procedure, post-verification) — a
+    VERDICT the operator executes, never an engine action; an
+    unwatchable window arms rollback too (fail-closed, never a
+    silent pass).
+  - **Purity (RULES §35, AST-pinned):** the executor core is pure —
+    injected providers, zero sockets, zero subprocess, zero wall
+    clock; the adapter is the only host-touching surface. Public
+    commitments (manifest hash, closure digest, token id) are
+    restored after redaction in the ledger copy (D-146 precedent);
+    the signing key and nonce NEVER enter any record.
+- **Spec:** `docs/deployment/stage-h-cutover-runbook.md` —
+  preconditions, offline owner token minting/injection (mint_token
+  + TokenDraft), cutover steps 2–4, edge-only traffic routing,
+  critical-window rollback execution, safety properties,
+  post-activation monitoring.
+- **Boundaries preserved:** the executor performs no live action by
+  itself — a real cutover still requires the owner's explicit,
+  single-use token and the operator executing the runbook; the
+  engine never mutates the live stack on its own authority (D-139,
+  plan §17/§21.6). Nothing provisioned, nothing activated.
+- **Verification (2026-09-25):** battery
+  `local/tests/test_stage_h_cutover_executor.py` 25/25 ×2 — the full
+  cutover through the REAL D-152 closure runner and the REAL Stage F
+  gate (mint → evaluate → burn) with deterministic, immutable
+  `activation_digest`; refusal of missing/OPEN/altered/unrooted
+  seals, stale/window-missed/divergent/replayed tokens, degraded
+  targets, exposed ports, and failed transitions; zero-side-effect
+  proof (the transition provider is provably never invoked on
+  refusal); rollback arming + RB-1 payload shape; redaction scrub
+  (key, nonce, canaries); AST audits (argv isolation, zero shell,
+  bounded timeouts, pure core). Full regression 1568/1568 ×2
+  consecutive green across 69 modules (1543 + 25, census
+  machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4800,6 +4870,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 52 | Stage G post-provisioning live probes engine — **D-150 (Approved 2026-09-24, owner-directed)**: `verify_stage_g_live_probes.py` runs GA-1..GA-7 against the deployed stack through INJECTED executors (core performs zero I/O; absent executor ⇒ FAIL; transport exceptions surface as type-only failures) behind a fail-closed entry gate requiring a valid, ACCEPTED, fingerprint-matching, untampered `stage_g_acceptance_report.v1` (D-149). Probes: container lifecycle without crash loops, SSOT read/write roundtrip, broker PONG+auth+TTL with external exposure a hard refusal, app loopback, worker heartbeat freshness (≤120 ticks), zero published ports on all services, and zero secret material in output streams — leak detection on RAW text before redaction, any leak flipping the probe and the run to FAIL. Emits `stage_g_live_probe_report.v1` with a deterministic SHA-256 probe digest binding the probed manifest + acceptance fingerprint; the digest joins the D-112 chain (cleared → accepted → observed live); REJECTED feeds the Stage E rollback matrix; production activation remains owner-gated (D-139, plan §17/§21.6). Spec `docs/deployment/stage-g-live-probes.md`. Nothing provisioned or probed live. |
 | 53 | Stage G production probe adapters & launch attestation triad binding — **D-151 (Approved 2026-09-25, owner-directed)**: `stage_g_probe_adapters.py` delivers the concrete D-150 executors — DockerInspectExecutor (GA-1/GA-6 via structured `docker inspect` JSON argv), ContainerExecExecutor (GA-2..GA-5 inside container namespaces, one self-cleaning SSOT roundtrip statement, declared-policy TTL agreement, exposure via port bindings), LogStreamScrubberExecutor (GA-7 bounded deep-redacted stream slices) — under the full §17/§21.6 discipline: direct argv only (zero `shell=True`, a single AST-pinned spawning seam, every parameter allow-list validated), 15s hard timeouts, fail-closed exit codes/malformed payloads, deep redaction before return, sanitized bounded errors with secret-shaped RAW payloads never echoed (suite-found defects fixed in-batch: timeout mis-mapped to spawn_failure; `PGPASSWORD=…` surviving deep_redact via a word-boundary gap). `launch_attestation_verifier.py` binds the triple evidence — `TripleEvidenceGate` TRIAD-01 hash integrity (recomputed from canonical bytes), TRIAD-02 correlation (one manifest fingerprint across bundle/acceptance/probe + probe-to-acceptance binding), TRIAD-03 D-112 rooting (digests in the audit chain AND the chain verifies end-to-end), TRIAD-04 the READY → ACCEPTED → PROBES_ACCEPTED verdict chain — and `wire_into_registry` installs it as the mandatory `stage_g_triple_evidence` probe in every `qa.health_report.v1`: a blocked triad is probe FAIL and pulls the launch verdict down (evidence is binary, never degraded). Battery `test_stage_g_adapters_and_launch_attestation.py` 29/29 ×2; full regression 1520/1520 ×2 consecutive green across 67 modules (1491 + 29, census reconciled); attestation renders GO on 9a12552. Spec `docs/deployment/stage-g-probe-adapters.md`. Nothing provisioned or probed live; D-139 remains the sole activation authority. |
 | 54 | Stage G formal closure & Stage H handoff seal — **D-152 (Approved 2026-09-25, owner-directed)**: `stage_g_closure_and_handoff.py` concludes Stage G — CLS-01 verifies the complete C→G artifact chain (host READY, Stage D manifest⇔envelope binding for stage-e-cutover, Stage E contract present, Stage F bundle hash-verifying with its owner token, Stage G ACCEPTED + PROBES_ACCEPTED; absent links, raising providers and tampered artifacts named as refusals), CLS-02 asserts zero manifest-fingerprint drift across envelope/manifest/bundle/acceptance/probe plus the probe-to-acceptance binding, CLS-03 requires the D-151 triad verdict LAUNCH_EVIDENCE_COMPLETE with EVERY TRIAD-01..04 rule present and passing (zero bypasses), CLS-04 parses the atomic rollback strategy (RB-1..RB-6 rows with trigger/procedure/post-verification + the stop→compensate/drain→reconcile invariant, whitespace-normalized) and well-formed health-fallback triggers (name, positive threshold_ticks, action), CLS-05 emits the canonical `stage_g_closure_seal.v1` with the SHA-256 `closure_digest` as the Stage H entry root — exactly one audited seal per run (OPEN seals audited as evidence), every digest verified against recomputation before sealing, AST-pinned pure core (no sockets/subprocess/file-I/O/wall clock), deep-redacted details (D-124). Spec `docs/deployment/stage-g-closure-and-handoff.md` = closure report + Stage H owner runbook (re-close before handoff, D-112 seal-row verification, manifest-bound Dokploy provisioning, post-provision re-probe, `stage_h_activation` record, rollback thresholds, post-activation monitoring). Battery `test_stage_g_closure_and_handoff.py` 23/23 ×2 over real repo artifacts; full regression 1543/1543 ×2 consecutive green across 68 modules (1520 + 23, census reconciled). The seal authorizes a HANDOFF CANDIDATE only; nothing provisioned, nothing activated; D-139 remains the sole activation authority. |
+| 55 | Stage H live cutover orchestration & owner activation record — **D-153 (Approved 2026-09-25, owner-directed)**: `stage_h_cutover_executor.py` executes the Stage H handoff under explicit owner authority — H-01 verifies the D-152 closure seal (STAGE_G_CLOSED, digest recomputing, rooted in the D-112 chain), H-02 enforces the fresh unspent Stage F owner token (real gate GO, nonce burned once, TTL window covering the activation tick, draft fingerprint == seal manifest — divergent bindings refuse), H-03 asserts the Dokploy target state (all services running+healthy, restarts ≤ 3, zero unmapped port exposure) via the direct-argv `DokployStateAdapter` (no shell, allow-listed parameters, strict timeouts, deep redaction), H-04 transitions to ACTIVE through the injected transition provider and emits the immutable `stage_h_activation_record.v1` with the SHA-256 `activation_digest`, H-05 watches the critical window and arms the atomic rollback payload (`stage_h_rollback_payload.v1`, Stage E §5 RB-1 shape — a verdict the operator executes, never an engine action; unwatchable windows arm rollback too). ANY refusal aborts with ZERO side-effects (provably no transition invocation) and one audited `CUTOVER_ABORTED` record; public commitments only in ledger copies; signing key and nonce never recorded. Runbook `docs/deployment/stage-h-cutover-runbook.md` (offline token minting/injection, cutover steps, edge-only routing, rollback execution, monitoring). Battery `test_stage_h_cutover_executor.py` 25/25 ×2 through the REAL D-152 closure runner and REAL Stage F gate; full regression 1568/1568 ×2 consecutive green across 69 modules (1543 + 25, census reconciled). Nothing provisioned, nothing activated; the engine never mutates the live stack on its own authority; D-139 remains the sole activation authority. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
