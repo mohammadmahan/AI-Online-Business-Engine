@@ -1075,6 +1075,31 @@ these even if they seem helpful:
       1568/1568 ×2 zero-skip. **Nothing provisioned, nothing
       activated — the engine never mutates the live stack on its own
       authority; D-139 remains the sole activation authority.**
+- [x] Stage H — Dokploy Final Deployment Completion Attestation &
+      Transition to Live Wiring — **COMPLETE (2026-09-25; D-154
+      Approved, owner-directed)**:
+      `local/scripts/dokploy_completion_attestation.py`
+      (DEP-01..DEP-05 — the entire Stages B–H lifecycle re-verified
+      as ONE unbroken cryptographic continuum: every link re-checked
+      against its own engine's rules, ONE manifest SHA-256 with the
+      configuration-digest chain recomputed byte-exactly, ALL FIVE
+      stage commitments anchored in the D-112 ledger with zero chain
+      breaks, every Phase 5–18 Live-Wiring entry point
+      present+verified+wired against the verified runtime profile,
+      and the canonical `dokploy.completion_attestation.v1` emitted
+      with the SHA-256 `attestation_digest` declaring
+      INFRASTRUCTURE_COMPLETE ready for service ignition; refusals
+      name their stage and still emit the certificate as
+      INFRASTRUCTURE_INCOMPLETE) +
+      `docs/deployment/dokploy-final-completion-report.md` (B→H
+      closure report + the architectural transition guide into Live
+      Wiring Phases 5–18) + `test_dokploy_completion_attestation.py`
+      38/38 ×2 over the authentic Stage C→H chain (real Stage F
+      gate, real D-149/D-150/D-151/D-152/D-153 producers), full
+      battery 1606/1606 ×2 zero-skip across 70 modules. **The
+      certificate is evidence, not authority — ignition and external
+      connectivity remain owner-gated (D-045/D-139, plan §17/§21.6);
+      nothing provisioned, nothing activated, nothing ignited.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

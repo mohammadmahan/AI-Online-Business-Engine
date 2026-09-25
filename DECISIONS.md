@@ -4208,6 +4208,95 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   consecutive green across 69 modules (1543 + 25, census
   machine-reconciled identical).
 
+## D-154 — Dokploy final deployment completion attestation & transition to live wiring
+
+- **Status:** **Approved** (2026-09-25, owner-directed).
+- **Situation:** D-153 executed the Stage H handoff and emitted the
+  activation record, but no SINGLE artifact synthesized the entire
+  Dokploy track (Stages B–H) into one verifiable completion
+  declaration, and no formal transition document carried the
+  hardened infrastructure into the Live Wiring program (MASTER_PLAN
+  Phases 5–18). Under D-139 / D-153 / plan §17 / §21.6 the
+  infrastructure boundary must be closed with the same fail-closed,
+  cryptographically-rooted discipline the stages themselves used.
+- **Decision:** `local/scripts/dokploy_completion_attestation.py` —
+  the final verification synthesizer confirming that Stages B
+  through H form ONE unbroken cryptographic continuum, emitting the
+  canonical `dokploy.completion_attestation.v1` with the SHA-256
+  `attestation_digest` (DEP-01..DEP-05, all fail-closed; every
+  refusal names its blocker; exactly one audited certificate per
+  run INCLUDING refusals, which declare INFRASTRUCTURE_INCOMPLETE):
+  - **DEP-01 lifecycle chain:** the Host readiness verdict (C), the
+    Stage D manifest⇔fingerprint-envelope binding (bound for
+    stage-e-cutover), the Stage E/F cutover bundle (hash-verifying,
+    carrying its Stage F owner token), the Stage G acceptance report
+    (ACCEPTED) + live probe report (PROBES_ACCEPTED) + D-151 triad
+    verdict (LAUNCH_EVIDENCE_COMPLETE, every TRIAD-01..04 rule
+    present and passing), the D-152 closure seal (STAGE_G_CLOSED,
+    digest recomputing), and the D-153 activation record
+    (CUTOVER_EXECUTED, digest recomputing) — each artifact
+    re-verified against its OWN engine's checks; missing, forged,
+    altered, or unbound stages refuse by name.
+  - **DEP-02 zero drift:** ONE manifest SHA-256 across envelope,
+    manifest bytes, bundle, acceptance, probe, seal and activation
+    record; PLUS the configuration-digest chain recomputed
+    byte-exactly from first principles (bundle_hash,
+    acceptance_fingerprint, probe_digest, closure_digest,
+    activation_digest — each against its own schema-owned digest
+    field, upstream digests legitimately participating) and the
+    probe-to-acceptance binding intact.
+  - **DEP-03 D-112 anchoring:** the injected chain verifier (the
+    real `ControlPlaneEngine.verify_chain()`) must report a hash-
+    chained trail with ZERO breaks and ≥1 row, and ALL FIVE stage
+    commitments (bundle, acceptance, probe, closure, activation
+    digests) must be found in the ledger rows — an unrooted
+    commitment or a broken chain refuses.
+  - **DEP-04 Live-Wiring readiness:** the injected readiness census
+    must cover every Phase 5–18 entry point (n8n Foundation →
+    Human-in-the-Loop) with present+verified+wired all true, and
+    bind to the VERIFIED runtime profile (the live-probe/activation
+    evidence) — an unwired phase, a missing census row, or an
+    unverified profile refuses.
+  - **DEP-05 certificate:** the canonical
+    `dokploy.completion_attestation.v1` is emitted exactly once with
+    `attestation_digest` over its canonical bytes, declaring
+    INFRASTRUCTURE_COMPLETE and READY FOR SERVICE IGNITION — a
+    DECLARATION only; it never executes anything.
+  - **Purity (RULES §35, AST-pinned):** the attestor core is pure —
+    injected providers, zero sockets, zero subprocess, zero wall
+    clock; deep redaction (D-124) over checks AND the embedded
+    chain/live-wiring summaries, with the public digest commitments
+    restored after redaction so ledger copies stay
+    chain-correlatable; the Live-Wiring census is data-minimized to
+    structural fields (provider free-text never enters the
+    certificate); no secret ever enters any output.
+- **Report:** `docs/deployment/dokploy-final-completion-report.md`
+  — the closure report for the entire Dokploy track (B→H) and the
+  architectural transition guide wiring the attested stack into the
+  Live Wiring program (Phases 5–18): the infrastructure services
+  ignition order, the per-phase entry-point readiness profile, and
+  the governance boundaries that remain owner-gated.
+- **Boundaries preserved:** the certificate is evidence, not
+  authority — production activation, live-wiring ignition, and every
+  external connection remain owner-gated (D-045/D-139, plan
+  §17/§21.6). Nothing provisioned, nothing activated, nothing
+  ignited by this decision.
+- **Verification (2026-09-25):** battery
+  `local/tests/test_dokploy_completion_attestation.py` 38/38 ×2 —
+  full pass across the authentic Stage C→H chain (real Stage D
+  manifest+envelope, real Stage F gate, real D-149/D-150 runners,
+  real D-151 triad, real D-152 closure, real D-153 executor);
+  rejection of missing/failing host, tampered/unbound manifest,
+  forged/unauthorized bundle, altered acceptance/probe reports,
+  broken triad, OPEN/altered seals, aborted activation, manifest
+  and configuration-digest drift, unbound probes, broken/empty D-112
+  chains, unrooted commitments, and Live-Wiring readiness failures;
+  deterministic `attestation_digest`; redaction scrubs (signing
+  key, canaries) with public commitments surviving; AST purity
+  audits (no banned imports, no shell, no spawn calls). Full
+  regression 1606/1606 ×2 consecutive green across 70 modules
+  (1568 + 38, census machine-reconciled identical).
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -4870,6 +4959,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 52 | Stage G post-provisioning live probes engine — **D-150 (Approved 2026-09-24, owner-directed)**: `verify_stage_g_live_probes.py` runs GA-1..GA-7 against the deployed stack through INJECTED executors (core performs zero I/O; absent executor ⇒ FAIL; transport exceptions surface as type-only failures) behind a fail-closed entry gate requiring a valid, ACCEPTED, fingerprint-matching, untampered `stage_g_acceptance_report.v1` (D-149). Probes: container lifecycle without crash loops, SSOT read/write roundtrip, broker PONG+auth+TTL with external exposure a hard refusal, app loopback, worker heartbeat freshness (≤120 ticks), zero published ports on all services, and zero secret material in output streams — leak detection on RAW text before redaction, any leak flipping the probe and the run to FAIL. Emits `stage_g_live_probe_report.v1` with a deterministic SHA-256 probe digest binding the probed manifest + acceptance fingerprint; the digest joins the D-112 chain (cleared → accepted → observed live); REJECTED feeds the Stage E rollback matrix; production activation remains owner-gated (D-139, plan §17/§21.6). Spec `docs/deployment/stage-g-live-probes.md`. Nothing provisioned or probed live. |
 | 53 | Stage G production probe adapters & launch attestation triad binding — **D-151 (Approved 2026-09-25, owner-directed)**: `stage_g_probe_adapters.py` delivers the concrete D-150 executors — DockerInspectExecutor (GA-1/GA-6 via structured `docker inspect` JSON argv), ContainerExecExecutor (GA-2..GA-5 inside container namespaces, one self-cleaning SSOT roundtrip statement, declared-policy TTL agreement, exposure via port bindings), LogStreamScrubberExecutor (GA-7 bounded deep-redacted stream slices) — under the full §17/§21.6 discipline: direct argv only (zero `shell=True`, a single AST-pinned spawning seam, every parameter allow-list validated), 15s hard timeouts, fail-closed exit codes/malformed payloads, deep redaction before return, sanitized bounded errors with secret-shaped RAW payloads never echoed (suite-found defects fixed in-batch: timeout mis-mapped to spawn_failure; `PGPASSWORD=…` surviving deep_redact via a word-boundary gap). `launch_attestation_verifier.py` binds the triple evidence — `TripleEvidenceGate` TRIAD-01 hash integrity (recomputed from canonical bytes), TRIAD-02 correlation (one manifest fingerprint across bundle/acceptance/probe + probe-to-acceptance binding), TRIAD-03 D-112 rooting (digests in the audit chain AND the chain verifies end-to-end), TRIAD-04 the READY → ACCEPTED → PROBES_ACCEPTED verdict chain — and `wire_into_registry` installs it as the mandatory `stage_g_triple_evidence` probe in every `qa.health_report.v1`: a blocked triad is probe FAIL and pulls the launch verdict down (evidence is binary, never degraded). Battery `test_stage_g_adapters_and_launch_attestation.py` 29/29 ×2; full regression 1520/1520 ×2 consecutive green across 67 modules (1491 + 29, census reconciled); attestation renders GO on 9a12552. Spec `docs/deployment/stage-g-probe-adapters.md`. Nothing provisioned or probed live; D-139 remains the sole activation authority. |
 | 54 | Stage G formal closure & Stage H handoff seal — **D-152 (Approved 2026-09-25, owner-directed)**: `stage_g_closure_and_handoff.py` concludes Stage G — CLS-01 verifies the complete C→G artifact chain (host READY, Stage D manifest⇔envelope binding for stage-e-cutover, Stage E contract present, Stage F bundle hash-verifying with its owner token, Stage G ACCEPTED + PROBES_ACCEPTED; absent links, raising providers and tampered artifacts named as refusals), CLS-02 asserts zero manifest-fingerprint drift across envelope/manifest/bundle/acceptance/probe plus the probe-to-acceptance binding, CLS-03 requires the D-151 triad verdict LAUNCH_EVIDENCE_COMPLETE with EVERY TRIAD-01..04 rule present and passing (zero bypasses), CLS-04 parses the atomic rollback strategy (RB-1..RB-6 rows with trigger/procedure/post-verification + the stop→compensate/drain→reconcile invariant, whitespace-normalized) and well-formed health-fallback triggers (name, positive threshold_ticks, action), CLS-05 emits the canonical `stage_g_closure_seal.v1` with the SHA-256 `closure_digest` as the Stage H entry root — exactly one audited seal per run (OPEN seals audited as evidence), every digest verified against recomputation before sealing, AST-pinned pure core (no sockets/subprocess/file-I/O/wall clock), deep-redacted details (D-124). Spec `docs/deployment/stage-g-closure-and-handoff.md` = closure report + Stage H owner runbook (re-close before handoff, D-112 seal-row verification, manifest-bound Dokploy provisioning, post-provision re-probe, `stage_h_activation` record, rollback thresholds, post-activation monitoring). Battery `test_stage_g_closure_and_handoff.py` 23/23 ×2 over real repo artifacts; full regression 1543/1543 ×2 consecutive green across 68 modules (1520 + 23, census reconciled). The seal authorizes a HANDOFF CANDIDATE only; nothing provisioned, nothing activated; D-139 remains the sole activation authority. |
+| 56 | Dokploy final deployment completion attestation & transition to live wiring — **D-154 (Approved 2026-09-25, owner-directed)**: `dokploy_completion_attestation.py` synthesizes the ENTIRE Dokploy track (Stages B–H) into one unbroken cryptographic continuum and emits the canonical `dokploy.completion_attestation.v1` with the SHA-256 `attestation_digest` — DEP-01 re-verifies every lifecycle link against its OWN engine's checks (Stage C host READY, Stage D manifest⇔envelope binding for stage-e-cutover, Stage E/F bundle hash-verifying with its Stage F owner token, Stage G ACCEPTED + PROBES_ACCEPTED + D-151 triad LAUNCH_EVIDENCE_COMPLETE, D-152 seal STAGE_G_CLOSED digest-recomputing, D-153 activation CUTOVER_EXECUTED digest-recomputing; missing/forged/altered stages refuse by name), DEP-02 asserts ONE manifest SHA-256 across envelope/manifest/bundle/acceptance/probe/seal/activation PLUS byte-exact recomputation of the configuration-digest chain (bundle_hash, acceptance_fingerprint, probe_digest, closure_digest, activation_digest) and the probe-to-acceptance binding, DEP-03 requires the injected chain verifier (real `ControlPlaneEngine.verify_chain()`) to report zero breaks with ALL FIVE stage commitments anchored in the D-112 ledger rows, DEP-04 requires the injected Live-Wiring census to cover every Phase 5–18 entry point (n8n Foundation → Human-in-the-Loop) present+verified+wired and bound to the VERIFIED runtime profile, DEP-05 emits the certificate exactly once per run INCLUDING refusals (which declare INFRASTRUCTURE_INCOMPLETE) — a DECLARATION only, never an execution. Pure core (RULES §35, AST-pinned): injected providers, zero sockets/subprocess/wall clock; deep redaction (D-124) over checks and embedded summaries with public digest commitments restored; the Live-Wiring census is data-minimized to structural fields. Closure report + transition guide `docs/deployment/dokploy-final-completion-report.md` (B→H closure; Live Wiring Phases 5–18 ignition map). Battery `test_dokploy_completion_attestation.py` 38/38 ×2 over the authentic Stage C→H chain (real Stage F gate, real D-149/D-150/D-151/D-152/D-153 producers); full regression 1606/1606 ×2 consecutive green across 70 modules (1568 + 38, census reconciled). The certificate is evidence, not authority — activation, ignition and external connectivity remain owner-gated (D-045/D-139, plan §17/§21.6). Nothing provisioned, nothing activated, nothing ignited. |
 | 55 | Stage H live cutover orchestration & owner activation record — **D-153 (Approved 2026-09-25, owner-directed)**: `stage_h_cutover_executor.py` executes the Stage H handoff under explicit owner authority — H-01 verifies the D-152 closure seal (STAGE_G_CLOSED, digest recomputing, rooted in the D-112 chain), H-02 enforces the fresh unspent Stage F owner token (real gate GO, nonce burned once, TTL window covering the activation tick, draft fingerprint == seal manifest — divergent bindings refuse), H-03 asserts the Dokploy target state (all services running+healthy, restarts ≤ 3, zero unmapped port exposure) via the direct-argv `DokployStateAdapter` (no shell, allow-listed parameters, strict timeouts, deep redaction), H-04 transitions to ACTIVE through the injected transition provider and emits the immutable `stage_h_activation_record.v1` with the SHA-256 `activation_digest`, H-05 watches the critical window and arms the atomic rollback payload (`stage_h_rollback_payload.v1`, Stage E §5 RB-1 shape — a verdict the operator executes, never an engine action; unwatchable windows arm rollback too). ANY refusal aborts with ZERO side-effects (provably no transition invocation) and one audited `CUTOVER_ABORTED` record; public commitments only in ledger copies; signing key and nonce never recorded. Runbook `docs/deployment/stage-h-cutover-runbook.md` (offline token minting/injection, cutover steps, edge-only routing, rollback execution, monitoring). Battery `test_stage_h_cutover_executor.py` 25/25 ×2 through the REAL D-152 closure runner and REAL Stage F gate; full regression 1568/1568 ×2 consecutive green across 69 modules (1543 + 25, census reconciled). Nothing provisioned, nothing activated; the engine never mutates the live stack on its own authority; D-139 remains the sole activation authority. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.

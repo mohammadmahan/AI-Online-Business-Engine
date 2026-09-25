@@ -1876,3 +1876,74 @@ fail-closed activation.
   the operator executing the runbook; the engine never mutates the
   live stack on its own authority; D-139 remains the sole
   activation authority.
+
+## 47. Dokploy final completion attestation & transition to live wiring (2026-09-25, D-154)
+
+- **Scope:** the final synthesizer of the Dokploy track —
+  `local/scripts/dokploy_completion_attestation.py` re-verifies the
+  ENTIRE Stage B–H lifecycle as one unbroken cryptographic continuum
+  and emits the canonical `dokploy.completion_attestation.v1` with
+  the SHA-256 `attestation_digest`, closing the infrastructure
+  program and opening the Live Wiring program (MASTER_PLAN Phases
+  5–18) under explicit owner governance (D-139/D-153, plan
+  §17/§21.6).
+- **Rules (all fail-closed; exactly one audited certificate per run
+  INCLUDING refusals, which declare INFRASTRUCTURE_INCOMPLETE):**
+  - **DEP-01 lifecycle chain:** Stage C host READY, Stage D
+    manifest⇔envelope binding (bound for `stage-e-cutover`), Stage
+    E/F cutover bundle hash-verifying with its Stage F owner token,
+    Stage G acceptance ACCEPTED + live probes PROBES_ACCEPTED + the
+    D-151 triad LAUNCH_EVIDENCE_COMPLETE (every TRIAD-01..04 rule
+    present and passing), the D-152 seal STAGE_G_CLOSED with a
+    recomputing `closure_digest`, and the D-153 activation record
+    CUTOVER_EXECUTED with a recomputing `activation_digest` — each
+    artifact re-verified against its OWN engine's checks; missing,
+    forged, altered, or unbound stages refuse by name.
+  - **DEP-02 zero drift:** ONE manifest SHA-256 across envelope,
+    manifest bytes, bundle, acceptance, probe, seal and activation
+    record; the configuration-digest chain (bundle_hash,
+    acceptance_fingerprint, probe_digest, closure_digest,
+    activation_digest) recomputed byte-exactly — each against its
+    schema-owned digest field, upstream digests legitimately
+    participating — plus the probe-to-acceptance binding.
+  - **DEP-03 D-112 anchoring:** the injected chain verifier (the
+    real `ControlPlaneEngine.verify_chain()`) must report zero
+    breaks with ≥1 row, and ALL FIVE stage commitments must be
+    anchored in the ledger rows (bundle, acceptance, probe, closure,
+    activation digests).
+  - **DEP-04 Live-Wiring readiness:** the injected census must cover
+    every Phase 5–18 entry point (n8n Foundation → Human-in-the-Loop)
+    present+verified+wired, bound to the VERIFIED runtime profile
+    (the live-probe/activation evidence).
+  - **DEP-05 certificate:** the canonical
+    `dokploy.completion_attestation.v1` with `attestation_digest`
+    over its canonical bytes declares INFRASTRUCTURE_COMPLETE and
+    READY FOR SERVICE IGNITION — a declaration, never an execution.
+- **Purity:** AST-pinned pure core — injected providers, zero
+  sockets/subprocess/wall clock; deep redaction (D-124) over checks
+  AND the embedded chain/live-wiring summaries, public digest
+  commitments restored after redaction; the Live-Wiring census is
+  data-minimized to structural fields (provider free-text never
+  enters the certificate); no secret ever enters any output.
+- **Verification:** `test_dokploy_completion_attestation.py` 38/38 ×2
+  over the authentic Stage C→H chain (real Stage D manifest+envelope,
+  real Stage F gate mint→evaluate→burn, real D-149 acceptance runner,
+  real D-150 probe runner, real D-151 triad gate, real D-152 closure
+  runner, real D-153 executor): full pass; rejection of every
+  missing/forged/altered stage, manifest + configuration digest
+  drift, unbound probes, broken/empty D-112 chains, unrooted
+  commitments, Live-Wiring readiness failures; deterministic
+  attestation digest; redaction scrubs; AST purity audits. Full
+  regression 1606/1606 ×2 consecutive green across 70 modules (1568
+  + 38), zero skips, census machine-reconciled identical.
+- **Report & transition:** `docs/deployment/dokploy-final-completion-
+  report.md` — the B→H closure report plus the architectural
+  transition guide wiring the attested stack into Live Wiring
+  (Phases 5–18): the Stage B artifact inventory, the services
+  ignition order, the per-phase entry-point readiness profile, and
+  the owner-gated governance boundaries that persist beyond
+  completion.
+- **Boundary:** the certificate is evidence, not authority —
+  activation, service ignition, and every external connection remain
+  owner-gated (D-045/D-139, plan §17/§21.6). Nothing provisioned,
+  nothing activated, nothing ignited.
