@@ -44,6 +44,18 @@ for p in (str(REPO / "local"), str(SCRIPTS), str(SRC),
           str(SRC.parent), str(SRC / "security"), str(REPO / "local" / "tests")):
     if p not in sys.path:
         sys.path.insert(0, p)
+# sys.path poisoning defense (D-160): canonical shim modules insert
+# `local/canonical` onto sys.path at import time (see below), which
+# would make the bare-`tests` import of the D-155 battery resolve to
+# the legacy `canonical/tests.py`. Purge any poisoned entries AND any
+# already-imported legacy `tests` module before that import runs.
+_local_root = str(REPO / "local")
+sys.path[:] = [p for p in sys.path
+               if p not in (_local_root + "/canonical",
+                            _local_root + "\\canonical")]
+_t = sys.modules.get("tests")
+if _t is not None and not getattr(_t, "__path__", None):
+    del sys.modules["tests"]  # legacy single-module shadow
 
 from canonical.notion_live import (  # noqa: E402
     NotionPacer, NotionAuthError, NotionContractError,

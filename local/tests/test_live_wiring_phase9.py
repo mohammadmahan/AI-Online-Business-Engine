@@ -87,6 +87,17 @@ ENVELOPE = (REPO / "local" / "infra" / "dokploy" /
 def real_phase8_attestation(observed_tick=9000):
     """Run the REAL D-158 igniter over the authentic chain with
     in-process fakes (identical to the D-158 battery pass path)."""
+    # sys.path poisoning defense — see test_live_wiring_phase7.py.
+    import sys as _sys
+    import pathlib as _pathlib
+    _local = str(_pathlib.Path(__file__).resolve().parents[1])
+    _sys.path[:] = [p for p in _sys.path
+                    if p not in (_local + "/canonical",
+                                 _local + "\\canonical")]
+    _t = _sys.modules.get("tests")
+    if _t is not None and not getattr(_t, "__path__", None):
+        del _sys.modules["tests"]  # legacy single-module shadow
+    _sys.path.insert(0, _local)
     import tests.test_live_wiring_phase8 as t8
     h = t8.Harness(now=observed_tick)
     att = h.run()
@@ -465,6 +476,17 @@ class TestTg04Cycle(unittest.TestCase):
         self.assertIn("fail closed", blob)
 
     def test_42_router_without_reply_route_refused(self):
+        # sys.path poisoning defense — see test_live_wiring_phase7.py.
+        import sys as _sys
+        import pathlib as _pathlib
+        _local = str(_pathlib.Path(__file__).resolve().parents[1])
+        _sys.path[:] = [p for p in _sys.path
+                        if p not in (_local + "/canonical",
+                                     _local + "\\canonical")]
+        _t = _sys.modules.get("tests")
+        if _t is not None and not getattr(_t, "__path__", None):
+            del _sys.modules["tests"]  # legacy single-module shadow
+        _sys.path.insert(0, _local)
         import tests.test_live_wiring_phase7 as t7
         att = Harness(router=t7.real_router()).run()
         self.assertEqual(att.verdict, PHASE9_INCOMPLETE)

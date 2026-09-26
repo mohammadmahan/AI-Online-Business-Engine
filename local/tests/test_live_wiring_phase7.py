@@ -85,6 +85,21 @@ ENVELOPE = (REPO / "local" / "infra" / "dokploy" /
 def real_phase6_attestation(observed_tick=6000):
     """Run the REAL D-156 igniter over the authentic chain with
     in-process fakes (identical to the D-156 battery pass path)."""
+    # Defense against sys.path poisoning at import time (observed in
+    # the D-160 battery): canonical shim modules may insert
+    # `local/canonical` onto sys.path, which would make bare `tests`
+    # resolve to the legacy `canonical/tests.py` module. Evict it and
+    # put the package root first so the REAL batteries package wins.
+    import sys as _sys
+    import pathlib as _pathlib
+    _local = str(_pathlib.Path(__file__).resolve().parents[1])
+    _sys.path[:] = [p for p in _sys.path
+                    if p not in (_local + "/canonical",
+                                 _local + "\\canonical")]
+    _t = _sys.modules.get("tests")
+    if _t is not None and not getattr(_t, "__path__", None):
+        del _sys.modules["tests"]  # legacy single-module shadow
+    _sys.path.insert(0, _local)
     import tests.test_live_wiring_phase6 as t6
     h = t6.Harness(now=observed_tick)
     att = h.run()

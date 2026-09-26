@@ -1202,6 +1202,45 @@ these even if they seem helpful:
       credentials exist or are requested (D-045/D-071 owner gate);
       the only mutation is the archived synthetic probe
       container.**
+- [x] Phase 10 (Live Wiring) — Ignition & Multi-channel Order
+      Orchestration Verification — **COMPLETE (2026-09-26; D-160
+      Approved, owner-directed)**:
+      `local/scripts/live_wiring_phase10_igniter.py`
+      (ORD-01..ORD-05 fail-closed, STRICT SANDBOX/DRY-RUN — the
+      phase9 attestation digest-recomputed AND matched against its
+      D-112 rooting row BEFORE any order processing (zero-OMS-call
+      proof); census Phases 5+6+7+8+9 VERIFIED/WIRED + the four
+      repo-real order seams consistent with the D-154 ENTRY_POINTS
+      registry; contracts proven through the REAL validator:
+      channel origin tagging, deterministic D-081 idempotency keys,
+      IRR/IRT whitelist, strict-integer money with D-114 ceiling,
+      allowlist-gated discounts, Class-A-only retries ≤ 2, the
+      state machine refusing out-of-order edges; the synthetic
+      multi-item lifecycle through the REAL offline OMS stack
+      (place → replay-dedup → validate → reserve →
+      PLACED→VALIDATED→CANCELLED with full reservation release)
+      and the REAL D-083 fan-out boundary driven with durable
+      receipts (publisher-less binds — structurally incapable of
+      egress) under an EPHEMERAL process-local D-079 lock (the
+      default lock claims keys permanently in live PG / the shared
+      JSON file — 2 recon-claimed rows purged before commit);
+      payment-boundary audit over the LIVE D-027 records (any
+      gateway marker = refusal); cleanup deletes the data-minimized
+      scratch artifact (zero residue); canonical
+      `phase10.live_wiring_attestation.v1` emitted exactly once per
+      run INCLUDING aborts) +
+      `docs/deployment/phase-10-live-wiring-report.md` (locking
+      matrix, lifecycle trace, guardrails, Phase 11 handover) +
+      `test_live_wiring_phase10.py` 48/48 ×2 with the phase9
+      attestation built by the REAL D-159→D-158→D-157→D-156→D-155→
+      D-154 chain, full battery 1870/1870 ×2 zero-skip across 76
+      modules. **The order pipeline is verified, not opened — zero
+      payment boundaries crossed (markers-only payment_status, no
+      gateway field anywhere), no production inventory touched
+      (scratch reservations released before return), no live
+      credentials exist or are requested (D-045/D-139 owner gate);
+      the only state change is the scratch artifact (deleted
+      before return).**
 - [x] Phase 9 (Live Wiring) — Ignition & Telegram Sales/Ingress
       Verification — **COMPLETE (2026-09-26; D-159 Approved,
       owner-directed)**:

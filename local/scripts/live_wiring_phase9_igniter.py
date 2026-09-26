@@ -80,9 +80,9 @@ __all__ = [
     "Phase9Error", "Phase9Attestation", "Phase9Igniter",
     "SessionStore", "ATTESTATION_SCHEMA", "PHASE9_IGNITED",
     "PHASE9_INCOMPLETE", "PHASE8_SCHEMA", "PHASE8_IGNITED",
-    "PHASE8_ROW_KIND", "SEAMS", "SEAM_PHASES", "REQUIRED_CAPS",
-    "LIMITS", "SESSION_NS", "BOT_TOKEN_RE", "CYCLE_ID",
-    "canonical_hash",
+    "PHASE8_ROW_KIND", "PHASE9_ROW_KIND", "SEAMS", "SEAM_PHASES",
+    "REQUIRED_CAPS", "LIMITS", "SESSION_NS", "BOT_TOKEN_RE",
+    "CYCLE_ID", "canonical_hash",
 ]
 
 ATTESTATION_SCHEMA = "phase9.live_wiring_attestation.v1"
@@ -94,6 +94,10 @@ PHASE8_IGNITED = "PHASE8_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 8 attestation (D-158).
 PHASE8_ROW_KIND = "phase8_live_wiring_attestation"
+
+# The D-112 ledger kind that roots THIS phase's attestation — the
+# commitment downstream phases (D-160+) verify against.
+PHASE9_ROW_KIND = "phase9_live_wiring_attestation"
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 # Telegram Bot API bot token form: <bot id>:<hash> (documented shape).

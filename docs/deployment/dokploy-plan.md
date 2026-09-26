@@ -2157,3 +2157,69 @@ notification.
   TELEGRAM_BOT_TOKEN); the D-076 publisher path stays behind the
   owner's explicit activation decision (D-045/D-139, plan
   §17/§21.7).
+
+## 53. Phase 10 live wiring ignition & Multi-channel Order Orchestration verification (2026-09-26, D-160)
+
+Sixth phase of the Live Wiring program under the D-159 attestation.
+STRICT SANDBOX/DRY-RUN mode: no payment gateway triggers, no
+production inventory deductions, no unverified order confirmations,
+no cross-channel state mutations — the full order lifecycle through
+the real offline OMS stack over scratch transports.
+
+- **Engine:** `local/scripts/live_wiring_phase10_igniter.py` —
+  ORD-01..ORD-05, fail-closed, one audited
+  `phase10.live_wiring_attestation.v1` per run (aborts included)
+  with the SHA-256 `attestation_digest`; ORD-01 refusals leave the
+  OMS stack untouched (factory never invoked).
+- **ORD-01:** the phase9 attestation (PHASE9_IGNITED,
+  canonical-bytes digest recompute matching its D-112 rooting row
+  `phase9_live_wiring_attestation`, manifest binding, intact chain)
+  gates everything.
+- **ORD-02:** census Phases 5+6+7+8+9 present+VERIFIED+WIRED; the
+  repo-real seams (`canonical.oms_engine` = ENTRY_POINTS[11],
+  `canonical.oms_contracts` = ENTRY_POINTS[12],
+  `canonical.oms_worker`, `services.sync_engine`) consistent with
+  the D-154 registry (mismatch = registry drift).
+- **ORD-03:** contracts through the REAL validator — channel
+  origin tagging (telegram/instagram_dm/web_store), deterministic
+  D-081 idempotency keys (SHA-256 over client_order_id; identical
+  replay → skipped_duplicate; conflicting payload →
+  IntegrityError), IRR/IRT currency whitelist, strict-integer
+  money with the D-114 ceiling, allowlist-gated discount codes
+  (no discount arithmetic in the money path), Class-A-only
+  retries ≤ 2, out-of-order state edges refused.
+- **ORD-04:** the synthetic multi-item lifecycle through the REAL
+  offline OMS stack (place → replay-dedup → validate → D-082
+  reserve → PLACED→VALIDATED→CANCELLED with full reservation
+  release) and the REAL D-083 fan-out boundary driven with durable
+  receipts (publisher-less binds — every outcome
+  `no_publisher_bound`, structurally incapable of egress) under an
+  EPHEMERAL process-local D-079 lock; the payment-boundary audit
+  scans the LIVE D-027 event records (any gateway marker =
+  refusal); cleanup round-trips and deletes the data-minimized
+  scratch artifact (zero residue).
+- **D-079 lock hygiene:** the default fan-out lock claims keys
+  permanently in live PG (`orchestration.fanout_lock`) or the
+  shared JSON file — probes use the ephemeral lock instead; 2
+  recon-claimed PG rows were purged before commit (4 pre-existing
+  rows untouched).
+- **Purity:** pure injected-provider core (RULES §35, AST-pinned),
+  deep redaction (D-124); customer_ref/phones/addresses/payment
+  tokens never emitted; ids and money as counts/hashes only.
+- **Verification:** battery `test_live_wiring_phase10.py` 48/48 ×2
+  (phase9 attestation via the REAL D-159→…→D-154 chain); full
+  regression 1870/1870 ×2 consecutive green across 76 modules.
+  The battery runs from the repository ROOT (`python3 -m unittest
+  local.tests.…`); all live-wiring chain builders now evict
+  import-time sys.path poisoning from canonical shims (bare
+  `import tests.…` resolving to legacy `canonical/tests.py`).
+- **Report:** `docs/deployment/phase-10-live-wiring-report.md` —
+  locking matrix, lifecycle trace (36.25 ms in-process cycle, 7
+  durable receipts), guardrails, Phase 11 (Payment Gateway &
+  Settlement Wiring) handover.
+- **Boundary:** the order pipeline is verified, not opened — zero
+  payment boundaries crossed (markers-only `payment_status`, no
+  gateway field anywhere in the probe surface), no production
+  inventory touched (scratch reservations released before
+  return); settlement wiring stays behind the D-045/D-139 owner
+  gate (plan §17/§21.8).

@@ -4630,6 +4630,95 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   activation decision (D-045/D-139, plan §17/§21.6). The only
   mutation is the archived synthetic probe container.
 
+## D-160 — Phase 10 live wiring ignition & Multi-channel Order Orchestration verification
+
+- **Status:** **Approved** (2026-09-26, owner-directed).
+- **Situation:** D-159 verified the Telegram sales/ingress surface
+  in sandbox mode, but the order pipeline itself — order creation,
+  D-027/D-081 idempotency locking, inventory soft-reservation,
+  state transitions and the notification fan-out boundary — was not
+  yet wired. Under D-045 / D-077 / D-078 / D-080 / D-081–D-084 /
+  D-114 / D-124 / D-139 / D-154 / D-159 / plan §17 / §21.8 the
+  sixth Live Wiring phase must verify Multi-channel Order
+  Orchestration in STRICT SANDBOX/DRY-RUN mode: no payment gateway
+  triggers, no production inventory deductions, no unverified order
+  confirmations, no cross-channel state mutations — the full order
+  lifecycle through the real offline OMS stack over scratch
+  transports.
+- **Decision:** adopt
+  `local/scripts/live_wiring_phase10_igniter.py`
+  (ORD-01..ORD-05, fail-closed, one audited
+  `phase10.live_wiring_attestation.v1` per run — aborts included —
+  with the SHA-256 `attestation_digest`). ORD-01 verifies the
+  phase9 attestation (schema, PHASE9_IGNITED, manifest binding,
+  canonical-bytes digest recompute MATCHING its D-112 rooting row
+  `phase9_live_wiring_attestation`, intact chain) BEFORE any order
+  processing — refusals leave the OMS stack untouched (factory
+  never invoked, proven across four failure classes). ORD-02
+  requires census `runtime_profile_verified` + Phases 5–9
+  present+VERIFIED+WIRED and the repo-real seams
+  (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts`
+  = ENTRY_POINTS[12], `canonical.oms_worker`,
+  `services.sync_engine`) consistent with the D-154 registry —
+  mismatch refuses as registry drift. ORD-03 proves the contracts
+  through the REAL validator: channel origin tagging
+  (telegram/instagram_dm/web_store), deterministic D-081 idempotency
+  keys (SHA-256 over client_order_id, no wall clock; identical
+  replay → skipped_duplicate; conflicting payload → IntegrityError),
+  IRR/IRT currency whitelist, strict-integer money (floats/negatives
+  refuse, D-114 ceiling), allowlist-gated discount codes with no
+  discount arithmetic in the D-081 money path, Class-A-only retries
+  ≤ 2, out-of-order state edges refused. ORD-04 runs the synthetic
+  multi-item lifecycle (place → replay-dedup → validate →
+  reserve → PLACED→VALIDATED→CANCELLED with full reservation
+  release) and drives the **REAL D-083 fan-out boundary**
+  (`FanOutEngine.route` + `.dispatch` over the shared scratch event
+  store) with **publisher-less binds** (`no_publisher_bound` —
+  structurally incapable of channel egress) under an **ephemeral
+  process-local D-079 lock**; the payment-boundary audit scans the
+  LIVE D-027 event records for gateway markers (any hit fails the
+  run); cleanup round-trips and deletes the data-minimized artifact
+  leaving zero scratch residue.
+- **D-079 lock hygiene (incident + fix):** the default fan-out lock
+  claims keys PERMANENTLY in live PostgreSQL
+  (`orchestration.fanout_lock`) or the shared
+  `local/volumes/orchestration/fanout_lock.json` — probe use of the
+  default lock would freeze future routings of the same key.
+  Recon probes claimed 2 PG rows during engine development; both
+  were purged (DELETE 2, keys matched exactly, the 4 pre-existing
+  rows untouched) before commit, and the engine now injects the
+  ephemeral lock. The battery asserts the probe never holds the PG
+  or JSON lock classes and that no probe key leaks into the shared
+  file.
+- **Suite-found reliability fix:** canonical shim modules insert
+  `local/canonical` onto `sys.path` at import time, which can make
+  the chain builders' bare `import tests.…` resolve to the legacy
+  `canonical/tests.py` module once heavy canonical modules load
+  first. All live-wiring chain builders (phase 6–10 batteries) now
+  evict the poisoned path entries and purge any shadowed legacy
+  `tests` module before their sibling import.
+- **Verification:** battery `test_live_wiring_phase10.py` 48/48 ×2
+  (phase9 attestation via the REAL D-159→D-158→D-157→D-156→D-155→
+  D-154 chain; the cycle through the REAL OMS engine, D-082
+  inventory and D-083 fan-out boundary); full regression 1870/1870
+  ×2 consecutive green across 76 modules (1822 + 48, per-chunk
+  counts identical, census reconciled). The battery runs from the
+  repository ROOT (`python3 -m unittest local.tests.…`) — the
+  `publishing.instagram` seam and several batteries import
+  `local.src.…` absolute paths that require the repo root on
+  sys.path (environment contract, not a regression).
+- **Boundaries preserved:** the order pipeline is verified, not
+  opened — zero payment boundaries crossed (markers-only
+  `payment_status`, no gateway field anywhere in the probe
+  surface), no production inventory touched (scratch-backed
+  reservations released before return), no live credentials exist
+  or are requested. The D-083 boundary is proven WITH durable
+  receipts so Phase 11 publishers plug into a verified surface.
+  Report `docs/deployment/phase-10-live-wiring-report.md`
+  (locking matrix, lifecycle trace: 36.25 ms cycle, 7 durable
+  receipts, Phase 11 handover). The only state change is the
+  scratch artifact (deleted before return).
+
 ## D-159 — Phase 9 live wiring ignition & Telegram Sales/Ingress verification
 
 - **Status:** **Approved** (2026-09-26, owner-directed).
@@ -5397,6 +5486,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 59 | Phase 7 live wiring ignition & AI Runtime + Product Manager verification — **D-157 (Approved 2026-09-26, owner-directed)**: `live_wiring_phase7_igniter.py` proves the AI Runtime + PM core loop under the D-156 attestation — AIR-01 verifies `phase6.live_wiring_attestation.v1` (PHASE6_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase6_live_wiring_attestation`, manifest binding, intact chain) BEFORE any provider call (refusals run ZERO provider calls — proven across four failure classes); AIR-02 loads the verified runtime profile (census `runtime_profile_verified` + Phase 5/6 rows present+VERIFIED+WIRED) and checks the repo-real seams (`canonical.ai_runtime` = ENTRY_POINTS[7], `canonical.ai_contracts`, `canonical.vocab`, `canonical.ai_proposal_lifecycle` = ENTRY_POINTS[8]; a mismatch refuses as registry drift); AIR-03 enforces bounded routing — DETERMINISTIC route selection (resolved twice), explicit provider/model allowlist (`mock: (mock-1,)`, unknown ⇒ refusal), max_tokens ≤ 2048, budget ≤ $1.00/cycle, ≤ 4 tool calls, ≤ 2 retries (Class-A transients only), 15 s timeout; AIR-04 runs the NON-DESTRUCTIVE synthetic PM cycle (fixed brief → owner-approved vocabulary alignment (D-031/D-032) → strategy draft through the REAL ModelRouter with `ai_contracts` validation (Backlog-root proposals only, D-060) → content plan skeleton → packaging into the namespace-scoped ScratchStore with per-step START/VOCAB/ROUTE/INFER/VALIDATE/PACK/CLEANUP telemetry and a deterministic SHA-256 summary hash; the ONLY external write is the optional strictly probe-only Notion probe (create/replay-SAME-page/read-back/archive); cleanup mandatory even on abort); AIR-05 emits exactly ONE canonical `phase7.live_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected router/Notion/census, prompts/tool inputs/provider fragments NEVER enter outputs (hashes/counts/verdicts only), deep redaction (D-124) with public commitments restored. Report `docs/deployment/phase-7-live-wiring-report.md` (constraints table, measured trace: mock/mock-1, 45/49 tokens, $0.00, 3.51 ms in-process, summary hash c4cd60975127e8d9…, Phase 8 handover). Battery `test_live_wiring_phase7.py` 45/45 ×2 (phase6 attestation via the REAL D-156 → D-155 → D-154 chain; REAL ModelRouter/MockAiProvider/ai_contracts); full regression 1731/1731 ×2 consecutive green across 73 modules (1686 + 45, census reconciled). The runtime is proven, not deployed — real provider credentials (D-045 owner gate, register row 9), publishing and lifecycle promotion remain owner-gated (D-045/D-139, plan §17/§21.6); cycle cost $0.00, the only writes are the deleted scratch artifact and the archived probe. |
 | 60 | Phase 8 live wiring ignition & Instagram Graph API verification — **D-158 (Approved 2026-09-26, owner-directed)**: `live_wiring_phase8_igniter.py` wires the Instagram channel in STRICT PROBE-ONLY mode under the D-157 attestation — IG-01 verifies `phase7.live_wiring_attestation.v1` (PHASE7_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase7_live_wiring_attestation`, manifest binding, intact chain) BEFORE any adapter call (refusals run ZERO adapter calls — proven across four failure classes); IG-02 requires census Phases 5+6+7 present+VERIFIED+WIRED and the repo-real seams (`canonical.instagram_adapter` D-069/D-071, `instagram_contracts`, `instagram_publisher` D-070, `instagram_live` D-072, `publishing.instagram` = ENTRY_POINTS[9]) consistent with the D-154 registry; IG-03 validates the capability profile (required scopes `instagram_basic`/`instagram_content_publish`/`pages_show_list`, token expiry margin ≥ 300 ticks, 401/403 carriers refuse immediately, the REAL GraphUsageTracker refuses at/over the 75% usage warn level, Class-A-only retries ≤ 2); IG-04 runs the NON-DESTRUCTIVE media workflow (caption from the REAL Phase 7 ModelRouter via caption_proposal.v1 → local Class-B `validate_publish_payload` (ratio 4:5 ∈ {1:1,4:5,16:9}, ≤ 2200 chars, ≤ 30 hashtags) → synthetic container IN_PROGRESS→FINISHED through the REAL bounded `poll_until_ready` (≤ 10 polls) → VERIFY audits the adapter call log (ANY publish invocation = SAFETY VIOLATION refusal) + probe state collisions → CLEANUP archives the probe container; per-step START/AUTH/CONTAINER_CREATE/STATUS_POLL/VERIFY/CLEANUP telemetry, deterministic SHA-256 summary hash, captions/ids as hashes only); IG-05 emits exactly ONE canonical `phase8.live_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned — the source never calls publish_container), injected adapter/router, deep redaction (D-124) + the canonical token-marker `redact()`. Report `docs/deployment/phase-8-live-wiring-report.md` (scope matrix, probe trace: create→status→archive NO publish, 2.15 ms, usage headroom 95%, Phase 9 handover). Battery `test_live_wiring_phase8.py` 45/45 ×2 (phase7 attestation via the REAL D-157→D-156→D-155→D-154 chain; REAL MockInstagramAdapter/poll_until_ready/validate_publish_payload); full regression 1776/1776 ×2 consecutive green across 74 modules (1731 + 45, census reconciled). The channel is verified, not opened — zero public publishing ever, no live credentials exist or are requested (D-045/D-071 owner gate), the D-070 publishing path stays behind the owner's activation decision (D-045/D-139, plan §17/§21.6). |
 | 61 | Phase 9 live wiring ignition & Telegram Sales/Ingress verification — **D-159 (Approved 2026-09-26, owner-directed)**: `live_wiring_phase9_igniter.py` wires the Telegram conversational channel in STRICT SANDBOX-INGRESS mode under the D-158 attestation — TG-01 verifies `phase8.live_wiring_attestation.v1` (PHASE8_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase8_live_wiring_attestation`, manifest binding, intact chain) BEFORE any adapter call (refusals run ZERO adapter calls — proven across four failure classes); TG-02 requires census Phases 5+6+7+8 present+VERIFIED+WIRED and the repo-real seams (`canonical.telegram_ingress` = ENTRY_POINTS[10], `telegram_contracts` D-073, `telegram_adapter` D-074/D-075, `telegram_publisher` D-076) consistent with the D-154 registry; TG-03 validates the security profile (bot-token `<bot id>:<hash>` form via BOT_TOKEN_RE, simulated getMe, required capabilities getMe/sendMessage/webhook_secret, the webhook shared-secret mechanism PROVEN both directions through the REAL constant-time `verify_webhook_secret_token`, the REAL D-074 RatePacer pacing a per-chat burst 1/s — paced never dropped, 4096-char cap, Class-A-only retries ≤ 2); TG-04 runs the sandbox conversational sales cycle (synthetic update through the REAL webhook path: secret check → `parse_update` dropping profile metadata → `TelegramIngress` D-027 dedup → deterministic intent extraction (order_inquiry/price_inquiry; unknown refuses) → reply from the REAL Phase 7 ModelRouter (caption_proposal.v1) CONSTRUCTED but NEVER dispatched → namespaced collision-refusing SessionStore persistence → adapter-log audit (ANY send* = SAFETY VIOLATION refusal) → mandatory cleanup; per-step START/AUTH/INGRESS_PARSE/INTENT_ROUTE/INFER/STATE_UPDATE/CLEANUP telemetry, deterministic SHA-256 summary hash, ids/texts as hashes only); TG-05 emits exactly ONE canonical `phase9.live_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned — the source contains no send-method calls), injected adapter/router, deep redaction (D-124) + the canonical bot-token `redact()`. Report `docs/deployment/phase-9-live-wiring-report.md` (security matrix, sales-flow trace: adapter calls EMPTY, 0.67 ms, intent order_inquiry, Phase 10 handover). Battery `test_live_wiring_phase9.py` 46/46 ×2 (phase8 attestation via the REAL D-158→D-157→D-156→D-155→D-154 chain); full regression 1822/1822 ×2 consecutive green across 75 modules (1776 + 46, census reconciled). The conversational channel is verified, not opened — zero outbound dispatch ever, no live Telegram credentials exist or are requested (D-045/D-075 owner gate), the D-076 publisher path stays behind the owner's activation decision (D-045/D-139, plan §17/§21.7). |
+| 62 | Phase 10 live wiring ignition & Multi-channel Order Orchestration verification — **D-160 (Approved 2026-09-26, owner-directed)**: `live_wiring_phase10_igniter.py` wires the order pipeline in STRICT SANDBOX/DRY-RUN mode under the D-159 attestation — ORD-01 verifies `phase9.live_wiring_attestation.v1` (PHASE9_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase9_live_wiring_attestation`, manifest binding, intact chain) BEFORE any order processing (refusals leave the OMS stack untouched — factory never invoked, proven across four failure classes); ORD-02 requires census Phases 5+6+7+8+9 present+VERIFIED+WIRED and the repo-real seams (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `canonical.oms_worker`, `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift); ORD-03 proves the contracts through the REAL validator — channel origin tagging (telegram/instagram_dm/web_store), deterministic D-081 idempotency keys (SHA-256 over client_order_id; identical replay → skipped_duplicate, conflicting payload → IntegrityError), IRR/IRT currency whitelist, strict-integer money with D-114 ceiling, allowlist-gated discount codes (no discount arithmetic in the money path), Class-A-only retries ≤ 2, out-of-order state edges refused; ORD-04 runs the synthetic multi-item lifecycle (place → replay-dedup → validate → D-082 reserve → PLACED→VALIDATED→CANCELLED with full reservation release) and drives the REAL D-083 fan-out boundary (`FanOutEngine.route`+`.dispatch`, 7 durable receipts) with publisher-less binds (`no_publisher_bound` — structurally incapable of egress) under an EPHEMERAL process-local D-079 lock (the default lock claims keys permanently in live PG / the shared JSON file — 2 recon-claimed rows purged before commit, 4 pre-existing rows untouched); the payment-boundary audit scans the LIVE D-027 event records (any gateway marker = refusal); cleanup deletes the data-minimized scratch artifact (zero residue); per-step START/LOCK/VALIDATE/RESERVE/TRANSITION/EVENT_PROBE/VERIFY/CLEANUP telemetry, deterministic SHA-256 summary hash; ORD-05 emits exactly ONE canonical `phase10.live_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected engine/store/fanout/scratch transports, deep redaction (D-124). Suite-found fix: canonical shims poison sys.path at import time (bare `import tests.…` resolving to legacy `canonical/tests.py`) — all chain builders (phase 6–10 batteries) now evict the poisoned entries; battery runs from the repo ROOT (environment contract). Report `docs/deployment/phase-10-live-wiring-report.md` (locking matrix, lifecycle trace: 36.25 ms cycle, Phase 11 handover). Battery `test_live_wiring_phase10.py` 48/48 ×2 (phase9 attestation via the REAL D-159→…→D-154 chain); full regression 1870/1870 ×2 consecutive green across 76 modules (1822 + 48, census reconciled). The order pipeline is verified, not opened — zero payment boundaries crossed (markers-only payment_status), no production inventory touched (scratch reservations released), no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8). |
 | 55 | Stage H live cutover orchestration & owner activation record — **D-153 (Approved 2026-09-25, owner-directed)**: `stage_h_cutover_executor.py` executes the Stage H handoff under explicit owner authority — H-01 verifies the D-152 closure seal (STAGE_G_CLOSED, digest recomputing, rooted in the D-112 chain), H-02 enforces the fresh unspent Stage F owner token (real gate GO, nonce burned once, TTL window covering the activation tick, draft fingerprint == seal manifest — divergent bindings refuse), H-03 asserts the Dokploy target state (all services running+healthy, restarts ≤ 3, zero unmapped port exposure) via the direct-argv `DokployStateAdapter` (no shell, allow-listed parameters, strict timeouts, deep redaction), H-04 transitions to ACTIVE through the injected transition provider and emits the immutable `stage_h_activation_record.v1` with the SHA-256 `activation_digest`, H-05 watches the critical window and arms the atomic rollback payload (`stage_h_rollback_payload.v1`, Stage E §5 RB-1 shape — a verdict the operator executes, never an engine action; unwatchable windows arm rollback too). ANY refusal aborts with ZERO side-effects (provably no transition invocation) and one audited `CUTOVER_ABORTED` record; public commitments only in ledger copies; signing key and nonce never recorded. Runbook `docs/deployment/stage-h-cutover-runbook.md` (offline token minting/injection, cutover steps, edge-only routing, rollback execution, monitoring). Battery `test_stage_h_cutover_executor.py` 25/25 ×2 through the REAL D-152 closure runner and REAL Stage F gate; full regression 1568/1568 ×2 consecutive green across 69 modules (1543 + 25, census reconciled). Nothing provisioned, nothing activated; the engine never mutates the live stack on its own authority; D-139 remains the sole activation authority. |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
