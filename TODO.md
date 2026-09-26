@@ -1147,6 +1147,33 @@ these even if they seem helpful:
       credentials and Phases 7–18 remain owner-gated (D-045/D-139,
       plan §17/§21.6); the only write is the archived synthetic
       probe.**
+- [x] Phase 7 (Live Wiring) — Ignition & AI Runtime + Product
+      Manager Verification — **COMPLETE (2026-09-26; D-157
+      Approved, owner-directed)**:
+      `local/scripts/live_wiring_phase7_igniter.py`
+      (AIR-01..AIR-05 fail-closed — the phase6 attestation
+      digest-recomputed AND matched against its D-112 rooting row
+      BEFORE any provider call (zero-provider-call proof across
+      four failure classes); verified runtime profile + repo-real
+      seams consistent with the D-154 ENTRY_POINTS registry;
+      deterministic allowlisted bounded routing (token/budget/tool/
+      retry/timeout caps); the non-destructive synthetic PM cycle
+      through the REAL ModelRouter + ai_contracts with owner-
+      approved vocabulary alignment, namespace-scoped scratch-only
+      persistence, per-step telemetry, deterministic summary hash,
+      optional strictly probe-only Notion write and mandatory
+      cleanup; canonical `phase7.live_wiring_attestation.v1`
+      emitted exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-7-live-wiring-report.md` (constraints
+      table, measured cycle trace, guardrails, Phase 8 handover) +
+      `test_live_wiring_phase7.py` 45/45 ×2 with the phase6
+      attestation built by the REAL D-156 → D-155 → D-154 chain,
+      full battery 1731/1731 ×2 zero-skip across 73 modules.
+      **The runtime is proven, not deployed — real AI provider
+      credentials (D-045 owner gate), publishing and lifecycle
+      promotion remain owner-gated (D-045/D-139, plan §17/§21.6);
+      cycle cost $0.00, the only writes are the deleted scratch
+      artifact and the archived probe.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

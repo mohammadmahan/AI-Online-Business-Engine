@@ -2016,3 +2016,46 @@ Second phase of the Live Wiring program under the D-155 attestation.
 - **Boundary:** the workspace is verified, not migrated — live
   credentials and Phases 7–18 remain owner-gated (D-045/D-139, plan
   §17/§21.6). The only write is the archived synthetic probe.
+
+## 50. Phase 7 live wiring ignition & AI Runtime + Product Manager verification (2026-09-26, D-157)
+
+Third phase of the Live Wiring program under the D-156 attestation.
+
+- **Engine:** `local/scripts/live_wiring_phase7_igniter.py` —
+  AIR-01..AIR-05, fail-closed, one audited
+  `phase7.live_wiring_attestation.v1` per run (aborts included)
+  with the SHA-256 `attestation_digest`; AIR-01 refusals make ZERO
+  provider calls.
+- **AIR-01:** the phase6 attestation (PHASE6_IGNITED, canonical-bytes
+  digest recompute matching its D-112 rooting row, manifest
+  binding, intact chain) gates everything.
+- **AIR-02:** the verified runtime profile (census
+  `runtime_profile_verified`, Phase 5/6 present+VERIFIED+WIRED) and
+  the repo-real seams (`canonical.ai_runtime`,
+  `canonical.ai_contracts`, `canonical.vocab`,
+  `canonical.ai_proposal_lifecycle`) consistent with the D-154
+  ENTRY_POINTS registry.
+- **AIR-03:** bounded routing — deterministic route selection,
+  explicit provider/model allowlist, max_tokens ≤ 2048, budget ≤
+  $1.00/cycle, ≤ 4 tool calls, ≤ 2 retries (Class-A only), 15 s
+  timeout.
+- **AIR-04:** the non-destructive synthetic PM cycle (normalize →
+  owner-approved vocabulary alignment → REAL router draft with
+  ai_contracts validation → plan skeleton → scratch-only packaging
+  with per-step telemetry and a deterministic summary hash;
+  optional strictly probe-only Notion write; mandatory cleanup).
+- **Purity:** pure injected-provider core (AST-pinned); prompts,
+  tool inputs and provider fragments never enter outputs; deep
+  redaction (D-124) with public commitments restored; strict data
+  minimization.
+- **Verification:** battery `test_live_wiring_phase7.py` 45/45 ×2
+  (phase6 attestation via the REAL D-156 → D-155 → D-154 chain);
+  full regression 1731/1731 ×2 consecutive green across 73
+  modules.
+- **Report:** `docs/deployment/phase-7-live-wiring-report.md` —
+  routing constraints, measured cycle trace (mock/mock-1, $0.00,
+  3.51 ms), guardrails, Phase 8 (Instagram wiring) handover.
+- **Boundary:** the runtime is proven, not deployed — real AI
+  provider credentials (D-045 owner gate, register row 9),
+  publishing and lifecycle promotion remain owner-gated
+  (D-045/D-139, plan §17/§21.6).
