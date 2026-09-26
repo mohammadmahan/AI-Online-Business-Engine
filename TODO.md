@@ -1197,12 +1197,43 @@ these even if they seem helpful:
       matrix, probe trace, rate benchmarks, Phase 9 handover) +
       `test_live_wiring_phase8.py` 45/45 ×2 with the phase7
       attestation built by the REAL D-157→D-156→D-155→D-154 chain,
-      full battery 1776/1776 ×2 zero-skip across 74 modules.
-      **The channel is verified, not opened — zero public
+      full battery 1776/1776 ×2 zero-skip across 74 modules.      **The channel is verified, not opened — zero public
       publishing ever (structurally refused), no live Instagram
       credentials exist or are requested (D-045/D-071 owner gate);
       the only mutation is the archived synthetic probe
       container.**
+- [x] Phase 9 (Live Wiring) — Ignition & Telegram Sales/Ingress
+      Verification — **COMPLETE (2026-09-26; D-159 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase9_igniter.py`
+      (TG-01..TG-05 fail-closed, STRICT SANDBOX-INGRESS — the
+      phase8 attestation digest-recomputed AND matched against its
+      D-112 rooting row BEFORE any adapter call (zero-adapter-call
+      proof); census Phases 5+6+7+8 VERIFIED/WIRED + the four
+      repo-real Telegram seams consistent with the D-154
+      ENTRY_POINTS registry; security profile with bot-token
+      format validation, the webhook shared-secret mechanism
+      PROVEN both directions through the REAL constant-time
+      verifier, and the REAL D-074 RatePacer pacing a per-chat
+      burst; the sandbox conversational sales cycle through the
+      REAL webhook path (parse_update dropping profile metadata,
+      TelegramIngress D-027 dedup) with deterministic intent
+      extraction, the reply from the REAL Phase 7 ModelRouter
+      CONSTRUCTED but NEVER dispatched, namespaced
+      collision-refusing session persistence, adapter-log audit
+      (ANY send = SAFETY VIOLATION refusal) and mandatory cleanup;
+      canonical `phase9.live_wiring_attestation.v1` emitted
+      exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-9-live-wiring-report.md` (security
+      matrix, sales-flow trace, guardrails, Phase 10 handover) +
+      `test_live_wiring_phase9.py` 46/46 ×2 with the phase8
+      attestation built by the REAL D-158→D-157→D-156→D-155→D-154
+      chain, full battery 1822/1822 ×2 zero-skip across 75
+      modules. **The conversational channel is verified, not
+      opened — zero outbound dispatch ever (structurally refused),
+      no live Telegram credentials exist or are requested
+      (D-045/D-075 owner gate); the only state change is the
+      session store entry (deleted before return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

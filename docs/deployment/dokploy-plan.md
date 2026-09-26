@@ -2106,3 +2106,54 @@ irreversible external mutation.
   requested (D-045/D-071 owner gate: INSTAGRAM_LIVE_ENABLED + env
   keys); the D-070 publishing path stays behind the owner's
   explicit activation decision (D-045/D-139, plan §17/§21.6).
+
+## 52. Phase 9 live wiring ignition & Telegram Sales/Ingress verification (2026-09-26, D-159)
+
+Fifth phase of the Live Wiring program under the D-158 attestation.
+STRICT SANDBOX-INGRESS mode: no unsolicited outbound messages, no
+broadcast, no production webhook registration, no real customer
+notification.
+
+- **Engine:** `local/scripts/live_wiring_phase9_igniter.py` —
+  TG-01..TG-05, fail-closed, one audited
+  `phase9.live_wiring_attestation.v1` per run (aborts included) with
+  the SHA-256 `attestation_digest`; TG-01 refusals make ZERO
+  adapter calls.
+- **TG-01:** the phase8 attestation (PHASE8_IGNITED, canonical-bytes
+  digest recompute matching its D-112 rooting row, manifest
+  binding, intact chain) gates everything.
+- **TG-02:** census Phases 5+6+7+8 present+VERIFIED+WIRED; the
+  repo-real seams (`canonical.telegram_ingress` =
+  ENTRY_POINTS[10], `telegram_contracts`, `telegram_adapter`,
+  `telegram_publisher`) consistent with the D-154 registry.
+- **TG-03:** security profile — bot-token format validation,
+  simulated getMe, required capabilities, the webhook shared-secret
+  mechanism PROVEN both directions (wrong header refused, correct
+  accepted) through the REAL constant-time verifier, the REAL
+  D-074 RatePacer pacing a per-chat burst, 4096-char cap,
+  Class-A-only retries ≤ 2.
+- **TG-04:** the sandbox conversational sales cycle — synthetic
+  update through the REAL webhook path (parse_update dropping
+  profile metadata, TelegramIngress dedup), deterministic intent
+  extraction, reply from the REAL Phase 7 ModelRouter CONSTRUCTED
+  but NEVER dispatched, namespaced collision-refusing session
+  persistence, adapter-log audit (ANY send = SAFETY VIOLATION),
+  mandatory cleanup; per-step telemetry + deterministic summary
+  hash.
+- **Purity:** pure injected-provider core (AST-pinned — the source
+  contains no send-method calls), deep redaction (D-124) plus the
+  canonical bot-token redact(); ids/texts as hashes only.
+- **Verification:** battery `test_live_wiring_phase9.py` 46/46 ×2
+  (phase8 attestation via the REAL D-158→D-157→D-156→D-155→D-154
+  chain); full regression 1822/1822 ×2 consecutive green across 75
+  modules.
+- **Report:** `docs/deployment/phase-9-live-wiring-report.md` —
+  security matrix, sales-flow trace (adapter calls EMPTY, 0.67 ms
+  in-process, intent order_inquiry), guardrails, Phase 10
+  (Multi-channel Order Orchestration) handover.
+- **Boundary:** the conversational channel is verified, not opened —
+  zero outbound dispatch ever, no live Telegram credentials exist
+  or are requested (D-045/D-075 owner gate: TELEGRAM_LIVE_ENABLED +
+  TELEGRAM_BOT_TOKEN); the D-076 publisher path stays behind the
+  owner's explicit activation decision (D-045/D-139, plan
+  §17/§21.7).
