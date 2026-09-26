@@ -1174,6 +1174,35 @@ these even if they seem helpful:
       promotion remain owner-gated (D-045/D-139, plan §17/§21.6);
       cycle cost $0.00, the only writes are the deleted scratch
       artifact and the archived probe.**
+- [x] Phase 8 (Live Wiring) — Ignition & Instagram Graph API
+      Verification — **COMPLETE (2026-09-26; D-158 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase8_igniter.py`
+      (IG-01..IG-05 fail-closed, STRICT PROBE-ONLY — the phase7
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any adapter call (zero-adapter-call
+      proof); census Phases 5+6+7 VERIFIED/WIRED + the five
+      repo-real Instagram seams consistent with the D-154
+      ENTRY_POINTS registry; capability profile with required
+      scopes, token expiry margin, and the REAL GraphUsageTracker
+      rate envelope; the non-destructive media workflow: caption
+      from the REAL Phase 7 ModelRouter → local Class-B
+      validate_publish_payload → synthetic container
+      IN_PROGRESS→FINISHED via the REAL bounded poll_until_ready →
+      publish-call audit (ANY publish = SAFETY VIOLATION refusal)
+      → probe archive; canonical
+      `phase8.live_wiring_attestation.v1` emitted exactly once per
+      run INCLUDING aborts) +
+      `docs/deployment/phase-8-live-wiring-report.md` (scope
+      matrix, probe trace, rate benchmarks, Phase 9 handover) +
+      `test_live_wiring_phase8.py` 45/45 ×2 with the phase7
+      attestation built by the REAL D-157→D-156→D-155→D-154 chain,
+      full battery 1776/1776 ×2 zero-skip across 74 modules.
+      **The channel is verified, not opened — zero public
+      publishing ever (structurally refused), no live Instagram
+      credentials exist or are requested (D-045/D-071 owner gate);
+      the only mutation is the archived synthetic probe
+      container.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

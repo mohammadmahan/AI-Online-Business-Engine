@@ -2059,3 +2059,50 @@ Third phase of the Live Wiring program under the D-156 attestation.
   provider credentials (D-045 owner gate, register row 9),
   publishing and lifecycle promotion remain owner-gated
   (D-045/D-139, plan §17/§21.6).
+
+## 51. Phase 8 live wiring ignition & Instagram Graph API verification (2026-09-26, D-158)
+
+Fourth phase of the Live Wiring program under the D-157 attestation.
+STRICT PROBE-ONLY mode: no public publishing, no feed pollution, no
+irreversible external mutation.
+
+- **Engine:** `local/scripts/live_wiring_phase8_igniter.py` —
+  IG-01..IG-05, fail-closed, one audited
+  `phase8.live_wiring_attestation.v1` per run (aborts included) with
+  the SHA-256 `attestation_digest`; IG-01 refusals make ZERO
+  adapter calls.
+- **IG-01:** the phase7 attestation (PHASE7_IGNITED, canonical-bytes
+  digest recompute matching its D-112 rooting row, manifest
+  binding, intact chain) gates everything.
+- **IG-02:** census Phases 5+6+7 present+VERIFIED+WIRED; the
+  repo-real seams (`canonical.instagram_adapter`,
+  `instagram_contracts`, `instagram_publisher`, `instagram_live`,
+  `publishing.instagram` = ENTRY_POINTS[9]) consistent with the
+  D-154 registry.
+- **IG-03:** capability profile — required scopes
+  (instagram_basic, instagram_content_publish, pages_show_list),
+  token expiry margin ≥ 300 ticks, 401/403 immediate refusal, the
+  REAL GraphUsageTracker refusing at/over the 75% usage warn
+  level, Class-A-only retries ≤ 2.
+- **IG-04:** the non-destructive media workflow — caption from the
+  REAL Phase 7 ModelRouter (caption_proposal.v1), local Class-B
+  validate_publish_payload, synthetic container
+  IN_PROGRESS→FINISHED via the REAL bounded poll_until_ready,
+  publish-call audit (ANY publish = SAFETY VIOLATION refusal),
+  probe archive; per-step telemetry + deterministic summary hash.
+- **Purity:** pure injected-provider core (AST-pinned — the source
+  never calls publish_container), deep redaction (D-124) plus the
+  canonical token-marker redact(); captions/ids as hashes only.
+- **Verification:** battery `test_live_wiring_phase8.py` 45/45 ×2
+  (phase7 attestation via the REAL D-157→D-156→D-155→D-154 chain);
+  full regression 1776/1776 ×2 consecutive green across 74
+  modules.
+- **Report:** `docs/deployment/phase-8-live-wiring-report.md` —
+  scope matrix, probe trace (create→status→archive, NO publish,
+  2.15 ms in-process, usage headroom 95%), Phase 9 (Telegram
+  Sales & Ingress) handover.
+- **Boundary:** the channel is verified, not opened — zero public
+  publishing ever, no live Instagram credentials exist or are
+  requested (D-045/D-071 owner gate: INSTAGRAM_LIVE_ENABLED + env
+  keys); the D-070 publishing path stays behind the owner's
+  explicit activation decision (D-045/D-139, plan §17/§21.6).
