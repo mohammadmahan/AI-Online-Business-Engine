@@ -1100,6 +1100,30 @@ these even if they seem helpful:
       certificate is evidence, not authority — ignition and external
       connectivity remain owner-gated (D-045/D-139, plan §17/§21.6);
       nothing provisioned, nothing activated, nothing ignited.**
+- [x] Phase 5 (Live Wiring) — Ignition & Service Connectivity
+      Verification — **COMPLETE (2026-09-26; D-155 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase5_igniter.py`
+      (IGN-01..IGN-05 fail-closed — the D-154
+      `dokploy.completion_attestation.v1` verified and D-112-rooted
+      BEFORE any probe runs; PostgreSQL SSOT authenticated
+      connectivity + schema readiness + pooling invariants through
+      the argv-only `ArgvPsqlTransport`; Redis PING < 50 ms,
+      noeviction, isolated namespace drill; n8n dispatcher
+      readiness through the REAL D-053 contracts with HMAC sha256=
+      and the D-027 idempotency drill — the engine's only write;
+      canonical `phase5.live_wiring_attestation.v1` emitted exactly
+      once per run INCLUDING aborts) +
+      `docs/deployment/phase-5-live-wiring-report.md` (topology,
+      latency benchmarks, live-evidence provenance, Phase 6
+      handover) + `test_live_wiring_phase5.py` 38/38 ×2 over the
+      authentic Stage C→H chain, full battery 1644/1644 ×2
+      zero-skip across 71 modules. Live run PHASE5_IGNITED against
+      the engine-local stack (Redis PING 28.6 ms; 33-table SSOT
+      schema; pool headroom proven). **Ignition evidence is not
+      authority — Phases 6–18 and external connectivity remain
+      owner-gated (D-045/D-139, plan §17/§21.6); no secrets created
+      or transmitted; the drill wrote exactly one audited event.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

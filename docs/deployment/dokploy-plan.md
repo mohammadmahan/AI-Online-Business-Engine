@@ -1947,3 +1947,38 @@ fail-closed activation.
   activation, service ignition, and every external connection remain
   owner-gated (D-045/D-139, plan §17/§21.6). Nothing provisioned,
   nothing activated, nothing ignited.
+
+## 48. Phase 5 live wiring ignition & service connectivity verification (2026-09-26, D-155)
+
+First phase of the Live Wiring program under the D-154 completion
+certificate.
+
+- **Engine:** `local/scripts/live_wiring_phase5_igniter.py` —
+  IGN-01..IGN-05, fail-closed, one audited
+  `phase5.live_wiring_attestation.v1` per run (aborts included) with
+  the SHA-256 `attestation_digest`.
+- **IGN-01:** the D-154 certificate (schema, INFRASTRUCTURE_COMPLETE,
+  byte-exact digest recomputation, Stage E manifest binding, D-112
+  rooting, zero chain breaks) gates everything — refusals run NO
+  probes and leave zero side-effects.
+- **IGN-02:** PostgreSQL SSOT via the argv-only `ArgvPsqlTransport`
+  (env-name connection refs, ON_ERROR_STOP, strict timeouts) —
+  schema readiness, pooling headroom invariants.
+- **IGN-03:** Redis PING < 50 ms budget, noeviction, isolated
+  `phase5:ignition_drill` namespace round-trip.
+- **IGN-04:** n8n dispatcher readiness through the REAL D-053
+  contracts (schema + HMAC sha256= + D-027 idempotency drill).
+- **Purity:** D-151 argv transports (`build_phase5_transports`),
+  pure injected-provider core (AST-pinned), deep redaction (D-124)
+  with public commitments restored.
+- **Verification:** battery `test_live_wiring_phase5.py` 38/38 ×2;
+  full regression 1644/1644 ×2 consecutive green across 71 modules;
+  live run PHASE5_IGNITED over the authentic certificate against
+  the engine-local stack (Redis PING 28.6 ms, 33-table SSOT schema,
+  pool headroom proven).
+- **Report:** `docs/deployment/phase-5-live-wiring-report.md` —
+  topology, benchmarks, provenance, Phase 6 (Notion OS sync)
+  handover.
+- **Boundary:** ignition evidence is not authority — Phases 6–18
+  wiring and external connectivity remain owner-gated (D-045/D-139,
+  plan §17/§21.6). No secrets created or transmitted.
