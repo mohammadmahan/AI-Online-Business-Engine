@@ -1124,6 +1124,29 @@ these even if they seem helpful:
       authority — Phases 6–18 and external connectivity remain
       owner-gated (D-045/D-139, plan §17/§21.6); no secrets created
       or transmitted; the drill wrote exactly one audited event.**
+- [x] Phase 6 (Live Wiring) — Ignition & Notion Workspace Sync
+      Verification — **COMPLETE (2026-09-26; D-156 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase6_igniter.py`
+      (NOT-01..NOT-05 fail-closed — the phase5 attestation
+      digest-recomputed AND matched against its D-112 rooting row
+      BEFORE any Notion call; authentication + 3/s token-bucket
+      pacing through the REAL canonical contract layer; the four
+      canonical databases schema-verified (properties, types,
+      select options, relations); the non-destructive
+      create/replay/read/archive probe with deterministic D-027
+      idempotency keys and collision refusal; canonical
+      `phase6.live_wiring_attestation.v1` emitted exactly once per
+      run INCLUDING aborts) +
+      `docs/deployment/phase-6-live-wiring-report.md` (schema map,
+      topology, latency metrics, Phase 7 handover) +
+      `test_live_wiring_phase6.py` 42/42 ×2 with the phase5
+      attestation built by the REAL D-155 igniter over the
+      authentic chain, full battery 1686/1686 ×2 zero-skip across
+      72 modules. **The workspace is verified, not migrated — live
+      credentials and Phases 7–18 remain owner-gated (D-045/D-139,
+      plan §17/§21.6); the only write is the archived synthetic
+      probe.**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

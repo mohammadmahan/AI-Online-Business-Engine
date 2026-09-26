@@ -1982,3 +1982,37 @@ certificate.
 - **Boundary:** ignition evidence is not authority — Phases 6–18
   wiring and external connectivity remain owner-gated (D-045/D-139,
   plan §17/§21.6). No secrets created or transmitted.
+
+## 49. Phase 6 live wiring ignition & Notion workspace sync verification (2026-09-26, D-156)
+
+Second phase of the Live Wiring program under the D-155 attestation.
+
+- **Engine:** `local/scripts/live_wiring_phase6_igniter.py` —
+  NOT-01..NOT-05, fail-closed, one audited
+  `phase6.live_wiring_attestation.v1` per run (aborts included) with
+  the SHA-256 `attestation_digest`.
+- **NOT-01:** the phase5 attestation (PHASE5_IGNITED, canonical-bytes
+  digest recompute matching its D-112 rooting row, manifest binding,
+  intact chain) gates everything — refusals run ZERO Notion calls.
+- **NOT-02:** authentication via the REAL canonical contract layer
+  (`canonical/notion_live.py`); 401/403 refuse (Class-E); the 3/s
+  NotionPacer token bucket is proven with a paced 12-op burst.
+- **NOT-03:** the four canonical databases (Product Catalog, Order
+  Pipeline, Marketing Campaigns, Tasks/SOPs) verified for property
+  names+types+select options+relation integrity.
+- **NOT-04:** non-destructive synthetic probe — fixed payload,
+  deterministic D-027 idempotency key, create/replay-same-page/
+  read-back/archive, collision refuses, workspace left clean.
+- **Purity:** pure injected-provider core (AST-pinned), client
+  injected with the transport injected inside it (D-045/D-075),
+  deep redaction (D-124) with public commitments restored.
+- **Verification:** battery `test_live_wiring_phase6.py` 42/42 ×2
+  (phase5 attestation built by the REAL D-155 igniter over the
+  authentic chain); full regression 1686/1686 ×2 consecutive green
+  across 72 modules.
+- **Report:** `docs/deployment/phase-6-live-wiring-report.md` —
+  schema map, topology, latency metrics, Phase 7 (AI Runtime & PM
+  wiring) handover.
+- **Boundary:** the workspace is verified, not migrated — live
+  credentials and Phases 7–18 remain owner-gated (D-045/D-139, plan
+  §17/§21.6). The only write is the archived synthetic probe.
