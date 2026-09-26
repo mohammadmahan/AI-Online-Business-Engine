@@ -914,6 +914,58 @@ docs/
 > Phase 24 replaceability), memory writes never authority
 > (D-026/D-027), zero-leak redaction (D-114/D-124). **Nothing
 > installed, connected, or integrated.**
+> **Post-baseline work package — "Launch hardening & cutover" (2026-09-24..25,
+> D-143..D-153).** Security hardening of the publishing surface
+> (D-141 plan §24), Stage C sizing & target validation, Stage D
+> staging verification, cutover runbook, Stage F/G readiness (all
+> D-141), Stage H + D-142 exit foundation, then the launch chain:
+> Stage G acceptance closure with the immutable seal (D-152) and
+> **Stage H executed — D-153**
+> (commit `36066b6`): the fail-closed H-01..H-05 executor bound the
+> seal, the fresh Stage F owner token, and the pre-cutover
+> environment assertions into one activation with an immutable
+> record. Stage H is EXECUTED; the activation is a TECHNICAL GO,
+> not a production launch (D-139).
+>
+> **Post-baseline work package — "Dokploy Deployment Completion &
+> Live Wiring" (2026-09-25..26, ACTIVE; D-154, commit `eba88a1`).**
+> `dokploy.completion_attestation.v1` synthesized the full Stages
+> B–H track (1606/1606 ×2 across 70 modules) and transitioned the
+> program to Live Wiring. Six phases are now VERIFIED under the
+> fail-closed attestation recursion (each phase gates on the
+> previous attestation, canonical-bytes digest recompute matched
+> against its D-112 rooting row):
+> **Phase 5 — D-155** (`f2b6963`): PostgreSQL SSOT, Redis (PING
+> 28.6 ms, noeviction, isolated namespace), n8n dispatcher with the
+> D-027 idempotency drill — `phase5.live_wiring_attestation.v1`.
+> **Phase 6 — D-156** (`50e5855`): live Notion contract layer, the
+> four canonical databases schema-verified, non-destructive
+> create/replay/read/archive probe — `phase6.live_wiring_attestation.v1`.
+> **Phase 7 — D-157** (`2167f19`): verified runtime profile,
+> deterministic `ModelRouter` routing under hard caps, the
+> synthetic PM cycle over the real AI contracts ($0.00 mock
+> tariff) — `phase7.live_wiring_attestation.v1`.
+> **Phase 8 — D-158** (`8655c10`): Instagram Graph capability
+> profile (scopes, token margin, GraphUsageTracker envelope), the
+> container probe create→status→archive with NO publish ever —
+> `phase8.live_wiring_attestation.v1`.
+> **Phase 9 — D-159** (`f424595`): Telegram ingress sandbox (webhook
+> shared-secret proven both directions, D-074 RatePacer, reply
+> constructed never dispatched, zero outbound dispatch ever) —
+> `phase9.live_wiring_attestation.v1`.
+> **Phase 10 — D-160** (`d88325d`): Multi-channel Order
+> Orchestration in STRICT SANDBOX/DRY-RUN — the synthetic order
+> lifecycle through the real OMS stack (D-081 idempotency keys,
+> D-082 reservations released, PLACED→VALIDATED→CANCELLED), the
+> REAL D-083 fan-out boundary driven with durable receipts under
+> publisher-less binds and an ephemeral D-079 lock, zero payment
+> boundaries crossed — `phase10.live_wiring_attestation.v1`.
+> Battery 1870/1870 ×2 consecutive green across 76 modules.
+> **Every channel is verified, not opened**: production activation,
+> live external credentials, Iranian payment/shipping provider
+> selection (open decisions 10/11), and Phases 11–18 wiring remain
+> owner-gated (D-045/D-139, plan §17/§21).
+>
 
 ### Phase 0 --- Foundation
 
@@ -1122,15 +1174,19 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Phase 26 --- Launch Readiness & Controlled Activation
-(closed; launch candidate at technical GO, activation owner-gated)**
+Current phase: **Live Wiring Phase 11 --- Payment Gateway &
+Settlement Wiring (next ignition; D-160 just completed) --- the
+engine is a verified Launch Candidate with Stages A–H VERIFIED and
+Live Wiring Phases 5–10 VERIFIED/WIRED; production activation
+remains owner-gated (D-139)**
 
-Completed (Phases 0--26; per-phase detail in §13 and the
+Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
+and Live Wiring programs; per-phase detail in §13 and the
 `docs/phases/` specifications):
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-140, authority
+-   Canonical governance: decision ledger D-001--D-160, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock
@@ -1150,24 +1206,50 @@ Completed (Phases 0--26; per-phase detail in §13 and the
 -   Launch readiness: D-137 control matrix, D-138 fail-closed Go/No-Go
     attestation, D-139 controlled activation protocol (owner-gated),
     D-140 evidence battery (Phase 26)
+-   Launch hardening & cutover: D-143..D-153, ending with Stage G
+    acceptance closure (D-152, immutable seal) and the EXECUTED
+    Stage H cutover (D-153, commit `36066b6`) --- a technical GO
+    activation record, not a production launch
+-   Dokploy Deployment Integration: Stages A--H **VERIFIED and
+    COMPLETED** (D-141 program; completion attestation
+    `dokploy.completion_attestation.v1` under D-154, commit
+    `eba88a1`)
+-   Live Wiring Phases 5--10 **VERIFIED/WIRED** under the fail-closed
+    attestation recursion: Phase 5 data/queue/orchestration wiring
+    (D-155), Phase 6 Notion Business OS (D-156), Phase 7 AI Runtime
+    + Product Manager (D-157), Phase 8 Instagram Graph probe-only
+    (D-158), Phase 9 Telegram ingress sandbox (D-159), Phase 10
+    Multi-channel Order Orchestration dry-run (D-160, commit
+    `d88325d`); decision ledger current through D-160
 -   Disaster recovery closeout: D-125 verified-freeze compaction,
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Verified state at closeout (commit `8ed3574`): full battery
-**891/891 ×2 consecutive green, zero warnings**; canonical census
-T1=769 · T2=44 · T3=68 · T4=10 = 891 (36 modules); ladder 46/46;
-AST CLEAN (72 files) / entropy CLEAN (83 files); stack 5/5 healthy;
-launch attestation **GO** with both DR legs RECOVERED and 533 human
-decisions reconciled.
+Verified state at the D-159/D-160 boundary (commit `d88325d`):
+full battery **1870/1870 ×2 consecutive green across 76 modules**,
+zero skipped; every live-wiring battery runs its authentic upstream
+attestation chain (D-154 → … → D-160); engine-local stack 5/5
+healthy; attestation chain unrevoked (`dokploy.completion_attestation.v1`
+→ `phase5` … → `phase10.live_wiring_attestation.v1`). Every channel
+is verified, NOT opened: zero public publishing, zero outbound
+Telegram dispatch, zero payment boundaries crossed ever.
 
-Next milestone: **owner-authorized controlled activation** (D-139
-preflight → dry run → canary → observation → promotion) --- a
-separate, explicit, one-time owner decision; a technical GO is
-necessary but NOT sufficient. Provider selection for Iranian payment
-(open decision 10) and shipping (open decision 11) remains open and
-is required before payment-capture and shipping-purchase go-live.
+Next milestone: **Live Wiring Phase 11 --- Payment Gateway &
+Settlement Wiring** (dry-run settlement under the D-160 attestation;
+gateway adapter behind an injected transport, D-045 owner gate),
+then **owner-authorized controlled activation** (D-139 preflight →
+dry run → canary → observation → promotion) --- a separate, explicit,
+one-time owner decision; a technical GO is necessary but NOT
+sufficient. Provider selection for Iranian payment (open decision
+10) and shipping (open decision 11) remains open and is required
+before payment-capture and shipping-purchase go-live.
+
+Standing invariants (reaffirmed): fail-closed posture on every
+ignition path; local-first sandbox isolation (D-053); all
+production switches owner-gated (D-139/D-045); payment and shipping
+live providers UNSELECTED; release governance holds --- GitHub push
+is never production authorization.
 6.  Create DECISIONS.md.
 7.  Create TODO.md.
 8.  Create docs/.

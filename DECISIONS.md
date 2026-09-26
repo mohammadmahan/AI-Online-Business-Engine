@@ -4206,7 +4206,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   (key, nonce, canaries); AST audits (argv isolation, zero shell,
   bounded timeouts, pure core). Full regression 1568/1568 ×2
   consecutive green across 69 modules (1543 + 25, census
-  machine-reconciled identical).
+  machine-reconciled identical). Verification commit: `36066b6`.
 
 ## D-154 — Dokploy final deployment completion attestation & transition to live wiring
 
@@ -4295,7 +4295,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   key, canaries) with public commitments surviving; AST purity
   audits (no banned imports, no shell, no spawn calls). Full
   regression 1606/1606 ×2 consecutive green across 70 modules
-  (1568 + 38, census machine-reconciled identical).
+  (1568 + 38, census machine-reconciled identical). Verification
+  commit: `eba88a1`.
 
 ## D-155 — Phase 5 live wiring ignition & service connectivity verification
 
@@ -4365,7 +4366,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   over the authentic Stage C→H chain and the real D-154
   synthesizer; full regression 1644/1644 ×2 consecutive green
   across 71 modules (1606 + 38, census machine-reconciled
-  identical). Live run PHASE5_IGNITED (attestation digest
+  identical). Verification commit: `f2b6963`. Live run PHASE5_IGNITED (attestation digest
   `225e121c27d2579c…36637d616bc`) over the authentic certificate
   against the recovered engine-local stack.
 - **Boundaries preserved:** ignition evidence is not authority —
@@ -4443,7 +4444,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   redaction scrubs, AST purity) — the phase5 attestation built by
   the REAL D-155 igniter over the authentic Stage C→H chain; full
   regression 1686/1686 ×2 consecutive green across 72 modules
-  (1644 + 42, census machine-reconciled identical).
+  (1644 + 42, census machine-reconciled identical). Verification commit: `50e5855`.
 - **Boundaries preserved:** the workspace is verified, not
   migrated — real workspace data, live API credentials and
   Phases 7–18 wiring remain owner-gated (D-045/D-139, plan
@@ -4529,7 +4530,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   through the REAL `ModelRouter` + `MockAiProvider` +
   `ai_contracts`. Full regression 1731/1731 ×2 consecutive green
   across 73 modules (1686 + 45, census machine-reconciled
-  identical).
+  identical). Verification commit: `2167f19`.
 - **Boundaries preserved:** the runtime is proven, not deployed —
   real AI provider credentials (D-045 owner gate, register row 9),
   real publishing, and lifecycle promotion remain owner decisions
@@ -4621,7 +4622,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   `MockInstagramAdapter` + `poll_until_ready` +
   `validate_publish_payload`. Full regression 1776/1776 ×2
   consecutive green across 74 modules (1731 + 45, census
-  machine-reconciled identical).
+  machine-reconciled identical). Verification commit: `8655c10`.
 - **Boundaries preserved:** the channel is verified, not opened —
   zero public publishing ever (structurally refused), no live
   Instagram credentials exist or are requested (D-045/D-071 owner
@@ -4629,95 +4630,6 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   vault publishing path remains behind the owner's explicit
   activation decision (D-045/D-139, plan §17/§21.6). The only
   mutation is the archived synthetic probe container.
-
-## D-160 — Phase 10 live wiring ignition & Multi-channel Order Orchestration verification
-
-- **Status:** **Approved** (2026-09-26, owner-directed).
-- **Situation:** D-159 verified the Telegram sales/ingress surface
-  in sandbox mode, but the order pipeline itself — order creation,
-  D-027/D-081 idempotency locking, inventory soft-reservation,
-  state transitions and the notification fan-out boundary — was not
-  yet wired. Under D-045 / D-077 / D-078 / D-080 / D-081–D-084 /
-  D-114 / D-124 / D-139 / D-154 / D-159 / plan §17 / §21.8 the
-  sixth Live Wiring phase must verify Multi-channel Order
-  Orchestration in STRICT SANDBOX/DRY-RUN mode: no payment gateway
-  triggers, no production inventory deductions, no unverified order
-  confirmations, no cross-channel state mutations — the full order
-  lifecycle through the real offline OMS stack over scratch
-  transports.
-- **Decision:** adopt
-  `local/scripts/live_wiring_phase10_igniter.py`
-  (ORD-01..ORD-05, fail-closed, one audited
-  `phase10.live_wiring_attestation.v1` per run — aborts included —
-  with the SHA-256 `attestation_digest`). ORD-01 verifies the
-  phase9 attestation (schema, PHASE9_IGNITED, manifest binding,
-  canonical-bytes digest recompute MATCHING its D-112 rooting row
-  `phase9_live_wiring_attestation`, intact chain) BEFORE any order
-  processing — refusals leave the OMS stack untouched (factory
-  never invoked, proven across four failure classes). ORD-02
-  requires census `runtime_profile_verified` + Phases 5–9
-  present+VERIFIED+WIRED and the repo-real seams
-  (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts`
-  = ENTRY_POINTS[12], `canonical.oms_worker`,
-  `services.sync_engine`) consistent with the D-154 registry —
-  mismatch refuses as registry drift. ORD-03 proves the contracts
-  through the REAL validator: channel origin tagging
-  (telegram/instagram_dm/web_store), deterministic D-081 idempotency
-  keys (SHA-256 over client_order_id, no wall clock; identical
-  replay → skipped_duplicate; conflicting payload → IntegrityError),
-  IRR/IRT currency whitelist, strict-integer money (floats/negatives
-  refuse, D-114 ceiling), allowlist-gated discount codes with no
-  discount arithmetic in the D-081 money path, Class-A-only retries
-  ≤ 2, out-of-order state edges refused. ORD-04 runs the synthetic
-  multi-item lifecycle (place → replay-dedup → validate →
-  reserve → PLACED→VALIDATED→CANCELLED with full reservation
-  release) and drives the **REAL D-083 fan-out boundary**
-  (`FanOutEngine.route` + `.dispatch` over the shared scratch event
-  store) with **publisher-less binds** (`no_publisher_bound` —
-  structurally incapable of channel egress) under an **ephemeral
-  process-local D-079 lock**; the payment-boundary audit scans the
-  LIVE D-027 event records for gateway markers (any hit fails the
-  run); cleanup round-trips and deletes the data-minimized artifact
-  leaving zero scratch residue.
-- **D-079 lock hygiene (incident + fix):** the default fan-out lock
-  claims keys PERMANENTLY in live PostgreSQL
-  (`orchestration.fanout_lock`) or the shared
-  `local/volumes/orchestration/fanout_lock.json` — probe use of the
-  default lock would freeze future routings of the same key.
-  Recon probes claimed 2 PG rows during engine development; both
-  were purged (DELETE 2, keys matched exactly, the 4 pre-existing
-  rows untouched) before commit, and the engine now injects the
-  ephemeral lock. The battery asserts the probe never holds the PG
-  or JSON lock classes and that no probe key leaks into the shared
-  file.
-- **Suite-found reliability fix:** canonical shim modules insert
-  `local/canonical` onto `sys.path` at import time, which can make
-  the chain builders' bare `import tests.…` resolve to the legacy
-  `canonical/tests.py` module once heavy canonical modules load
-  first. All live-wiring chain builders (phase 6–10 batteries) now
-  evict the poisoned path entries and purge any shadowed legacy
-  `tests` module before their sibling import.
-- **Verification:** battery `test_live_wiring_phase10.py` 48/48 ×2
-  (phase9 attestation via the REAL D-159→D-158→D-157→D-156→D-155→
-  D-154 chain; the cycle through the REAL OMS engine, D-082
-  inventory and D-083 fan-out boundary); full regression 1870/1870
-  ×2 consecutive green across 76 modules (1822 + 48, per-chunk
-  counts identical, census reconciled). The battery runs from the
-  repository ROOT (`python3 -m unittest local.tests.…`) — the
-  `publishing.instagram` seam and several batteries import
-  `local.src.…` absolute paths that require the repo root on
-  sys.path (environment contract, not a regression).
-- **Boundaries preserved:** the order pipeline is verified, not
-  opened — zero payment boundaries crossed (markers-only
-  `payment_status`, no gateway field anywhere in the probe
-  surface), no production inventory touched (scratch-backed
-  reservations released before return), no live credentials exist
-  or are requested. The D-083 boundary is proven WITH durable
-  receipts so Phase 11 publishers plug into a verified surface.
-  Report `docs/deployment/phase-10-live-wiring-report.md`
-  (locking matrix, lifecycle trace: 36.25 ms cycle, 7 durable
-  receipts, Phase 11 handover). The only state change is the
-  scratch artifact (deleted before return).
 
 ## D-159 — Phase 9 live wiring ignition & Telegram Sales/Ingress verification
 
@@ -4808,7 +4720,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   phase8 attestation built by the REAL D-158 igniter over the
   authentic D-157→D-156→D-155→D-154 chain. Full regression
   1822/1822 ×2 consecutive green across 75 modules (1776 + 46,
-  census machine-reconciled identical).
+  census machine-reconciled identical). Verification commit: `f424595`.
 - **Boundaries preserved:** the conversational channel is verified,
   not opened — zero outbound dispatch ever (structurally refused,
   adapter log audited), no live Telegram credentials exist or are
@@ -4817,6 +4729,97 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   remains behind the owner's explicit activation decision
   (D-045/D-139, plan §17/§21.7). The only state change is the
   session store entry (deleted before return).
+
+## D-160 — Phase 10 live wiring ignition & Multi-channel Order Orchestration verification
+
+- **Status:** **Approved** (2026-09-26, owner-directed).
+- **Situation:** D-159 verified the Telegram sales/ingress surface
+  in sandbox mode, but the order pipeline itself — order creation,
+  D-027/D-081 idempotency locking, inventory soft-reservation,
+  state transitions and the notification fan-out boundary — was not
+  yet wired. Under D-045 / D-077 / D-078 / D-080 / D-081–D-084 /
+  D-114 / D-124 / D-139 / D-154 / D-159 / plan §17 / §21.8 the
+  sixth Live Wiring phase must verify Multi-channel Order
+  Orchestration in STRICT SANDBOX/DRY-RUN mode: no payment gateway
+  triggers, no production inventory deductions, no unverified order
+  confirmations, no cross-channel state mutations — the full order
+  lifecycle through the real offline OMS stack over scratch
+  transports.
+- **Decision:** adopt
+  `local/scripts/live_wiring_phase10_igniter.py`
+  (ORD-01..ORD-05, fail-closed, one audited
+  `phase10.live_wiring_attestation.v1` per run — aborts included —
+  with the SHA-256 `attestation_digest`). ORD-01 verifies the
+  phase9 attestation (schema, PHASE9_IGNITED, manifest binding,
+  canonical-bytes digest recompute MATCHING its D-112 rooting row
+  `phase9_live_wiring_attestation`, intact chain) BEFORE any order
+  processing — refusals leave the OMS stack untouched (factory
+  never invoked, proven across four failure classes). ORD-02
+  requires census `runtime_profile_verified` + Phases 5–9
+  present+VERIFIED+WIRED and the repo-real seams
+  (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts`
+  = ENTRY_POINTS[12], `canonical.oms_worker`,
+  `services.sync_engine`) consistent with the D-154 registry —
+  mismatch refuses as registry drift. ORD-03 proves the contracts
+  through the REAL validator: channel origin tagging
+  (telegram/instagram_dm/web_store), deterministic D-081 idempotency
+  keys (SHA-256 over client_order_id, no wall clock; identical
+  replay → skipped_duplicate; conflicting payload → IntegrityError),
+  IRR/IRT currency whitelist, strict-integer money (floats/negatives
+  refuse, D-114 ceiling), allowlist-gated discount codes with no
+  discount arithmetic in the D-081 money path, Class-A-only retries
+  ≤ 2, out-of-order state edges refused. ORD-04 runs the synthetic
+  multi-item lifecycle (place → replay-dedup → validate →
+  reserve → PLACED→VALIDATED→CANCELLED with full reservation
+  release) and drives the **REAL D-083 fan-out boundary**
+  (`FanOutEngine.route` + `.dispatch` over the shared scratch event
+  store) with **publisher-less binds** (`no_publisher_bound` —
+  structurally incapable of channel egress) under an **ephemeral
+  process-local D-079 lock**; the payment-boundary audit scans the
+  LIVE D-027 event records for gateway markers (any hit fails the
+  run); cleanup round-trips and deletes the data-minimized artifact
+  leaving zero scratch residue.
+- **D-079 lock hygiene (incident + fix):** the default fan-out lock
+  claims keys PERMANENTLY in live PostgreSQL
+  (`orchestration.fanout_lock`) or the shared
+  `local/volumes/orchestration/fanout_lock.json` — probe use of the
+  default lock would freeze future routings of the same key.
+  Recon probes claimed 2 PG rows during engine development; both
+  were purged (DELETE 2, keys matched exactly, the 4 pre-existing
+  rows untouched) before commit, and the engine now injects the
+  ephemeral lock. The battery asserts the probe never holds the PG
+  or JSON lock classes and that no probe key leaks into the shared
+  file.
+- **Suite-found reliability fix:** canonical shim modules insert
+  `local/canonical` onto `sys.path` at import time, which can make
+  the chain builders' bare `import tests.…` resolve to the legacy
+  `canonical/tests.py` module once heavy canonical modules load
+  first. All live-wiring chain builders (phase 6–10 batteries) now
+  evict the poisoned path entries and purge any shadowed legacy
+  `tests` module before their sibling import.
+- **Verification:** battery `test_live_wiring_phase10.py` 48/48 ×2
+  (phase9 attestation via the REAL D-159→D-158→D-157→D-156→D-155→
+  D-154 chain; the cycle through the REAL OMS engine, D-082
+  inventory and D-083 fan-out boundary); full regression 1870/1870
+  ×2 consecutive green across 76 modules (1822 + 48, per-chunk
+  counts identical, census reconciled). Verification commit:
+  `d88325d`. The battery runs from the repository ROOT (`python3 -m
+  unittest local.tests.…`) — the
+  `publishing.instagram` seam and several batteries import
+  `local.src.…` absolute paths that require the repo root on
+  sys.path (environment contract, not a regression).
+- **Boundaries preserved:** the order pipeline is verified, not
+  opened — zero payment boundaries crossed (markers-only
+  `payment_status`, no gateway field anywhere in the probe
+  surface), no production inventory touched (scratch-backed
+  reservations released before return), no live credentials exist
+  or are requested. The D-083 boundary is proven WITH durable
+  receipts so Phase 11 publishers plug into a verified surface.
+  Report `docs/deployment/phase-10-live-wiring-report.md`
+  (locking matrix, lifecycle trace: 36.25 ms cycle, 7 durable
+  receipts, Phase 11 handover). The only state change is the
+  scratch artifact (deleted before return).
+
 
 ## D-112 — Operator audit ledger and cryptographic verification
 

@@ -30,7 +30,7 @@ Status: **Complete** (foundation committed in `e6d85ca`); scope in
       valid, Definition of Done checked per file
 - [x] Commit the foundation (explicit human approval; commit `e6d85ca`)
 
-## Phase 2 — Product Data System (current)
+## Phase 2 — Product Data System (closed)
 
 Scope from MASTER_PLAN §13: product/variant model, SKU, taxonomy,
 media, validation, import/export, Excel import preparation. Decisions
@@ -118,7 +118,7 @@ Standing constraints (always apply):
 - No major architectural decisions outside `DECISIONS.md` (STOP →
   EXPLAIN → APPROVAL).
 
-## Phase 2.5 — Business Data Configuration (current)
+## Phase 2.5 — Business Data Configuration (closed)
 
 Owner-approved configuration on top of the closed Phase 2 decision
 set (specification/configuration only — no implementation). Scope and
@@ -175,7 +175,7 @@ values in `docs/phases/phase-02-5-business-data-configuration.md`.
       decisions; D-019/D-029 governance)
 - [ ] Phase 3+ integration decisions (blocked until their phase)
 
-## Phase 3 — WooCommerce Foundation (current)
+## Phase 3 — WooCommerce Foundation (closed)
 
 Scope from MASTER_PLAN §13: WooCommerce foundation. The owner opened
 Phase 3 (2026-09-12); Batch 1 is the complete **design/specification
@@ -556,6 +556,71 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       and `local/scripts/validate_n8n_live.py` (offline + live modes;
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
+
+## Active Phase — Live Wiring Phase 10: Multi-channel Order
+Orchestration (D-160) — IN PROGRESS
+
+Reality check (2026-09-26, this reconciliation): the D-160 engine,
+battery and governance were **landed in commit `d88325d`**
+(`phase10.live_wiring_attestation.v1`, battery 48/48 ×2, full
+regression 1870/1870 ×2 across 76 modules). The items below are the
+phase's standing execution checklist — kept open until the owner
+reviews the completion record; remaining operational follow-ups are
+marked.
+
+- [x] Upstream attestation verification — ORD-01 recomputes the
+      `phase9.live_wiring_attestation.v1` canonical bytes and matches
+      the D-112 rooting row `phase9_live_wiring_attestation` BEFORE
+      any order processing (zero-OMS-call proof across four failure
+      classes)
+- [x] Order contract seams asserted against the repo and the D-154
+      registry — `canonical.oms_engine` (ENTRY_POINTS[11]),
+      `canonical.oms_contracts` (ENTRY_POINTS[12]),
+      `canonical.oms_worker`, `services.sync_engine` (the task
+      brief's `canonical.order_orchestration` name does not exist in
+      the repo; the registry binds the real modules)
+- [x] Idempotency locking rules — deterministic D-081 keys
+      (SHA-256 over client_order_id), identical replay →
+      `skipped_duplicate`, conflicting payload → `IntegrityError`,
+      IRR/IRT currency whitelist, strict-integer money with the
+      D-114 ceiling, allowlist-gated discount codes
+- [x] Synthetic dry-run lifecycle — place → replay-dedup → validate
+      → D-082 reserve → PLACED→VALIDATED→CANCELLED with full
+      reservation release; the REAL D-083 fan-out boundary driven
+      with durable receipts under publisher-less binds and an
+      ephemeral D-079 lock; payment-boundary audit over the LIVE
+      D-027 records; zero-residue cleanup
+- [x] Attestation emission — canonical `phase10.live_wiring_attestation.v1`
+      with SHA-256 `attestation_digest`, exactly once per run
+      (aborts included)
+- [x] Test battery — `local/tests/test_live_wiring_phase10.py`
+      48/48 ×2 over the authentic D-159→…→D-154 chain; full
+      regression 1870/1870 ×2 across 76 modules
+- [ ] Owner review of the D-160 completion record (attestation
+      digest `564508fe…`, commit `d88325d`) — closes the phase
+- [ ] Probe-safe fan-out locking in the canonical layer (fold the
+      ephemeral D-079 lock into `FanOutEngine` as a probe mode) —
+      prevents future probe authors repeating the
+      default-lock-claims-PG incident
+
+## Forward previews
+
+- [ ] Live Wiring Phase 11 — Payment Gateway & Settlement Wiring:
+      gateway adapter behind an injected transport (D-045 owner
+      gate), zero live-charge capability in probe mode, settlement
+      idempotency keyed on the D-081 `client_order_id` lock,
+      settlement receipts recorded into the D-084 fulfillment
+      surface
+- [ ] Live Wiring Phases 12–18 — per `dokploy-plan.md` and the
+      D-154 transition: remaining channels, analytics, scheduling,
+      analyst, HITL service wiring under the same fail-closed
+      attestation recursion
+- [ ] Owner-authorized controlled activation (D-139 preflight →
+      dry run → canary → observation → promotion) — a separate,
+      explicit, one-time owner decision; Iranian payment provider
+      (open decision 10) and shipping provider (open decision 11)
+      must be selected before payment-capture and shipping-purchase
+      go-live
 
 ## Blocked / do-not-start
 
@@ -1202,6 +1267,38 @@ these even if they seem helpful:
       credentials exist or are requested (D-045/D-071 owner gate);
       the only mutation is the archived synthetic probe
       container.**
+- [x] Phase 9 (Live Wiring) — Ignition & Telegram Sales/Ingress
+      Verification — **COMPLETE (2026-09-26; D-159 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase9_igniter.py`
+      (TG-01..TG-05 fail-closed, STRICT SANDBOX-INGRESS — the
+      phase8 attestation digest-recomputed AND matched against its
+      D-112 rooting row BEFORE any adapter call (zero-adapter-call
+      proof); census Phases 5+6+7+8 VERIFIED/WIRED + the four
+      repo-real Telegram seams consistent with the D-154
+      ENTRY_POINTS registry; security profile with bot-token
+      format validation, the webhook shared-secret mechanism
+      PROVEN both directions through the REAL constant-time
+      verifier, and the REAL D-074 RatePacer pacing a per-chat
+      burst; the sandbox conversational sales cycle through the
+      REAL webhook path (parse_update dropping profile metadata,
+      TelegramIngress D-027 dedup) with deterministic intent
+      extraction, the reply from the REAL Phase 7 ModelRouter
+      CONSTRUCTED but NEVER dispatched, namespaced
+      collision-refusing session persistence, adapter-log audit
+      (ANY send = SAFETY VIOLATION refusal) and mandatory cleanup;
+      canonical `phase9.live_wiring_attestation.v1` emitted
+      exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-9-live-wiring-report.md` (security
+      matrix, sales-flow trace, guardrails, Phase 10 handover) +
+      `test_live_wiring_phase9.py` 46/46 ×2 with the phase8
+      attestation built by the REAL D-158→D-157→D-156→D-155→D-154
+      chain, full battery 1822/1822 ×2 zero-skip across 75
+      modules. **The conversational channel is verified, not
+      opened — zero outbound dispatch ever (structurally refused),
+      no live Telegram credentials exist or are requested
+      (D-045/D-075 owner gate); the only state change is the
+      session store entry (deleted before return).**
 - [x] Phase 10 (Live Wiring) — Ignition & Multi-channel Order
       Orchestration Verification — **COMPLETE (2026-09-26; D-160
       Approved, owner-directed)**:
@@ -1241,38 +1338,6 @@ these even if they seem helpful:
       credentials exist or are requested (D-045/D-139 owner gate);
       the only state change is the scratch artifact (deleted
       before return).**
-- [x] Phase 9 (Live Wiring) — Ignition & Telegram Sales/Ingress
-      Verification — **COMPLETE (2026-09-26; D-159 Approved,
-      owner-directed)**:
-      `local/scripts/live_wiring_phase9_igniter.py`
-      (TG-01..TG-05 fail-closed, STRICT SANDBOX-INGRESS — the
-      phase8 attestation digest-recomputed AND matched against its
-      D-112 rooting row BEFORE any adapter call (zero-adapter-call
-      proof); census Phases 5+6+7+8 VERIFIED/WIRED + the four
-      repo-real Telegram seams consistent with the D-154
-      ENTRY_POINTS registry; security profile with bot-token
-      format validation, the webhook shared-secret mechanism
-      PROVEN both directions through the REAL constant-time
-      verifier, and the REAL D-074 RatePacer pacing a per-chat
-      burst; the sandbox conversational sales cycle through the
-      REAL webhook path (parse_update dropping profile metadata,
-      TelegramIngress D-027 dedup) with deterministic intent
-      extraction, the reply from the REAL Phase 7 ModelRouter
-      CONSTRUCTED but NEVER dispatched, namespaced
-      collision-refusing session persistence, adapter-log audit
-      (ANY send = SAFETY VIOLATION refusal) and mandatory cleanup;
-      canonical `phase9.live_wiring_attestation.v1` emitted
-      exactly once per run INCLUDING aborts) +
-      `docs/deployment/phase-9-live-wiring-report.md` (security
-      matrix, sales-flow trace, guardrails, Phase 10 handover) +
-      `test_live_wiring_phase9.py` 46/46 ×2 with the phase8
-      attestation built by the REAL D-158→D-157→D-156→D-155→D-154
-      chain, full battery 1822/1822 ×2 zero-skip across 75
-      modules. **The conversational channel is verified, not
-      opened — zero outbound dispatch ever (structurally refused),
-      no live Telegram credentials exist or are requested
-      (D-045/D-075 owner gate); the only state change is the
-      session store entry (deleted before return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
