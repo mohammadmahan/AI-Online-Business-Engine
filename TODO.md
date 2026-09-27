@@ -557,60 +557,63 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 10: Multi-channel Order
-Orchestration (D-160) — IN PROGRESS
+## Active Phase — Live Wiring Phase 11: Payment Gateway &
+Settlement Verification (D-161) — COMPLETE (owner review pending)
 
-Reality check (2026-09-26, this reconciliation): the D-160 engine,
-battery and governance were **landed in commit `d88325d`**
-(`phase10.live_wiring_attestation.v1`, battery 48/48 ×2, full
-regression 1870/1870 ×2 across 76 modules). The items below are the
-phase's standing execution checklist — kept open until the owner
-reviews the completion record; remaining operational follow-ups are
-marked.
+Reality check (2026-09-27, this reconciliation): the D-161 engine,
+battery, report and governance were **landed in commit `d284dd9`**
+(`phase11.payment_wiring_attestation.v1`, battery 42/42 ×2, full
+regression 1912/1912 ×2 across 77 modules); governance hashes and the
+status timeline were synced in the follow-up docs commit. The items
+below are the phase's standing execution checklist — kept open until
+the owner reviews the completion record; remaining operational
+follow-ups are marked. Phase 10 (D-160) stays closed at
+owner-review-pending (digest `564508fe…`, commit `d88325d`).
 
-- [x] Upstream attestation verification — ORD-01 recomputes the
-      `phase9.live_wiring_attestation.v1` canonical bytes and matches
-      the D-112 rooting row `phase9_live_wiring_attestation` BEFORE
-      any order processing (zero-OMS-call proof across four failure
-      classes)
-- [x] Order contract seams asserted against the repo and the D-154
-      registry — `canonical.oms_engine` (ENTRY_POINTS[11]),
+- [x] Upstream attestation verification — SET-01 recomputes the
+      `phase10.live_wiring_attestation.v1` canonical bytes and matches
+      the D-112 rooting row `phase10_live_wiring_attestation` BEFORE
+      any gateway call (refusals never construct the gateway or
+      allocate the OMS stack)
+- [x] Seams asserted against the repo and the D-154 registry —
+      `canonical.oms_engine` (ENTRY_POINTS[11]),
       `canonical.oms_contracts` (ENTRY_POINTS[12]),
-      `canonical.oms_worker`, `services.sync_engine` (the task
-      brief's `canonical.order_orchestration` name does not exist in
-      the repo; the registry binds the real modules)
-- [x] Idempotency locking rules — deterministic D-081 keys
-      (SHA-256 over client_order_id), identical replay →
-      `skipped_duplicate`, conflicting payload → `IntegrityError`,
-      IRR/IRT currency whitelist, strict-integer money with the
-      D-114 ceiling, allowlist-gated discount codes
-- [x] Synthetic dry-run lifecycle — place → replay-dedup → validate
-      → D-082 reserve → PLACED→VALIDATED→CANCELLED with full
-      reservation release; the REAL D-083 fan-out boundary driven
-      with durable receipts under publisher-less binds and an
-      ephemeral D-079 lock; payment-boundary audit over the LIVE
-      D-027 records; zero-residue cleanup
-- [x] Attestation emission — canonical `phase10.live_wiring_attestation.v1`
+      `canonical.orchestration_engine` (ENTRY_POINTS[13]),
+      `services.sync_engine`; census Phases 5–10 VERIFIED/WIRED
+- [x] Gateway capability cap + settlement money rules —
+      `GATEWAY_CAPS = ("sandbox", "dry_run", "status_query")` with
+      live_charge/unknown caps refused (the charge path is
+      structurally unreachable in probe mode); deterministic SHA-256
+      `settlement_key(client_order_id, gateway, amount)`;
+      strict-integer money ≥ 1 under the D-114 ceiling; injected
+      timeout/partition/decline faults fail CLOSED
+- [x] Dry-run settlement cycle — sandbox charge exactly once;
+      D-027 settlement idempotency both directions (identical replay
+      → `skipped_duplicate`, forged payload → `IntegrityError`);
+      PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084
+      fulfillment receipt INSIDE the COMPLETED transition ref
+      (receipt-once proven over the succeeded refs; a second
+      COMPLETED is refused); settlement event through the REAL
+      FanOutEngine with publisher-less binds under an EPHEMERAL D-079
+      lock; money-marker sweep over the LIVE store records plus
+      `charge_calls == 1`; zero-residue cleanup
+- [x] Attestation emission — canonical `phase11.payment_wiring_attestation.v1`
       with SHA-256 `attestation_digest`, exactly once per run
       (aborts included)
-- [x] Test battery — `local/tests/test_live_wiring_phase10.py`
-      48/48 ×2 over the authentic D-159→…→D-154 chain; full
-      regression 1870/1870 ×2 across 76 modules
-- [ ] Owner review of the D-160 completion record (attestation
-      digest `564508fe…`, commit `d88325d`) — closes the phase
+- [x] Test battery — `local/tests/test_live_wiring_phase11.py`
+      42/42 ×2 over the authentic D-160→…→D-154 chain; full
+      regression 1912/1912 ×2 across 77 modules; suite-found fix:
+      upstream kwarg renamed `phase10_provider` → `upstream_provider`
+      to stay clear of the phase-20 entropy sweep
+- [ ] Owner review of the D-161 completion record (attestation
+      digest `9339be7d…`, commit `d284dd9`) — closes the phase
 - [ ] Probe-safe fan-out locking in the canonical layer (fold the
       ephemeral D-079 lock into `FanOutEngine` as a probe mode) —
       prevents future probe authors repeating the
-      default-lock-claims-PG incident
+      default-lock-claims-PG incident (carried over from Phase 10)
 
 ## Forward previews
 
-- [ ] Live Wiring Phase 11 — Payment Gateway & Settlement Wiring:
-      gateway adapter behind an injected transport (D-045 owner
-      gate), zero live-charge capability in probe mode, settlement
-      idempotency keyed on the D-081 `client_order_id` lock,
-      settlement receipts recorded into the D-084 fulfillment
-      surface
 - [ ] Live Wiring Phases 12–18 — per `dokploy-plan.md` and the
       D-154 transition: remaining channels, analytics, scheduling,
       analyst, HITL service wiring under the same fail-closed

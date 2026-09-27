@@ -4888,7 +4888,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   settlement cycle through the REAL OMS engine, D-027 idempotency store
   and D-083 fan-out boundary); full regression 1912/1912 ×2 consecutive
   green across 77 modules (1870 + 42, per-chunk counts identical,
-  census reconciled). The battery runs from the repository ROOT
+  census reconciled). Verification commit: `d284dd9`. The battery runs
+  from the repository ROOT
   (`python3 -m unittest local.tests.…`) — environment contract.
 - **Boundaries preserved:** the settlement surface is verified, not
   opened — zero real money movement, the sandbox gateway holds no
