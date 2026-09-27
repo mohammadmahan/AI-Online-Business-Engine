@@ -633,13 +633,12 @@ closed at owner-review-pending.
 
 ## Forward previews
 
-- [ ] Live Wiring Phases 16–18 — registry slots 17–18 (AI Business
-      Analyst `canonical.analyst_engine`, HITL service wiring
-      `canonical.ai_hitl_service`) under the same fail-closed
-      attestation recursion, then the program-level completion
-      reconciliation; slot 14 closed CRM-not-needed (D-163), slot 15
-      ignited as Phase 14 (D-164), slot 16 ignited as Phase 15
-      (D-165)
+- [ ] Live Wiring Phase 17 — registry slot 18 (HITL service wiring
+      `canonical.ai_hitl_service` — the final ignition) under the
+      same fail-closed attestation recursion, then the program-level
+      completion reconciliation; slot 14 closed CRM-not-needed
+      (D-163), slot 15 ignited as Phase 14 (D-164), slot 16 as
+      Phase 15 (D-165), slot 17 as Phase 16 (D-166)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1560,6 +1559,54 @@ these even if they seem helpful:
       platform, no vendor imports, no wall clock, no durable
       footprint (D-045/D-085/D-087/D-139 owner gates); the only
       state change is the scratch artifact (deleted before
+      return).**
+- [x] Live Wiring Phase 16 — Ignition & Analyst Service
+      Verification (registry slot 17) — **COMPLETE (2026-09-27;
+      D-166 Approved, owner-directed)**:
+      `local/scripts/live_wiring_phase16_igniter.py`
+      (ANL-01..ANL-05 fail-closed, STRICT DRY-RUN — the phase15
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any engine call (zero-engine-call proof);
+      census Phases 5–12 + 14 + 15 VERIFIED/WIRED (slot 14/CRM not a
+      census row — D-163) + five repo-real seams
+      (`canonical.analyst_engine` = ENTRY_POINTS[17] "AI Business
+      Analyst" per the D-154 cross-walk, `analyst_contracts`,
+      `analyst_worker`, `analytics_engine` = ENTRY_POINTS[16],
+      `services.sync_engine`) consistent with the D-154 registry
+      (slot-17 cross-walk binding re-asserted defense-in-depth); the
+      analyst contracts enforced through the REAL validator (10
+      invalid-request classes with named reasons — D-102/D-114;
+      deterministic SHA-256 insight identity over (category, sorted
+      correlation_keys, sorted metric_refs); the lifecycle edge
+      matrix closed with terminals exitless; the D-104 HITL boundary
+      structural — HIGH/CRITICAL severity or a state-mutating
+      payload is non-auto-acceptable BY CONSTRUCTION); the synthetic
+      four-insight cycle over the REAL AnalystEngine on the REAL
+      D-027 store with an INJECTED PURE evaluator (no LLM SDK, no
+      data lake, mock D-142-shaped fixtures) — evidence-keyed dedup
+      (identical evidence ⇒ durable DUPLICATE with a dedup audit row
+      regardless of the incidental insight_id), pure evaluation
+      applied durably (double evaluation refuses), the D-104
+      boundary driven both ways (HIGH auto-accept structurally
+      refused → HITL dispatch; LOW auto-accepted; state-mutating LOW
+      refused), supersede from the HITL queue with terminal
+      exitless, the durable rationale rebuilt from D-027 events
+      alone (generated → evaluated → dispatched → superseded), 4
+      invalid requests refused with ZERO durable rows added,
+      sandbox-marker sweep, zero-residue cleanup; `_EphemeralVault`
+      injected with a by-class refusal of any non-ephemeral vault at
+      VERIFY; canonical `phase16.analyst_wiring_attestation.v1`
+      emitted exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-16-live-wiring-report.md` (contracts/
+      boundary matrix, analyst trace, guardrails, Phase 17 handover)
+      + `test_live_wiring_phase16.py` 44/44 ×2 with the phase15
+      attestation built by the REAL D-165→…→D-154 chain, full
+      battery 2087/2087 ×2 zero-skip across 81 modules. **The
+      analyst surface is verified, not opened — insights reach
+      DISPATCHED_TO_HITL but no HITL service is wired yet (Phase 17
+      ignites exactly that edge); zero LLM/lake contact, zero
+      durable footprint (D-045/D-101–D-104/D-139 owner gates); the
+      only state change is the scratch artifact (deleted before
       return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,

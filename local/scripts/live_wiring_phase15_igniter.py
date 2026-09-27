@@ -90,7 +90,8 @@ __all__ = [
     "Phase15Error", "Phase15Attestation", "Phase15Igniter",
     "_EphemeralCursorStore", "ATTESTATION_SCHEMA", "PHASE15_IGNITED",
     "PHASE15_INCOMPLETE", "PHASE14_SCHEMA", "PHASE14_IGNITED",
-    "PHASE14_ROW_KIND", "SEAMS", "SEAM_PHASES", "CYCLE_ID",
+    "PHASE14_ROW_KIND", "PHASE15_ROW_KIND", "SEAMS", "SEAM_PHASES",
+    "CYCLE_ID",
     "SYNTHETIC_STREAM", "canonical_hash",
 ]
 
@@ -103,6 +104,9 @@ PHASE14_IGNITED = "PHASE14_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 14 attestation (D-164).
 PHASE14_ROW_KIND = "phase14_scheduling_wiring_attestation"
+
+# The D-112 ledger kind that roots the Phase 15 attestation (D-165).
+PHASE15_ROW_KIND = "phase15_analytics_wiring_attestation"
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
