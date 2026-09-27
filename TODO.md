@@ -557,17 +557,18 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 17: Notification Engine
-Verification (D-167) — COMPLETE (owner review pending)
+## Active Phase — Live Wiring Phase 18: HITL Service Ignition
+(registry slot 18, D-168) — COMPLETE — **THE FINAL REGISTRY IGNITION**
+(owner review pending)
 
-Registry note: the phase tasking named "slot 18 = notification
-engine", but the D-154 cross-walk binds slot 18 to
-`canonical.ai_hitl_service` (HITL) and the notification surface
-carries no dedicated registry slot. Following the D-160 precedent,
-the notification engine was verified exactly as asked while slot 18
-was NOT reassigned — NTF-02 asserts the slot-18 registry fact against
-the live D-154 `ENTRY_POINTS` and refuses on drift. The slot-18 (HITL)
-ignition remains its own future phase (see Forward previews).
+Registry note: slot 18 = `canonical.ai_hitl_service` per the D-154
+cross-walk — the exact fact Phase 17 asserted while verifying the
+notification surface WITHOUT taking the slot (D-160 precedent).
+Phase 18 ignites exactly that binding: slot 18 is TAKEN, and with it
+every registry slot is dispositioned — slots 5–13 and 15–17
+VERIFIED/WIRED (D-155–D-166), slot 14 closed CRM-not-needed (D-163),
+slot 18 ignited (D-168). The Live Wiring program-level completion
+reconciliation is the next milestone (see Forward previews).
 
 Reality check (2026-09-27, this reconciliation): the D-163
 disposition and the D-164 engine, battery, report and governance
@@ -578,8 +579,8 @@ the status timeline were synced in the follow-up docs commit. The
 items below are the phase's standing execution checklist — kept open
 until the owner reviews the completion record. Phases 10 (D-160,
 `d88325d`), 11 (D-161, `d284dd9`), 12 (D-162, `2218702`), 14
-(`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`) and 17 (this phase) stay
-closed at owner-review-pending.
+(`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`), 17 (`ccba01f`) and 18
+(this phase) stay closed at owner-review-pending.
 
 - [x] D-163 — the CRM-not-needed conditional formally resolved
       NEGATIVE with the pillar-sufficiency evidence (WooCommerce
@@ -642,18 +643,19 @@ closed at owner-review-pending.
 
 ## Forward previews
 
-- [ ] Live Wiring Phase 18 — registry slot 18 (HITL service ignition
-      `canonical.ai_hitl_service` — the final ignition) under the
-      same fail-closed attestation recursion, then the program-level
-      completion reconciliation; slot 14 closed CRM-not-needed
-      (D-163), slot 15 ignited as Phase 14 (D-164), slot 16 as
-      Phase 15 (D-165), slot 17 as Phase 16 (D-166); Phase 17
-      verified the notification engine WITHOUT taking slot 18 (the
-      D-154 binding to HITL was asserted, not reassigned — D-167
-      registry-deviation record); the natural HITL seam is the
-      DLQ→review materialization edge (D-028/D-050) where dispatched
-      analyst insights (D-166) and admitted DLQ items (D-091) meet
-      `canonical.ai_hitl_service`
+- [ ] Live Wiring program-level completion reconciliation — every
+      registry slot is now dispositioned (slots 5–13 and 15–17
+      VERIFIED/WIRED, slot 14 closed CRM-not-needed per D-163, slot
+      18 TAKEN by the HITL ignition per D-168): re-verify the full
+      attestation chain D-154 → … → D-168 against the D-154
+      certificate, reconcile the all-slot census, and record the
+      program completion decision — then the standing owner gates:
+      owner-authorized controlled activation (D-139 preflight → dry
+      run → canary → observation → promotion; Iranian payment
+      provider (open decision 10) and shipping provider (open
+      decision 11) must be selected before payment-capture and
+      shipping-purchase go-live), and owner review of the Phase
+      14–18 completion records (D-164–D-168)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1631,6 +1633,66 @@ these even if they seem helpful:
       egress, zero durable footprint (D-045/D-079/D-089–D-092 owner
       gates); the only state change is the scratch artifact (deleted
       before return).**
+- [x] Live Wiring Phase 18 — HITL Service Ignition (registry
+      slot 18 TAKEN — the final ignition) — **COMPLETE (2026-09-27;
+      D-168)**:
+      `local/scripts/live_wiring_phase18_igniter.py`
+      (HIT-01..HIT-05 fail-closed, STRICT DRY-RUN — the phase17
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any engine call (zero-engine-call proof);
+      census Phases 5–12 + 14 + 15 + 16 + 17 VERIFIED/WIRED (slot
+      14/CRM not a census row — D-163) + four repo-real seams with
+      THE LOAD-BEARING SLOT-18 PIN
+      (`canonical.ai_hitl_service` = ENTRY_POINTS[18] per the D-154
+      cross-walk — the binding Phase 17 asserted, now taken; drift,
+      absence or reassignment refuses); the HITL contracts enforced
+      through the REAL validators (D-105/D-108: ticket-shape gate
+      fail-closed — missing fields, illegal queue/role vocabularies,
+      CLAIMED-without-reviewer, PENDING-with-reviewer, D-114 bounds;
+      ReviewAction gate fail-closed — EXPIRED is NEVER a reviewer
+      action (sweep-only), MODIFIED requires a payload_override
+      dict, payload_override invalid otherwise, role:/agent: mock
+      actor refs only, D-114 feedback bounds; the lifecycle edge
+      matrix closed with terminals exitless; the deterministic
+      escalation ladder any→ops→owner→escalation); the synthetic
+      five-ticket review cycle over the REAL HitlEngine
+      (D-105/D-106/D-108) on the REAL D-027 store with the EPHEMERAL
+      in-process vault and NO reviewer-notification channel bound —
+      analyst-boundary ingestion (the D-166/D-167 handover edge:
+      DISPATCHED_TO_HITL insights → INSIGHT_REVIEW, idempotent via
+      `analyst:{insight_key}`) → atomic claim discipline (wrong role
+      refused, exactly one claimant wins, second claimant loses) →
+      human-only resolutions (APPROVED; MODIFIED with durable
+      payload_override; a re-resolve refuses; an EXPIRED reviewer
+      action is Class-B) → the escalation LOOP (ESCALATED with the
+      deterministic role elevation, a fresh elevated PENDING child
+      re-queued idempotently, resolved under the elevated role) →
+      the deterministic expiration sweep (EXPIRED reachable ONLY
+      from the injected logical-clock sweep) → 5 malformed payloads
+      refused Class-B with ZERO durable rows and the open-ticket
+      registry unchanged → the D-108 tamper-evident chains verified
+      per ticket (4 resolutions + 1 expiry) → egress-marker sweep
+      clean, the store carrying ONLY `hitl::` rows; zero-residue
+      cleanup; `_EphemeralHitlVault` injected (the D-079 hazard —
+      the default vault claims rows in live PG or the shared
+      `local/volumes/hitl` — bypassed) with a by-class FAIL-CLOSED
+      refusal of any durable vault at VERIFY (battery-proven with a
+      fully functional file-backed vault); canonical
+      `phase18.hitl_wiring_attestation.v1` emitted exactly once per
+      run INCLUDING aborts; digest `0026f4c94a11872a…` byte-stable,
+      phase17 digest `048952dc…` bound) +
+      `docs/deployment/phase-18-live-wiring-report.md` (contracts/
+      policy matrix, review trace, program-completion boundary) +
+      `test_live_wiring_phase18.py` 44/44 ×2 with the phase17
+      attestation built by the REAL D-167→…→D-154 chain, full
+      battery 2175/2175 ×2 zero-skip across 83 modules. **The HITL
+      surface is ignited, not opened — tickets, claims, decisions
+      and the tamper-evident ledger are durable in dry-run; no
+      human-notification or dashboard emitter exists and none may be
+      bound until an owner-gated phase explicitly injects one; zero
+      reviewer signals, zero durable footprint (D-045/D-079/
+      D-105–D-108 owner gates); the only state change is the scratch
+      artifact (deleted before return).**
 - [x] Live Wiring Phase 16 — Ignition & Analyst Service
       Verification (registry slot 17) — **COMPLETE (2026-09-27;
       D-166 Approved, owner-directed)**:

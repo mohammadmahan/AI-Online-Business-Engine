@@ -110,8 +110,9 @@ __all__ = [
     "Phase17Error", "Phase17Attestation", "Phase17Igniter",
     "_EphemeralNotificationLocks", "ATTESTATION_SCHEMA",
     "PHASE17_IGNITED", "PHASE17_INCOMPLETE", "PHASE16_SCHEMA",
-    "PHASE16_IGNITED", "PHASE16_ROW_KIND", "SLOT18_REGISTRY_FACT",
-    "SEAMS", "SEAM_PHASES", "CYCLE_ID", "PROBE_EVENT", "canonical_hash",
+    "PHASE16_IGNITED", "PHASE16_ROW_KIND", "PHASE17_ROW_KIND",
+    "SLOT18_REGISTRY_FACT", "SEAMS", "SEAM_PHASES", "CYCLE_ID",
+    "PROBE_EVENT", "canonical_hash",
 ]
 
 ATTESTATION_SCHEMA = "phase17.notification_wiring_attestation.v1"
@@ -123,6 +124,9 @@ PHASE16_IGNITED = "PHASE16_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 16 attestation (D-166).
 PHASE16_ROW_KIND = "phase16_analyst_wiring_attestation"
+
+# The D-112 ledger kind that roots the Phase 17 attestation (D-167).
+PHASE17_ROW_KIND = "phase17_notification_wiring_attestation"
 
 # REGISTRY FACT (D-160 precedent, recorded in the report): the D-154
 # cross-walk binds registry slot 18 to `canonical.ai_hitl_service`
