@@ -1010,9 +1010,20 @@ docs/
 > platform, zero durable footprint —
 > `phase15.analytics_wiring_attestation.v1`.
 > Battery 2043/2043 ×2 consecutive green across 80 modules.
+> **Phase 16 — D-166** (`2144df5`): Analyst Service (registry slot
+> 17 "AI Business Analyst") in STRICT DRY-RUN — the REAL
+> D-101/D-102/D-104 insight lifecycle driven over the REAL D-027
+> store with an INJECTED PURE evaluator (no LLM SDK, no data lake,
+> mock D-142-shaped fixtures), evidence-keyed dedup, the D-104 HITL
+> boundary proven structural both ways, supersede with terminals
+> exitless, the durable rationale rebuilt from D-027 events alone,
+> invalid requests refused with zero durable rows, and an EPHEMERAL
+> vault refused by class if non-ephemeral —
+> `phase16.analyst_wiring_attestation.v1`.
+> Battery 2087/2087 ×2 consecutive green across 81 modules.
 > **Every channel is verified, not opened**: production activation,
 > live external credentials, Iranian payment/shipping provider
-> selection (open decisions 10/11), and Phases 16–18 wiring remain
+> selection (open decisions 10/11), and Phases 17–18 wiring remain
 > owner-gated (D-045/D-139, plan §17/§21).
 >
 
@@ -1223,10 +1234,10 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Live Wiring Phase 15 --- Analytics Engine
-Verification (registry slot 16) --- COMPLETE (D-165); Phases 16–18
+Current phase: **Live Wiring Phase 16 --- Analyst Service
+Verification (registry slot 17) --- COMPLETE (D-166); Phases 17–18
 next --- the engine is a verified Launch Candidate with Stages A–H
-VERIFIED and Live Wiring registry slots 5–16 VERIFIED/WIRED;
+VERIFIED and Live Wiring registry slots 5–17 VERIFIED/WIRED;
 production activation remains owner-gated (D-139)**
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
@@ -1235,7 +1246,7 @@ and Live Wiring programs; per-phase detail in §13 and the
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-165, authority
+-   Canonical governance: decision ledger D-001--D-166, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock
@@ -1280,40 +1291,46 @@ and Live Wiring programs; per-phase detail in §13 and the
     stands), Phase 14 Scheduling Engine dry-run with ephemeral slot
     locks and the slot-15 cross-walk pin (D-164, commit `f46d8b6`),
     Phase 15 Analytics Engine ephemeral read-side dry-run with the
-    slot-16 cross-walk pin (D-165, commit `90e2eb1`); decision
-    ledger current through D-165
+    slot-16 cross-walk pin (D-165, commit `90e2eb1`), Phase 16
+    Analyst Service dry-run with the injected pure evaluator and the
+    slot-17 cross-walk pin (D-166, commit `2144df5`); decision
+    ledger current through D-166
 -   Disaster recovery closeout: D-125 verified-freeze compaction,
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Verified state at the D-164/D-165 boundary (commit `90e2eb1`):
-full battery **2043/2043 ×2 consecutive green across 80 modules**,
+Verified state at the D-165/D-166 boundary (commit `2144df5`):
+full battery **2087/2087 ×2 consecutive green across 81 modules**,
 zero skipped; every live-wiring battery runs its authentic upstream
-attestation chain (D-154 → … → D-165); engine-local stack 5/5
+attestation chain (D-154 → … → D-166); engine-local stack 5/5
 healthy; attestation chain unrevoked (`dokploy.completion_attestation.v1`
 → `phase5` … → `phase12.shipping_wiring_attestation.v1` →
 `phase14.scheduling_wiring_attestation.v1` →
-`phase15.analytics_wiring_attestation.v1`). Every channel is
+`phase15.analytics_wiring_attestation.v1` →
+`phase16.analyst_wiring_attestation.v1`). Every channel is
 verified, NOT opened: zero public publishing, zero outbound Telegram
 dispatch, zero real money movement ever (the settlement gateway
 holds no live-charge capability), zero carrier bookings ever (the
 shipping carrier holds no live-ship capability and the provider is
 unselected), zero scheduled-post dispatches ever (the scheduling
 probe plans and never dispatches), zero analytics egress ever (the
-projection loop is read-only, in-process and ephemeral).
+projection loop is read-only, in-process and ephemeral), zero
+LLM/AI-provider contact in the analyst probe (the evaluator is
+injected and pure; insights stop at DISPATCHED_TO_HITL with no HITL
+service wired yet).
 
-Next milestone: **Live Wiring Phases 16--18** (registry slots 17--18:
-AI Business Analyst `canonical.analyst_engine` and HITL service
-wiring `canonical.ai_hitl_service` under the same fail-closed
-attestation recursion, then the program-level completion
-reconciliation, per `dokploy-plan.md` and the D-154 transition),
-then **owner-authorized controlled activation** (D-139 preflight →
-dry run → canary → observation → promotion) --- a separate,
-explicit, one-time owner decision; a technical GO is necessary but
-NOT sufficient. Provider selection for Iranian payment (open
-decision 10) and shipping (open decision 11) remains open and is
-required before payment-capture and shipping-purchase go-live.
+Next milestone: **Live Wiring Phases 17--18** (registry slot 18:
+HITL service wiring `canonical.ai_hitl_service` --- the final
+ignition --- under the same fail-closed attestation recursion, then
+the program-level completion reconciliation, per `dokploy-plan.md`
+and the D-154 transition), then **owner-authorized controlled
+activation** (D-139 preflight → dry run → canary → observation →
+promotion) --- a separate, explicit, one-time owner decision; a
+technical GO is necessary but NOT sufficient. Provider selection
+for Iranian payment (open decision 10) and shipping (open decision
+11) remains open and is required before payment-capture and
+shipping-purchase go-live.
 
 Standing invariants (reaffirmed): fail-closed posture on every
 ignition path; local-first sandbox isolation (D-053); all
