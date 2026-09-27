@@ -557,9 +557,17 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 14: Scheduling Engine
-Verification, registry slot 15 (D-164, after the D-163 slot-14
-disposition) — COMPLETE (owner review pending)
+## Active Phase — Live Wiring Phase 17: Notification Engine
+Verification (D-167) — COMPLETE (owner review pending)
+
+Registry note: the phase tasking named "slot 18 = notification
+engine", but the D-154 cross-walk binds slot 18 to
+`canonical.ai_hitl_service` (HITL) and the notification surface
+carries no dedicated registry slot. Following the D-160 precedent,
+the notification engine was verified exactly as asked while slot 18
+was NOT reassigned — NTF-02 asserts the slot-18 registry fact against
+the live D-154 `ENTRY_POINTS` and refuses on drift. The slot-18 (HITL)
+ignition remains its own future phase (see Forward previews).
 
 Reality check (2026-09-27, this reconciliation): the D-163
 disposition and the D-164 engine, battery, report and governance
@@ -569,7 +577,8 @@ regression 1999/1999 ×2 across 79 modules); governance hashes and
 the status timeline were synced in the follow-up docs commit. The
 items below are the phase's standing execution checklist — kept open
 until the owner reviews the completion record. Phases 10 (D-160,
-`d88325d`), 11 (D-161, `d284dd9`) and 12 (D-162, `2218702`) stay
+`d88325d`), 11 (D-161, `d284dd9`), 12 (D-162, `2218702`), 14
+(`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`) and 17 (this phase) stay
 closed at owner-review-pending.
 
 - [x] D-163 — the CRM-not-needed conditional formally resolved
@@ -633,12 +642,18 @@ closed at owner-review-pending.
 
 ## Forward previews
 
-- [ ] Live Wiring Phase 17 — registry slot 18 (HITL service wiring
+- [ ] Live Wiring Phase 18 — registry slot 18 (HITL service ignition
       `canonical.ai_hitl_service` — the final ignition) under the
       same fail-closed attestation recursion, then the program-level
       completion reconciliation; slot 14 closed CRM-not-needed
       (D-163), slot 15 ignited as Phase 14 (D-164), slot 16 as
-      Phase 15 (D-165), slot 17 as Phase 16 (D-166)
+      Phase 15 (D-165), slot 17 as Phase 16 (D-166); Phase 17
+      verified the notification engine WITHOUT taking slot 18 (the
+      D-154 binding to HITL was asserted, not reassigned — D-167
+      registry-deviation record); the natural HITL seam is the
+      DLQ→review materialization edge (D-028/D-050) where dispatched
+      analyst insights (D-166) and admitted DLQ items (D-091) meet
+      `canonical.ai_hitl_service`
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1560,6 +1575,62 @@ these even if they seem helpful:
       footprint (D-045/D-085/D-087/D-139 owner gates); the only
       state change is the scratch artifact (deleted before
       return).**
+- [x] Live Wiring Phase 17 — Notification Engine Verification
+      (registry slot 18 NOT taken — D-160 precedent) — **COMPLETE
+      (2026-09-27; D-167)**:
+      `local/scripts/live_wiring_phase17_igniter.py`
+      (NTF-01..NTF-05 fail-closed, STRICT DRY-RUN — the phase16
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any engine call (zero-engine-call proof);
+      census Phases 5–12 + 14 + 15 + 16 VERIFIED/WIRED (slot 14/CRM
+      not a census row — D-163) + four repo-real seams
+      (`canonical.notification_engine`, `canonical.notification_contracts`,
+      `canonical.notification_worker`, `services.sync_engine`)
+      importable and consistent with the D-154 registry; the slot-18
+      registry FACT asserted (`canonical.ai_hitl_service` — no slot
+      reassignment; a drifted/absent/reassigned slot 18 refuses);
+      the notification contracts enforced through the REAL validator
+      (contact-metadata gate fail-closed — EMAIL w/o `subject`, SMS
+      w/o `phone_ref`, WEBHOOK w/o `endpoint_ref` refuse Class-B
+      before any queueing; 7 templates × 4 channels; deterministic
+      SHA-256 dedup identity over (recipient, channel, template,
+      logical event_key); pure priority policy — quiet hours defer,
+      CRITICAL bypass, frequency caps from the durable ledger; D-092
+      outcome vocabulary stable); the synthetic six-notification
+      cycle over the REAL NotificationEngine on the REAL D-027 store
+      with the EPHEMERAL in-process claim backend and NO dispatch
+      transport bound — enqueue → durable QUEUED (exactly-once vault
+      claim) → dispatch idempotency (same-alert retry durably
+      DUPLICATE_BLOCKED; the loser never dispatches) → priority
+      queuing (NORMAL in the quiet window durably POLICY_DEFERRED;
+      CRITICAL `hitl.review_required.v1` bypasses quiet hours) →
+      intercepted receipts (delivered; late-transient terminal
+      stickiness holds DELIVERED) → durable status view rebuilt from
+      store data alone (zero drift) → 6 invalid notifications refused
+      with ZERO durable rows → the DLQ trigger at contract level
+      (permanent_failure → FAILED; `dlq.item_admitted.v1` itself
+      enqueued through the same gates) → egress-marker sweep clean;
+      zero-residue cleanup; `_EphemeralNotificationLocks` injected
+      (the D-079 hazard — the default backend claims keys in live PG
+      or the shared `delivery_locks.json` — bypassed) with a
+      by-class FAIL-CLOSED refusal of any durable backend at VERIFY
+      (battery-proven with a fully functional file-backed backend);
+      canonical `phase17.notification_wiring_attestation.v1` emitted
+      exactly once per run INCLUDING aborts; digest
+      `048952dc580d9add…` byte-stable, phase16 digest `a74345de…`
+      bound) + `docs/deployment/phase-17-live-wiring-report.md`
+      (contracts/policy matrix, cycle trace, registry-deviation
+      record, Phase 18 handover) + `test_live_wiring_phase17.py`
+      44/44 ×2 with the phase16 attestation built by the REAL
+      D-166→…→D-154 chain, full battery 2131/2131 ×2 zero-skip
+      across 82 modules. **The notification surface is verified, not
+      opened — alerts are enqueued, policy-gated, dedup-protected and
+      receipted in dry-run; no channel adapter is bound and none may
+      be until a wiring phase explicitly injects one behind the
+      D-091 provider-neutral boundary; zero email/SMS/push/webhook
+      egress, zero durable footprint (D-045/D-079/D-089–D-092 owner
+      gates); the only state change is the scratch artifact (deleted
+      before return).**
 - [x] Live Wiring Phase 16 — Ignition & Analyst Service
       Verification (registry slot 17) — **COMPLETE (2026-09-27;
       D-166 Approved, owner-directed)**:
