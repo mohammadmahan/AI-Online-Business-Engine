@@ -633,12 +633,13 @@ closed at owner-review-pending.
 
 ## Forward previews
 
-- [ ] Live Wiring Phases 15–18 — registry slots 16–18 (Analytics
-      `canonical.analytics_engine`, AI Business Analyst
-      `canonical.analyst_engine`, HITL service wiring
+- [ ] Live Wiring Phases 16–18 — registry slots 17–18 (AI Business
+      Analyst `canonical.analyst_engine`, HITL service wiring
       `canonical.ai_hitl_service`) under the same fail-closed
-      attestation recursion; slot 14 closed CRM-not-needed (D-163),
-      slot 15 ignited as Phase 14 (D-164)
+      attestation recursion, then the program-level completion
+      reconciliation; slot 14 closed CRM-not-needed (D-163), slot 15
+      ignited as Phase 14 (D-164), slot 16 ignited as Phase 15
+      (D-165)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1516,6 +1517,50 @@ these even if they seem helpful:
       no wall-clock reads, no live credentials exist or are
       requested (D-045/D-139 owner gate); the only state change is
       the scratch artifact (deleted before return).**
+- [x] Live Wiring Phase 15 — Ignition & Analytics Engine
+      Verification (registry slot 16) — **COMPLETE (2026-09-27;
+      D-165 Approved, owner-directed)**:
+      `local/scripts/live_wiring_phase15_igniter.py`
+      (ANA-01..ANA-05 fail-closed, STRICT EPHEMERAL DRY-RUN — the
+      phase14 attestation digest-recomputed AND matched against its
+      D-112 rooting row BEFORE any engine call (zero-engine-call
+      proof: the event stream is never read on refusal); census
+      Phases 5–12 + 14 VERIFIED/WIRED (slot 14/CRM not a census row
+      — D-163) + six repo-real seams (`canonical.analytics_engine` =
+      ENTRY_POINTS[16] "Analytics" per the D-154 cross-walk,
+      `analytics_contracts`, `analytics_worker`, `scheduling_engine`
+      = ENTRY_POINTS[15], `orchestration_engine` = ENTRY_POINTS[13],
+      `services.sync_engine`) consistent with the D-154 registry
+      (slot-16 cross-walk binding re-asserted defense-in-depth); the
+      analytics contracts enforced through the REAL contracts module
+      (windowing from the EVENT's own instant — never the clock,
+      D-085; the 64-char D-114 bound; classifier purity over the
+      durable ref payload only — D-087, with dual-metric COMPLETED
+      transitions and in-flight outcomes classifying to None; rollup
+      math with counts accumulating and revenue summing; the D-088
+      `window_hash` report identity); the synthetic six-event cycle
+      over the REAL ProjectionEngine — incremental fold with cursor
+      0→16, exactly-once re-consume, a malformed metric payload
+      QUARANTINED with the cursor HELD (D-085 flag-never-guess),
+      rebuild-from-zero byte-matching the incremental rollups
+      (incremental == full replay, zero drift, D-086), the D-088
+      idempotent report hash, the egress-marker sweep, zero-residue
+      cleanup; `_EphemeralCursorStore` injected with a FAIL-CLOSED
+      ENTRY GATE refusing any non-ephemeral cursor backend before
+      any engine work (zero files, zero PG rows); canonical
+      `phase15.analytics_wiring_attestation.v1` emitted exactly once
+      per run INCLUDING aborts) +
+      `docs/deployment/phase-15-live-wiring-report.md` (contracts/
+      aggregate matrix, analytics trace, guardrails, Phase 16
+      handover) + `test_live_wiring_phase15.py` 44/44 ×2 with the
+      phase14 attestation built by the REAL D-164→…→D-154 chain,
+      full battery 2043/2043 ×2 zero-skip across 80 modules. **The
+      analytics read-side is verified, not opened — read-only,
+      in-process, ephemeral: no warehouse, no external analytics
+      platform, no vendor imports, no wall clock, no durable
+      footprint (D-045/D-085/D-087/D-139 owner gates); the only
+      state change is the scratch artifact (deleted before
+      return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

@@ -93,6 +93,7 @@ __all__ = [
     "_EphemeralFanOutLock", "_EphemeralSlotLocks",
     "ATTESTATION_SCHEMA", "PHASE14_IGNITED", "PHASE14_INCOMPLETE",
     "PHASE12_SCHEMA", "PHASE12_IGNITED", "PHASE12_ROW_KIND",
+    "PHASE14_ROW_KIND",
     "SEAMS", "SEAM_PHASES", "PROBE_ENVELOPE", "LIMITS",
     "CYCLE_ID", "PROBE_POST_A", "canonical_hash",
 ]
@@ -106,6 +107,9 @@ PHASE12_IGNITED = "PHASE12_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 12 attestation (D-162).
 PHASE12_ROW_KIND = "phase12_shipping_wiring_attestation"
+
+# The D-112 ledger kind that roots the Phase 14 attestation (D-164).
+PHASE14_ROW_KIND = "phase14_scheduling_wiring_attestation"
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
