@@ -972,9 +972,22 @@ docs/
 > under an ephemeral D-079 lock, zero real money movement —
 > `phase11.payment_wiring_attestation.v1`.
 > Battery 1912/1912 ×2 consecutive green across 77 modules.
+> **Phase 12 — D-162** (`2218702`): Shipping & Orchestration Engine
+> in STRICT FAIL-CLOSED DRY-RUN — the sandbox carrier capability-
+> capped to sandbox/dry_run/tracking_query (live_ship structurally
+> unreachable in probe mode, provider unselected per open decision
+> 11), the D-154 slot-13 cross-walk pin (orchestration_engine =
+> "Shipping"), address-free deterministic shipment keys,
+> D-027 shipment idempotency proven both directions, the OMS
+> lifecycle through COMPLETED with the D-084 receipt carrying the
+> shipment id inside the COMPLETED transition ref (receipt-once
+> proven), the tracking event through the REAL fan-out boundary
+> under an ephemeral D-079 lock, zero carrier bookings —
+> `phase12.shipping_wiring_attestation.v1`.
+> Battery 1955/1955 ×2 consecutive green across 78 modules.
 > **Every channel is verified, not opened**: production activation,
 > live external credentials, Iranian payment/shipping provider
-> selection (open decisions 10/11), and Phases 12–18 wiring remain
+> selection (open decisions 10/11), and Phases 13–18 wiring remain
 > owner-gated (D-045/D-139, plan §17/§21).
 >
 
@@ -1185,10 +1198,10 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Live Wiring Phase 11 --- Payment Gateway &
-Settlement Verification --- COMPLETE (D-161); Phases 12–18 next ---
+Current phase: **Live Wiring Phase 12 --- Shipping & Orchestration
+Engine Verification --- COMPLETE (D-162); Phases 13–18 next ---
 the engine is a verified Launch Candidate with Stages A–H VERIFIED
-and Live Wiring Phases 5–11 VERIFIED/WIRED; production activation
+and Live Wiring Phases 5–12 VERIFIED/WIRED; production activation
 remains owner-gated (D-139)**
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
@@ -1197,7 +1210,7 @@ and Live Wiring programs; per-phase detail in §13 and the
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-161, authority
+-   Canonical governance: decision ledger D-001--D-162, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock
@@ -1225,34 +1238,40 @@ and Live Wiring programs; per-phase detail in §13 and the
     COMPLETED** (D-141 program; completion attestation
     `dokploy.completion_attestation.v1` under D-154, commit
     `eba88a1`)
--   Live Wiring Phases 5--11 **VERIFIED/WIRED** under the fail-closed
+-   Live Wiring Phases 5--12 **VERIFIED/WIRED** under the fail-closed
     attestation recursion: Phase 5 data/queue/orchestration wiring
     (D-155), Phase 6 Notion Business OS (D-156), Phase 7 AI Runtime
     + Product Manager (D-157), Phase 8 Instagram Graph probe-only
     (D-158), Phase 9 Telegram ingress sandbox (D-159), Phase 10
     Multi-channel Order Orchestration dry-run (D-160, commit
     `d88325d`), Phase 11 Payment Gateway & Settlement dry-run with
-    the capability-capped sandbox gateway (D-161, commit `d284dd9`);
-    decision ledger current through D-161
+    the capability-capped sandbox gateway (D-161, commit `d284dd9`),
+    Phase 12 Shipping & Orchestration dry-run with the
+    capability-capped sandbox carrier and the slot-13 cross-walk pin
+    (D-162, commit `2218702`); decision ledger current through
+    D-162
 -   Disaster recovery closeout: D-125 verified-freeze compaction,
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Verified state at the D-160/D-161 boundary (commit `d284dd9`):
-full battery **1912/1912 ×2 consecutive green across 77 modules**,
+Verified state at the D-161/D-162 boundary (commit `2218702`):
+full battery **1955/1955 ×2 consecutive green across 78 modules**,
 zero skipped; every live-wiring battery runs its authentic upstream
-attestation chain (D-154 → … → D-161); engine-local stack 5/5
+attestation chain (D-154 → … → D-162); engine-local stack 5/5
 healthy; attestation chain unrevoked (`dokploy.completion_attestation.v1`
-→ `phase5` … → `phase11.payment_wiring_attestation.v1`). Every
+→ `phase5` … → `phase12.shipping_wiring_attestation.v1`). Every
 channel is verified, NOT opened: zero public publishing, zero
 outbound Telegram dispatch, zero real money movement ever (the
-settlement gateway holds no live-charge capability).
+settlement gateway holds no live-charge capability), zero carrier
+bookings ever (the shipping carrier holds no live-ship capability
+and the provider is unselected).
 
-Next milestone: **Live Wiring Phases 12--18** (remaining channels,
-analytics, scheduling, analyst and HITL service wiring under the
-same fail-closed attestation recursion, per `dokploy-plan.md` and
-the D-154 transition), then **owner-authorized controlled
+Next milestone: **Live Wiring Phases 13--18** (commerce/workspace
+sync, scheduling, analytics, analyst and HITL service wiring under
+the same fail-closed attestation recursion, per `dokploy-plan.md`
+and the D-154 transition — registry slots 14–18; the CRM-not-needed
+rule gates slot 14), then **owner-authorized controlled
 activation** (D-139 preflight → dry run → canary → observation →
 promotion) --- a separate, explicit, one-time owner decision; a
 technical GO is necessary but NOT sufficient. Provider selection

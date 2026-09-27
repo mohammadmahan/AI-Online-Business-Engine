@@ -557,67 +557,77 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 11: Payment Gateway &
-Settlement Verification (D-161) — COMPLETE (owner review pending)
+## Active Phase — Live Wiring Phase 12: Shipping & Orchestration
+Engine Verification (D-162) — COMPLETE (owner review pending)
 
-Reality check (2026-09-27, this reconciliation): the D-161 engine,
-battery, report and governance were **landed in commit `d284dd9`**
-(`phase11.payment_wiring_attestation.v1`, battery 42/42 ×2, full
-regression 1912/1912 ×2 across 77 modules); governance hashes and the
+Reality check (2026-09-27, this reconciliation): the D-162 engine,
+battery, report and governance were **landed in commit `2218702`**
+(`phase12.shipping_wiring_attestation.v1`, battery 43/43 ×2, full
+regression 1955/1955 ×2 across 78 modules); governance hashes and the
 status timeline were synced in the follow-up docs commit. The items
 below are the phase's standing execution checklist — kept open until
 the owner reviews the completion record; remaining operational
-follow-ups are marked. Phase 10 (D-160) stays closed at
-owner-review-pending (digest `564508fe…`, commit `d88325d`).
+follow-ups are marked. Phases 10 (D-160, digest `564508fe…`, commit
+`d88325d`) and 11 (D-161, digest `9339be7d…`, commit `d284dd9`)
+stay closed at owner-review-pending.
 
-- [x] Upstream attestation verification — SET-01 recomputes the
-      `phase10.live_wiring_attestation.v1` canonical bytes and matches
-      the D-112 rooting row `phase10_live_wiring_attestation` BEFORE
-      any gateway call (refusals never construct the gateway or
-      allocate the OMS stack)
+- [x] Upstream attestation verification — SHP-01 recomputes the
+      `phase11.payment_wiring_attestation.v1` canonical bytes and
+      matches the D-112 rooting row
+      `phase11_payment_wiring_attestation` BEFORE any carrier call
+      (refusals never construct the carrier or allocate the OMS
+      stack)
 - [x] Seams asserted against the repo and the D-154 registry —
+      `canonical.orchestration_engine` (ENTRY_POINTS[13] "Shipping"
+      per the D-154 cross-walk, re-asserted defense-in-depth),
       `canonical.oms_engine` (ENTRY_POINTS[11]),
       `canonical.oms_contracts` (ENTRY_POINTS[12]),
-      `canonical.orchestration_engine` (ENTRY_POINTS[13]),
-      `services.sync_engine`; census Phases 5–10 VERIFIED/WIRED
-- [x] Gateway capability cap + settlement money rules —
-      `GATEWAY_CAPS = ("sandbox", "dry_run", "status_query")` with
-      live_charge/unknown caps refused (the charge path is
-      structurally unreachable in probe mode); deterministic SHA-256
-      `settlement_key(client_order_id, gateway, amount)`;
-      strict-integer money ≥ 1 under the D-114 ceiling; injected
-      timeout/partition/decline faults fail CLOSED
-- [x] Dry-run settlement cycle — sandbox charge exactly once;
-      D-027 settlement idempotency both directions (identical replay
-      → `skipped_duplicate`, forged payload → `IntegrityError`);
+      `services.sync_engine`; census Phases 5–11 VERIFIED/WIRED
+- [x] Carrier capability cap + parcel rules —
+      `CARRIER_CAPS = ("sandbox", "dry_run", "tracking_query")`
+      with live_ship/unknown caps refused (the booking path is
+      structurally unreachable in probe mode; the provider remains
+      UNSELECTED per open decision 11); deterministic SHA-256
+      `shipment_key(client_order_id, carrier_id, parcel_hash)` with
+      `parcel_hash` over weight/dimensions/declared value ONLY —
+      addresses never part of parcel identity; strict-integer parcel
+      invariants under the D-114 ceiling; injected
+      timeout/partition/refuse/live_ship faults fail CLOSED
+- [x] Dry-run shipping cycle — sandbox label created exactly once
+      with a deterministic derived tracking number; D-027 shipment
+      idempotency both directions (identical replay →
+      `skipped_duplicate`, forged payload → `IntegrityError`);
       PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084
-      fulfillment receipt INSIDE the COMPLETED transition ref
-      (receipt-once proven over the succeeded refs; a second
-      COMPLETED is refused); settlement event through the REAL
-      FanOutEngine with publisher-less binds under an EPHEMERAL D-079
-      lock; money-marker sweep over the LIVE store records plus
-      `charge_calls == 1`; zero-residue cleanup
-- [x] Attestation emission — canonical `phase11.payment_wiring_attestation.v1`
+      fulfillment receipt carrying the shipment id INSIDE the
+      COMPLETED transition ref (receipt-once proven over the
+      succeeded refs; a second COMPLETED is refused); tracking event
+      through the REAL FanOutEngine with publisher-less binds under
+      an EPHEMERAL D-079 lock; shipping-marker sweep over the LIVE
+      store records plus `create_calls == 1`; zero-residue cleanup
+- [x] Attestation emission — canonical `phase12.shipping_wiring_attestation.v1`
       with SHA-256 `attestation_digest`, exactly once per run
       (aborts included)
-- [x] Test battery — `local/tests/test_live_wiring_phase11.py`
-      42/42 ×2 over the authentic D-160→…→D-154 chain; full
-      regression 1912/1912 ×2 across 77 modules; suite-found fix:
-      upstream kwarg renamed `phase10_provider` → `upstream_provider`
-      to stay clear of the phase-20 entropy sweep
-- [ ] Owner review of the D-161 completion record (attestation
-      digest `9339be7d…`, commit `d284dd9`) — closes the phase
+- [x] Test battery — `local/tests/test_live_wiring_phase12.py`
+      43/43 ×2 over the authentic D-161→…→D-154 chain; full
+      regression 1955/1955 ×2 across 78 modules (the 77 untouched
+      modules still carrying exactly 1912)
+- [ ] Owner review of the D-162 completion record (attestation
+      digest `ff9beb30…`, commit `2218702`) — closes the phase
 - [ ] Probe-safe fan-out locking in the canonical layer (fold the
       ephemeral D-079 lock into `FanOutEngine` as a probe mode) —
       prevents future probe authors repeating the
-      default-lock-claims-PG incident (carried over from Phase 10)
+      default-lock-claims-PG incident (carried over from Phases
+      10/11)
 
 ## Forward previews
 
-- [ ] Live Wiring Phases 12–18 — per `dokploy-plan.md` and the
-      D-154 transition: remaining channels, analytics, scheduling,
-      analyst, HITL service wiring under the same fail-closed
-      attestation recursion
+- [ ] Live Wiring Phases 13–18 — per `dokploy-plan.md` and the
+      D-154 transition: commerce/workspace sync (registry slot 14
+      CRM — CRM-not-needed rule), scheduling (15), analytics (16),
+      analyst (17), HITL service wiring (18) under the same
+      fail-closed attestation recursion; Phase 11 (payment) and
+      Phase 12 (shipping) are DONE — the remaining phases consume
+      registry slots 14–18
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider

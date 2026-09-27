@@ -4975,7 +4975,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   and D-083 fan-out boundary); full regression 1955/1955 ×2
   consecutive green across 78 modules (1912 + 43, per-chunk counts
   identical, the 77 untouched modules still carrying exactly 1912,
-  census reconciled). The battery runs from the repository ROOT
+  census reconciled). Verification commit: `2218702`. The battery
+  runs from the repository ROOT
   (`python3 -m unittest local.tests.…`) — environment contract.
 - **Boundaries preserved:** the shipping surface is verified, not
   opened — zero carrier bookings, the sandbox carrier holds no
