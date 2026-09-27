@@ -4983,13 +4983,127 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   credentials and cannot advertise `live_ship`, no shipping provider
   is selected or contacted (owner decision 11 remains open), no
   addresses exist anywhere in the probe surface, no live credentials
-  exist or are requested (D-045/D-139 owner gate, plan §17/§21.8).
-  Report `docs/deployment/phase-12-live-wiring-report.md`
+  exist or are requested (D-045/D-139 owner gate, plan §17/§21.8).  Report `docs/deployment/phase-12-live-wiring-report.md`
   (capability/parcel matrix, shipping trace: 54 ms cycle,
   receipt-once via transition refs with the shipment id, Phase 13
   handover). The only state change is the scratch artifact (deleted
   before return).
 
+
+## D-163 — CRM-not-needed confirmed; registry slot 14 disposition
+
+- **Status:** **Approved** (2026-09-27, owner-directed).
+- **Situation:** the D-154 cross-walk gates registry slot 14 ("CRM",
+  seam `commerce.sync_orchestrator`) behind the MASTER_PLAN §13
+  conditional: "Introduce a separate CRM only if WooCommerce + Notion
+  + n8n are insufficient." The condition has never been formally
+  adjudicated, and PROJECT_RULES §4 forbids silent resolution. The
+  sufficiency evidence is durable: all three pillars are shipped AND
+  live-wiring verified (WooCommerce D-034–D-045 with the HMAC
+  fail-closed `commerce.sync_orchestrator` facade — dokploy-plan §32
+  "hermetic-proven"; Notion foundation closed and live-wired D-156;
+  n8n foundation closed and live-wired D-155), customer/order data
+  resides in Woo + Notion + the D-055 SSOT + the D-142 vector store,
+  and no governance document records any CRM capability gap.
+- **Decision:** the CRM-not-needed rule resolves NEGATIVE — a separate
+  CRM is NOT needed and will NOT be built or ignited. Registry slot
+  14 resolves to the EXISTING `commerce.sync_orchestrator` facade
+  (already shipped, D-141/§32 verified hermetic). No further build
+  phase is required for slot 14; the Live Wiring program proceeds
+  directly to slot 15. The D-154 certificate is unaffected: its DEP-04
+  census already reported slot 14 present+verified+wired
+  (structural readiness), and per-phase ignitions are owner-directed
+  deep verifications layered on top, not a certificate requirement.
+- **Consequences:** the program labels advance accordingly — the next
+  ignition ("Phase 14") verifies registry slot 15 (Marketing
+  Automation, `canonical.scheduling_engine`); remaining slots are
+  16–18 (Analytics, AI Business Analyst, HITL). No live credentials,
+  no CRM vendor selection, no new infrastructure (D-045/D-139
+  preserved).
+
+## D-164 — Phase 14 live wiring ignition & scheduling engine verification
+
+- **Status:** **Approved** (2026-09-27, owner-directed).
+- **Situation:** D-162 verified the shipping/orchestration boundary;
+  with slot 14 dispositioned CRM-not-needed (D-163), the next Live
+  Wiring phase is registry slot 15 — "Marketing Automation" bound to
+  `canonical.scheduling_engine` (the D-093/D-094/D-096 calendar
+  spine). Under D-045 / D-093–D-096 / D-114 / D-124 / D-139 / D-154 /
+  D-163 / D-162 / plan §17 / §21.8 this phase must verify Scheduling
+  in STRICT DRY-RUN mode: the probe PLANS but NEVER dispatches —
+  publishing/dispatch stay with the owner-gated D-070/D-076 publishers
+  and the D-139 activation authority; no wall clock anywhere (D-093);
+  and the slot-lock default backends claim keys in live PostgreSQL
+  (`scheduling.slot_lock`) or the shared `local/volumes/scheduling/
+  slot_locks.json`, so the probe must be lock-hygienic end to end.
+- **Decision:** adopt
+  `local/scripts/live_wiring_phase14_igniter.py`
+  (SCH-01..SCH-05, fail-closed, one audited
+  `phase14.scheduling_wiring_attestation.v1` per run — aborts
+  included — with the SHA-256 `attestation_digest`). SCH-01 verifies
+  the phase12 attestation (schema, PHASE12_IGNITED, manifest binding,
+  canonical-bytes digest recompute MATCHING its D-112 rooting row
+  `phase12_shipping_wiring_attestation`, intact chain) BEFORE any
+  calendar call — refusals never construct the engine or the store.
+  SCH-02 requires census `runtime_profile_verified` + Phases 5–12
+  present+VERIFIED+WIRED (slot 14 deliberately NOT required — D-163)
+  and the repo-real seams (`canonical.scheduling_engine` =
+  ENTRY_POINTS[15] "Marketing Automation", `canonical.scheduling_contracts`,
+  `canonical.scheduling_worker`, `canonical.orchestration_engine` =
+  ENTRY_POINTS[13], `services.sync_engine`) consistent with the D-154
+  registry — mismatch refuses as registry drift, with the slot-15
+  cross-walk binding re-asserted defense-in-depth. SCH-03 enforces the
+  scheduling contracts through the REAL validator: 7 post-rejection
+  classes with named reasons (post_id/content_ref patterns, non-empty
+  unique targets within the D-114 cap, ISO-8601 planner-supplied
+  instants), deterministic SHA-256 idempotency keys over (content_ref,
+  sorted targets, scheduled_for), pure 15-minute slot-bucket
+  arithmetic (same-bucket keys collide cross-post, never cross-platform)
+  and pure due semantics — clock-free throughout. SCH-04 runs the
+  synthetic scheduling cycle (START/AUTH/SCHEDULE/SLOTS/TRANSITIONS/
+  FANOUT/CALENDAR/VERIFY/CLEANUP) over the REAL `SchedulingEngine` on
+  the REAL D-027 parity store: identical re-schedule → `retried` (same
+  key), conflicting payload under the same post_id → `IntegrityError`;
+  a same-(platform,bucket) post is a durable `SLOT_CONFLICT` rejection
+  (the post is NOT scheduled); reschedule claims the NEW slots FIRST,
+  supersedes the old (the ledger keeps the row), and the freed slot is
+  re-claimable; SCHEDULED→DUE→CANCELLED with terminal immutability
+  (cancel AND reschedule on CANCELLED refuse); the due-notification
+  event through the REAL D-083 fan-out boundary with publisher-less
+  binds (`no_publisher_bound`) under the EPHEMERAL process-local D-079
+  lock; the calendar view rebuilt from DURABLE events alone matches
+  the driven lifecycle exactly (zero drift); the VERIFY step sweeps
+  the LIVE store records for publish markers (`live_dispatch`,
+  `webhook_secret`, `auth_code`, `pan`, `card_number`,
+  `carrier_secret`) and refuses any non-ephemeral slot backend;
+  cleanup deletes the scratch artifact with zero residue. The probe
+  injects `_EphemeralSlotLocks` — claim/supersede/history semantics
+  identical to `_JsonSlotLocks`, ZERO durable lock claims (no PG rows,
+  no shared-file writes). SCH-05 emits exactly ONE canonical
+  `phase14.scheduling_wiring_attestation.v1` per run (aborts included)
+  with the SHA-256 `attestation_digest`. Pure core (RULES §35,
+  AST-pinned), injected store/lock/fanout transports, deep redaction
+  (D-124).
+- **Verification:** battery `test_live_wiring_phase14.py` 44/44 ×2
+  (phase12 attestation via the REAL D-162→…→D-154 chain; the dry-run
+  scheduling cycle through the REAL calendar engine, D-027 store and
+  D-083 fan-out boundary; direct contract probes: due boundary,
+  terminal edges, standalone engine lifecycle, key determinism); full
+  regression 1999/1999 ×2 consecutive green across 79 modules
+  (1955 + 44, per-chunk counts identical, the 78 untouched modules
+  still carrying exactly 1955, census reconciled). The battery runs
+  from the repository ROOT (`python3 -m unittest local.tests.…`) —
+  environment contract.
+- **Boundaries preserved:** the scheduling surface is verified, not
+  opened — the probe envelope is plan/slot_query/calendar_view with
+  NO dispatch capability, zero dispatches and zero durable lock
+  claims, no channel egress (publisher-less binds), no wall-clock
+  reads, no live credentials exist or are requested (D-045/D-139
+  owner gate, plan §17/§21.8). Report
+  `docs/deployment/phase-14-live-wiring-report.md` (contracts/slot
+  matrix, scheduling trace: 60 ms cycle, drift-free durable calendar,
+  Phase 15 handover). The only state change is the scratch artifact
+  (deleted before return).
 
 ## D-112 — Operator audit ledger and cryptographic verification
 
@@ -5663,6 +5777,8 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 55 | Stage H live cutover orchestration & owner activation record — **D-153 (Approved 2026-09-25, owner-directed)**: `stage_h_cutover_executor.py` executes the Stage H handoff under explicit owner authority — H-01 verifies the D-152 closure seal (STAGE_G_CLOSED, digest recomputing, rooted in the D-112 chain), H-02 enforces the fresh unspent Stage F owner token (real gate GO, nonce burned once, TTL window covering the activation tick, draft fingerprint == seal manifest — divergent bindings refuse), H-03 asserts the Dokploy target state (all services running+healthy, restarts ≤ 3, zero unmapped port exposure) via the direct-argv `DokployStateAdapter` (no shell, allow-listed parameters, strict timeouts, deep redaction), H-04 transitions to ACTIVE through the injected transition provider and emits the immutable `stage_h_activation_record.v1` with the SHA-256 `activation_digest`, H-05 watches the critical window and arms the atomic rollback payload (`stage_h_rollback_payload.v1`, Stage E §5 RB-1 shape — a verdict the operator executes, never an engine action; unwatchable windows arm rollback too). ANY refusal aborts with ZERO side-effects (provably no transition invocation) and one audited `CUTOVER_ABORTED` record; public commitments only in ledger copies; signing key and nonce never recorded. Runbook `docs/deployment/stage-h-cutover-runbook.md` (offline token minting/injection, cutover steps, edge-only routing, rollback execution, monitoring). Battery `test_stage_h_cutover_executor.py` 25/25 ×2 through the REAL D-152 closure runner and REAL Stage F gate; full regression 1568/1568 ×2 consecutive green across 69 modules (1543 + 25, census reconciled). Nothing provisioned, nothing activated; the engine never mutates the live stack on its own authority; D-139 remains the sole activation authority. |
 | 63 | Phase 11 live wiring ignition & payment gateway/settlement verification — **D-161 (Approved 2026-09-27, owner-directed)**: `live_wiring_phase11_igniter.py` wires the settlement loop in STRICT FAIL-CLOSED DRY-RUN mode under the D-160 attestation — SET-01 verifies `phase10.live_wiring_attestation.v1` (PHASE10_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase10_live_wiring_attestation`, manifest binding, intact chain) BEFORE any gateway call (refusals never construct the gateway or allocate the OMS stack); SET-02 requires census Phases 5–10 present+VERIFIED+WIRED and the repo-real seams (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `canonical.orchestration_engine` = ENTRY_POINTS[13], `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift); SET-03 enforces the payment-safety envelope (`GATEWAY_CAPS = ("sandbox","dry_run","status_query")` — live_charge/unknown caps refused outright, the charge path structurally unreachable in probe mode; deterministic SHA-256 `settlement_key(client_order_id, gateway, amount)`, replay-resistant; strict-integer money ≥ 1 under the D-114 ceiling 10¹² with exact refusal messages; injected timeout/partition/decline faults fail CLOSED, Class-A retries ≤ 2, 15 s timeout); SET-04 runs the dry-run settlement cycle (START/AUTH/CHECKOUT/SETTLE/RECEIPT/EVENT_PROBE/VERIFY/CLEANUP — sandbox charge exactly once, D-027 settlement idempotency proven both directions (identical replay → skipped_duplicate, forged payload → IntegrityError), OMS lifecycle PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084 fulfillment receipt INSIDE the COMPLETED transition ref and receipt-once proven over the succeeded refs (second COMPLETED refused), settlement event through the REAL FanOutEngine with publisher-less binds under an EPHEMERAL process-local D-079 lock, VERIFY sweeps the LIVE store records for money markers (live_charge/auth_code/pan/card_number/gateway_secret) and requires charge_calls == 1, cleanup deletes the scratch artifact with zero residue); SET-05 emits exactly ONE canonical `phase11.payment_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected gateway/engine/store/fanout/scratch transports, deep redaction (D-124). Suite-found security fix: the battery's upstream kwarg renamed `phase10_provider` → `upstream_provider` (the literal token passed the phase-20 entropy sweep's secret-signature heuristic). Report `docs/deployment/phase-11-live-wiring-report.md` (capability/money matrix, settlement trace: 7.3 ms cycle, receipt-once via transition refs, Phase 12 handover). Battery `test_live_wiring_phase11.py` 42/42 ×2 (phase10 attestation via the REAL D-160→…→D-154 chain); full regression 1912/1912 ×2 consecutive green across 77 modules (1870 + 42, census reconciled). The settlement surface is verified, not opened — zero real money movement, no payment provider selected or contacted (owner decisions 10/11 open), no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8); the only state change is the scratch artifact (deleted before return). |
 | 64 | Phase 12 live wiring ignition & shipping/orchestration verification — **D-162 (Approved 2026-09-27, owner-directed)**: `live_wiring_phase12_igniter.py` wires the shipping boundary in STRICT FAIL-CLOSED DRY-RUN mode under the D-161 attestation — SHP-01 verifies `phase11.payment_wiring_attestation.v1` (PHASE11_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase11_payment_wiring_attestation`, manifest binding, intact chain) BEFORE any carrier call (refusals never construct the carrier or allocate the OMS stack); SHP-02 requires census Phases 5–11 present+VERIFIED+WIRED and the repo-real seams (`canonical.orchestration_engine` = ENTRY_POINTS[13] "Shipping" per the D-154 cross-walk, `canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift; the slot-13 cross-walk binding re-asserted defense-in-depth); SHP-03 enforces the shipping-safety envelope (`CARRIER_CAPS = ("sandbox","dry_run","tracking_query")` — live_ship/unknown caps refused outright, the booking path structurally unreachable in probe mode, the provider UNSELECTED per open decision 11; deterministic SHA-256 `shipment_key(client_order_id, carrier_id, parcel_hash)` with `parcel_hash` over weight/dimensions/declared value ONLY — addresses never part of parcel identity; strict-integer parcel invariants: weight ≥ 1 g under the 100 kg ceiling, per-dimension 1..150 cm, declared value ≥ 0 under the D-114 ceiling 10¹², exact refusal messages; injected timeout/partition/refuse/live_ship faults fail CLOSED, Class-A retries ≤ 2, 15 s timeout); SHP-04 runs the dry-run shipping cycle (START/AUTH/CREATE/SHIP/STATE/TRACK/VERIFY/CLEANUP — sandbox label created exactly once with a deterministic derived tracking number and `dry_run: true`, D-027 shipment idempotency proven both directions (identical replay → skipped_duplicate, forged payload → IntegrityError), OMS lifecycle PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084 fulfillment receipt carrying the shipment id INSIDE the COMPLETED transition ref and receipt-once proven over the succeeded refs (second COMPLETED refused), tracking event through the REAL FanOutEngine with publisher-less binds under an EPHEMERAL process-local D-079 lock, VERIFY sweeps the LIVE store records for shipping markers (live_ship/label_secret/auth_code/pan/card_number/carrier_secret) and requires create_calls == 1, cleanup deletes the scratch artifact with zero residue); SHP-05 emits exactly ONE canonical `phase12.shipping_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected carrier/engine/store/fanout/scratch transports, deep redaction (D-124). Report `docs/deployment/phase-12-live-wiring-report.md` (capability/parcel matrix, shipping trace: 54 ms cycle, receipt-once via transition refs with the shipment id, Phase 13 handover). Battery `test_live_wiring_phase12.py` 43/43 ×2 (phase11 attestation via the REAL D-161→…→D-154 chain); full regression 1955/1955 ×2 consecutive green across 78 modules (1912 + 43, the 77 untouched modules still carrying exactly 1912, census reconciled). The shipping surface is verified, not opened — zero carrier bookings, no shipping provider selected or contacted (owner decision 11 open), no addresses anywhere in the probe surface, no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8); the only state change is the scratch artifact (deleted before return). |
+| 66 | Phase 14 live wiring ignition & scheduling engine verification — **D-164 (Approved 2026-09-27, owner-directed)**: with slot 14 dispositioned CRM-not-needed (D-163), `live_wiring_phase14_igniter.py` ignites registry slot 15 "Marketing Automation" in STRICT DRY-RUN mode under the D-162 attestation — SCH-01 verifies `phase12.shipping_wiring_attestation.v1` (PHASE12_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase12_shipping_wiring_attestation`, manifest binding, intact chain) BEFORE any calendar call (refusals never construct the engine or the store); SCH-02 requires census Phases 5–12 present+VERIFIED+WIRED (slot 14 NOT required — D-163) and the repo-real seams (`canonical.scheduling_engine` = ENTRY_POINTS[15] per the D-154 cross-walk, `canonical.scheduling_contracts`, `canonical.scheduling_worker`, `canonical.orchestration_engine` = ENTRY_POINTS[13], `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift; the slot-15 cross-walk binding re-asserted defense-in-depth); SCH-03 enforces the scheduling contracts through the REAL validator (7 post-rejection classes with named reasons, deterministic SHA-256 idempotency keys over (content_ref, sorted targets, scheduled_for), pure 15-minute slot-bucket arithmetic — same-bucket keys collide cross-post never cross-platform — and pure due semantics, clock-free throughout); SCH-04 runs the synthetic scheduling cycle over the REAL SchedulingEngine on the REAL D-027 parity store (START/AUTH/SCHEDULE/SLOTS/TRANSITIONS/FANOUT/CALENDAR/VERIFY/CLEANUP — identical re-schedule → retried, conflicting payload under the same post_id → IntegrityError, a same-(platform,bucket) post is a durable SLOT_CONFLICT rejection, reschedule claims NEW slots first + supersedes old with the ledger keeping the row + the freed slot re-claimable, SCHEDULED→DUE→CANCELLED with terminal immutability (cancel AND reschedule on CANCELLED refuse), the due-notification event through the REAL FanOutEngine with publisher-less binds under an EPHEMERAL process-local D-079 lock, the calendar view rebuilt from DURABLE events alone matching the driven lifecycle exactly (zero drift), the publish-marker sweep over the LIVE store records (live_dispatch/webhook_secret/auth_code/pan/card_number/carrier_secret) plus a refusal of any non-ephemeral slot backend, zero-residue cleanup; `_EphemeralSlotLocks` = claim/supersede/history parity with `_JsonSlotLocks` at ZERO durable footprint); SCH-05 emits exactly ONE canonical `phase14.scheduling_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected store/lock/fanout transports, deep redaction (D-124). Report `docs/deployment/phase-14-live-wiring-report.md` (contracts/slot matrix, scheduling trace: 60 ms cycle, drift-free durable calendar, Phase 15 handover). Battery `test_live_wiring_phase14.py` 44/44 ×2 (phase12 attestation via the REAL D-162→…→D-154 chain; direct contract probes); full regression 1999/1999 ×2 consecutive green across 79 modules (1955 + 44, the 78 untouched modules still carrying exactly 1955, census reconciled). The scheduling surface is verified, not opened — the probe envelope is plan/slot_query/calendar_view with NO dispatch capability, zero dispatches, zero durable lock claims, no channel egress, no wall-clock reads, no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8); the only state change is the scratch artifact (deleted before return). |
+| 65 | CRM-not-needed confirmed; registry slot 14 disposition — **D-163 (Approved 2026-09-27, owner-directed)**: the MASTER_PLAN §13 conditional ("a separate CRM only if WooCommerce + Notion + n8n are insufficient") is formally resolved NEGATIVE — the three pillars are shipped AND live-wiring verified (WooCommerce D-034–D-045 + the HMAC fail-closed `commerce.sync_orchestrator` facade per dokploy-plan §32, Notion D-156, n8n D-155) and no governance document records any CRM capability gap. Registry slot 14 resolves to the EXISTING `commerce.sync_orchestrator` facade; no separate CRM is built or ignited; no further build phase for slot 14. The D-154 certificate is unaffected (its DEP-04 census already reported slot 14 present+verified+wired structurally). The program proceeds directly to slot 15; no live credentials, no CRM vendor selection, no new infrastructure (D-045/D-139 preserved). |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.

@@ -621,13 +621,12 @@ stay closed at owner-review-pending.
 
 ## Forward previews
 
-- [ ] Live Wiring Phases 13–18 — per `dokploy-plan.md` and the
-      D-154 transition: commerce/workspace sync (registry slot 14
-      CRM — CRM-not-needed rule), scheduling (15), analytics (16),
-      analyst (17), HITL service wiring (18) under the same
-      fail-closed attestation recursion; Phase 11 (payment) and
-      Phase 12 (shipping) are DONE — the remaining phases consume
-      registry slots 14–18
+- [ ] Live Wiring Phases 15–18 — registry slots 16–18 (Analytics
+      `canonical.analytics_engine`, AI Business Analyst
+      `canonical.analyst_engine`, HITL service wiring
+      `canonical.ai_hitl_service`) under the same fail-closed
+      attestation recursion; slot 14 closed CRM-not-needed (D-163),
+      slot 15 ignited as Phase 14 (D-164)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1434,10 +1433,77 @@ these even if they seem helpful:
       battery 1955/1955 ×2 zero-skip across 78 modules. **The
       shipping surface is verified, not opened — zero carrier
       bookings, no shipping provider selected or contacted (owner
-      decision 11 open), no addresses anywhere in the probe surface,
+      decision 11 open),      no addresses anywhere in the probe surface,
       no live credentials exist or are requested (D-045/D-139 owner
       gate); the only state change is the scratch artifact (deleted
       before return).**
+- [x] Governance D-163 — CRM-not-needed confirmed; registry slot 14
+      disposition — **RESOLVED (2026-09-27; D-163 Approved,
+      owner-directed)**: the MASTER_PLAN §13 conditional ("a separate
+      CRM only if WooCommerce + Notion + n8n are insufficient")
+      formally resolved NEGATIVE — the three pillars are shipped AND
+      live-wiring verified (WooCommerce D-034–D-045 + the HMAC
+      fail-closed `commerce.sync_orchestrator` facade per dokploy-plan
+      §32, Notion D-156, n8n D-155) and no governance document records
+      any CRM capability gap; registry slot 14 resolves to the
+      EXISTING facade, no separate CRM is built or ignited, no
+      further build phase for slot 14; the D-154 certificate is
+      unaffected (DEP-04 census already reported slot 14 structurally
+      ready); the program proceeds directly to slot 15 (D-045/D-139
+      preserved — no credentials, no vendor selection, no new
+      infrastructure)
+- [x] Live Wiring Phase 14 — Ignition & Scheduling Engine
+      Verification (registry slot 15) — **COMPLETE (2026-09-27;
+      D-164 Approved, owner-directed)**:
+      `local/scripts/live_wiring_phase14_igniter.py`
+      (SCH-01..SCH-05 fail-closed, STRICT DRY-RUN — the phase12
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any calendar call (zero-engine-call proof);
+      census Phases 5–12 VERIFIED/WIRED (slot 14 NOT required —
+      D-163) + the five repo-real seams
+      (`canonical.scheduling_engine` = ENTRY_POINTS[15] "Marketing
+      Automation" per the D-154 cross-walk, `scheduling_contracts`,
+      `scheduling_worker`, `canonical.orchestration_engine` =
+      ENTRY_POINTS[13], `services.sync_engine`) consistent with the
+      D-154 registry (slot-15 cross-walk binding re-asserted
+      defense-in-depth); the scheduling contracts enforced through
+      the REAL validator (7 post-rejection classes with named
+      reasons, deterministic SHA-256 idempotency keys over
+      (content_ref, sorted targets, scheduled_for), pure 15-minute
+      slot-bucket arithmetic — same-bucket keys collide cross-post
+      never cross-platform — and pure due semantics, clock-free);
+      the dry-run scheduling cycle over the REAL SchedulingEngine on
+      the REAL D-027 parity store — identical re-schedule →
+      `retried`, conflicting payload under the same post_id →
+      `IntegrityError`, a same-(platform,bucket) post is a durable
+      SLOT_CONFLICT rejection, reschedule claims NEW slots first +
+      supersedes old with the ledger keeping the row + the freed
+      slot re-claimable, SCHEDULED→DUE→CANCELLED with terminal
+      immutability (cancel AND reschedule on CANCELLED refuse), the
+      due-notification event through the REAL FanOutEngine with
+      publisher-less binds under an EPHEMERAL D-079 lock, the
+      calendar view rebuilt from DURABLE events alone matching the
+      driven lifecycle exactly (zero drift), the publish-marker
+      sweep over the LIVE store records plus a refusal of any
+      non-ephemeral slot backend, zero-residue cleanup;
+      `_EphemeralSlotLocks` = claim/supersede/history parity with
+      `_JsonSlotLocks` at ZERO durable footprint (no
+      `scheduling.slot_lock` PG rows, no shared-file writes);
+      canonical `phase14.scheduling_wiring_attestation.v1` emitted
+      exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-14-live-wiring-report.md` (contracts/
+      slot matrix, scheduling trace, guardrails, Phase 15 handover) +
+      `test_live_wiring_phase14.py` 44/44 ×2 with the phase12
+      attestation built by the REAL D-162→…→D-154 chain (plus direct
+      contract probes: due boundary, terminal edges, standalone
+      engine lifecycle, key determinism), full battery 1999/1999 ×2
+      zero-skip across 79 modules. **The scheduling surface is
+      verified, not opened — the probe envelope is
+      plan/slot_query/calendar_view with NO dispatch capability,
+      zero dispatches, zero durable lock claims, no channel egress,
+      no wall-clock reads, no live credentials exist or are
+      requested (D-045/D-139 owner gate); the only state change is
+      the scratch artifact (deleted before return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
