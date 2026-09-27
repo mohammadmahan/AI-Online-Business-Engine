@@ -1036,6 +1036,22 @@ docs/
 > ephemeral lock backend refused by class if durable —
 > `phase17.notification_wiring_attestation.v1`.
 > Battery 2131/2131 ×2 consecutive green across 82 modules.
+> **Phase 18 — D-168** (`1c5234b`): HITL Service (registry slot 18
+> `canonical.ai_hitl_service` — THE FINAL REGISTRY IGNITION) in
+> STRICT DRY-RUN — the REAL D-105/D-106/D-108 ledger engine driven
+> over the REAL D-027 store with the EPHEMERAL in-process vault and
+> NO reviewer-notification channel bound (zero human-surface
+> egress), the analyst boundary edge (DISPATCHED_TO_HITL insights
+> ingest INSIGHT_REVIEW idempotently), atomic claim discipline,
+> human-only resolutions with durable payload overrides, the
+> escalation loop with deterministic role elevation, the expiration
+> sweep from an injected logical clock (EXPIRED sweep-only), 5
+> malformed payloads refused with zero durable rows, and the D-108
+> tamper-evident chains verified per ticket —
+> `phase18.hitl_wiring_attestation.v1`.
+> Battery 2175/2175 ×2 consecutive green across 83 modules. Registry
+> slots 5–18 ALL dispositioned (slot 14 closed CRM-not-needed,
+> D-163).
 > **Every channel is verified, not opened**: production activation,
 > live external credentials, Iranian payment/shipping provider
 > selection (open decisions 10/11), and Phases 17–18 wiring remain
@@ -1249,13 +1265,14 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Live Wiring Phase 17 --- Notification Engine
-Verification (D-167) --- COMPLETE; Phase 18 (registry slot 18:
-HITL service ignition) next --- the engine is a verified Launch
-Candidate with Stages A–H VERIFIED, Live Wiring registry slots
-5–17 VERIFIED/WIRED and the notification surface verified (no
-dedicated registry slot; slot 18 stays bound to HITL);
-production activation remains owner-gated (D-139)**
+Current phase: **Live Wiring Phase 18 --- HITL Service Ignition
+(registry slot 18, D-168) --- COMPLETE --- THE FINAL REGISTRY
+IGNITION; the Live Wiring program-level completion reconciliation is
+next --- the engine is a verified Launch Candidate with Stages A–H
+VERIFIED and Live Wiring registry slots 5--18 ALL dispositioned
+(5–13 and 15–17 VERIFIED/WIRED, 14 closed CRM-not-needed, 18 TAKEN
+by the HITL ignition); production activation remains owner-gated
+(D-139)**
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1263,7 +1280,7 @@ and Live Wiring programs; per-phase detail in §13 and the
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-167, authority
+-   Canonical governance: decision ledger D-001--D-168, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock
@@ -1291,7 +1308,7 @@ and Live Wiring programs; per-phase detail in §13 and the
     COMPLETED** (D-141 program; completion attestation
     `dokploy.completion_attestation.v1` under D-154, commit
     `eba88a1`)
--   Live Wiring registry slots 5--17 **VERIFIED/WIRED** under the
+-   Live Wiring registry slots 5--18 **ALL DISPOSITIONED** under the
     fail-closed attestation recursion: Phase 5 data/queue/
     orchestration wiring (D-155), Phase 6 Notion Business OS
     (D-156), Phase 7 AI Runtime + Product Manager (D-157), Phase 8
@@ -1314,23 +1331,28 @@ and Live Wiring programs; per-phase detail in §13 and the
     Notification Engine dry-run with NO dispatch transport bound,
     the slot-18 registry fact asserted (NOT reassigned — the D-154
     binding to `canonical.ai_hitl_service` stands; D-167, commit
-    `ccba01f`); decision
-    ledger current through D-167
+    `ccba01f`), Phase 18 HITL Service ignition TAKING slot 18
+    exactly as the D-154 cross-walk binds it — the final registry
+    ignition, ephemeral vault, no reviewer-notification channel,
+    escalation loop and D-108 tamper-evident ledger proven (D-168,
+    commit `1c5234b`); decision
+    ledger current through D-168
 -   Disaster recovery closeout: D-125 verified-freeze compaction,
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Verified state at the D-166/D-167 boundary (commit `ccba01f`):
-full battery **2131/2131 ×2 consecutive green across 82 modules**,
+Verified state at the D-167/D-168 boundary (commit `1c5234b`):
+full battery **2175/2175 ×2 consecutive green across 83 modules**,
 zero skipped; every live-wiring battery runs its authentic upstream
-attestation chain (D-154 → … → D-167); engine-local stack 5/5
+attestation chain (D-154 → … → D-168); engine-local stack 5/5
 healthy; attestation chain unrevoked (`dokploy.completion_attestation.v1`
 → `phase5` … → `phase12.shipping_wiring_attestation.v1` →
 `phase14.scheduling_wiring_attestation.v1` →
 `phase15.analytics_wiring_attestation.v1` →
 `phase16.analyst_wiring_attestation.v1` →
-`phase17.notification_wiring_attestation.v1`). Every channel is
+`phase17.notification_wiring_attestation.v1` →
+`phase18.hitl_wiring_attestation.v1`). Every channel is
 verified, NOT opened: zero public publishing, zero outbound Telegram
 dispatch, zero real money movement ever (the settlement gateway
 holds no live-charge capability), zero carrier bookings ever (the
@@ -1342,15 +1364,18 @@ LLM/AI-provider contact in the analyst probe (the evaluator is
 injected and pure; insights stop at DISPATCHED_TO_HITL with no HITL
 service wired yet), zero email/SMS/push/webhook egress ever in the
 notification probe (no channel adapter is bound; alerts stop at
-durable QUEUED/receipted states).
+durable QUEUED/receipted states), zero human-notification or
+reviewer-signal egress ever in the HITL probe (no dashboard or
+notification emitter is bound; decisions stop at durable tickets and
+the tamper-evident ledger).
 
-Next milestone: **Live Wiring Phase 18** (registry slot 18:
-HITL service ignition `canonical.ai_hitl_service` --- the final
-ignition --- under the same fail-closed attestation recursion, then
-the program-level completion reconciliation, per `dokploy-plan.md`
-and the D-154 transition; Phase 17 verified the notification engine
-WITHOUT taking slot 18 — the D-154 binding was asserted, not
-reassigned — D-167), then **owner-authorized controlled
+Next milestone: the **Live Wiring program-level completion
+reconciliation** (every registry slot dispositioned: 5–13 and 15–17
+VERIFIED/WIRED, 14 closed CRM-not-needed per D-163, 18 TAKEN by the
+HITL ignition per D-168 — re-verify the full attestation chain
+D-154 → … → D-168 against the D-154 certificate, reconcile the
+all-slot census, record the program completion decision), then
+**owner-authorized controlled
 activation** (D-139 preflight → dry run → canary → observation →
 promotion) --- a separate, explicit, one-time owner decision; a
 technical GO is necessary but NOT sufficient. Provider selection
