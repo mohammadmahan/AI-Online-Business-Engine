@@ -89,7 +89,8 @@ __all__ = [
     "Phase10Error", "Phase10Attestation", "Phase10Igniter",
     "OrderScratch", "ATTESTATION_SCHEMA", "PHASE10_IGNITED",
     "PHASE10_INCOMPLETE", "PHASE9_SCHEMA", "PHASE9_IGNITED",
-    "PHASE9_ROW_KIND", "SEAMS", "SEAM_PHASES", "CHANNEL_ORIGINS",
+    "PHASE9_ROW_KIND", "PHASE10_ROW_KIND", "SEAMS", "SEAM_PHASES",
+    "CHANNEL_ORIGINS",
     "CURRENCY_WHITELIST", "MAX_DISCOUNT_PCT", "LIMITS", "CYCLE_ID",
     "SYNTHETIC_ORDER", "PROBE_TARGET", "canonical_hash",
 ]
@@ -103,6 +104,10 @@ PHASE9_IGNITED = "PHASE9_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 9 attestation (D-159).
 PHASE9_ROW_KIND = "phase9_live_wiring_attestation"
+
+# The D-112 ledger kind that roots the Phase 10 attestation (D-160) —
+# consumed by the Phase 11 chain builder (SET-01).
+PHASE10_ROW_KIND = "phase10_live_wiring_attestation"
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 

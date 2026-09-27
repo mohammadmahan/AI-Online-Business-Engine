@@ -1338,6 +1338,47 @@ these even if they seem helpful:
       credentials exist or are requested (D-045/D-139 owner gate);
       the only state change is the scratch artifact (deleted
       before return).**
+- [x] Live Wiring Phase 11 — Ignition & Payment Gateway/Settlement
+      Verification — **COMPLETE (2026-09-27; D-161 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase11_igniter.py`
+      (SET-01..SET-05 fail-closed, STRICT DRY-RUN — the phase10
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any gateway call (zero-gateway-call proof);
+      census Phases 5–10 VERIFIED/WIRED + the four repo-real seams
+      (`canonical.oms_engine` = ENTRY_POINTS[11],
+      `canonical.oms_contracts` = ENTRY_POINTS[12],
+      `canonical.orchestration_engine` = ENTRY_POINTS[13],
+      `services.sync_engine`) consistent with the D-154 registry;
+      gateway capability cap `("sandbox","dry_run","status_query")` —
+      live_charge/unknown caps refused, the charge path structurally
+      unreachable in probe mode; deterministic SHA-256
+      `settlement_key(client_order_id, gateway, amount)`;
+      strict-integer money ≥ 1 under the D-114 ceiling; injected
+      timeout/partition/decline faults fail CLOSED; the dry-run
+      settlement cycle through the REAL OMS stack — sandbox charge
+      exactly once, D-027 settlement idempotency both directions,
+      PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084
+      fulfillment receipt INSIDE the COMPLETED transition ref
+      (receipt-once proven over the succeeded refs; a second
+      COMPLETED is refused), the settlement event through the REAL
+      FanOutEngine with publisher-less binds under an EPHEMERAL
+      D-079 lock, the money-marker sweep over the LIVE store records
+      plus charge_calls == 1, zero-residue cleanup; canonical
+      `phase11.payment_wiring_attestation.v1` emitted exactly once
+      per run INCLUDING aborts; suite-found fix: the upstream kwarg
+      renamed `phase10_provider` → `upstream_provider` to stay clear
+      of the phase-20 entropy sweep) +
+      `docs/deployment/phase-11-live-wiring-report.md` (capability/
+      money matrix, settlement trace, guardrails, Phase 12 handover) +
+      `test_live_wiring_phase11.py` 42/42 ×2 with the phase10
+      attestation built by the REAL D-160→…→D-154 chain, full
+      battery 1912/1912 ×2 zero-skip across 77 modules. **The
+      settlement surface is verified, not opened — zero real money
+      movement, no payment provider selected or contacted (owner
+      decisions 10/11 open), no live credentials exist or are
+      requested (D-045/D-139 owner gate); the only state change is
+      the scratch artifact (deleted before return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:
