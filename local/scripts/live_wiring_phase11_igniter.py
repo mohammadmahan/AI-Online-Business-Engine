@@ -82,6 +82,7 @@ __all__ = [
     "SandboxGateway", "SettlementScratch", "_EphemeralFanOutLock",
     "ATTESTATION_SCHEMA", "PHASE11_IGNITED", "PHASE11_INCOMPLETE",
     "PHASE10_SCHEMA", "PHASE10_IGNITED", "PHASE10_ROW_KIND",
+    "PHASE11_ROW_KIND",
     "SEAMS", "SEAM_PHASES", "CURRENCY_WHITELIST", "GATEWAY_CAPS",
     "LIMITS", "CYCLE_ID", "CLIENT_ORDER_ID", "SYNTHETIC_ORDER",
     "settlement_key", "canonical_hash",
@@ -96,6 +97,9 @@ PHASE10_IGNITED = "PHASE10_IGNITED"
 
 # The D-112 ledger kind that roots the Phase 10 attestation (D-160).
 PHASE10_ROW_KIND = "phase10_live_wiring_attestation"
+
+# The D-112 ledger kind that roots the Phase 11 attestation (D-161).
+PHASE11_ROW_KIND = "phase11_payment_wiring_attestation"
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 

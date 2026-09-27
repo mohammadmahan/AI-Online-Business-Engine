@@ -1382,6 +1382,52 @@ these even if they seem helpful:
       decisions 10/11 open), no live credentials exist or are
       requested (D-045/D-139 owner gate); the only state change is
       the scratch artifact (deleted before return).**
+- [x] Live Wiring Phase 12 — Ignition & Shipping/Orchestration
+      Verification — **COMPLETE (2026-09-27; D-162 Approved,
+      owner-directed)**:
+      `local/scripts/live_wiring_phase12_igniter.py`
+      (SHP-01..SHP-05 fail-closed, STRICT DRY-RUN — the phase11
+      attestation digest-recomputed AND matched against its D-112
+      rooting row BEFORE any carrier call (zero-carrier-call proof);
+      census Phases 5–11 VERIFIED/WIRED + the four repo-real seams
+      (`canonical.orchestration_engine` = ENTRY_POINTS[13]
+      "Shipping" per the D-154 cross-walk,
+      `canonical.oms_engine` = ENTRY_POINTS[11],
+      `canonical.oms_contracts` = ENTRY_POINTS[12],
+      `services.sync_engine`) consistent with the D-154 registry
+      (slot-13 cross-walk binding re-asserted defense-in-depth);
+      carrier capability cap `("sandbox","dry_run","tracking_query")`
+      — live_ship/unknown caps refused, the booking path structurally
+      unreachable in probe mode, the provider UNSELECTED per open
+      decision 11; deterministic SHA-256
+      `shipment_key(client_order_id, carrier_id, parcel_hash)` with
+      `parcel_hash` over weight/dimensions/declared value ONLY —
+      addresses never part of parcel identity; strict-integer parcel
+      invariants under the D-114 ceiling; injected
+      timeout/partition/refuse/live_ship faults fail CLOSED; the
+      dry-run shipping cycle through the REAL OMS stack — sandbox
+      label created exactly once with a deterministic derived
+      tracking number, D-027 shipment idempotency both directions,
+      PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084
+      fulfillment receipt carrying the shipment id INSIDE the
+      COMPLETED transition ref (receipt-once proven over the
+      succeeded refs; a second COMPLETED is refused), the tracking
+      event through the REAL FanOutEngine with publisher-less binds
+      under an EPHEMERAL D-079 lock, the shipping-marker sweep over
+      the LIVE store records plus create_calls == 1, zero-residue
+      cleanup; canonical `phase12.shipping_wiring_attestation.v1`
+      emitted exactly once per run INCLUDING aborts) +
+      `docs/deployment/phase-12-live-wiring-report.md` (capability/
+      parcel matrix, shipping trace, guardrails, Phase 13 handover) +
+      `test_live_wiring_phase12.py` 43/43 ×2 with the phase11
+      attestation built by the REAL D-161→…→D-154 chain, full
+      battery 1955/1955 ×2 zero-skip across 78 modules. **The
+      shipping surface is verified, not opened — zero carrier
+      bookings, no shipping provider selected or contacted (owner
+      decision 11 open), no addresses anywhere in the probe surface,
+      no live credentials exist or are requested (D-045/D-139 owner
+      gate); the only state change is the scratch artifact (deleted
+      before return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,
       M1–M4 shipped)**:

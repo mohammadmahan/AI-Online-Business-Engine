@@ -4903,6 +4903,93 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   the scratch artifact (deleted before return).
 
 
+## D-162 — Phase 12 live wiring ignition & shipping/orchestration verification
+
+- **Status:** **Approved** (2026-09-27, owner-directed).
+- **Situation:** D-161 verified the payment/settlement loop but left
+  the shipping boundary unwired: no shipment creation, tracking, or
+  state synchronization had ever been driven through the orchestration
+  spine. Under D-045 / D-053 / D-081–D-084 / D-114 / D-124 / D-139 /
+  D-154 / D-161 / plan §17 / §21.8 the eighth Live Wiring phase must
+  verify Shipping & Orchestration in STRICT FAIL-CLOSED DRY-RUN mode:
+  no real carrier network calls, no label purchases, no shipments
+  booked — the shipping provider itself remains UNSELECTED (open
+  decision 11), and the D-154 cross-walk binds registry slot 13
+  ("Shipping") to `canonical.orchestration_engine` (the proven D-083
+  fan-out/outbox spine).
+- **Decision:** adopt
+  `local/scripts/live_wiring_phase12_igniter.py`
+  (SHP-01..SHP-05, fail-closed, one audited
+  `phase12.shipping_wiring_attestation.v1` per run — aborts included —
+  with the SHA-256 `attestation_digest`). SHP-01 verifies the
+  phase11 attestation (schema, PHASE11_IGNITED, manifest binding,
+  canonical-bytes digest recompute MATCHING its D-112 rooting row
+  `phase11_payment_wiring_attestation`, intact chain) BEFORE any
+  carrier call — refusals never construct the carrier and the OMS
+  stack is never allocated. SHP-02 requires census
+  `runtime_profile_verified` + Phases 5–11 present+VERIFIED+WIRED and
+  the repo-real seams (`canonical.orchestration_engine` =
+  ENTRY_POINTS[13] "Shipping", `canonical.oms_engine` =
+  ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12],
+  `services.sync_engine`) consistent with the D-154 registry —
+  mismatch refuses as registry drift, and a defense-in-depth pin
+  re-asserts the slot-13 cross-walk binding explicitly. SHP-03
+  enforces the shipping-safety envelope: `CARRIER_CAPS = ("sandbox",
+  "dry_run", "tracking_query")` with live_ship/unknown caps refused
+  outright (the booking path is structurally unreachable in probe
+  mode); deterministic SHA-256 `shipment_key(client_order_id,
+  carrier_id, parcel_hash)` over a `parcel_hash` that covers weight,
+  dimensions and declared value ONLY — addresses are never part of
+  parcel identity and never enter any record; strict-integer parcel
+  invariants (weight ≥ 1 g under the 100 kg ceiling, per-dimension
+  1..150 cm strict integers, declared value ≥ 0 under the D-114
+  ceiling 10¹²) with exact refusal messages; injected fault classes
+  (timeout / partition / refuse / live_ship) fail CLOSED as typed
+  errors with Class-A retries ≤ 2 and a 15 s per-operation timeout.
+  SHP-04 runs the dry-run shipping cycle
+  (START/AUTH/CREATE/SHIP/STATE/TRACK/VERIFY/CLEANUP): the sandbox
+  label is created exactly once (`create_calls == 1`, deterministic
+  derived tracking number, `dry_run: true`); D-027 shipment
+  idempotency proven both directions (identical replay →
+  `skipped_duplicate`, forged payload under the same key →
+  `IntegrityError`); the OMS lifecycle completes
+  PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084 fulfillment
+  receipt carrying the shipment id INSIDE the COMPLETED transition
+  ref — receipt-once proven over the succeeded transition refs
+  (exactly one ref carries it, a second COMPLETED is refused); the
+  tracking event is driven through the REAL
+  `canonical.orchestration_engine.FanOutEngine` with publisher-less
+  binds (`no_publisher_bound` — structurally incapable of egress)
+  under an EPHEMERAL process-local D-079 lock; VERIFY sweeps the LIVE
+  store records for shipping markers (`live_ship`, `label_secret`,
+  `auth_code`, `pan`, `card_number`, `carrier_secret`) and requires
+  `create_calls == 1`; cleanup deletes the scratch artifact with zero
+  residue. SHP-05 emits exactly ONE canonical
+  `phase12.shipping_wiring_attestation.v1` per run (aborts included)
+  with the SHA-256 `attestation_digest`. Pure core (RULES §35,
+  AST-pinned), injected carrier/engine/store/fanout/scratch
+  transports, deep redaction (D-124).
+- **Verification:** battery `test_live_wiring_phase12.py` 43/43 ×2
+  (phase11 attestation via the REAL D-161→…→D-154 chain; the dry-run
+  shipping cycle through the REAL OMS engine, D-027 idempotency store
+  and D-083 fan-out boundary); full regression 1955/1955 ×2
+  consecutive green across 78 modules (1912 + 43, per-chunk counts
+  identical, the 77 untouched modules still carrying exactly 1912,
+  census reconciled). The battery runs from the repository ROOT
+  (`python3 -m unittest local.tests.…`) — environment contract.
+- **Boundaries preserved:** the shipping surface is verified, not
+  opened — zero carrier bookings, the sandbox carrier holds no
+  credentials and cannot advertise `live_ship`, no shipping provider
+  is selected or contacted (owner decision 11 remains open), no
+  addresses exist anywhere in the probe surface, no live credentials
+  exist or are requested (D-045/D-139 owner gate, plan §17/§21.8).
+  Report `docs/deployment/phase-12-live-wiring-report.md`
+  (capability/parcel matrix, shipping trace: 54 ms cycle,
+  receipt-once via transition refs with the shipment id, Phase 13
+  handover). The only state change is the scratch artifact (deleted
+  before return).
+
+
 ## D-112 — Operator audit ledger and cryptographic verification
 
 - **Status:** **Approved** (2026-09-17, owner-approved)
@@ -5574,6 +5661,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 62 | Phase 10 live wiring ignition & Multi-channel Order Orchestration verification — **D-160 (Approved 2026-09-26, owner-directed)**: `live_wiring_phase10_igniter.py` wires the order pipeline in STRICT SANDBOX/DRY-RUN mode under the D-159 attestation — ORD-01 verifies `phase9.live_wiring_attestation.v1` (PHASE9_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase9_live_wiring_attestation`, manifest binding, intact chain) BEFORE any order processing (refusals leave the OMS stack untouched — factory never invoked, proven across four failure classes); ORD-02 requires census Phases 5+6+7+8+9 present+VERIFIED+WIRED and the repo-real seams (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `canonical.oms_worker`, `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift); ORD-03 proves the contracts through the REAL validator — channel origin tagging (telegram/instagram_dm/web_store), deterministic D-081 idempotency keys (SHA-256 over client_order_id; identical replay → skipped_duplicate, conflicting payload → IntegrityError), IRR/IRT currency whitelist, strict-integer money with D-114 ceiling, allowlist-gated discount codes (no discount arithmetic in the money path), Class-A-only retries ≤ 2, out-of-order state edges refused; ORD-04 runs the synthetic multi-item lifecycle (place → replay-dedup → validate → D-082 reserve → PLACED→VALIDATED→CANCELLED with full reservation release) and drives the REAL D-083 fan-out boundary (`FanOutEngine.route`+`.dispatch`, 7 durable receipts) with publisher-less binds (`no_publisher_bound` — structurally incapable of egress) under an EPHEMERAL process-local D-079 lock (the default lock claims keys permanently in live PG / the shared JSON file — 2 recon-claimed rows purged before commit, 4 pre-existing rows untouched); the payment-boundary audit scans the LIVE D-027 event records (any gateway marker = refusal); cleanup deletes the data-minimized scratch artifact (zero residue); per-step START/LOCK/VALIDATE/RESERVE/TRANSITION/EVENT_PROBE/VERIFY/CLEANUP telemetry, deterministic SHA-256 summary hash; ORD-05 emits exactly ONE canonical `phase10.live_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected engine/store/fanout/scratch transports, deep redaction (D-124). Suite-found fix: canonical shims poison sys.path at import time (bare `import tests.…` resolving to legacy `canonical/tests.py`) — all chain builders (phase 6–10 batteries) now evict the poisoned entries; battery runs from the repo ROOT (environment contract). Report `docs/deployment/phase-10-live-wiring-report.md` (locking matrix, lifecycle trace: 36.25 ms cycle, Phase 11 handover). Battery `test_live_wiring_phase10.py` 48/48 ×2 (phase9 attestation via the REAL D-159→…→D-154 chain); full regression 1870/1870 ×2 consecutive green across 76 modules (1822 + 48, census reconciled). The order pipeline is verified, not opened — zero payment boundaries crossed (markers-only payment_status), no production inventory touched (scratch reservations released), no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8). |
 | 55 | Stage H live cutover orchestration & owner activation record — **D-153 (Approved 2026-09-25, owner-directed)**: `stage_h_cutover_executor.py` executes the Stage H handoff under explicit owner authority — H-01 verifies the D-152 closure seal (STAGE_G_CLOSED, digest recomputing, rooted in the D-112 chain), H-02 enforces the fresh unspent Stage F owner token (real gate GO, nonce burned once, TTL window covering the activation tick, draft fingerprint == seal manifest — divergent bindings refuse), H-03 asserts the Dokploy target state (all services running+healthy, restarts ≤ 3, zero unmapped port exposure) via the direct-argv `DokployStateAdapter` (no shell, allow-listed parameters, strict timeouts, deep redaction), H-04 transitions to ACTIVE through the injected transition provider and emits the immutable `stage_h_activation_record.v1` with the SHA-256 `activation_digest`, H-05 watches the critical window and arms the atomic rollback payload (`stage_h_rollback_payload.v1`, Stage E §5 RB-1 shape — a verdict the operator executes, never an engine action; unwatchable windows arm rollback too). ANY refusal aborts with ZERO side-effects (provably no transition invocation) and one audited `CUTOVER_ABORTED` record; public commitments only in ledger copies; signing key and nonce never recorded. Runbook `docs/deployment/stage-h-cutover-runbook.md` (offline token minting/injection, cutover steps, edge-only routing, rollback execution, monitoring). Battery `test_stage_h_cutover_executor.py` 25/25 ×2 through the REAL D-152 closure runner and REAL Stage F gate; full regression 1568/1568 ×2 consecutive green across 69 modules (1543 + 25, census reconciled). Nothing provisioned, nothing activated; the engine never mutates the live stack on its own authority; D-139 remains the sole activation authority. |
 | 63 | Phase 11 live wiring ignition & payment gateway/settlement verification — **D-161 (Approved 2026-09-27, owner-directed)**: `live_wiring_phase11_igniter.py` wires the settlement loop in STRICT FAIL-CLOSED DRY-RUN mode under the D-160 attestation — SET-01 verifies `phase10.live_wiring_attestation.v1` (PHASE10_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase10_live_wiring_attestation`, manifest binding, intact chain) BEFORE any gateway call (refusals never construct the gateway or allocate the OMS stack); SET-02 requires census Phases 5–10 present+VERIFIED+WIRED and the repo-real seams (`canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `canonical.orchestration_engine` = ENTRY_POINTS[13], `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift); SET-03 enforces the payment-safety envelope (`GATEWAY_CAPS = ("sandbox","dry_run","status_query")` — live_charge/unknown caps refused outright, the charge path structurally unreachable in probe mode; deterministic SHA-256 `settlement_key(client_order_id, gateway, amount)`, replay-resistant; strict-integer money ≥ 1 under the D-114 ceiling 10¹² with exact refusal messages; injected timeout/partition/decline faults fail CLOSED, Class-A retries ≤ 2, 15 s timeout); SET-04 runs the dry-run settlement cycle (START/AUTH/CHECKOUT/SETTLE/RECEIPT/EVENT_PROBE/VERIFY/CLEANUP — sandbox charge exactly once, D-027 settlement idempotency proven both directions (identical replay → skipped_duplicate, forged payload → IntegrityError), OMS lifecycle PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084 fulfillment receipt INSIDE the COMPLETED transition ref and receipt-once proven over the succeeded refs (second COMPLETED refused), settlement event through the REAL FanOutEngine with publisher-less binds under an EPHEMERAL process-local D-079 lock, VERIFY sweeps the LIVE store records for money markers (live_charge/auth_code/pan/card_number/gateway_secret) and requires charge_calls == 1, cleanup deletes the scratch artifact with zero residue); SET-05 emits exactly ONE canonical `phase11.payment_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected gateway/engine/store/fanout/scratch transports, deep redaction (D-124). Suite-found security fix: the battery's upstream kwarg renamed `phase10_provider` → `upstream_provider` (the literal token passed the phase-20 entropy sweep's secret-signature heuristic). Report `docs/deployment/phase-11-live-wiring-report.md` (capability/money matrix, settlement trace: 7.3 ms cycle, receipt-once via transition refs, Phase 12 handover). Battery `test_live_wiring_phase11.py` 42/42 ×2 (phase10 attestation via the REAL D-160→…→D-154 chain); full regression 1912/1912 ×2 consecutive green across 77 modules (1870 + 42, census reconciled). The settlement surface is verified, not opened — zero real money movement, no payment provider selected or contacted (owner decisions 10/11 open), no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8); the only state change is the scratch artifact (deleted before return). |
+| 64 | Phase 12 live wiring ignition & shipping/orchestration verification — **D-162 (Approved 2026-09-27, owner-directed)**: `live_wiring_phase12_igniter.py` wires the shipping boundary in STRICT FAIL-CLOSED DRY-RUN mode under the D-161 attestation — SHP-01 verifies `phase11.payment_wiring_attestation.v1` (PHASE11_IGNITED, canonical-bytes digest recompute MATCHING its D-112 rooting row `phase11_payment_wiring_attestation`, manifest binding, intact chain) BEFORE any carrier call (refusals never construct the carrier or allocate the OMS stack); SHP-02 requires census Phases 5–11 present+VERIFIED+WIRED and the repo-real seams (`canonical.orchestration_engine` = ENTRY_POINTS[13] "Shipping" per the D-154 cross-walk, `canonical.oms_engine` = ENTRY_POINTS[11], `canonical.oms_contracts` = ENTRY_POINTS[12], `services.sync_engine`) consistent with the D-154 registry (mismatch = registry drift; the slot-13 cross-walk binding re-asserted defense-in-depth); SHP-03 enforces the shipping-safety envelope (`CARRIER_CAPS = ("sandbox","dry_run","tracking_query")` — live_ship/unknown caps refused outright, the booking path structurally unreachable in probe mode, the provider UNSELECTED per open decision 11; deterministic SHA-256 `shipment_key(client_order_id, carrier_id, parcel_hash)` with `parcel_hash` over weight/dimensions/declared value ONLY — addresses never part of parcel identity; strict-integer parcel invariants: weight ≥ 1 g under the 100 kg ceiling, per-dimension 1..150 cm, declared value ≥ 0 under the D-114 ceiling 10¹², exact refusal messages; injected timeout/partition/refuse/live_ship faults fail CLOSED, Class-A retries ≤ 2, 15 s timeout); SHP-04 runs the dry-run shipping cycle (START/AUTH/CREATE/SHIP/STATE/TRACK/VERIFY/CLEANUP — sandbox label created exactly once with a deterministic derived tracking number and `dry_run: true`, D-027 shipment idempotency proven both directions (identical replay → skipped_duplicate, forged payload → IntegrityError), OMS lifecycle PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084 fulfillment receipt carrying the shipment id INSIDE the COMPLETED transition ref and receipt-once proven over the succeeded refs (second COMPLETED refused), tracking event through the REAL FanOutEngine with publisher-less binds under an EPHEMERAL process-local D-079 lock, VERIFY sweeps the LIVE store records for shipping markers (live_ship/label_secret/auth_code/pan/card_number/carrier_secret) and requires create_calls == 1, cleanup deletes the scratch artifact with zero residue); SHP-05 emits exactly ONE canonical `phase12.shipping_wiring_attestation.v1` per run (aborts included) with the SHA-256 `attestation_digest`. Pure core (RULES §35, AST-pinned), injected carrier/engine/store/fanout/scratch transports, deep redaction (D-124). Report `docs/deployment/phase-12-live-wiring-report.md` (capability/parcel matrix, shipping trace: 54 ms cycle, receipt-once via transition refs with the shipment id, Phase 13 handover). Battery `test_live_wiring_phase12.py` 43/43 ×2 (phase11 attestation via the REAL D-161→…→D-154 chain); full regression 1955/1955 ×2 consecutive green across 78 modules (1912 + 43, the 77 untouched modules still carrying exactly 1912, census reconciled). The shipping surface is verified, not opened — zero carrier bookings, no shipping provider selected or contacted (owner decision 11 open), no addresses anywhere in the probe surface, no live credentials exist or are requested (D-045/D-139 owner gate, plan §17/§21.8); the only state change is the scratch artifact (deleted before return). |
 | 43 | Optional deployment-management layer (Dokploy) — **D-141 (Approved 2026-09-20)**: governed, documentation-first integration plan (`docs/deployment/dokploy-plan.md` + deployment/DR/exit runbooks) for an optional, replaceable deployment layer anchored to the open Phase 4 G1 hosting gate; authority boundaries preserved (approvals stay in the Phase 19 chain + D-139 burn tokens; ledger integrity stays in D-125 verified-freeze; readiness stays in D-137/D-138); staged adoption A–H with per-stage owner authorizations; Stage A architecture & repository assessment complete (plan §20) — stages B–H PLANNED, per-stage owner authorization required; nothing installed or deployed. |
 | 42 | Launch readiness, Go/No-Go attestation & controlled activation — **D-137–D-140 (Approved 2026-09-19, all six owner rulings applied)**: canonical versioned control matrix over the nine MASTER_PLAN launch domains with fail-closed states (missing/stale evidence is never a pass); deterministic pure Go/No-Go evaluator with commit+config-bound attestation hashing (GO necessary but not sufficient); controlled activation state machine (preflight → dry run → canary → observation → promotion → rollback) with one-time owner-approval tokens, canary ceilings, kill-switch, and reconciliation-preserving rollback; launch verification battery + canonical evidence pack — candidate, never silent live activation.
 | 41 | Full system test & E2E failure/recovery ladder — **D-133–D-136 (Proposed 2026-09-18)**: pure 10-stage end-to-end conductor over declared stage envelopes with unbroken D-121 trace context and zero schema mutation; deterministic chaos ladder at every boundary (channel outage, AI budget refusal, media fault, lock contention, payment-verify failure) asserting exact D-052 classes, breaker engagement, exact-ledger rollback, and replay-to-completion recovery; automated state reconciliation (outbox replay, stranded-lock sweeps, compaction recovery, crash-restart from durable stores only); full-spectrum offline-hermetic + live-PG E2E battery with zero-skip acceptance gates.
