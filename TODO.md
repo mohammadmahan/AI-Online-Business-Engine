@@ -557,67 +557,79 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 12: Shipping & Orchestration
-Engine Verification (D-162) — COMPLETE (owner review pending)
+## Active Phase — Live Wiring Phase 14: Scheduling Engine
+Verification, registry slot 15 (D-164, after the D-163 slot-14
+disposition) — COMPLETE (owner review pending)
 
-Reality check (2026-09-27, this reconciliation): the D-162 engine,
-battery, report and governance were **landed in commit `2218702`**
-(`phase12.shipping_wiring_attestation.v1`, battery 43/43 ×2, full
-regression 1955/1955 ×2 across 78 modules); governance hashes and the
-status timeline were synced in the follow-up docs commit. The items
-below are the phase's standing execution checklist — kept open until
-the owner reviews the completion record; remaining operational
-follow-ups are marked. Phases 10 (D-160, digest `564508fe…`, commit
-`d88325d`) and 11 (D-161, digest `9339be7d…`, commit `d284dd9`)
-stay closed at owner-review-pending.
+Reality check (2026-09-27, this reconciliation): the D-163
+disposition and the D-164 engine, battery, report and governance
+were **landed in commit `f46d8b6`**
+(`phase14.scheduling_wiring_attestation.v1`, battery 44/44 ×2, full
+regression 1999/1999 ×2 across 79 modules); governance hashes and
+the status timeline were synced in the follow-up docs commit. The
+items below are the phase's standing execution checklist — kept open
+until the owner reviews the completion record. Phases 10 (D-160,
+`d88325d`), 11 (D-161, `d284dd9`) and 12 (D-162, `2218702`) stay
+closed at owner-review-pending.
 
-- [x] Upstream attestation verification — SHP-01 recomputes the
-      `phase11.payment_wiring_attestation.v1` canonical bytes and
+- [x] D-163 — the CRM-not-needed conditional formally resolved
+      NEGATIVE with the pillar-sufficiency evidence (WooCommerce
+      facade hermetic-proven, Notion D-156, n8n D-155); registry
+      slot 14 stays bound to the existing
+      `commerce.sync_orchestrator` facade; no CRM built or ignited;
+      the D-154 certificate unaffected
+- [x] Upstream attestation verification — SCH-01 recomputes the
+      `phase12.shipping_wiring_attestation.v1` canonical bytes and
       matches the D-112 rooting row
-      `phase11_payment_wiring_attestation` BEFORE any carrier call
-      (refusals never construct the carrier or allocate the OMS
-      stack)
+      `phase12_shipping_wiring_attestation` BEFORE any calendar
+      call (refusals never construct the engine or the store)
 - [x] Seams asserted against the repo and the D-154 registry —
-      `canonical.orchestration_engine` (ENTRY_POINTS[13] "Shipping"
-      per the D-154 cross-walk, re-asserted defense-in-depth),
-      `canonical.oms_engine` (ENTRY_POINTS[11]),
-      `canonical.oms_contracts` (ENTRY_POINTS[12]),
-      `services.sync_engine`; census Phases 5–11 VERIFIED/WIRED
-- [x] Carrier capability cap + parcel rules —
-      `CARRIER_CAPS = ("sandbox", "dry_run", "tracking_query")`
-      with live_ship/unknown caps refused (the booking path is
-      structurally unreachable in probe mode; the provider remains
-      UNSELECTED per open decision 11); deterministic SHA-256
-      `shipment_key(client_order_id, carrier_id, parcel_hash)` with
-      `parcel_hash` over weight/dimensions/declared value ONLY —
-      addresses never part of parcel identity; strict-integer parcel
-      invariants under the D-114 ceiling; injected
-      timeout/partition/refuse/live_ship faults fail CLOSED
-- [x] Dry-run shipping cycle — sandbox label created exactly once
-      with a deterministic derived tracking number; D-027 shipment
-      idempotency both directions (identical replay →
-      `skipped_duplicate`, forged payload → `IntegrityError`);
-      PLACED→VALIDATED→FULFILLING→COMPLETED with the D-084
-      fulfillment receipt carrying the shipment id INSIDE the
-      COMPLETED transition ref (receipt-once proven over the
-      succeeded refs; a second COMPLETED is refused); tracking event
-      through the REAL FanOutEngine with publisher-less binds under
-      an EPHEMERAL D-079 lock; shipping-marker sweep over the LIVE
-      store records plus `create_calls == 1`; zero-residue cleanup
-- [x] Attestation emission — canonical `phase12.shipping_wiring_attestation.v1`
+      `canonical.scheduling_engine` (ENTRY_POINTS[15] "Marketing
+      Automation" per the D-154 cross-walk, re-asserted
+      defense-in-depth), `canonical.scheduling_contracts`,
+      `canonical.scheduling_worker`, `canonical.orchestration_engine`
+      (ENTRY_POINTS[13]), `services.sync_engine`; census Phases
+      5–12 VERIFIED/WIRED (slot 14 deliberately not required)
+- [x] Scheduling contracts through the REAL validator — 7
+      post-rejection classes with named reasons; deterministic
+      SHA-256 idempotency keys over (content_ref, sorted targets,
+      scheduled_for); pure 15-minute slot-bucket arithmetic
+      (same-bucket keys collide cross-post, never cross-platform);
+      pure due semantics; clock-free throughout (D-093)
+- [x] Dry-run scheduling cycle over the REAL SchedulingEngine —
+      identical re-schedule → `retried` (same key); conflicting
+      payload under the same post_id → `IntegrityError`; a
+      same-(platform,bucket) post is a durable SLOT_CONFLICT
+      rejection (the post is NOT scheduled); reschedule claims NEW
+      slots FIRST, supersedes old (the ledger keeps the row) and
+      the freed slot is re-claimable; SCHEDULED→DUE→CANCELLED with
+      terminal immutability (cancel AND reschedule on CANCELLED
+      refuse); the due-notification event through the REAL
+      FanOutEngine with publisher-less binds under an EPHEMERAL
+      D-079 lock; the calendar view rebuilt from DURABLE events
+      alone matching the driven lifecycle exactly (zero drift);
+      the publish-marker sweep over the LIVE store records plus a
+      refusal of any non-ephemeral slot backend; zero-residue
+      cleanup
+- [x] Lock hygiene — `_EphemeralSlotLocks` injected (claim/supersede/
+      history parity with `_JsonSlotLocks`, ZERO durable footprint);
+      no `scheduling.slot_lock` PG rows and no shared-file writes
+      (the D-079 discipline applied to the calendar)
+- [x] Attestation emission — canonical `phase14.scheduling_wiring_attestation.v1`
       with SHA-256 `attestation_digest`, exactly once per run
       (aborts included)
-- [x] Test battery — `local/tests/test_live_wiring_phase12.py`
-      43/43 ×2 over the authentic D-161→…→D-154 chain; full
-      regression 1955/1955 ×2 across 78 modules (the 77 untouched
-      modules still carrying exactly 1912)
-- [ ] Owner review of the D-162 completion record (attestation
-      digest `ff9beb30…`, commit `2218702`) — closes the phase
-- [ ] Probe-safe fan-out locking in the canonical layer (fold the
-      ephemeral D-079 lock into `FanOutEngine` as a probe mode) —
-      prevents future probe authors repeating the
-      default-lock-claims-PG incident (carried over from Phases
-      10/11)
+- [x] Test battery — `local/tests/test_live_wiring_phase14.py`
+      44/44 ×2 over the authentic D-162→…→D-154 chain; full
+      regression 1999/1999 ×2 across 79 modules (the 78 untouched
+      modules still carrying exactly 1955)
+- [ ] Owner review of the D-163 + D-164 completion record
+      (attestation digest `29b3c5df…`, commit `f46d8b6`) — closes
+      the phase
+- [ ] Probe-safe locking in the canonical layer (fold the ephemeral
+      D-079 fan-out lock AND an ephemeral slot-lock mode into
+      `FanOutEngine` / `SchedulingEngine` as probe modes) — prevents
+      future probe authors repeating the default-lock-claims-PG
+      incident (carried over from Phases 10/11/12)
 
 ## Forward previews
 

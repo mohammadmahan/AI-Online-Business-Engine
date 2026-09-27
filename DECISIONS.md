@@ -5091,8 +5091,9 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   terminal edges, standalone engine lifecycle, key determinism); full
   regression 1999/1999 ×2 consecutive green across 79 modules
   (1955 + 44, per-chunk counts identical, the 78 untouched modules
-  still carrying exactly 1955, census reconciled). The battery runs
-  from the repository ROOT (`python3 -m unittest local.tests.…`) —
+  still carrying exactly 1955, census reconciled). Verification
+  commit: `f46d8b6`. The battery runs from the repository ROOT
+  (`python3 -m unittest local.tests.…`) —
   environment contract.
 - **Boundaries preserved:** the scheduling surface is verified, not
   opened — the probe envelope is plan/slot_query/calendar_view with
