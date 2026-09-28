@@ -107,6 +107,28 @@ def real_phase17_attestation(observed_tick=12000):
     return att.to_dict(), ledger, t17
 
 
+_RECON_STORE = None       # the REAL D-027 store of the last re-run
+_RECON_SUMMARY: dict = {}  # the cycle summary of the last re-run
+
+
+def real_phase18_attestation(observed_tick=13000):
+    """Run the REAL D-168 igniter over the authentic chain with
+    in-process fakes (identical to the D-168 battery pass path).
+    Exposes the re-run's REAL D-027 store and cycle summary for the
+    D-169 program-level reconciliation (REC-03 evidence)."""
+    import tests.test_live_wiring_phase17 as t17  # noqa: F401
+    h = Harness(now=observed_tick)
+    att = h.run()
+    global _RECON_STORE, _RECON_SUMMARY
+    _RECON_STORE = h.made.get("store")
+    _RECON_SUMMARY = dict(att.cycle)
+    ledger = the_ledger() + [{
+        "event_kind": "phase18_hitl_wiring_attestation",
+        "detail": {"attestation_digest": att.attestation_digest,
+                   "verdict": att.verdict}}]
+    return att.to_dict(), ledger, t17
+
+
 _CHAIN: dict = {}
 
 _UNSET = object()  # sentinel: "no override given" (None = absent)
