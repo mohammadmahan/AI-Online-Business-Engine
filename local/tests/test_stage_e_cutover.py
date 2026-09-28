@@ -55,6 +55,25 @@ MANDATORY_ENV_KEYS = sorted({
 class OfflineMode(unittest.TestCase):
     """Subprocess runs of the real CLI."""
 
+    def setUp(self):
+        # Deterministic dirty tree: a temporary UNTRACKED probe file
+        # INSIDE the repository. The battery used to rely on the
+        # Phase-26 work being uncommitted by design; the tree is
+        # clean at the D-169 boundary, so the dirty state is injected
+        # here instead — the fail-closed paths are still exercised
+        # through the REAL CLI against a REAL dirty tree.
+        self._probe = REPO / ".stage-e-dirty-probe.txt"
+        self._probe.write_text("dirty-tree probe (untracked)",
+                               encoding="utf-8")
+        out = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, cwd=str(REPO))
+        self.assertIn(".stage-e-dirty-probe.txt", out.stdout,
+                      "probe file must make the tree dirty")
+
+    def tearDown(self):
+        self._probe.unlink(missing_ok=True)
+
     def test_offline_structure_runs_and_reports(self):
         r = run_cli()
         self.assertIn("STAGE E CUTOVER READINESS — OFFLINE", r.stdout)
@@ -148,11 +167,41 @@ class SnapshotMode(unittest.TestCase):
 class AttestationComposition(unittest.TestCase):
     """V-01 composes with launch_attestation; no re-implementation."""
 
+    def setUp(self):
+        # The same deterministic dirty-tree probe as OfflineMode: the
+        # battery used to rely on uncommitted work by design; at the
+        # D-169 boundary the tree is clean, so the dirty state is
+        # injected (and removed in the clean-tree counter-pin).
+        self._probe = REPO / ".stage-e-dirty-probe.txt"
+        self._probe.write_text("dirty-tree probe (untracked)",
+                               encoding="utf-8")
+
+    def tearDown(self):
+        self._probe.unlink(missing_ok=True)
+
     def test_dirty_tree_reports_dirty_not_no_go(self):
+        # Probe file from setUp: the tree is REALLY dirty here.
         state, detail = vcr.attestation_state()
-        # Battery runs with the Phase-26 work uncommitted by design.
         self.assertEqual(state, "DIRTY")
         self.assertIn("clean candidate", detail)
+
+    def test_clean_tree_reports_go_not_dirty(self):
+        # The counter-pin (D-169 boundary): with a CLEAN tree the
+        # D-138 attestation composes and reports GO — the dirty-tree
+        # refusal is a real gate, not a tree-state accident. The
+        # probe is removed first, so a skip here means genuine
+        # uncommitted work in the tree.
+        self._probe.unlink(missing_ok=True)
+        out = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, cwd=str(REPO))
+        if out.stdout.strip():
+            self.skipTest("tree carries uncommitted work — the "
+                          "clean-tree GO pin needs a committed "
+                          "state")
+        state, detail = vcr.attestation_state()
+        self.assertEqual(state, "GO")
+        self.assertIn("attestation", detail)
 
     def test_runbook_declares_owner_approval_gate(self):
         text = RUNBOOK.read_text(encoding="utf-8")
