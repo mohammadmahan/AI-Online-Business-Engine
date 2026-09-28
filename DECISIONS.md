@@ -5479,7 +5479,13 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   2175); engine-local stack 5/5 healthy. Verification commit:
   backfilled after the feat commit lands. The battery runs from the
   repository ROOT (`python3 -m unittest local.tests.…`) —
-  environment contract.
+  environment contract. Post-registration sync (2026-09-28, commit
+  `eaefa3b`): the stage-e dirty-tree tests were made deterministic
+  on a committed tree (probe-file setUp/tearDown; a clean tree now
+  asserts GO); the full regression re-ran ×2 green on the committed
+  tree at **2226/2226 across 84 modules** (the +1 is a clean-tree
+  GO counter-pin — the 2225/2225 figures above were true at
+  registration).
 - **Boundaries preserved:** the reconciliation is a verification
   boundary ONLY — it ignites nothing, opens nothing, executes
   nothing; zero durable footprint; every channel stays

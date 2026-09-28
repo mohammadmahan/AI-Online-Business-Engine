@@ -602,6 +602,14 @@ owner-gated (D-139).
       (attestation digest `c30d3047…`) — closes the Live Wiring
       program
 
+Post-closeout verification sync (2026-09-28, commit `eaefa3b`): the
+stage-e dirty-tree battery tests were made deterministic on a
+committed tree (probe-file setUp/tearDown; a clean tree now asserts
+GO — the old tests assumed the battery runs dirty by design, which
+no longer held once D-169 landed); full regression re-run ×2 on the
+committed tree — **2226/2226 green across 84 modules** (2175 + 50
++ 1 clean-tree GO counter-pin), zero fails, no skips.
+
 Reality check (2026-09-27, this reconciliation): the D-163
 disposition and the D-164 engine, battery, report and governance
 were **landed in commit `f46d8b6`**

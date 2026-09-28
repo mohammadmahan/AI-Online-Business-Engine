@@ -1064,7 +1064,10 @@ docs/
 > `live_wiring.completion_reconciliation.v1`, verdict
 > `PROGRAM_RECONCILED`, digest `c30d3047d28d6c69…`. Battery
 > test_live_wiring_completion.py 50/50 ×2; full regression 2225/2225
-> ×2 consecutive green across 84 modules. THE LIVE WIRING PROGRAM
+> ×2 consecutive green across 84 modules. Post-closeout sync
+> (`eaefa3b`): stage-e dirty-tree tests made deterministic on a
+> committed tree; full regression re-run ×2 green at 2226/2226
+> across 84 modules. THE LIVE WIRING PROGRAM
 > (PHASES 5–18) IS COMPLETE — terminal for the track.
 > **Every channel is verified, not opened**: production activation,
 > live external credentials, and Iranian payment/shipping provider
@@ -1359,7 +1362,9 @@ and Live Wiring programs; per-phase detail in §13 and the
 
 Verified state at the D-169 reconciliation boundary:
 full battery **2225/2225 ×2 consecutive green across 84 modules**,
-zero skipped; the D-169 reconciliation re-ran the authentic upstream
+zero skipped; post-closeout sync (`eaefa3b`): full regression re-run
+×2 green at **2226/2226 across 84 modules** on the committed tree;
+the D-169 reconciliation re-ran the authentic upstream
 attestation chain (D-154 → … → D-168) — every digest recomputed
 byte-exactly, matched its D-112 rooting, linkage unbroken and
 byte-stable with the governance record; engine-local stack 5/5
