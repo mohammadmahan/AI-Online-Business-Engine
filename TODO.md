@@ -557,18 +557,50 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Phase 18: HITL Service Ignition
-(registry slot 18, D-168) — COMPLETE — **THE FINAL REGISTRY IGNITION**
-(owner review pending)
+## Active Phase — Live Wiring Program-Level Completion Reconciliation
+(registry closeout, D-169) — COMPLETE — **THE LIVE WIRING PROGRAM
+(PHASES 5–18) IS COMPLETE** (owner review pending)
 
-Registry note: slot 18 = `canonical.ai_hitl_service` per the D-154
-cross-walk — the exact fact Phase 17 asserted while verifying the
-notification surface WITHOUT taking the slot (D-160 precedent).
-Phase 18 ignites exactly that binding: slot 18 is TAKEN, and with it
-every registry slot is dispositioned — slots 5–13 and 15–17
-VERIFIED/WIRED (D-155–D-166), slot 14 closed CRM-not-needed (D-163),
-slot 18 ignited (D-168). The Live Wiring program-level completion
-reconciliation is the next milestone (see Forward previews).
+Registry note: D-168 took slot 18 = `canonical.ai_hitl_service` per
+the D-154 cross-walk — the final ignition. The D-169 reconciliation
+re-verified the whole track in one place: the REAL phase 5–18
+chain-builders re-ran the authentic chain D-154 → … → D-168 (14
+digests byte-exact, rooted, linkage unbroken, byte-stable with the
+governance record), the full-suite slot census reconciled against
+the LIVE D-154 registry (12 census rows VERIFIED/WIRED, slot 14
+SEALED per D-163, slot 18 LOCKED), and the fail-closed invariants
+held end to end. Verdict `PROGRAM_RECONCILED`, attestation digest
+`c30d3047d28d6c69…`, 17/17 rule checks PASS. NO further Live Wiring
+phases exist — the track is CLOSED; production activation stays
+owner-gated (D-139).
+
+- [x] D-169 engine — `live_wiring_completion_reconciliation.py`
+      (REC-01..REC-05, fail-closed, injected chain/census
+      providers, exactly-once emission guard, deep redaction D-124,
+      AST-pure — no os/socket/subprocess imports)
+- [x] REC-01 — the REAL phase 5–18 chain re-run: 14 digests
+      recompute byte-exactly, rooted in the D-112 ledger (anchored
+      by the D-154 certificate row), linkage unbroken, byte-stable
+      with the governance record (D-167 `048952dc…` full-match,
+      D-168 `0026f4c9…` full-match); chain digest `97d88f42…`
+- [x] REC-02 — the full-suite census against the LIVE D-154
+      `ENTRY_POINTS`: 12 rows (5–12, 15–18) present+VERIFIED+WIRED,
+      byte-exact seam matches, slot 14 SEALED (D-163), slot 18
+      LOCKED to `canonical.ai_hitl_service`
+- [x] REC-03 — the fail-closed invariants: zero durable footprint,
+      the REAL D-027 store carrying ONLY `hitl::` rows (15), ZERO
+      human-surface egress, egress-marker sweep clean, AST purity
+- [x] Battery `test_live_wiring_completion.py` 50/50 ×2 (PASS over
+      the REAL chain re-run; every refusal class; redaction; AST)
+- [x] Full regression 2225/2225 ×2 consecutive green across 84
+      modules (2175 + 50; the 83 untouched modules still carrying
+      exactly 2175)
+- [x] Report `docs/deployment/phase-19-reconciliation-report.md`
+      (re-run digest table, all-slot census cross-walk, invariant
+      matrix, program completion boundary)
+- [ ] Owner review of the D-169 program closeout record
+      (attestation digest `c30d3047…`) — closes the Live Wiring
+      program
 
 Reality check (2026-09-27, this reconciliation): the D-163
 disposition and the D-164 engine, battery, report and governance
@@ -578,9 +610,9 @@ regression 1999/1999 ×2 across 79 modules); governance hashes and
 the status timeline were synced in the follow-up docs commit. The
 items below are the phase's standing execution checklist — kept open
 until the owner reviews the completion record. Phases 10 (D-160,
-`d88325d`), 11 (D-161, `d284dd9`), 12 (D-162, `2218702`), 14
-(`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`), 17 (`ccba01f`) and 18
-(this phase) stay closed at owner-review-pending.
+`d88325d`), 11 (D-161, `d284dd9`), 12 (D-162, `2218702`),14 (`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`), 17 (`ccba01f`), 18
+(`4c224cd`) and the D-169 reconciliation (this phase) stay closed at
+owner-review-pending.
 
 - [x] D-163 — the CRM-not-needed conditional formally resolved
       NEGATIVE with the pillar-sufficiency evidence (WooCommerce
@@ -643,19 +675,25 @@ until the owner reviews the completion record. Phases 10 (D-160,
 
 ## Forward previews
 
-- [ ] Live Wiring program-level completion reconciliation — every
-      registry slot is now dispositioned (slots 5–13 and 15–17
-      VERIFIED/WIRED, slot 14 closed CRM-not-needed per D-163, slot
-      18 TAKEN by the HITL ignition per D-168): re-verify the full
-      attestation chain D-154 → … → D-168 against the D-154
-      certificate, reconcile the all-slot census, and record the
-      program completion decision — then the standing owner gates:
-      owner-authorized controlled activation (D-139 preflight → dry
-      run → canary → observation → promotion; Iranian payment
-      provider (open decision 10) and shipping provider (open
-      decision 11) must be selected before payment-capture and
-      shipping-purchase go-live), and owner review of the Phase
-      14–18 completion records (D-164–D-168)
+- [x] Live Wiring program-level completion reconciliation — **DONE
+      (D-169)**: every registry slot is dispositioned (slots 5–13
+      and 15–17 VERIFIED/WIRED, slot 14 closed CRM-not-needed per
+      D-163, slot 18 TAKEN by the HITL ignition per D-168); the
+      full attestation chain D-154 → … → D-168 re-verified against
+      the D-154 certificate (14 digests byte-exact, rooted in the
+      D-112 ledger, linkage unbroken), the all-slot census
+      reconciled against the LIVE registry, the fail-closed
+      invariants green (zero human-surface egress, zero durable
+      footprint, AST purity); verdict `PROGRAM_RECONCILED`, digest
+      `c30d3047d28d6c69…`; battery 50/50 ×2; full regression
+      2225/2225 ×2 across 84 modules. The Live Wiring program is
+      COMPLETE — the standing owner gates remain: owner-authorized
+      controlled activation (D-139 preflight → dry run → canary →
+      observation → promotion; Iranian payment provider (open
+      decision 10) and shipping provider (open decision 11) must be
+      selected before payment-capture and shipping-purchase
+      go-live), and owner review of the Phase 14–18 completion
+      records (D-164–D-168)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
       explicit, one-time owner decision; Iranian payment provider
@@ -1740,6 +1778,52 @@ these even if they seem helpful:
       ignites exactly that edge); zero LLM/lake contact, zero
       durable footprint (D-045/D-101–D-104/D-139 owner gates); the
       only state change is the scratch artifact (deleted before
+      return).**
+- [x] Live Wiring Program-Level Completion Reconciliation (registry
+      closeout) — **COMPLETE (2026-09-28; D-169)**:
+      `local/scripts/live_wiring_completion_reconciliation.py`
+      (REC-01..REC-05 fail-closed — the program-level boundary after
+      D-168 took the final slot): REC-01 re-ran the REAL phase 5–18
+      battery chain-builders IN ORDER over the REAL Stage C→H chain
+      — the UNBROKEN chain D-154 → … → D-168 re-verified (14
+      attestation digests recomputed byte-exactly, MATCHED their
+      D-112 rooting commitments anchored by the D-154 certificate
+      row `dokploy_completion_attestation`, each attestation binding
+      its predecessor's digest — no fork, no gap, no reassignment;
+      byte-stable with the governance record: D-165 `4f807900…`,
+      D-166 `a74345de…`, D-167 `048952dc580d9add…`, D-168
+      `0026f4c94a11872a…`; chain digest `97d88f42…`; verifier zero
+      breaks over 20 ledger rows); REC-02 reconciled the FULL-SUITE
+      slot census against the LIVE D-154 `ENTRY_POINTS` registry
+      (slots 5–18, 14 seams, re-read at run time — 12 census rows
+      5–12+15–18 present+VERIFIED+WIRED with byte-exact seam
+      matches; slot 14 SEALED CRM-not-needed per D-163 —
+      registry-visible as seal evidence, ABSENT from the census
+      rows, a rebuilt CRM row refuses; slot 18 LOCKED to
+      `canonical.ai_hitl_service` — drift/absence/reassignment
+      refuses); REC-03 held the fail-closed invariants END TO END
+      (zero durable footprint; the REAL D-027 parity store carrying
+      ONLY `hitl::` rows — zero cross-surface leakage; ZERO
+      human-surface egress — zero reviewer signals, ephemeral vault,
+      no notification channel bound; egress-marker sweep clean; AST
+      purity — no sockets/network transports anywhere, no
+      process/spawn in the D-168-standard engines); REC-04/REC-05
+      emitted exactly ONE canonical
+      `live_wiring.completion_reconciliation.v1` (aborts included,
+      deep-redacted D-124) — verdict `PROGRAM_RECONCILED`,
+      attestation digest `c30d3047d28d6c69…` (byte-stable), 17/17
+      rule checks PASS + `docs/deployment/phase-19-reconciliation-report.md`
+      (the re-run digest table, the all-slot census cross-walk, the
+      invariant matrix, the program completion boundary) +
+      `test_live_wiring_completion.py` 50/50 ×2 (PASS over the REAL
+      chain re-run; every refusal class; redaction audits; AST
+      purity audits), full battery 2225/2225 ×2 zero-skip across 84
+      modules. **The reconciliation is a VERIFICATION-ONLY closeout
+      — nothing ignited, nothing opened, zero durable footprint; the
+      Live Wiring program (Phases 5–18) is COMPLETE and the track is
+      CLOSED; the engine remains a VERIFIED Launch Candidate;
+      production activation stays owner-gated (D-139); the only
+      state change is the scratch artifact (deleted before
       return).**
 - [x] Phase 26 — Launch Readiness, Go/No-Go Attestation & Controlled
       Activation — **COMPLETE (2026-09-19; D-137–D-140 APPROVED,

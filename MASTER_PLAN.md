@@ -1052,10 +1052,24 @@ docs/
 > Battery 2175/2175 ×2 consecutive green across 83 modules. Registry
 > slots 5–18 ALL dispositioned (slot 14 closed CRM-not-needed,
 > D-163).
+> **Program-level completion reconciliation — D-169** (`3cf630a`): the WHOLE
+> Live Wiring track re-verified in one place — the REAL phase 5–18
+> battery chain-builders re-ran the authentic chain D-154 → … →
+> D-168 (14 digests recomputed byte-exactly, rooted in the D-112
+> ledger, linkage unbroken, byte-stable with the governance
+> record), the FULL-SUITE slot census reconciled against the LIVE
+> D-154 cross-walk (12 census rows VERIFIED/WIRED, slot 14 SEALED
+> per D-163, slot 18 LOCKED to `canonical.ai_hitl_service`), and
+> the fail-closed invariants held end to end —
+> `live_wiring.completion_reconciliation.v1`, verdict
+> `PROGRAM_RECONCILED`, digest `c30d3047d28d6c69…`. Battery
+> test_live_wiring_completion.py 50/50 ×2; full regression 2225/2225
+> ×2 consecutive green across 84 modules. THE LIVE WIRING PROGRAM
+> (PHASES 5–18) IS COMPLETE — terminal for the track.
 > **Every channel is verified, not opened**: production activation,
-> live external credentials, Iranian payment/shipping provider
-> selection (open decisions 10/11), and Phases 17–18 wiring remain
-> owner-gated (D-045/D-139, plan §17/§21).
+> live external credentials, and Iranian payment/shipping provider
+> selection (open decisions 10/11) remain owner-gated
+> (D-045/D-139, plan §17/§21).
 >
 
 ### Phase 0 --- Foundation
@@ -1265,14 +1279,13 @@ implementation.
 
 ## 16. Current Status
 
-Current phase: **Live Wiring Phase 18 --- HITL Service Ignition
-(registry slot 18, D-168) --- COMPLETE --- THE FINAL REGISTRY
-IGNITION; the Live Wiring program-level completion reconciliation is
-next --- the engine is a verified Launch Candidate with Stages A–H
-VERIFIED and Live Wiring registry slots 5--18 ALL dispositioned
-(5–13 and 15–17 VERIFIED/WIRED, 14 closed CRM-not-needed, 18 TAKEN
-by the HITL ignition); production activation remains owner-gated
-(D-139)**
+Current phase: **Live Wiring program-level completion reconciliation
+(registry closeout, D-169) --- COMPLETE --- THE LIVE WIRING PROGRAM
+(PHASES 5–18) IS COMPLETE --- the engine is a verified Launch
+Candidate with Stages A–H VERIFIED and Live Wiring registry slots
+5--18 ALL dispositioned (5–13 and 15–18 VERIFIED/WIRED, 14 closed
+CRM-not-needed, 18 TAKEN by the HITL ignition); production
+activation remains owner-gated (D-139)**
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1280,7 +1293,7 @@ and Live Wiring programs; per-phase detail in §13 and the
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-168, authority
+-   Canonical governance: decision ledger D-001--D-169, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock
@@ -1335,53 +1348,55 @@ and Live Wiring programs; per-phase detail in §13 and the
     exactly as the D-154 cross-walk binds it — the final registry
     ignition, ephemeral vault, no reviewer-notification channel,
     escalation loop and D-108 tamper-evident ledger proven (D-168,
-    commit `1c5234b`); decision
-    ledger current through D-168
+    commit `1c5234b`); the program-level completion reconciliation
+    re-verified the whole track (D-169, commit `3cf630a` — chain
+    unbroken, census reconciled, invariants green); decision
+    ledger current through D-169
 -   Disaster recovery closeout: D-125 verified-freeze compaction,
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
 
-Verified state at the D-167/D-168 boundary (commit `1c5234b`):
-full battery **2175/2175 ×2 consecutive green across 83 modules**,
-zero skipped; every live-wiring battery runs its authentic upstream
-attestation chain (D-154 → … → D-168); engine-local stack 5/5
+Verified state at the D-169 reconciliation boundary:
+full battery **2225/2225 ×2 consecutive green across 84 modules**,
+zero skipped; the D-169 reconciliation re-ran the authentic upstream
+attestation chain (D-154 → … → D-168) — every digest recomputed
+byte-exactly, matched its D-112 rooting, linkage unbroken and
+byte-stable with the governance record; engine-local stack 5/5
 healthy; attestation chain unrevoked (`dokploy.completion_attestation.v1`
 → `phase5` … → `phase12.shipping_wiring_attestation.v1` →
 `phase14.scheduling_wiring_attestation.v1` →
 `phase15.analytics_wiring_attestation.v1` →
 `phase16.analyst_wiring_attestation.v1` →
 `phase17.notification_wiring_attestation.v1` →
-`phase18.hitl_wiring_attestation.v1`). Every channel is
+`phase18.hitl_wiring_attestation.v1` →
+`live_wiring.completion_reconciliation.v1`). Every channel is
 verified, NOT opened: zero public publishing, zero outbound Telegram
 dispatch, zero real money movement ever (the settlement gateway
 holds no live-charge capability), zero carrier bookings ever (the
 shipping carrier holds no live-ship capability and the provider is
 unselected), zero scheduled-post dispatches ever (the scheduling
 probe plans and never dispatches), zero analytics egress ever (the
-projection loop is read-only, in-process and ephemeral), zero
-LLM/AI-provider contact in the analyst probe (the evaluator is
-injected and pure; insights stop at DISPATCHED_TO_HITL with no HITL
-service wired yet), zero email/SMS/push/webhook egress ever in the
+projection loop is read-only, in-process and ephemeral),zero LLM/AI-provider contact in the analyst probe (the evaluator is
+injected and pure; insights stop at DISPATCHED_TO_HITL, ingested by
+the D-168 HITL service — ignited, not opened), zero email/SMS/push/webhook egress ever in the
 notification probe (no channel adapter is bound; alerts stop at
 durable QUEUED/receipted states), zero human-notification or
 reviewer-signal egress ever in the HITL probe (no dashboard or
 notification emitter is bound; decisions stop at durable tickets and
 the tamper-evident ledger).
 
-Next milestone: the **Live Wiring program-level completion
-reconciliation** (every registry slot dispositioned: 5–13 and 15–17
-VERIFIED/WIRED, 14 closed CRM-not-needed per D-163, 18 TAKEN by the
-HITL ignition per D-168 — re-verify the full attestation chain
-D-154 → … → D-168 against the D-154 certificate, reconcile the
-all-slot census, record the program completion decision), then
-**owner-authorized controlled
-activation** (D-139 preflight → dry run → canary → observation →
-promotion) --- a separate, explicit, one-time owner decision; a
-technical GO is necessary but NOT sufficient. Provider selection
-for Iranian payment (open decision 10) and shipping (open decision
-11) remains open and is required before payment-capture and
-shipping-purchase go-live.
+Next milestone: **owner-authorized controlled activation**
+(D-139 preflight → dry run → canary → observation → promotion) ---
+a separate, explicit, one-time owner decision; a technical GO is
+necessary but NOT sufficient. The Live Wiring program itself is
+CLOSED (D-169 reconciliation: the chain unbroken, the all-slot
+census reconciled, the fail-closed invariants green — no further
+wiring phases exist). Provider selection for Iranian payment (open
+decision 10) and shipping (open decision 11) remains open and is
+required before payment-capture and shipping-purchase go-live;
+owner review of the Phase 14–18 completion records (D-164–D-168)
+closes those phases.
 
 Standing invariants (reaffirmed): fail-closed posture on every
 ignition path; local-first sandbox isolation (D-053); all
