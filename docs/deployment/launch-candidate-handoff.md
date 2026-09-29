@@ -41,8 +41,11 @@ stays a sealed Launch Candidate with zero unnecessary tooling drift.
 ## 3. Operational prerequisites — Stage C (VPS provisioning)
 
 Execution is **owner-gated at every step**: per-item grants per plan §21.6
-(D-141); D-139 remains the sole production-activation authority. The following
-owner authorizations are required before Stage C begins:
+(D-141); D-139 remains the sole production-activation authority. The
+**authoritative signable grant checklist** is
+`docs/deployment/stage-c-owner-grants.md` (SC-1..SC-12 — the atomic
+enumeration; §21.6 item 1 expands into six separate per-item grants). The
+following list is the collapsed summary of the same grants:
 
 1. **VPS authorization** — provision the host and connect it to the program.
 2. **Installer grant** — run the pinned Dokploy installer on the target host.
@@ -96,6 +99,7 @@ D-045 fail-closed secret hygiene (no real secret values in the planning shell).
 ## 6. Reference artifacts
 
 - Plans/runbooks: `docs/deployment/dokploy-plan.md`,
+  `docs/deployment/stage-c-owner-grants.md` (SC-1..SC-12 signable grants),
   `docs/runbooks/dokploy-{deployment,disaster-recovery,exit-plan}.md`,
   `docs/runbooks/dokploy-vps-provisioning.md`,
   `docs/deployment/stage-c-readiness.md`, `docs/deployment/stage-d-staging-runbook.md`,
