@@ -34,14 +34,22 @@ SC-12 stateful-service choice (pre-filled `DOCKER_NAMED_VOLUMES`).
 ## 2. Pre-execution gate chain (all fail-closed, exit 0/1/2)
 
 1. **Grant gate** — `verify_stage_c_grants.py` must exit 0.
-2. **Target validation** — `validate_vps_target.py --require-grants`
+2. **Dry-run clearance** — `local/scripts/stage_c_dry_run.py` simulates
+   the G1–G6 sequence over three artifacts (grants checklist, staging
+   manifest, the fill-in `.env.staging.template`): env-contract keys,
+   strict D-045 placeholders, the G-B4 no-AI-credential rule,
+   one-published-port / internal-`data` isolation, named-volume
+   declarations, and SC-5/SC-7 value consistency. Emits
+   `stage_c.dry_run_clearance.v1` (probe-compatible with
+   `qa.launch_attestation.v1`); exit 0 required; mutates nothing.
+3. **Target validation** — `validate_vps_target.py --require-grants`
    (offline plan verification; add `--host` only for the opt-in read-only
    SSH probe). With the flag, an unsigned checklist refuses the run
    (exit 2) before any check executes.
-3. **Readiness probe** — `validate_vps_readiness.py --require-grants
+4. **Readiness probe** — `validate_vps_readiness.py --require-grants
    --host <HOST> --user <ADMIN_USER>` (read-only, battery-pinned
    no-mutation guarantee; the grant gate precedes any SSH attempt).
-4. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
+5. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
    §4→§8 under its G1–G6 owner messages; the verification log there (§9,
    append-only) and the log in §4 below fill only with executed evidence.
 
@@ -89,6 +97,8 @@ is never silently torn down or silently kept.
   validated manifest.
 - `docs/deployment/staging-volume-backup-policy.md` — SC-7 schedule and
   SC-12 restore preconditions.
+- `.env.staging.template` — the Stage C fill-in environment template
+  (strict placeholders, grant annotations; validated by the dry run).
 - `local/scripts/verify_stage_c_grants.py`,
   `local/scripts/validate_vps_target.py`,
   `local/scripts/validate_vps_readiness.py` — the fail-closed gate chain.

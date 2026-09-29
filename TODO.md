@@ -963,7 +963,12 @@ these even if they seem helpful:
       `--require-grants` before any probe work (exit 2), and
       `docs/deployment/stage-c-runbook.md` orchestrates the stage end
       to end under the authoritative G1–G6 taxonomy (battery
-      `test_stage_c_gate_integration.py` 15/15 ×2). **Stages D–H READY (2026-09-20,
+      `test_stage_c_gate_integration.py` 15/15 ×2). The Stage C dry-run
+      harness `local/scripts/stage_c_dry_run.py` simulates G1–G6 over
+      the grants checklist, `compose.staging.yml`, and the fill-in
+      `.env.staging.template` (30-var contract, strict D-045
+      placeholders, grant annotations; parse-only, zero mutation;
+      battery `test_stage_c_dry_run.py` 18/18 ×2). **Stages D–H READY (2026-09-20,
       not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),
