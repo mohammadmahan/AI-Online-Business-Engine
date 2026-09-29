@@ -33,6 +33,12 @@ SC-12 stateful-service choice (pre-filled `DOCKER_NAMED_VOLUMES`).
 
 ## 2. Pre-execution gate chain (all fail-closed, exit 0/1/2)
 
+**Single entry point:** `local/scripts/stage_c_runbook.py` executes the
+chain sequentially (G1 env lint → G2 preflight clearance → G3 network
+boundary → G4 stack ping → G5 acceptance suite → G6 attestation token
+on unanimous pass) and aborts at the first non-pass gate. The steps
+below document what each stage runs; the runner automates steps 1–5.
+
 1. **Grant gate** — `verify_stage_c_grants.py` must exit 0.
 2. **Dry-run clearance** — `local/scripts/stage_c_dry_run.py` simulates
    the G1–G6 sequence over three artifacts (grants checklist, staging
@@ -109,6 +115,8 @@ is never silently torn down or silently kept.
 - `local/scripts/verify_stage_c_grants.py`,
   `local/scripts/stage_c_dry_run.py`,
   `local/scripts/stage_c_acceptance.py`,
+  `local/scripts/stage_c_runbook.py` (the sequential G1–G6 runner,
+  token `stage_c.runbook_attestation.v1`),
   `local/scripts/validate_vps_target.py`,
   `local/scripts/validate_vps_readiness.py` — the fail-closed gate chain.
 - Decisions: D-141 (planning + Stages A–B), D-169/D-170 (Launch Candidate

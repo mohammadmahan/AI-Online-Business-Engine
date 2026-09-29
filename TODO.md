@@ -974,7 +974,13 @@ these even if they seem helpful:
       stack-identity guarded; MediaStoreContract round-trip zero
       residue; tunnel-only n8n; ledger consistency-only —
       `stage_c.acceptance_run.v1`, live run 10/10 ACCEPTED; battery
-      `test_stage_c_acceptance.py` 31/31 ×2). **Stages D–H READY (2026-09-20,
+      `test_stage_c_acceptance.py` 31/31 ×2). The gate runner
+      `local/scripts/stage_c_runbook.py` orchestrates G1–G6
+      sequentially (env lint → preflight clearance → network boundary
+      → stack ping → acceptance → attestation token
+      `docs/deployment/stage-c-attestation.json` on unanimous pass
+      only; `stage_c.runbook_attestation.v1`; battery
+      `test_stage_c_runbook.py` 19/19 ×2). **Stages D–H READY (2026-09-20,
       not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),
