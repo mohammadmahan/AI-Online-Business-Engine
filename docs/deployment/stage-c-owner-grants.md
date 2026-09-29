@@ -1,7 +1,9 @@
 # Stage C Owner Authorization — Signable Grant Checklist (SC-1..SC-12)
 
-**Date issued:** 2026-09-29 · **Status: UNSIGNED** (honest default — an
-unsigned checklist blocks Stage C, fail closed) · **Authority:** D-141
+**Date issued:** 2026-09-29 · **Status: UNSIGNED — ratification-ready**
+(SC-8/SC-9/SC-11/SC-12 carry owner-directed pre-filled decisions; the
+checklist still blocks Stage C until every row carries name, date, and
+evidence reference — fail closed) · **Authority:** D-141
 (planning + Stages A–B only), plan §17/§21.6 · **Candidate:** `a5e5b67`
 (pre-Stage-C technical clearance V-01..V-09 green, see
 `docs/deployment/launch-candidate-handoff.md`).
@@ -27,6 +29,11 @@ authorizations, SC-1..SC-6).
     at the next gate.
   - Secret values never appear in this artifact or the repository —
     receipts list key NAMES only (D-045).
+  - Decision rows SC-8, SC-9, SC-11, and SC-12 are **pre-filled
+    (ratification sheet, 2026-09-29)**: the values below are the
+    owner-directed recommended defaults and become grants only when
+    signed. Rows SC-1..SC-7 and SC-10 remain fully unsigned pending
+    provider selection and installer/edition version pinning.
 - **Execution order once fully signed:**
   `validate_vps_target.py` (offline + opt-in read-only SSH probe) →
   `validate_vps_readiness.py` (read-only) →
@@ -47,11 +54,11 @@ Every row is blocking: unsigned ⇒ Stage C fails closed.
 | SC-5 | Staging DNS delegation | §21.6.1 | registrar/DNS-provider authorization record | domain-bound | 30 days |
 | SC-6 | S3/backup credentials supplied (key NAMES only — never values) | §21.6.1 | secret-store receipt listing key names only (D-045) | config-bound | credential rotation |
 | SC-7 | RPO/RTO values approved (§21.4 proposals) | §21.6.2 | approved values recorded in the row | plan-bound | plan revision |
-| SC-8 | n8n staging operator access model: SSH tunnel (default) vs staging-scoped authenticated domain | §21.6.3, §19 Q8 | decision recorded: `TUNNEL` or `DOMAIN` | decision-bound | Stage C completion |
-| SC-9 | Staging deploys: manual-only (default) vs webhook-triggered | §21.6.4, §19 Q8 | decision recorded: `MANUAL` or `WEBHOOK` | decision-bound | Stage C completion |
+| SC-8 | n8n staging operator access model: SSH tunnel (default) vs staging-scoped authenticated domain | §21.6.3, §19 Q8 | decision PRE-FILLED: `TUNNEL` — SSH tunnel access for n8n staging (owner-directed 2026-09-29, plan §19 Q8 default) | decision-bound | Stage C completion |
+| SC-9 | Staging deploys: manual-only (default) vs webhook-triggered | §21.6.4, §19 Q8 | decision PRE-FILLED: `MANUAL` — manual explicit trigger, no automatic webhooks (owner-directed 2026-09-29) | decision-bound | Stage C completion |
 | SC-10 | Dokploy edition/version pinned (§19 Q5); 2FA/audit capability re-verified against the selected version (§18) | §21.6.5 | edition string + §18 re-verification note | version-bound | edition change |
-| SC-11 | Staging host sizing ≥ 2 GB RAM / 30 GB disk floor — the 5-service stack may want more | §21.6.6, §19 Q4 | chosen size recorded; meets or exceeds floors | plan-bound | sizing revision |
-| SC-12 | Stateful-service management choice, informed by §21.4 | §21.6.7, §19 Q2 | choice recorded with rationale | decision-bound | Stage C completion |
+| SC-11 | Staging host sizing ≥ 2 GB RAM / 30 GB disk floor — the 5-service stack may want more | §21.6.6, §19 Q4 | sizing PRE-FILLED: 4 vCPU / 8 GB RAM / 50 GB NVMe (owner-directed 2026-09-29 — exceeds the §21.6 floor and the `stage-c-readiness.md` derived floors of 6 GiB / 2 vCPU / 40 GB; headroom to safely sustain the 5-service container stack) | plan-bound | sizing revision |
+| SC-12 | Stateful-service management choice, informed by §21.4 | §21.6.7, §19 Q2 | choice PRE-FILLED: `DOCKER_NAMED_VOLUMES` (owner-directed 2026-09-29 — per §21.4 retention invariants: per-volume schedules/retention, off-host + separate credentials, restore preconditions) | decision-bound | Stage C completion |
 
 ## 3. Signature block
 
@@ -64,16 +71,19 @@ Every row is blocking: unsigned ⇒ Stage C fails closed.
 | SC-5 | | | | |
 | SC-6 | | | | |
 | SC-7 | | | | |
-| SC-8 | | | | |
-| SC-9 | | | | |
+| SC-8 | | | | RATIFICATION-PENDING — decision pre-filled: `TUNNEL` |
+| SC-9 | | | | RATIFICATION-PENDING — decision pre-filled: `MANUAL` |
 | SC-10 | | | | |
-| SC-11 | | | | |
-| SC-12 | | | | |
+| SC-11 | | | | RATIFICATION-PENDING — sizing pre-filled: 4 vCPU / 8 GB RAM / 50 GB NVMe |
+| SC-12 | | | | RATIFICATION-PENDING — choice pre-filled: `DOCKER_NAMED_VOLUMES` |
 
 ## 4. Gate exit criteria
 
 - All twelve rows signed ⇒ Stage C is authorized; execution follows the
   order in §1 and every stage remains health-gated and abort-able.
+- A pre-filled decision row is **not** a grant: the signature block
+  (name, date, evidence reference) is what turns a pre-fill into an
+  authorization — the gate math is unchanged.
 - Stage F authorization (SF-1..SF-7, `stage-f-authorization.md`) is a
   separate, later gate — signing this checklist does NOT pre-authorize it.
 - Provider decisions 10/11 (Iranian payment / shipping selection) remain
