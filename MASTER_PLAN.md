@@ -1288,7 +1288,11 @@ Current phase: **Live Wiring program-level completion reconciliation
 Candidate with Stages A–H VERIFIED and Live Wiring registry slots
 5--18 ALL dispositioned (5–13 and 15–18 VERIFIED/WIRED, 14 closed
 CRM-not-needed, 18 TAKEN by the HITL ignition); production
-activation remains owner-gated (D-139)**
+activation remains owner-gated (D-139) --- owner sign-off on the
+closeout record RECORDED (D-170, 2026-09-29); the track is
+OFFICIALLY CLOSED and the verified Launch Candidate hands off to
+Infrastructure Deployment & Staging orchestration (Dokploy Stage C
+rollout — every step still owner-gated)**
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1401,7 +1405,12 @@ wiring phases exist). Provider selection for Iranian payment (open
 decision 10) and shipping (open decision 11) remains open and is
 required before payment-capture and shipping-purchase go-live;
 owner review of the Phase 14–18 completion records (D-164–D-168)
-closes those phases.
+closes those phases. The owner has SIGNED OFF on the D-169 closeout
+record (D-170, 2026-09-29) — the Live Wiring track is OFFICIALLY
+CLOSED; the Launch Candidate hands off to Infrastructure Deployment
+& Staging orchestration (Dokploy Stage C rollout and beyond — every
+step still owner-gated;
+`docs/deployment/launch-candidate-handoff.md`).
 
 Standing invariants (reaffirmed): fail-closed posture on every
 ignition path; local-first sandbox isolation (D-053); all

@@ -5506,6 +5506,21 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
   digest table, the all-slot census cross-walk, the invariant
   matrix, the program completion boundary). The only state change
   is the scratch artifact (deleted before return).
+- **Closeout sign-off (2026-09-29, recorded as D-170):** the owner
+  reviewed and formally signed off on this closeout record
+  (attestation digest `c30d3047d28d6c69…`, 17/17 rule checks PASS)
+  — the Live Wiring program (Phases 5–18) is OFFICIALLY CLOSED.
+  Technical dispositions: the optional nightly cron drift-check
+  tool is REJECTED (the engine stays a sealed Launch Candidate;
+  zero unnecessary tooling drift on the clean tree); the repository
+  tree is verified clean and in sync with `origin/main` at
+  `fb0890c` (full regression 2226/2226 ×2 green across 84 modules
+  on the committed tree). The verified Launch Candidate hands off
+  to the Infrastructure Deployment & Staging orchestration phase
+  (Dokploy Stage C VPS provisioning and beyond) — every step
+  remains owner-gated (plan §21.6 per-item grants; D-139 sole
+  activation authority; provider decisions 10/11 open). Operational
+  handoff: `docs/deployment/launch-candidate-handoff.md`.
 
 ## D-168 — Phase 18 live wiring ignition & HITL service (registry slot 18, final ignition)
 

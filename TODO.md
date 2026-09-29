@@ -557,9 +557,14 @@ Batch 3+ — remaining Phase 3 work (OPEN, in order):
       API round-trip behind the N8N_API_PROBE/N8N_API_KEY owner gate);
       battery 18/18 ×2 green.
 
-## Active Phase — Live Wiring Program-Level Completion Reconciliation
-(registry closeout, D-169) — COMPLETE — **THE LIVE WIRING PROGRAM
-(PHASES 5–18) IS COMPLETE** (owner review pending)
+## Active Phase — Infrastructure Deployment & Staging Orchestration
+(Dokploy Stage C rollout and beyond) — handoff ACTIVE; every stage
+owner-gated, nothing provisioned, connected, or deployed
+
+Previous phase record — Live Wiring Program-Level Completion
+Reconciliation (registry closeout, D-169) — COMPLETE — **THE LIVE
+WIRING PROGRAM (PHASES 5–18) IS COMPLETE — OFFICIALLY CLOSED
+(D-170 owner sign-off, 2026-09-29)**
 
 Registry note: D-168 took slot 18 = `canonical.ai_hitl_service` per
 the D-154 cross-walk — the final ignition. The D-169 reconciliation
@@ -598,9 +603,9 @@ owner-gated (D-139).
 - [x] Report `docs/deployment/phase-19-reconciliation-report.md`
       (re-run digest table, all-slot census cross-walk, invariant
       matrix, program completion boundary)
-- [ ] Owner review of the D-169 program closeout record
-      (attestation digest `c30d3047…`) — closes the Live Wiring
-      program
+- [x] Owner review of the D-169 program closeout record
+      (attestation digest `c30d3047…`) — **SIGNED OFF (2026-09-29;
+      D-170)** — closes the Live Wiring program
 
 Post-closeout verification sync (2026-09-28, commit `eaefa3b`): the
 stage-e dirty-tree battery tests were made deterministic on a
@@ -616,11 +621,11 @@ were **landed in commit `f46d8b6`**
 (`phase14.scheduling_wiring_attestation.v1`, battery 44/44 ×2, full
 regression 1999/1999 ×2 across 79 modules); governance hashes and
 the status timeline were synced in the follow-up docs commit. The
-items below are the phase's standing execution checklist — kept open
-until the owner reviews the completion record. Phases 10 (D-160,
+items below are the phase's standing execution checklist — CLOSED:
+the owner review completed 2026-09-29 (D-170). Phases 10 (D-160,
 `d88325d`), 11 (D-161, `d284dd9`), 12 (D-162, `2218702`),14 (`f46d8b6`), 15 (`90e2eb1`), 16 (`2144df5`), 17 (`ccba01f`), 18
-(`4c224cd`) and the D-169 reconciliation (this phase) stay closed at
-owner-review-pending.
+(`4c224cd`) and the D-169 reconciliation (this phase) are CLOSED at
+owner-reviewed (D-170, 2026-09-29).
 
 - [x] D-163 — the CRM-not-needed conditional formally resolved
       NEGATIVE with the pillar-sufficiency evidence (WooCommerce
