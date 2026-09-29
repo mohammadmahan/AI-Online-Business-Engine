@@ -42,14 +42,21 @@ SC-12 stateful-service choice (pre-filled `DOCKER_NAMED_VOLUMES`).
    declarations, and SC-5/SC-7 value consistency. Emits
    `stage_c.dry_run_clearance.v1` (probe-compatible with
    `qa.launch_attestation.v1`); exit 0 required; mutates nothing.
-3. **Target validation** — `validate_vps_target.py --require-grants`
+3. **Stage acceptance rehearsal** — `local/scripts/stage_c_acceptance.py`
+   probes all five planes on the sanctioned engine-local rehearsal
+   stack (schema readiness, read-only event-store, MySQL/Woo ping, the
+   MediaStoreContract round-trip with zero residue, tunnel-only n8n
+   health with public-exposure refusal, decision-ledger
+   consistency-only) — synthetic data only, stack-identity guarded,
+   `stage_c.acceptance_run.v1` emission; exit 0 required.
+4. **Target validation** — `validate_vps_target.py --require-grants`
    (offline plan verification; add `--host` only for the opt-in read-only
    SSH probe). With the flag, an unsigned checklist refuses the run
    (exit 2) before any check executes.
-4. **Readiness probe** — `validate_vps_readiness.py --require-grants
+5. **Readiness probe** — `validate_vps_readiness.py --require-grants
    --host <HOST> --user <ADMIN_USER>` (read-only, battery-pinned
    no-mutation guarantee; the grant gate precedes any SSH attempt).
-5. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
+6. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
    §4→§8 under its G1–G6 owner messages; the verification log there (§9,
    append-only) and the log in §4 below fill only with executed evidence.
 
@@ -100,6 +107,8 @@ is never silently torn down or silently kept.
 - `.env.staging.template` — the Stage C fill-in environment template
   (strict placeholders, grant annotations; validated by the dry run).
 - `local/scripts/verify_stage_c_grants.py`,
+  `local/scripts/stage_c_dry_run.py`,
+  `local/scripts/stage_c_acceptance.py`,
   `local/scripts/validate_vps_target.py`,
   `local/scripts/validate_vps_readiness.py` — the fail-closed gate chain.
 - Decisions: D-141 (planning + Stages A–B), D-169/D-170 (Launch Candidate

@@ -968,7 +968,13 @@ these even if they seem helpful:
       the grants checklist, `compose.staging.yml`, and the fill-in
       `.env.staging.template` (30-var contract, strict D-045
       placeholders, grant annotations; parse-only, zero mutation;
-      battery `test_stage_c_dry_run.py` 18/18 ×2). **Stages D–H READY (2026-09-20,
+      battery `test_stage_c_dry_run.py` 18/18 ×2). The acceptance
+      suite `local/scripts/stage_c_acceptance.py` probes all five
+      planes on the engine-local rehearsal stack (synthetic data only,
+      stack-identity guarded; MediaStoreContract round-trip zero
+      residue; tunnel-only n8n; ledger consistency-only —
+      `stage_c.acceptance_run.v1`, live run 10/10 ACCEPTED; battery
+      `test_stage_c_acceptance.py` 31/31 ×2). **Stages D–H READY (2026-09-20,
       not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),
