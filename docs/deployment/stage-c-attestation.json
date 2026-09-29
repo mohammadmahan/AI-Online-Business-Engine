@@ -1,0 +1,119 @@
+{
+  "schema_version": "stage_c.runbook_attestation.v1",
+  "compatible_with": "qa.launch_attestation.v1",
+  "candidate_commit": "bc39efb",
+  "owner_grants": {
+    "authorized": false,
+    "verdict": "NOT_AUTHORIZED",
+    "signed": 0,
+    "note": "TECHNICAL CLEARANCE ONLY — execution authorization remains the signed SC-1..SC-12 checklist (stage-c-owner-grants.md)"
+  },
+  "bindings": {
+    "env_artifact_sha256": "e80dad8a5b411cc3fb84d19df834a4f3a852edd34672d787453b718031d3f5c6",
+    "manifest_sha256": "20e0f9d15601f4b1150c55257fcda32b6038796a836f159d2c48b5c27cd86a2b",
+    "grants_artifact_sha256": "dc7598ef282c430e08f379222164171df243afbb98a84a68b701b360546d0f0d"
+  },
+  "gates": [
+    {
+      "gate": "G1",
+      "name": "env template lint",
+      "verdict": "PASS",
+      "detail": "30 contract keys, no secret-shaped values, no AI_* keys"
+    },
+    {
+      "gate": "G2",
+      "name": "pre-flight clearance",
+      "verdict": "PASS",
+      "detail": "runtime_preflight admits the resolved environment for the staging runtime"
+    },
+    {
+      "gate": "G3",
+      "name": "host & network boundary",
+      "verdict": "PASS",
+      "detail": "single published port (wordpress 18080), internal data network, membership + named volumes match the contract"
+    },
+    {
+      "gate": "G4",
+      "name": "stack readiness ping",
+      "verdict": "PASS",
+      "detail": "engine-local rehearsal stack 5/5 running"
+    },
+    {
+      "gate": "G5",
+      "name": "acceptance suite",
+      "verdict": "PASS",
+      "detail": "acceptance verdict ACCEPTED — 10 probes green"
+    }
+  ],
+  "acceptance_run": {
+    "schema_version": "stage_c.acceptance_run.v1",
+    "compatible_with": "qa.launch_attestation.v1",
+    "ok": true,
+    "verdict": "ACCEPTED",
+    "probes": [
+      {
+        "name": "stack_identity",
+        "verdict": "PASS",
+        "detail": "engine-local rehearsal stack 5/5 running — sanctioned synthetic-only probe surface",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "canonical_pg",
+        "verdict": "PASS",
+        "detail": "connectivity via sanctioned container-psql transport",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "canonical_schema",
+        "verdict": "PASS",
+        "detail": "five core schemas present (apply_schema idempotency mirror): canonical,events,provenance,registry,seed",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "canonical_event_store",
+        "verdict": "PASS",
+        "detail": "read-only counts: events.event_record=75553 registry.mapping_entry=0 (zero writes)",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "mysql_woo",
+        "verdict": "PASS",
+        "detail": "mysqld responsive (mysqladmin ping, manifest healthcheck semantics)",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "wordpress_rest",
+        "verdict": "PASS",
+        "detail": "REST surface answers (loopback gateway, HTTP 200)",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "media_store",
+        "verdict": "PASS",
+        "detail": "contract round-trip ok, zero residue (bucket created+removed by probe, put/get/head/delete/delete-404)",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "n8n_tunnel",
+        "verdict": "PASS",
+        "detail": "healthz HTTP 200 over the loopback tunnel; binding 127.0.0.1:15678",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "decision_ledger",
+        "verdict": "PASS",
+        "detail": "verified_with_history_depth",
+        "checked_at_logical": ""
+      },
+      {
+        "name": "synthetic_data_guard",
+        "verdict": "PASS",
+        "detail": "no production signatures or credential-shaped values in probe evidence (D-045/D-124)",
+        "checked_at_logical": ""
+      }
+    ],
+    "failing": []
+  },
+  "runbook": "docs/deployment/stage-c-runbook.md",
+  "attestation_digest": "c90a988f936c001f1244f5fcdec9199fb7619c0ce781d14ff827e55c06dc436e"
+}
