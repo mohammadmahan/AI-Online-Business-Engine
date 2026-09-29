@@ -65,10 +65,13 @@ cgroup v2, Docker ≥ 24; UFW/SSH baselines; a 9-key credential inventory with
 D-045 fail-closed secret hygiene (no real secret values in the planning shell).
 
 **Stage C execution order** (all fail-closed, exit 0/1/2):
-1. `local/scripts/validate_vps_target.py` — offline plan verification, then the
+1. `local/scripts/verify_stage_c_grants.py` — the SC-1..SC-12 grant gate:
+   all twelve signature rows complete (name, date, evidence) before
+   anything executes.
+2. `local/scripts/validate_vps_target.py` — offline plan verification, then the
    opt-in READ-ONLY SSH target probe behind a pinned command allowlist.
-2. `local/scripts/validate_vps_readiness.py` — battery-pinned read-only probe.
-3. `docs/runbooks/dokploy-vps-provisioning.md` — G1–G6 owner gates, pinned
+3. `local/scripts/validate_vps_readiness.py` — battery-pinned read-only probe.
+4. `docs/runbooks/dokploy-vps-provisioning.md` — G1–G6 owner gates, pinned
    installer, initial security config, rollback; verification log starts EMPTY
    and fills only with executed evidence.
 

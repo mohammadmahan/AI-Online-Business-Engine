@@ -1,7 +1,7 @@
 # Stage C Owner Authorization — Signable Grant Checklist (SC-1..SC-12)
 
 **Date issued:** 2026-09-29 · **Status: UNSIGNED — ratification-ready**
-(SC-8/SC-9/SC-11/SC-12 carry owner-directed pre-filled decisions; the
+(SC-7/SC-8/SC-9/SC-11/SC-12 carry owner-directed pre-filled decisions; the
 checklist still blocks Stage C until every row carries name, date, and
 evidence reference — fail closed) · **Authority:** D-141
 (planning + Stages A–B only), plan §17/§21.6 · **Candidate:** `a5e5b67`
@@ -29,11 +29,15 @@ authorizations, SC-1..SC-6).
     at the next gate.
   - Secret values never appear in this artifact or the repository —
     receipts list key NAMES only (D-045).
-  - Decision rows SC-8, SC-9, SC-11, and SC-12 are **pre-filled
+  - Decision rows SC-7, SC-8, SC-9, SC-11, and SC-12 are **pre-filled
     (ratification sheet, 2026-09-29)**: the values below are the
     owner-directed recommended defaults and become grants only when
-    signed. Rows SC-1..SC-7 and SC-10 remain fully unsigned pending
+    signed. Rows SC-1..SC-6 and SC-10 remain fully unsigned pending
     provider selection and installer/edition version pinning.
+  - Machine verification: `python3 local/scripts/verify_stage_c_grants.py`
+    re-parses this artifact and exits 0 only when all twelve rows carry a
+    complete signature block — any unsigned or RATIFICATION-PENDING row
+    (or any structural defect) exits non-zero, fail closed.
 - **Execution order once fully signed:**
   `validate_vps_target.py` (offline + opt-in read-only SSH probe) →
   `validate_vps_readiness.py` (read-only) →
@@ -53,7 +57,7 @@ Every row is blocking: unsigned ⇒ Stage C fails closed.
 | SC-4 | GitHub connection authorized from staging | §21.6.1 | signed row + connectivity probe evidence | config-bound | credential rotation |
 | SC-5 | Staging DNS delegation | §21.6.1 | registrar/DNS-provider authorization record | domain-bound | 30 days |
 | SC-6 | S3/backup credentials supplied (key NAMES only — never values) | §21.6.1 | secret-store receipt listing key names only (D-045) | config-bound | credential rotation |
-| SC-7 | RPO/RTO values approved (§21.4 proposals) | §21.6.2 | approved values recorded in the row | plan-bound | plan revision |
+| SC-7 | RPO/RTO values approved (§21.4 proposals) | §21.6.2 | values PRE-FILLED: RPO canonical ≤ 6 h, media ≤ 24 h; RTO canonical store ≤ 2 h, full stack ≤ 4 h; retention canonical 30 daily / 8 weekly / 6 monthly, media & Woo 14 daily; target off-host S3-compatible encrypted bucket with isolated credentials (owner-directed 2026-09-29 — the concrete schedule from `staging-volume-backup-policy.md` §2) | plan-bound | plan revision |
 | SC-8 | n8n staging operator access model: SSH tunnel (default) vs staging-scoped authenticated domain | §21.6.3, §19 Q8 | decision PRE-FILLED: `TUNNEL` — SSH tunnel access for n8n staging (owner-directed 2026-09-29, plan §19 Q8 default) | decision-bound | Stage C completion |
 | SC-9 | Staging deploys: manual-only (default) vs webhook-triggered | §21.6.4, §19 Q8 | decision PRE-FILLED: `MANUAL` — manual explicit trigger, no automatic webhooks (owner-directed 2026-09-29) | decision-bound | Stage C completion |
 | SC-10 | Dokploy edition/version pinned (§19 Q5); 2FA/audit capability re-verified against the selected version (§18) | §21.6.5 | edition string + §18 re-verification note | version-bound | edition change |
@@ -70,7 +74,7 @@ Every row is blocking: unsigned ⇒ Stage C fails closed.
 | SC-4 | | | | |
 | SC-5 | | | | |
 | SC-6 | | | | |
-| SC-7 | | | | |
+| SC-7 | | | | RATIFICATION-PENDING — values pre-filled: RPO 6h/24h · RTO 2h/4h · retention 30/8/6 + 14d · off-host S3 |
 | SC-8 | | | | RATIFICATION-PENDING — decision pre-filled: `TUNNEL` |
 | SC-9 | | | | RATIFICATION-PENDING — decision pre-filled: `MANUAL` |
 | SC-10 | | | | |
@@ -99,6 +103,9 @@ Every row is blocking: unsigned ⇒ Stage C fails closed.
   collapsed grant summary.
 - `docs/deployment/stage-f-authorization.md` — the later cutover
   authorization gate (SF-1..SF-7).
+- `local/scripts/verify_stage_c_grants.py` +
+  `local/tests/test_stage_c_grants.py` — machine verification of this
+  checklist (fail-closed exit contract) and its battery.
 - `docs/runbooks/dokploy-vps-provisioning.md` — the Stage C runbook these
   grants unlock (G1–G6 gates).
 - Decisions: D-141 (Dokploy planning + Stages A–B), D-145/D-146 (V-08/V-09,
