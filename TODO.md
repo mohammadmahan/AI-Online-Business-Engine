@@ -956,7 +956,14 @@ these even if they seem helpful:
       (SC-1..SC-12; SC-7/8/9/11/12 pre-filled ratification-ready,
       2026-09-29) is machine-verified by
       `local/scripts/verify_stage_c_grants.py` (fail-closed exit
-      0/1/2; battery `test_stage_c_grants.py` 17/17 ×2). **Stages D–H READY (2026-09-20,
+      0/1/2; battery `test_stage_c_grants.py` 17/17 ×2). The gate is
+      chained into the deployment pipeline: `launch_attestation.py
+      --check-stage-c` folds an unsigned checklist into the verdict as
+      an explicit SC-GRANTS blocker, both VPS probes refuse under
+      `--require-grants` before any probe work (exit 2), and
+      `docs/deployment/stage-c-runbook.md` orchestrates the stage end
+      to end under the authoritative G1–G6 taxonomy (battery
+      `test_stage_c_gate_integration.py` 15/15 ×2). **Stages D–H READY (2026-09-20,
       not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),

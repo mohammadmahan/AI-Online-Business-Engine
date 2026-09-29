@@ -28,10 +28,12 @@ passed; no credentials are read, stored, or transmitted anywhere.
 Usage:
   python3 local/scripts/validate_vps_readiness.py \
       --host <HOST> --user <ADMIN_USER> [--key <KEY_PATH>] [--port 22]
+      [--require-grants]
 """
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -93,7 +95,36 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=22)
     ap.add_argument("--timeout", type=int, default=20,
                     help="per-command SSH timeout seconds")
+    ap.add_argument("--require-grants", action="store_true",
+                    help="refuse to run unless the Stage C owner grant "
+                         "checklist is fully signed (verify_stage_c_grants "
+                         "must pass; SC_GRANTS_ARTIFACT overrides the "
+                         "artifact path) — fail closed, exit 2")
     args = ap.parse_args()
+
+    if args.require_grants:
+        from pathlib import Path as _Path
+        sys.path.insert(0, str(_Path(__file__).resolve().parent))
+        import verify_stage_c_grants as _vsg
+        _gate_path = (os.environ.get("SC_GRANTS_ARTIFACT")
+                      or str(_vsg.DEFAULT_ARTIFACT))
+        try:
+            with open(_gate_path, encoding="utf-8") as fh:
+                _grants = _vsg.verify_grants(fh.read())
+            if not _grants["ok"]:
+                print(f"FATAL: Stage C owner grants incomplete "
+                      f"({_grants.get('signed_count', 0)}/12 signed, "
+                      f"{_grants['verdict']}) — refusing to probe "
+                      "(fail closed). Sign "
+                      "docs/deployment/stage-c-owner-grants.md; run "
+                      "verify_stage_c_grants.py for row detail.")
+                sys.exit(2)
+            print(f"Stage C grant gate: AUTHORIZED "
+                  f"({_grants.get('signed_count', 0)}/12 signed).")
+        except OSError as e:
+            print(f"FATAL: Stage C grant artifact unreadable ({e}) — "
+                  "refusing to probe (fail closed).")
+            sys.exit(2)
 
     print(f"=== VPS readiness probe (Stage C, D-141) — {args.user}@{args.host}:{args.port} ===")
     print("Mode: READ-ONLY — this script mutates nothing on the host.")

@@ -22,11 +22,13 @@ Side effects are strictly rehearsal-scoped (never production state).
 
 Usage:
   python3 local/scripts/launch_attestation.py [--json] [--events N]
+      [--check-stage-c]
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -237,6 +239,12 @@ def main(argv: list | None = None) -> int:
         description="Unified Phase 26 launch-readiness attestation "
                     "(transactional + decision-ledger DR legs).")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--check-stage-c", action="store_true",
+                    help="also verify the Stage C owner grant checklist "
+                         "(SC-1..SC-12); an unsigned checklist is folded "
+                         "into the verdict as an SC-GRANTS blocker "
+                         "(fail closed; SC_GRANTS_ARTIFACT overrides "
+                         "the artifact path)")
     ap.add_argument("--events", type=int, default=12,
                     help="transactional drill event count")
     args = ap.parse_args(argv)
@@ -246,6 +254,36 @@ def main(argv: list | None = None) -> int:
               "attest (fail closed).", file=sys.stderr)
         return 2
     att = run_attestation(n_events=args.events)
+
+    # ---- Stage C deployment clearance gate (fail closed, additive) ----
+    # An incomplete owner grant checklist refuses INFRASTRUCTURE
+    # deployment clearance without disturbing the launch matrix: a GO
+    # verdict is downgraded to NO_GO with an explicit SC-GRANTS blocker.
+    if args.check_stage_c:
+        try:
+            import verify_stage_c_grants as vsg
+        except ImportError as e:  # gate unavailable → refuse, never skip
+            print(f"FATAL: Stage C grant gate unavailable ({e}) — "
+                  "refusing clearance (fail closed).", file=sys.stderr)
+            return 2
+        from pathlib import Path as _Path
+        gate_path = _Path(os.environ.get("SC_GRANTS_ARTIFACT")
+                          or vsg.DEFAULT_ARTIFACT)
+        try:
+            grants = vsg.verify_grants(gate_path.read_text(encoding="utf-8"))
+        except OSError as e:
+            print(f"FATAL: Stage C grant artifact unreadable ({e}) — "
+                  "refusing clearance (fail closed).", file=sys.stderr)
+            return 2
+        if not grants["ok"]:
+            print(f"Stage C deployment clearance: DENIED — owner grant "
+                  f"checklist {grants['verdict']} "
+                  f"({grants.get('signed_count', 0)}/12 signed); run "
+                  "verify_stage_c_grants.py for row detail.", file=sys.stderr)
+            if att["launch_verdict"] == "GO":
+                att = dict(att, launch_verdict="NO_GO",
+                           blockers=list(att["blockers"]) + ["SC-GRANTS"])
+
     if args.json:
         print(json.dumps(att, ensure_ascii=False, indent=2))
     else:
