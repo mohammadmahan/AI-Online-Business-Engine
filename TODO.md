@@ -980,8 +980,37 @@ these even if they seem helpful:
       → stack ping → acceptance → attestation token
       `docs/deployment/stage-c-attestation.json` on unanimous pass
       only; `stage_c.runbook_attestation.v1`; battery
-      `test_stage_c_runbook.py` 19/19 ×2). **Stages D–H READY (2026-09-20,
-      not executed, plan §23):** health/E2E validation script
+      `test_stage_c_runbook.py` 19/19 ×2). **Stage C Layer 2 —
+      attestation ingestion & backup-policy clearance (2026-09-30,
+      plan §23/§24 — tooling VALIDATED LOCALLY, execution still
+      owner-gated):** `local/scripts/stage_c_token.py` (fail-closed
+      verification of the emitted token — schema, digest integrity
+      re-proving the G6 emission algorithm, SHA-256 artifact
+      bindings, CURRENT/ANCESTOR commit provenance via
+      `git merge-base --is-ancestor`, G1–G5 gate ledger, acceptance
+      payload integrity: 10-probe census, stack 5/5, media
+      zero-residue marker, event ledger non-zero; missing/corrupted/
+      schema-invalid/integrity-failing refuse with exit 2;
+      `stage_c.token_verification.v1`, live run VERIFIED against the
+      committed bc39efb token) wired as the second leg of
+      `launch_attestation.py --check-stage-c` (a findings-bearing
+      token appends the SC-RUNBOOK blocker under the same
+      never-upgrade-a-NO_GO rule as SC-GRANTS; unreadable or
+      corrupted token refuses exit 2 before the report prints;
+      SC_TOKEN/SC_TOKEN_ENV/SC_TOKEN_MANIFEST/SC_TOKEN_GRANTS
+      override the artifact paths);
+      `local/scripts/stage_c_backup_checks.py`
+      (`stage_c.backup_clearance.v1`, parse-only V1–V7 per
+      `staging-volume-backup-policy.md` §2: six-volume census,
+      schedule coverage + RPO floors canonical 6 h / media 24 h,
+      retention 30/8/6 + 14 d, off-host S3-compatible mandate,
+      separate minimum-permission backup credentials with the
+      commented BACKUP_* placeholder block (D-045), restore
+      preconditions, supplement-only / upload ≠ restoration evidence
+      (D-137); live CLEAR 14/14). Battery
+      `test_stage_c_attestation_ingest.py` 48/48 ×2; full regression
+      2374/2374 ×2 green (2326 + 48, expected honest skip). **Stages
+      D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),
       staging DR/backup drill runbook

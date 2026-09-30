@@ -240,11 +240,17 @@ def main(argv: list | None = None) -> int:
                     "(transactional + decision-ledger DR legs).")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--check-stage-c", action="store_true",
-                    help="also verify the Stage C owner grant checklist "
-                         "(SC-1..SC-12); an unsigned checklist is folded "
-                         "into the verdict as an SC-GRANTS blocker "
-                         "(fail closed; SC_GRANTS_ARTIFACT overrides "
-                         "the artifact path)")
+                    help="also verify the Stage C deployment clearance: "
+                         "the owner grant checklist (SC-1..SC-12) AND "
+                         "the runbook attestation token "
+                         "(stage_c.runbook_attestation.v1 — digest "
+                         "integrity, G1–G5 gate ledger, acceptance "
+                         "payload integrity). An unsigned checklist is "
+                         "folded in as an SC-GRANTS blocker; a missing, "
+                         "corrupted, or findings-bearing token refuses "
+                         "as an SC-RUNBOOK blocker (fail closed; "
+                         "SC_GRANTS_ARTIFACT / SC_TOKEN override the "
+                         "artifact paths)")
     ap.add_argument("--events", type=int, default=12,
                     help="transactional drill event count")
     args = ap.parse_args(argv)
@@ -256,17 +262,25 @@ def main(argv: list | None = None) -> int:
     att = run_attestation(n_events=args.events)
 
     # ---- Stage C deployment clearance gate (fail closed, additive) ----
-    # An incomplete owner grant checklist refuses INFRASTRUCTURE
-    # deployment clearance without disturbing the launch matrix: a GO
-    # verdict is downgraded to NO_GO with an explicit SC-GRANTS blocker.
+    # Two legs, both refuse INFRASTRUCTURE deployment clearance without
+    # disturbing the launch matrix: (1) an incomplete owner grant
+    # checklist folds in as an explicit SC-GRANTS blocker (a GO verdict
+    # is downgraded to NO_GO — a NO_GO is never upgraded); (2) the
+    # runbook attestation token (stage_c.runbook_attestation.v1) must
+    # verify — digest integrity, gate ledger, acceptance payload — or
+    # clearance is REFUSED as an SC-RUNBOOK blocker (same downgrade
+    # rule). A missing or corrupted token cannot be assessed and fails
+    # closed with exit 2 BEFORE printing the report.
     if args.check_stage_c:
+        from pathlib import Path as _Path
+
+        # -- leg 1: owner grant checklist (SC-1..SC-12) ------------------
         try:
             import verify_stage_c_grants as vsg
         except ImportError as e:  # gate unavailable → refuse, never skip
             print(f"FATAL: Stage C grant gate unavailable ({e}) — "
                   "refusing clearance (fail closed).", file=sys.stderr)
             return 2
-        from pathlib import Path as _Path
         gate_path = _Path(os.environ.get("SC_GRANTS_ARTIFACT")
                           or vsg.DEFAULT_ARTIFACT)
         try:
@@ -283,6 +297,49 @@ def main(argv: list | None = None) -> int:
             if att["launch_verdict"] == "GO":
                 att = dict(att, launch_verdict="NO_GO",
                            blockers=list(att["blockers"]) + ["SC-GRANTS"])
+
+        # -- leg 2: runbook attestation token ----------------------------
+        try:
+            import stage_c_token as sct
+        except ImportError as e:  # verifier unavailable → refuse, never skip
+            print(f"FATAL: Stage C token verifier unavailable ({e}) — "
+                  "refusing clearance (fail closed).", file=sys.stderr)
+            return 2
+        token_path = _Path(os.environ.get("SC_TOKEN")
+                           or sct.DEFAULT_TOKEN)
+        try:
+            token_text = token_path.read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"FATAL: Stage C attestation token unreadable ({e}) — "
+                  "refusing clearance (fail closed).", file=sys.stderr)
+            return 2
+        try:
+            token_report = sct.verify_token(
+                token_text,
+                head_commit=att.get("candidate_commit"),
+                ancestry=sct.commit_relation(
+                    sct.read_candidate_commit(token_text)),
+                env_path=_Path(os.environ.get("SC_TOKEN_ENV")
+                               or str(sct.DEFAULT_ENV)),
+                manifest_path=_Path(os.environ.get("SC_TOKEN_MANIFEST")
+                                    or str(sct.DEFAULT_MANIFEST)),
+                grants_path=_Path(os.environ.get("SC_TOKEN_GRANTS")
+                                  or str(sct.DEFAULT_GRANTS)))
+        except sct.StageCTokenError as e:
+            print(f"FATAL: Stage C attestation token REFUSED — "
+                  f"{e.verdict}: {e.reason} (fail closed).",
+                  file=sys.stderr)
+            return 2
+        if not token_report["ok"]:
+            print(f"Stage C deployment clearance: DENIED — runbook "
+                  f"attestation token {token_report['verdict']} "
+                  f"({len(token_report['findings'])} finding(s): "
+                  + "; ".join(f["id"] for f in token_report["findings"])
+                  + "); run stage_c_token.py for detail.",
+                  file=sys.stderr)
+            if att["launch_verdict"] == "GO":
+                att = dict(att, launch_verdict="NO_GO",
+                           blockers=list(att["blockers"]) + ["SC-RUNBOOK"])
 
     if args.json:
         print(json.dumps(att, ensure_ascii=False, indent=2))

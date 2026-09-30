@@ -117,6 +117,11 @@ is never silently torn down or silently kept.
   `local/scripts/stage_c_acceptance.py`,
   `local/scripts/stage_c_runbook.py` (the sequential G1–G6 runner,
   token `stage_c.runbook_attestation.v1`),
+  `local/scripts/stage_c_token.py` (the token's read-side verifier —
+  digest integrity, gate ledger, acceptance payload; consumed by
+  `launch_attestation.py --check-stage-c` as the SC-RUNBOOK leg),
+  `local/scripts/stage_c_backup_checks.py` (volume & backup policy
+  clearance V1–V7 per `staging-volume-backup-policy.md` §2),
   `local/scripts/validate_vps_target.py`,
   `local/scripts/validate_vps_readiness.py` — the fail-closed gate chain.
 - Decisions: D-141 (planning + Stages A–B), D-169/D-170 (Launch Candidate
