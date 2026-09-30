@@ -1,7 +1,7 @@
 {
   "schema_version": "stage_c.runbook_attestation.v1",
   "compatible_with": "qa.launch_attestation.v1",
-  "candidate_commit": "bc39efb",
+  "candidate_commit": "743c9c6",
   "owner_grants": {
     "authorized": false,
     "verdict": "NOT_AUTHORIZED",
@@ -72,7 +72,7 @@
       {
         "name": "canonical_event_store",
         "verdict": "PASS",
-        "detail": "read-only counts: events.event_record=75553 registry.mapping_entry=0 (zero writes)",
+        "detail": "read-only counts: events.event_record=76183 registry.mapping_entry=0 (zero writes)",
         "checked_at_logical": ""
       },
       {
@@ -115,5 +115,5 @@
     "failing": []
   },
   "runbook": "docs/deployment/stage-c-runbook.md",
-  "attestation_digest": "c90a988f936c001f1244f5fcdec9199fb7619c0ce781d14ff827e55c06dc436e"
+  "attestation_digest": "54e2b93abd8221c1414763bb7d2e95bd5bc3410d8d893bc530e56bb4d6dded02"
 }

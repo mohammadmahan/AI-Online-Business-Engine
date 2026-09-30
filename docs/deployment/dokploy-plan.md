@@ -2223,3 +2223,91 @@ the real offline OMS stack over scratch transports.
   inventory touched (scratch reservations released before
   return); settlement wiring stays behind the D-045/D-139 owner
   gate (plan §17/§21.8).
+
+## 54. Stage C deployment-clearance chain — Layer 1 & Layer 2 milestone record (2026-09-29/30)
+
+Status: **gate tooling COMPLETE and verified locally — the clearance
+chain is fail-closed end to end; NOTHING provisioned and Stage C
+execution remains blocked by the unsigned SC-1..SC-12 checklist
+(0/12).** This record closes the Stage C tooling milestone (plan
+§23/§24 Layer 1 + Layer 2) and documents the operational surface.
+
+- **Layer 1 — grant gate & token emission (2026-09-29, commits
+  `6e2d55b`..`4d1979a`):** `verify_stage_c_grants.py` (fail-closed
+  0/1/2 verification of the signable SC-1..SC-12 checklist),
+  `stage_c_dry_run.py` (parse-only G1–G6 simulation over the three
+  artifacts), `stage_c_acceptance.py` (five-plane rehearsal probes
+  on the sanctioned engine-local stack; live run 10/10 ACCEPTED),
+  `stage_c_runbook.py` (sequential G1–G6 gate runner emitting the
+  attestation token `stage_c.runbook_attestation.v1` on unanimous
+  pass ONLY — committed at
+  `docs/deployment/stage-c-attestation.json` (emitted at `bc39efb`,
+  digest `c90a988f…`; REGENERATED at `743c9c6`, digest `54e2b93a…`,
+  binding the token to the current candidate — the remediation path
+  below in action), gates G1–G5 PASS, `owner_grants` recorded
+  NOT_AUTHORIZED 0/12),
+  and the first `--check-stage-c` leg (an unsigned checklist folds
+  into the D-138 verdict as an explicit SC-GRANTS blocker; both VPS
+  probes refuse under `--require-grants` before any probe work).
+- **Layer 2 — token ingestion & backup-policy clearance
+  (2026-09-30, commit `743c9c6`):** `stage_c_token.py` verifies the
+  emitted token fail closed — schema + required-key set,
+  `attestation_digest` re-proven with the exact G6 emission
+  algorithm (a tampered or hand-edited token is refused, never
+  trusted), SHA-256 artifact bindings re-checked against the live
+  files, candidate-commit evidence provenance (CURRENT == HEAD or
+  ANCESTOR via `git merge-base --is-ancestor`; a disconnected or
+  undecidable commit is a COMMIT_PROVENANCE finding — exact equality
+  cannot be the standing criterion since every commit shifts HEAD),
+  the G1–G5 gate ledger (G6 IS the emission: its evidence is the
+  verified token itself), and acceptance-payload integrity (the
+  10-probe census, stack 5/5, the media zero-residue marker,
+  `events.event_record` non-zero). `stage_c_backup_checks.py`
+  (V1–V7, parse-only) clears the volume & backup policy of
+  `staging-volume-backup-policy.md` §2: six-volume census +
+  per-service mounts, schedule coverage with RPO floors (canonical
+  ≤ 6 h, media ≤ 24 h), retention 30/8/6 + 14 d, the off-host
+  S3-compatible mandate, separate minimum-permission backup
+  credentials with the commented BACKUP_* placeholder block
+  (D-045), restore preconditions (`{appName}_{volumeName}` naming,
+  destination absent, consumers stopped), and the supplement-only
+  authority (upload ≠ restoration evidence, D-137). Live: CLEAR
+  14/14.
+- **Operational guidance — the clearance inside the root
+  attestation:** `python3 local/scripts/launch_attestation.py
+  --check-stage-c` composes the D-138 launch attestation AND both
+  Stage C clearance legs in one fail-closed pass: (1) the grants
+  leg (`verify_stage_c_grants` over `SC_GRANTS_ARTIFACT` or
+  `stage-c-owner-grants.md`) and (2) the token leg (`stage_c_token`
+  over `SC_TOKEN` or `stage-c-attestation.json`, with
+  `SC_TOKEN_ENV` / `SC_TOKEN_MANIFEST` / `SC_TOKEN_GRANTS`
+  overriding the binding-material paths). A verified token is
+  silent; a findings-bearing token appends the SC-RUNBOOK blocker
+  under the same never-upgrade rule as SC-GRANTS (a NO_GO is never
+  upgraded); a missing, corrupted, schema-invalid, or
+  integrity-failing token REFUSES with exit 2 BEFORE the report
+  prints. Exit contract: 0 = technical GO with clearance silent ·
+  1 = NO_GO or health FAIL (blockers named) · 2 = stack down or the
+  clearance cannot assess.
+- **Remediation path when upstream artifacts mutate:** the token's
+  `bindings` pin the SHA-256 of `.env.staging.template`,
+  `compose.staging.yml`, and `stage-c-owner-grants.md` at emission;
+  ANY later edit flips the corresponding check to a binding
+  mismatch and the launch gate denies clearance — by design.
+  Remediation is REGENERATION, never hand-editing: re-run
+  `python3 local/scripts/stage_c_runbook.py` (G1–G6, fail closed) to
+  emit a fresh token bound to the current artifacts and commit it;
+  the commit-provenance layer keeps the older emission valid in
+  history (ANCESTOR) while the bindings force the newest evidence.
+  If a gate refuses (G1 env lint / G2 preflight / G3 boundary / G4
+  stack / G5 acceptance), fix the named finding and re-run — the
+  token is written ONLY on unanimous pass.
+- **Verification:** battery `test_stage_c_attestation_ingest.py`
+  48/48 ×2 (tamper, census-gap, provenance, launch-gate wiring,
+  zero-leak, negatives); full regression 2374/2374 ×2 green
+  (2326 + 48); D-045 entropy scan clean over the new artifacts;
+  post-commit stage-e clean-tree GO pin 16/16.
+- **Boundary:** the whole chain is TECHNICAL clearance only. Stage C
+  execution authorization remains the signed SC-1..SC-12 checklist
+  (0/12 — every execution path halts fail closed with a non-zero
+  exit), production activation stays D-139, and no VPS exists.

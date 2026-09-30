@@ -1007,9 +1007,34 @@ these even if they seem helpful:
       separate minimum-permission backup credentials with the
       commented BACKUP_* placeholder block (D-045), restore
       preconditions, supplement-only / upload ≠ restoration evidence
-      (D-137); live CLEAR 14/14). Battery
+      (D-137); live      CLEAR 14/14). Battery
       `test_stage_c_attestation_ingest.py` 48/48 ×2; full regression
-      2374/2374 ×2 green (2326 + 48, expected honest skip). **Stages
+      2374/2374 ×2 green (2326 + 48, expected honest skip).
+      **Stage C milestone closure & grants readiness (2026-09-30,
+      plan §24/§25 closeout — documentation + audit only, nothing
+      provisioned):** `local/scripts/stage_c_grants_audit.py`
+      (`stage_c.grants_readiness_audit.v1`): all 12 SC-1..SC-12
+      slots audited structurally READY for sign-off (A1 anchors,
+      A2 census in both tables, A3 matrix completeness, A4 §3 rows
+      5-cell and EMPTY — nothing pre-signed, A5 the 5 pre-filled
+      decisions SC-7/8/9/11/12 match their RATIFICATION-PENDING
+      notes, A6 the REAL verifier's standing verdict is the required
+      fail-closed one: NOT_AUTHORIZED 0/12); `--simulate-sign`
+      proves the AUTHORIZED side offline over a synthetic fully-
+      signed copy (12/12, zero mutation of the real artifact).
+      Fail-closed re-probe: grants verifier rc 1, dry-run rc 1, both
+      VPS probes rc 2 under `--require-grants` (refusal BEFORE any
+      probe/SSH work), composite `--check-stage-c` rc 1 with the
+      SC-GRANTS blocker. Plan §54 appended (the Layer 1 + Layer 2
+      milestone record with `--check-stage-c` operational guidance
+      and the token-regeneration remediation path); stage-c-runbook
+      §2 gained the composite gate as pre-execution step 6 plus the
+      remediation paragraph. The committed token was REGENERATED via
+      `stage_c_runbook.py` (live G1–G6 READY, live run 10/10
+      ACCEPTED): now bound to candidate `743c9c6`, digest
+      `54e2b93a…`, live ledger 76183, bindings unchanged — the
+      documented remediation path, re-verified by `stage_c_token.py`
+      VERIFIED. **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),

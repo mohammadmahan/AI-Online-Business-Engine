@@ -62,9 +62,38 @@ below document what each stage runs; the runner automates steps 1–5.
 5. **Readiness probe** — `validate_vps_readiness.py --require-grants
    --host <HOST> --user <ADMIN_USER>` (read-only, battery-pinned
    no-mutation guarantee; the grant gate precedes any SSH attempt).
-6. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
+6. **Unified launch attestation (composite gate)** —
+   `python3 local/scripts/launch_attestation.py --check-stage-c`
+   composes the D-138 launch attestation with BOTH Stage C clearance
+   legs in one fail-closed pass: the grants leg (step 1's artifact,
+   `SC_GRANTS_ARTIFACT` overrides) and the token leg
+   (`stage_c_token.py` over `docs/deployment/stage-c-attestation.json`,
+   `SC_TOKEN` / `SC_TOKEN_ENV` / `SC_TOKEN_MANIFEST` /
+   `SC_TOKEN_GRANTS` override the artifact paths). A verified token
+   is silent; a findings-bearing token appends the SC-RUNBOOK blocker
+   under the same never-upgrade rule as SC-GRANTS (a NO_GO is never
+   upgraded); a missing, corrupted, schema-invalid, or
+   integrity-failing token REFUSES with exit 2 BEFORE the report
+   prints. Exit contract: 0 = technical GO with clearance silent ·
+   1 = NO_GO or health FAIL (blockers named) · 2 = stack down or
+   clearance cannot assess.
+7. **Provisioning execution** — `docs/runbooks/dokploy-vps-provisioning.md`
    §4→§8 under its G1–G6 owner messages; the verification log there (§9,
    append-only) and the log in §4 below fill only with executed evidence.
+
+**Token remediation (upstream artifacts mutated):** the emitted token
+pins the SHA-256 bindings of `.env.staging.template`,
+`compose.staging.yml`, and `stage-c-owner-grants.md` at emission. Any
+later edit to those artifacts flips the binding checks — and the
+`--check-stage-c` token leg — to a mismatch; the gate denies clearance
+by design. Remediation is REGENERATION, never hand-editing: re-run
+`python3 local/scripts/stage_c_runbook.py` (G1–G6, fail closed) to
+emit a fresh token bound to the current artifacts and commit it — the
+token is written ONLY on unanimous pass. Hand-editing never works:
+the `attestation_digest` is recomputed by the consumer and must
+reproduce byte-exactly. The commit-provenance layer (CURRENT/ANCESTOR
+via merge-base) keeps an older emission valid in history while the
+bindings force the newest evidence.
 
 ## 3. Execution phases
 
