@@ -1034,7 +1034,31 @@ these even if they seem helpful:
       ACCEPTED): now bound to candidate `743c9c6`, digest
       `54e2b93a…`, live ledger 76183, bindings unchanged — the
       documented remediation path, re-verified by `stage_c_token.py`
-      VERIFIED. **Stages
+      VERIFIED. **Stage D preparation entry (2026-09-30, plan §26/§37
+      — SCAFFOLD ONLY, nothing deployed, remote execution still
+      owner-gated with SC-1..SC-12 at 0/12):**
+      `docs/deployment/stage-d-runbook.md` (the Stage D deployment
+      flow as ONE fail-closed sequence: template integrity → D-144
+      generation → manifest contract verification → local lineage
+      rehearsal via `bootstrap_staging.py --check` +
+      `run_staging_smoke_tests.py` 21/21 — the staging lineage is the
+      rehearsal surface, the rendered Dokploy manifest has no local
+      stack behind it until an owner-gated deployment → the standing
+      Stage C composite gate; topology, secret-envelope boundaries,
+      recovery/rollback, and the Stage E handoff package pinned);
+      `local/scripts/stage_d_preflight.py` (`stage_d.verdict.v1`,
+      parse-only AST-pure, exit 0/1/2): two modes over the D-144
+      contract — template mode (canonical template HOLDS 7/7: four
+      services, backend internal, zero published ports on the three
+      data services, V-09 probe parity, strict ${VAR:?} refs, named
+      volumes) and manifest mode (the same checks against any
+      candidate manifest — drift refuses with named findings before
+      a deployment layer ever sees it); battery
+      `test_stage_d_preflight.py` 20/20 ×2 (every refusal class,
+      multi-violation accumulation, cannot-assess, JSON contract,
+      zero-leak, AST purity); plan §55 appended; full regression
+      2409/2409 ×2 green (2389 + 20, expected honest skip); D-045
+      scan clean. **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),

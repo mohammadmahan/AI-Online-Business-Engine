@@ -2311,3 +2311,41 @@ execution remains blocked by the unsigned SC-1..SC-12 checklist
   execution authorization remains the signed SC-1..SC-12 checklist
   (0/12 — every execution path halts fail closed with a non-zero
   exit), production activation stays D-139, and no VPS exists.
+
+## 55. Stage D scaffolding & readiness framework entry (2026-09-30)
+
+Status: **PREPARATION-Phase scaffold — documentation + pre-flight
+tooling only. Nothing deployed, nothing generated with real inputs,
+no host contacted.** Stage D (manifest layer, D-144 lineage) now has
+a UNIFIED operator surface alongside its existing records (§26 local
+rehearsal execution, §37 configuration engine):
+
+- **Runbook** — `docs/deployment/stage-d-runbook.md`: the deployment
+  flow as ONE fail-closed sequence — template integrity → D-144
+  generation → manifest contract verification → local lineage
+  rehearsal (`bootstrap_staging.py --check` +
+  `run_staging_smoke_tests.py` 21/21, the staging lineage is the
+  rehearsal surface; the rendered Dokploy manifest has no local
+  stack behind it until an owner-gated deployment) → the standing
+  Stage C composite gate (`--check-stage-c`). Topology and gating
+  prerequisites restated from D-144; recovery/rollback and the
+  Stage E handoff package pinned.
+- **Pre-flight verifier** — `local/scripts/stage_d_preflight.py`
+  (`stage_d.verdict.v1`, machine-readable JSON, exit 0/1/2): two
+  modes over ONE contract — `--mode template` (the canonical
+  template carries the contract: four services, `backend` internal
+  + `edge`, ZERO published ports on the three data services, V-09
+  probe-parity healthchecks mapping onto `infra_health_probe.py`
+  semantics, strict `${VAR:?}` credential references, named
+  volumes) and `--mode manifest` (the same checks against any
+  candidate manifest — a rendered or hand-altered manifest that
+  loses ANY invariant refuses with named findings). AST-pure parse
+  (no subprocess/network/environ); zero-leak findings (D-124).
+- **Verification** — `local/tests/test_stage_d_preflight.py`
+  (battery: contract green ×2, every refusal class, tamper
+  detection, zero-leak, AST purity); full regression green ×2;
+  D-045 scan clean.
+- **Boundary:** Stage D preparation is verified, deployment is NOT
+  opened — external execution (remote host, DNS, real deployment)
+  remains owner-gated per §17 with the SC-1..SC-12 checklist at 0/12
+  and D-139 untouched.
