@@ -1100,6 +1100,19 @@ these even if they seem helpful:
       printed; no committed code reads secrets from containers), and
       the operator-export path is the required documented workflow
       going forward; no code change, battery untouched; D-045 clean.
+      **Stage D Step 4 evidence re-run via operator export
+      (2026-10-01, doc-only):** `bootstrap_staging.py --check`
+      executed through exactly the runbook workflow (`set -a; .
+      local/infra/.env.staging; set +a`; gitignored operator file,
+      mode 600, values never printed): exit 0, preflight 9/9 keys
+      resolved from the operator-exported env, 13/13 schemas, no
+      container reads, running stack untouched; §57 evidence updated.
+      Incidental findings flagged for follow-up (not fixed here):
+      committed HEAD carries a 6-char throwaway literal where D-141
+      had committed a strict `${CANONICAL_DB_PASSWORD:?}` ref
+      (compose.staging.yml postgres+minio) and the committed
+      `.env.staging.example`/`.template` envelopes are not directly
+      source-able; D-045 clean.
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +

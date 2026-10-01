@@ -150,7 +150,10 @@ resolved, 13/13 schemas, smoke 22/22 — all green. Governance note:
 that run resolved the keys in-process from the running containers
 (values never printed; no committed code extracts secrets from
 containers); the documented and required workflow going forward is
-the operator export above — re-run through it for any future evidence.
+the operator export above. Re-run executed 2026-10-01 (plan §57)
+through exactly that export — `local/infra/.env.staging` sourced,
+values never printed: exit 0, preflight 9/9 resolved, 13/13 schemas,
+stack untouched.
 
 ### Step 5 — Composite gate
 

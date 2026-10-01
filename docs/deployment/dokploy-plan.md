@@ -2416,6 +2416,24 @@ fail-closed command over COMMITTED surfaces only:
   checks including the D-124 redaction and production-leak refusal
   classes, 11 stack checks including data-network isolation and zero
   published DB ports).
+- **Step 4 re-run through the documented operator export
+  (2026-10-01).** Exactly the runbook workflow — `set -a; .
+  local/infra/.env.staging; set +a` (gitignored operator file, mode
+  600, values never printed), then `bootstrap_staging.py --check`:
+  exit 0, preflight 9/9 mandatory keys resolved from the
+  operator-exported env (values withheld, D-124), 13/13 schemas
+  present, no container reads, running stack untouched. Incidental
+  findings recorded, not fixed here (out of scope for this evidence
+  run): (1) committed HEAD carries a 6-character throwaway literal
+  where the D-141 manifest had committed a strict
+  `${CANONICAL_DB_PASSWORD:?}` ref (compose.staging.yml postgres and
+  minio lines) — so the stack-start credential cannot be reused
+  verbatim in the export; the re-run used a policy-compliant
+  local-only rehearsal value (the `--check` transport is the
+  socket-trust psql path and never authenticates with the value);
+  (2) the committed `.env.staging.example`/`.template` envelopes carry
+  `${VAR:?}` placeholders and are not directly source-able as an
+  operator file. Both are flagged for a follow-up commit.
 - **Step 5 — composite gate.** `stage_c_grants_audit.py` READY 6/6
   (A1–A6) with the machine verifier standing at NOT_AUTHORIZED 0/12 —
   the REQUIRED fail-closed answer; `stage_d_rehearsal.py`
