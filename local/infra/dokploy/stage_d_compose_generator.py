@@ -77,6 +77,11 @@ __all__ = [
     "REQUIRED_SECRETS", "REQUIRED_IMAGE_SLOTS", "main",
 ]
 
+# Strict immutable-pin contract: a reference ends in an @sha256:<64hex>
+# digest — floating tags (name:tag alone) and malformed/short digests
+# are REFUSED (exit 2), not warned (runbook step 2, strict lineage).
+_DIGEST_PIN_RE = re.compile(r"@sha256:([0-9a-fA-F]{64})$")
+
 REPO = Path(__file__).resolve().parents[2]
 TEMPLATE = Path(__file__).resolve().parent / "dokploy_compose_template.yaml"
 
@@ -191,9 +196,16 @@ class StageDComposeGenerator:
             if not ref:
                 raise ComposeGeneratorError(
                     f"image slot missing: {slot} — fail closed (no half-pinned manifest)")
-            if "@sha256:" not in ref:
-                findings.append(
-                    f"warning: image slot {slot} is not digest-pinned")
+            m = _DIGEST_PIN_RE.search(ref)
+            if m is None:
+                raise ComposeGeneratorError(
+                    f"image slot {slot} is not an immutable digest pin "
+                    "(<name>[:<tag>]@sha256:<64 hex>) — floating tags "
+                    "and malformed digests are refused, fail closed")
+            if m.group(1) != m.group(1).lower():
+                raise ComposeGeneratorError(
+                    f"image slot {slot} digest hex must be lowercase "
+                    "(OCI digest form)")
             text = text.replace("{{" + slot + "}}", ref)
         if "{{" in text:
             raise ComposeGeneratorError(

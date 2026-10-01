@@ -128,12 +128,17 @@ owner-gated at 0/12.
 
 ```bash
 python3 local/scripts/bootstrap_staging.py --check
-python3 local/scripts/run_staging_smoke_tests.py
+python3 local/scripts/run_staging_smoke_tests.py            # canonical 11
+python3 local/scripts/run_staging_smoke_tests.py --stack    # full 22/22
 ```
 
 The staging lineage is the rehearsal surface: five-plane health,
-13/13 schemas, synthetic-only smoke (21/21 pinned). Read-only checks;
-no secret env needed (label-based stack checks). Exit 0 required.
+13/13 schemas, synthetic-only smoke (22/22 pinned — 11 canonical +
+11 stack). The bootstrap preflight runs against the operator-exported
+staging env (9 mandatory runtime keys; values never printed, D-124).
+Read-only checks; label-based stack checks need no secret env.
+Exit 0 required. Executed 2026-09-30 (plan §57): preflight 9/9
+resolved, 13/13 schemas, smoke 22/22 — all green.
 
 ### Step 5 — Composite gate
 
@@ -143,6 +148,12 @@ python3 local/scripts/launch_attestation.py --check-stage-c
 
 The standing Stage C clearance (grants 0/12 ⇒ SC-GRANTS blocker;
 token leg) composed with the D-138 attestation. Exit contract 0/1/2.
+Executed 2026-09-30 (plan §57): grants audit READY 6/6 with the
+machine verifier standing at NOT_AUTHORIZED 0/12 (the required
+fail-closed answer), Stage D rehearsal REHEARSAL_PASS, composite
+verdict NO_GO with the SOLE blocker SC-GRANTS — Stage D readiness
+does not move the authorization state; live activation stays
+owner-gated (D-139).
 
 ## 4. Gating prerequisites (fail closed)
 

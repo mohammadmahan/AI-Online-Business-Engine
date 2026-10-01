@@ -1071,7 +1071,23 @@ these even if they seem helpful:
       placeholders, never real credentials); battery
       `test_stage_d_rehearsal.py` 19/19 (determinism, every refusal
       class, zero-leak redaction, D-045 clean, purity, zero repo
-      artifacts); plan §56 appended; full regression green ×2.
+      artifacts); plan §56 appended;      full regression green ×2. **Stage D steps 4–5 executed entry
+      (2026-09-30, plan §57 — verification COMPLETE pending final
+      owner sign-off, SC-1..SC-12 NOT_AUTHORIZED 0/12, nothing
+      deployed):** generator hardened to strict immutable digest pins
+      (floating tags / short / uppercase digests REFUSED exit 2;
+      battery 18→21); digest propagation proven across simulated
+      staging→production transitions (identical pins ⇒ byte-identical
+      manifests, envelope scoping isolated to env_fingerprint, 4/4
+      pin census; daemon leg re-resolves postgres/mysql digests
+      identically); step 4 live: `bootstrap_staging.py --check` exit 0
+      (preflight 9/9 keys resolved values-withheld, 13/13 schemas) +
+      `run_staging_smoke_tests.py --stack` 22/22; step 5 composite:
+      grants READY 6/6 + verifier NOT_AUTHORIZED 0/12 + rehearsal
+      REHEARSAL_PASS + `--check-stage-c` NO_GO sole blocker SC-GRANTS
+      — readiness does not breach the Stage C fail-closed
+      authorization state; plan §57 appended; full regression green
+      ×2; D-045 clean.
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +

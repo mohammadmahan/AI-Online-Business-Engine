@@ -89,12 +89,39 @@ class TestDeterministicGeneration(StageDGeneratorBase):
         self.assertNotIn("rotated-value-000", r2.report())
         self.assertNotIn(CANARY, r2.report())
 
-    def test_04_digest_pinning_enforced(self):
+    def test_04_digest_pinning_enforced_strict(self):
         loose = dict(IMAGES_OK)
         loose["APP_IMAGE"] = "ghcr.io/org/app:latest"
         r = rendered(self.g, images=loose)
-        self.assertEqual(r.verdict, "RENDERED")  # warning, not refusal
-        self.assertTrue(any(f.startswith("warning:") for f in r.findings))
+        self.assertEqual(r.verdict, "CANNOT_GENERATE")  # refused, not warned
+        self.assertIn("APP_IMAGE", r.findings[0])
+        self.assertIn("not an immutable digest pin", r.findings[0])
+
+    def test_04b_short_digest_refused(self):
+        short = dict(IMAGES_OK)
+        short["REDIS_IMAGE"] = "redis:7-alpine@sha256:" + "b" * 12
+        r = rendered(self.g, images=short)
+        self.assertEqual(r.verdict, "CANNOT_GENERATE")
+        self.assertIn("REDIS_IMAGE", r.findings[0])
+
+    def test_04c_uppercase_digest_refused(self):
+        up = dict(IMAGES_OK)
+        up["TELEMETRY_IMAGE"] = "prom/prometheus:v2.0.0@sha256:" + "A" * 64
+        r = rendered(self.g, images=up)
+        self.assertEqual(r.verdict, "CANNOT_GENERATE")
+        self.assertIn("lowercase", r.findings[0])
+
+    def test_04d_cli_refuses_floating_tag_with_rc2(self):
+        images = dict(IMAGES_OK)
+        images["POSTGRES_IMAGE"] = "postgres:16-alpine"
+        buf_err = io.StringIO()
+        with redirect_stderr(buf_err):
+            rc = gen.main(["--images",
+                           ",".join(f"{k}={v}" for k, v in images.items()),
+                           "--env",
+                           ",".join(f"{k}={v}" for k, v in ENV_OK.items())])
+        self.assertEqual(rc, 2)
+        self.assertIn("not an immutable digest pin", buf_err.getvalue())
         # missing slot is a hard failure
         missing = dict(IMAGES_OK)
         del missing["TELEMETRY_IMAGE"]

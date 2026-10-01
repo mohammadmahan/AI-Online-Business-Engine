@@ -2383,3 +2383,48 @@ fail-closed command over COMMITTED surfaces only:
 - **Boundary unchanged:** the rehearsal proves the manifest
   machinery offline; it authorizes nothing — Stage D steps 4–5 and
   every remote execution remain owner-gated (SC-1..SC-12 at 0/12).
+
+## §57 — Stage D steps 4–5 executed: lineage rehearsal + composite
+## gate (2026-09-30, verification entry — nothing deployed, remote
+## execution still owner-gated with SC-1..SC-12 at 0/12)
+
+- **Strict digest pins (generator hardened).** A loose image ref is
+  now REFUSED (exit 2), not warned: every one of the four slots must
+  end in an immutable `<name>[:<tag>]@sha256:<64 lowercase hex>` pin;
+  floating tags, short/malformed digests, and uppercase hex all fail
+  closed with named findings. Battery extended
+  (`test_dokploy_stage_d_generator.py` 18→21: floating tag, short
+  digest, uppercase hex, CLI rc-2 classes).
+- **Digest propagation across simulated staging→production
+  transitions (evidence probe, no repo artifact).** Same pins +
+  different envelopes render BYTE-IDENTICAL manifests (the template
+  keeps strict `${VAR:?}` refs — the manifest is environment-agnostic
+  by design, D-6), while the `env_fingerprint` diverges per envelope;
+  pin census 4/4 immutable 64-hex retained verbatim. Daemon leg
+  (read-only `docker image inspect`): `postgres:16-alpine` and
+  `mysql:8.0` re-resolve to identical registry digests; images pulled
+  by tag without retained registry digests are covered by the
+  manifest-layer strict-pin refusal, not by daemon evidence.
+- **Step 4 — staging lineage rehearsal, executed live.**
+  `bootstrap_staging.py --check` exit 0 (preflight 9/9 mandatory keys
+  resolved against the operator-exported staging env — values never
+  printed, D-124; 13/13 schemas present) +
+  `run_staging_smoke_tests.py --stack` 22/22 (11 canonical-engine
+  checks including the D-124 redaction and production-leak refusal
+  classes, 11 stack checks including data-network isolation and zero
+  published DB ports).
+- **Step 5 — composite gate.** `stage_c_grants_audit.py` READY 6/6
+  (A1–A6) with the machine verifier standing at NOT_AUTHORIZED 0/12 —
+  the REQUIRED fail-closed answer; `stage_d_rehearsal.py`
+  REHEARSAL_PASS; `launch_attestation.py --check-stage-c` verdict
+  NO_GO whose SOLE blocker is SC-GRANTS. Conclusion: Stage D manifest
+  readiness does NOT breach or prematurely trigger the Stage C
+  fail-closed authorization state — readiness evidence and
+  authorization remain strictly separated; live activation stays
+  owner-gated (D-139).
+- **Verification** — targeted Stage D suites + generator battery
+  green; full canonical regression ×2; D-045 scans clean over all
+  touched files; `git diff --check` clean.
+- **Boundary unchanged:** Stage D verification is COMPLETE pending
+  owner sign-off on SC-1..SC-12; no remote host, DNS, or deployment
+  was touched (§17).
