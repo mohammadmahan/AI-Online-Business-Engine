@@ -126,7 +126,15 @@ owner-gated at 0/12.
 
 ### Step 4 — Local rehearsal (lineage contract)
 
+The preflight reads ONLY the process environment — it never reads
+secrets from containers, images, or the stack. Before running it,
+export the 9 mandatory staging runtime keys from the operator-held,
+gitignored env file (`local/infra/.env.staging`; maintained by the
+operator outside git — never committed, never echoed):
+
 ```bash
+set -a; . local/infra/.env.staging; set +a   # operator-maintained, gitignored
+
 python3 local/scripts/bootstrap_staging.py --check
 python3 local/scripts/run_staging_smoke_tests.py            # canonical 11
 python3 local/scripts/run_staging_smoke_tests.py --stack    # full 22/22
@@ -138,7 +146,11 @@ The staging lineage is the rehearsal surface: five-plane health,
 staging env (9 mandatory runtime keys; values never printed, D-124).
 Read-only checks; label-based stack checks need no secret env.
 Exit 0 required. Executed 2026-09-30 (plan §57): preflight 9/9
-resolved, 13/13 schemas, smoke 22/22 — all green.
+resolved, 13/13 schemas, smoke 22/22 — all green. Governance note:
+that run resolved the keys in-process from the running containers
+(values never printed; no committed code extracts secrets from
+containers); the documented and required workflow going forward is
+the operator export above — re-run through it for any future evidence.
 
 ### Step 5 — Composite gate
 

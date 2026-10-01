@@ -1081,13 +1081,25 @@ these even if they seem helpful:
       manifests, envelope scoping isolated to env_fingerprint, 4/4
       pin census; daemon leg re-resolves postgres/mysql digests
       identically); step 4 live: `bootstrap_staging.py --check` exit 0
-      (preflight 9/9 keys resolved values-withheld, 13/13 schemas) +
+      (preflight 9/9 keys resolved values-withheld — in-process from
+      the running containers, since corrected to the documented
+      operator-export workflow (`local/infra/.env.staging`, gitignored;
+      runbook §3 Step 4); 13/13 schemas) +
       `run_staging_smoke_tests.py --stack` 22/22; step 5 composite:
       grants READY 6/6 + verifier NOT_AUTHORIZED 0/12 + rehearsal
       REHEARSAL_PASS + `--check-stage-c` NO_GO sole blocker SC-GRANTS
       — readiness does not breach the Stage C fail-closed
       authorization state; plan §57 appended; full regression green
       ×2; D-045 clean.
+      **Stage D Step 4 governance tightening (2026-10-01, doc-only):**
+      runbook §3 Step 4 now documents the operator export explicitly
+      (gitignored `local/infra/.env.staging` sourced with
+      `set -a; . …; set +a` before `bootstrap_staging.py --check`);
+      §57/TODO wording corrected — the 2026-09-30 run resolved the 9
+      keys in-process from the running containers (values never
+      printed; no committed code reads secrets from containers), and
+      the operator-export path is the required documented workflow
+      going forward; no code change, battery untouched; D-045 clean.
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +

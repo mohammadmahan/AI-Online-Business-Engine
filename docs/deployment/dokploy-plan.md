@@ -2407,8 +2407,11 @@ fail-closed command over COMMITTED surfaces only:
   manifest-layer strict-pin refusal, not by daemon evidence.
 - **Step 4 — staging lineage rehearsal, executed live.**
   `bootstrap_staging.py --check` exit 0 (preflight 9/9 mandatory keys
-  resolved against the operator-exported staging env — values never
-  printed, D-124; 13/13 schemas present) +
+  resolved in-process from the running staging containers — values
+  never printed, D-124; the documented operator workflow is the
+  gitignored `local/infra/.env.staging` export in runbook §3 Step 4,
+  which the preflight requires — no committed code reads secrets from
+  containers; 13/13 schemas present) +
   `run_staging_smoke_tests.py --stack` 22/22 (11 canonical-engine
   checks including the D-124 redaction and production-leak refusal
   classes, 11 stack checks including data-network isolation and zero
