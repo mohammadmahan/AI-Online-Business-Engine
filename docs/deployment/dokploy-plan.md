@@ -2349,3 +2349,37 @@ rehearsal execution, §37 configuration engine):
   opened — external execution (remote host, DNS, real deployment)
   remains owner-gated per §17 with the SC-1..SC-12 checklist at 0/12
   and D-139 untouched.
+
+## §56 — Stage D offline rehearsal, codified (2026-09-30,
+## codification entry)
+
+The runbook §3 step 2–3 render→verify loop — first proven ad hoc over
+/temp artifacts — is codified as ONE repeatable, deterministic,
+fail-closed command over COMMITTED surfaces only:
+
+- **Rehearsal command** — `local/scripts/stage_d_rehearsal.py`
+  (`stage_d.rehearsal.v1`, machine-readable JSON, exit 0/2):
+  RENDER (the D-144 generator over four synthetic digest-pinned slots
+  + the committed names-only envelope) → DETERMINE (an identical
+  re-render must be byte-identical) → VERIFY
+  (`stage_d_preflight.py --mode manifest --json` must return HOLDS
+  with the full 7-check census and no failing check). Artifacts live
+  in a `tempfile` directory only — nothing persists in the repo tree.
+- **Committed envelope example** —
+  `local/infra/dokploy/stage_d_mock.env.example`: the four required
+  key NAMES with `__MOCK__` placeholder values only. It is usable as
+  a rehearsal input and unusable as credentials; real deployments
+  keep the owner-held, UNCOMMITTED envelope of runbook §1.1.
+- **Zero-leak / zero-reach** — AST-pure (no subprocess, no socket,
+  no os.environ); findings and refusals carry masked key names and
+  structural markers; every printed surface passes the generator
+  `deep_redact` belt (D-045/D-124).
+- **Verification** — `local/tests/test_stage_d_rehearsal.py`
+  (battery: full-pass census D1..D7, end-to-end determinism,
+  fail-closed refusals for missing envelope/missing key/generator
+  refusal/determinism break/pre-flight violation, masking and
+  redaction zero-leak, D-045 scan clean, AST purity, zero repo
+  artifacts); targeted Stage D suites green; full regression green ×2.
+- **Boundary unchanged:** the rehearsal proves the manifest
+  machinery offline; it authorizes nothing — Stage D steps 4–5 and
+  every remote execution remain owner-gated (SC-1..SC-12 at 0/12).

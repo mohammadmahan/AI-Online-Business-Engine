@@ -108,6 +108,22 @@ services, app sole edge attach, V-09 probe parity, strict `${VAR:?}`
 credential references, named volumes. `stage_d.verdict.v1` JSON,
 machine-readable.
 
+#### Steps 2–3 as one offline rehearsal (committed surfaces, deterministic)
+
+The render→verify loop is codified as a single fail-closed command —
+four synthetic digest-pinned slots, the committed names-only envelope
+`local/infra/dokploy/stage_d_mock.env.example` (`__MOCK__` values,
+never real credentials), temp-only artifacts, a byte-identical
+re-render proof, and pre-flight HOLDS 7/7 — or exit 2:
+
+```bash
+python3 local/scripts/stage_d_rehearsal.py --json
+```
+
+`stage_d.rehearsal.v1` JSON, machine-readable. A pass is evidence
+machinery, NOT a deployment authorization: SC-1..SC-12 remain
+owner-gated at 0/12.
+
 ### Step 4 — Local rehearsal (lineage contract)
 
 ```bash

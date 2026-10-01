@@ -1058,7 +1058,21 @@ these even if they seem helpful:
       multi-violation accumulation, cannot-assess, JSON contract,
       zero-leak, AST purity); plan §55 appended; full regression
       2409/2409 ×2 green (2389 + 20, expected honest skip); D-045
-      scan clean. **Stages
+      scan clean. **Stage D codified rehearsal entry (2026-09-30,
+      plan §56 — offline evidence machinery only, deployment still
+      owner-gated with SC-1..SC-12 at 0/12):**
+      `local/scripts/stage_d_rehearsal.py` (`stage_d.rehearsal.v1`,
+      exit 0/2): runbook §3 steps 2–3 as ONE fail-closed command —
+      D-144 render over four synthetic digest-pinned slots + the
+      committed names-only envelope, byte-identical re-render proof,
+      `stage_d_preflight.py --mode manifest` HOLDS 7/7 — temp-only
+      artifacts, AST-pure, masked key names on every refusal;
+      `local/infra/dokploy/stage_d_mock.env.example` (`__MOCK__`
+      placeholders, never real credentials); battery
+      `test_stage_d_rehearsal.py` 19/19 (determinism, every refusal
+      class, zero-leak redaction, D-045 clean, purity, zero repo
+      artifacts); plan §56 appended; full regression green ×2.
+      **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
       read-only live modes, deployed-side isolation invariants),
