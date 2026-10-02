@@ -192,6 +192,26 @@ class TestStagingManifestStageB(unittest.TestCase):
             )
         self.assertIn("staging secret required", STAGING.read_text(encoding="utf-8"))
 
+    def test_strict_secret_refs_pin_both_data_stores(self):
+        # D-141: each staging data-store credential is a strict
+        # `${VAR:?…}` env reference. A committed literal would silently
+        # bypass the runtime preflight password policy, so every
+        # credential line must carry the strict form — checked
+        # per-line, not per-file, so replacing one ref cannot hide
+        # behind the other.
+        text = STAGING.read_text(encoding="utf-8")
+        strict = {
+            "POSTGRES_PASSWORD": "CANONICAL_DB_PASSWORD",
+            "MINIO_ROOT_PASSWORD": "MINIO_ROOT_PASSWORD",
+        }
+        for line_var, env_var in strict.items():
+            self.assertRegex(
+                text,
+                rf"(?m)^\s*{line_var}: \$\{{{env_var}:\?",
+                f"{line_var} must be a strict ${{{env_var}:?}} reference, "
+                f"never a committed literal",
+            )
+
     # ---------- G-B4: staging prohibitions encoded ----------
 
     def test_staging_guardrails_in_environment(self):

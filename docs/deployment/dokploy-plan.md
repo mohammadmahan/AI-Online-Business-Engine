@@ -2433,7 +2433,31 @@ fail-closed command over COMMITTED surfaces only:
   socket-trust psql path and never authenticates with the value);
   (2) the committed `.env.staging.example`/`.template` envelopes carry
   `${VAR:?}` placeholders and are not directly source-able as an
-  operator file. Both are flagged for a follow-up commit.
+  operator file. The first finding was RETRACTED on 2026-10-02 — the
+  strict refs are intact at HEAD (D-141 compliant); the second
+  stands.
+- **Correction to the 2026-10-01 incidental finding (2026-10-02).**
+  The claim that committed HEAD carries a 6-character literal where
+  D-141 committed a strict `${CANONICAL_DB_PASSWORD:?}` ref was
+  WRONG — a probe parsing artifact: reading the third whitespace
+  field of the strict-ref line captured the word `secret` from the
+  ref's own error message, and `git log -L` line numbers reflect the
+  file's older layout (line 86 then, 92 now). `git log -S` shows the
+  strict refs were added once (ffd8663) and never removed; the
+  compose contract was never relaxed.
+- **Step 4 evidence re-run with stack-consistent env (2026-10-02).**
+  The staging DB role credential was rotated to a generated ≥8 value
+  stored only in the gitignored operator file (socket-side ALTER
+  over stdin; value never displayed, D-124). Real-TCP authentication
+  proof on the staging data network with the operator-exported
+  credential: positive control authenticated, negative control
+  rejected with a password-authentication failure — the exported env
+  authenticates the RUNNING database, closing the trust-only gap; no
+  container env reads at any point. Fresh `bootstrap_staging.py
+  --check` through the documented export: exit 0, preflight 9/9
+  resolved (values withheld), 13/13 schemas, running stack
+  untouched. New per-line strict-ref battery test pins BOTH
+  `${VAR:?}` credential refs against literal drift (25→26).
 - **Step 5 — composite gate.** `stage_c_grants_audit.py` READY 6/6
   (A1–A6) with the machine verifier standing at NOT_AUTHORIZED 0/12 —
   the REQUIRED fail-closed answer; `stage_d_rehearsal.py`

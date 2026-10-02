@@ -153,7 +153,10 @@ containers); the documented and required workflow going forward is
 the operator export above. Re-run executed 2026-10-01 (plan §57)
 through exactly that export — `local/infra/.env.staging` sourced,
 values never printed: exit 0, preflight 9/9 resolved, 13/13 schemas,
-stack untouched.
+stack untouched. Evidence hardened 2026-10-02 (plan §57): the DB
+role credential was rotated so the exported env authenticates the
+RUNNING database over real TCP (positive + negative auth controls),
+removing the trust-only caveat; exit 0, 9/9 keys, 13/13 schemas.
 
 ### Step 5 — Composite gate
 

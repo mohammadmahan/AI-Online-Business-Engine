@@ -1113,6 +1113,27 @@ these even if they seem helpful:
       (compose.staging.yml postgres+minio) and the committed
       `.env.staging.example`/`.template` envelopes are not directly
       source-able; D-045 clean.
+      **Stage D integrity: stack-consistent credential + finding
+      retraction (2026-10-02, battery +1):** the 2026-10-01 claim of
+      a committed 6-char literal replacing the D-141 strict
+      `${CANONICAL_DB_PASSWORD:?}` ref was RETRACTED — probe parsing
+      artifact (awk third field captured the word `secret` from the
+      ref error message; `git log -L` numbers reflect the older file
+      layout); `git log -S` proves the strict refs were added once
+      (ffd8663) and never removed — the compose contract was never
+      relaxed. The staging DB role credential was rotated to a
+generated ≥8 value stored only in the gitignored operator file
+      (socket-side ALTER over stdin, value never displayed, D-124);
+      real-TCP auth proof on the staging data network: exported
+      credential authenticates (positive control), wrong password
+      rejected (negative control) — the exported env authenticates
+      the RUNNING database, no trust-only bypass remains, no
+      container env reads; fresh `bootstrap_staging.py --check` via
+      the documented export: exit 0, preflight 9/9, 13/13 schemas,
+      stack untouched; new per-line strict-ref test pins BOTH
+      staging `${VAR:?}` credential refs against literal drift
+      (test_deployment_staging_manifest 25→26); full battery ×2;
+      stage-e 16/16 clean-tree pin; D-045 clean.
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
