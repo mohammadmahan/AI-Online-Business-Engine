@@ -1148,6 +1148,26 @@ generated ≥8 value stored only in the gitignored operator file
       to stage-f-authorization.md §7 for owner review — no signature
       minted, no host touched; D-045 clean; stage-e 16/16 clean-tree
       pin.
+      **Phase 5 igniter live rehearsal (2026-10-02, dry-run only):**
+      battery-pattern harness with live transports — ephemeral
+      redis:7-alpine drill container (noeviction, maxmemory 256mb,
+      removed at teardown) on the local engine network + real
+      ArgvPsqlTransport against engine-local-postgres + the
+      documented in-process D-053 webhook precedent; IGN-01..IGN-05
+      ALL GREEN (14/14 checks): D-154 certificate
+      INFRASTRUCTURE_COMPLETE rooted in the D-112 chain (7 rows, zero
+      breaks); PG pooling headroom (max_connections 100 over 3+12),
+      read roundtrip, SSOT schema ready (seed.size_term, 28 rows);
+      Redis PING 37.2 ms < 50 ms, noeviction, drill-namespace
+      set/get/delete roundtrip; D-053 parse_event + HMAC verified
+      over raw bytes + redelivery skipped (handler once, D-027 store
+      roundtrip); single emission of
+      phase5.live_wiring_attestation.v1 (digest cca91ed9…, cert
+      27d6c43e…, manifest 7ca49705…); canonical battery module 38/38;
+      zero repo artifacts, zero dangling containers, stack 10/10
+      healthy after teardown; stage-e 16/16 clean-tree re-run;
+      Phase 6 handoff verified; next gates unchanged (owner-side
+      SC-1..SC-12 + SF-1..SF-7, then cutover).
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
