@@ -120,3 +120,76 @@ gate is re-entered from step 1 with fresh evidence.
 - `DECISIONS.md` D-137–D-140, D-139 (activation authority), D-141
   (adoption stages), D-045 (credential discipline)
 - `docs/deployment/stage-g-acceptance.md` (post-cutover acceptance)
+
+## 7. Owner review package (DRAFT — template, not an authorization)
+
+**Status: DRAFT for owner review. Nothing below is signed, minted,
+or bound. The gate state is exactly as §4 reports it: all seven
+rows unsigned (exit 1, the honest default).**
+
+### 7.1 Sign-off template (fill one block per row; a block is only
+complete with all four fields — a missing field keeps the row
+unsigned and the gate fail-closed)
+
+```
+SF-<n> SIGNATURE
+  authorized_by : <legal name and owner role>
+  signed_at     : <YYYY-MM-DD HH:MM TZ>
+  evidence_ref  : <anchor per §2 Evidence form — e.g. window record,
+                  secret-store receipt (key NAMES only), DNS-provider
+                  authorization id, MediaStore binding ref, control-audit
+                  token row, escalation-runbook ack, rotation plan doc>
+  scope         : <binding value from §2 — window / config / domain /
+                  credential / commit / role / plan>
+```
+
+Row-by-row notes for the signer:
+
+- **SF-1** name the operator role and the exact start of the cutover
+  window; the window is the expiry.
+- **SF-2** the secret-store receipt must list the 9 `${VAR:?}` key
+  NAMES only (D-045/D-124: values never appear in this document or
+  its evidence).
+- **SF-3** domain-bound; record the provider authorization id.
+- **SF-4** reference the Phase 24 MediaStore binding attestation
+  (EV-BAC-001 decision leg).
+- **SF-5** NOT filled by hand — §7.2 below; the row closes only when
+  the control-audit chain carries the issued token row.
+- **SF-6** every named role acknowledges in the escalation runbook.
+- **SF-7** plan must exist at gate entry; signed at gate exit.
+
+### 7.2 Commit-bound token workflow (SF-5; the only mechanical path)
+
+1. **Candidate freeze.** Owner confirms the candidate commit: clean
+   tree == origin, `verify_cutover_readiness.py` offline exit 0
+   (V-01..V-09 green — today V-10 is the sole blocker by design).
+2. **Mint.** The token is minted ONLY by the owner through the
+   D-146 approval engine (`local/src/security/owner_approval_gate.py`:
+   HMAC-SHA256 mint → evaluate → replay/expiry/commit-mismatch
+   refusal) composed by the cutover orchestrator; the signing key is
+   owner-held and NEVER enters git, the planning shell, or the
+   operator session (D-045).
+3. **Bind.** The evaluation binds to the exact Stage D manifest
+   fingerprint (`manifest_sha256`, today `7ca497057bd0976a…`) and
+   writes `local/volumes/security/stage_f_verdict.json` — gate GO,
+   token id, issued/expires/observed ticks, TTL ≤ 10000, and NO raw
+   signature/nonce/key material (V-10 refuses forbidden fields).
+4. **Deliver out-of-band.** The token value reaches the operator
+   through a channel outside this repository and session; only the
+   token ID and the audit-chain row are records.
+5. **Consume once.** V-10 passes only while: verdict GO, fingerprint
+   == candidate, ticks valid, token unconsumed. A post-consumption
+   abort requires a NEW token; the consumed token is never re-used.
+6. **Re-mint triggers.** Any commit change, manifest re-binding, or
+   TTL expiry invalidates the verdict — the owner re-runs §7.2 from
+   step 1 with fresh G1 evidence.
+
+### 7.3 What this package does NOT authorize
+
+- No cutover command, no host access, no DNS/TLS change, no secret
+  store write: each remains a separate D-141/D-139 owner act.
+- Signing §7.1 rows does not move D-139; it only lets G1 evidence
+  be re-evaluated at gate entry (runbook §1) with the V-10 record
+  present.
+- The gate is re-checked immediately before the first cutover
+  command (§1: checked again, not only during planning).

@@ -2473,3 +2473,50 @@ fail-closed command over COMMITTED surfaces only:
 - **Boundary unchanged:** Stage D verification is COMPLETE pending
   owner sign-off on SC-1..SC-12; no remote host, DNS, or deployment
   was touched (§17).
+
+## §58 — Stage E baseline verification: cutover readiness ladder
+## accepted, fail-closed posture confirmed (2026-10-02, doc-only —
+## nothing executed against any host; D-139 promotion remains
+## owner-gated)
+
+- **Entry points mapped.** MASTER_PLAN.md L488 (Stage E readiness
+  record, D-141 plan §27) and L1323 (launch arc D-143..D-153, Stage G
+  seal D-152, executed Stage H technical-GO D-153); dokploy-plan
+  §27 (runbook + harness + battery) and §38 (D-145 fingerprint
+  wire); `stage-e-cutover-runbook.md` §0 authority gates → §1
+  preflight → §2 D-125 backup proof → §3 blue/green transition →
+  §4 post-cutover smoke → §5 RB-1..RB-6 → §6 owner sign-off → §7
+  stop conditions; Stage F gate SF-1..SF-7 machine-checked by
+  `verify_cutover_readiness.py --stage-f`.
+- **Minimal go/no-go ladder accepted (no new machinery — every
+  command already exists):** G0 candidate integrity (clean tree ==
+  origin, P-1) → G1 offline readiness (V-01..V-09 exit 0 + fresh
+  `--check-stage-c` + battery green on the SAME commit) → G2 owner
+  authorization (SF-1..SF-7 signed; V-10 Stage F verdict record GO
+  bound to THIS manifest fingerprint) → G3 host prerequisites (D-141
+  grants: SSH window, DNS/TLS, backup destination — separately
+  authorized) → G4 backup proof (runbook §2; RPO/RTO declared) → G5
+  transition (runbook §3 blue/green swap, 5/5 health-gated, blue
+  kept stopped for observation, canary ceiling + kill-switch active)
+  → G6 post-cutover (runbook §4 smoke + `--edge` probe + D-123/
+  Phase-19 chain + zero stranded outbox receipts; only then the
+  single-use D-139 promotion token is consumed; abort ⇒ NEW token).
+  RB-1..RB-6 and runbook §7 stop conditions stand at every step.
+- **Machine-verified baseline (2026-10-02, clean tree `dd609b9`,
+  stack restored healthy after a Freebuff restart):** offline
+  `verify_cutover_readiness.py` exit 1 — V-01..V-09 ALL PASS (V-01
+  D-138 attestation GO `d95f2d96…`; V-02 D-045 shell hygiene; V-03
+  9-key env contract; V-04 5-service posture; V-05 preflight
+  fail-closed; V-06 RB-1..RB-6 declared; V-07 edge policy declared;
+  V-08 D-144 fingerprint binding matches envelope `7ca49705…`; V-09
+  probe parity) with the SOLE blocker **V-10 Stage F owner
+  authorization absent** — the required fail-closed answer; `--stage-f`
+  exit 1 — F-2 runbook §6 ↔ SF-1..SF-6 map PASS, F-3 unsigned rows
+  reported by name: SF-1..SF-7 all unsigned (the honest default).
+- **Posture unchanged:** no cutover command has run and none may
+  until G2 closes (Stage F signed + V-10 verdict record GO bound to
+  the candidate manifest fingerprint). The Stage F owner review
+  package (§2 sign-off matrix fill-in template + §3 commit-bound
+  token workflow) is appended to
+  `docs/deployment/stage-f-authorization.md` — signatures there are
+  owner acts, not operator acts.

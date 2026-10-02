@@ -1134,6 +1134,20 @@ generated ≥8 value stored only in the gitignored operator file
       staging `${VAR:?}` credential refs against literal drift
       (test_deployment_staging_manifest 25→26); full battery ×2;
       stage-e 16/16 clean-tree pin; D-045 clean.
+      **Stage E baseline verification + Stage F owner review package
+      (2026-10-02, doc-only):** Stage E entry points mapped
+      (MASTER_PLAN L488/L1323; dokploy-plan §27/§38; cutover runbook
+      §0–§7; Stage F gate) and the minimal G0–G6 go/no-go ladder
+      accepted with zero new machinery; machine-verified baseline:
+      offline readiness V-01..V-09 ALL PASS (attestation GO
+      d95f2d96…, D-144 binding 7ca49705… holds) with SOLE blocker
+      V-10 Stage F authorization absent — required fail-closed
+      answer (offline exit 1); `--stage-f` exit 1 with F-2 map PASS
+      and F-3 honest unsigned default SF-1..SF-7; §58 appended;
+      Stage F sign-off template + commit-bound token workflow added
+      to stage-f-authorization.md §7 for owner review — no signature
+      minted, no host touched; D-045 clean; stage-e 16/16 clean-tree
+      pin.
       **Stages
       D–H READY (2026-09-20, not executed, plan §23):** health/E2E validation script
       (`local/scripts/validate_staging_health.py`: manifest +
