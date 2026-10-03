@@ -709,29 +709,87 @@ contrast (text ≥ 4.5:1, large text ≥ 3:1, non-text/icons/borders ≥
 dp, ≥ 8px gap; non-color-dependent semantics (icon + Persian label +
 English status code); no raw hex in components; SVG icons only.
 
-### Phase 27.1 — Foundation & Scaffold
+**Numbering note (2026-10-03):** the owner's execution directives split
+this roadmap into 27.1 tooling, 27.2 app shell, and 27.3 executive
+overview, shifting the D-171 §4 phases to 27.4–27.8. D-171 §4 content
+is unchanged; only these TODO labels follow the directives.
 
-- [ ] Next.js (App Router) + Tailwind CSS + Shadcn UI / Radix
-      scaffold committed to the repo (no package installed into the
-      engine's Python tree)
-- [ ] Strict RTL layout (`dir="rtl"`, `lang="fa"`), Vazirmatn
-      typographic hierarchy with `system-ui` fallback, font-display
-      swap
+### Phase 27.1 — Foundation & Tooling Setup
+
+Owner directive 2026-10-03 (Foundation & Tooling Setup).
+
+- [x] Next.js (App Router) + Tailwind CSS scaffold committed to the
+      repo (no package installed into the engine's Python tree)
+- [x] Strict RTL layout (`dir="rtl"`, `lang="fa"`), Vazirmatn
+      typographic hierarchy self-hosted via `next/font` with
+      `system-ui` fallback and `font-display: swap`
+- [x] Semantic color-token layer (`#1E40AF` primary, `#F8FAFC` /
+      `#0F172A` canvases, `#FFFFFF` / `#1E293B` cards, `#D97706` /
+      `#B45309` accent/warning, `#15803D` / `#4ADE80` success,
+      `#DC2626` / `#F87171` destructive)
+- [x] Contrast audit in both themes, enforced fail-closed
+      (`npm run check:contrast`): 52 pairings, 0 violations; non-text
+      ≥ 3:1; white text forbidden on `#D97706`
+- [x] Token discipline enforced: the gate scans every file under
+      `src/` and fails on any 6-digit hex literal outside the three
+      token-definition files
+- [x] Radix UI / Shadcn baseline primitives (Slot, Dialog) with 8px
+      radius, 44×44 px minimum targets, and ARIA attributes
 - [ ] Auth layer with fail-closed sessions; no token persisted in
-      browser storage
+      browser storage (outside the owner's 27.1 scope — pending)
 - [ ] Direct canonical PostgreSQL (D-055) connection — READ-ONLY
       role, bounded pool, parameterized allow-listed queries only
-- [ ] Master Layout: sidebar navigation, header, light/dark theme,
-      live connection status indicator
-- [ ] Semantic color-token layer (`#1E40AF` primary, `#F8FAFC` /
-      `#0B0F19` backgrounds, `#FFFFFF` / `#111827` cards, `#D97706`
-      accent/warning, `#15803D` success, `#DC2626` destructive)
-- [ ] Contrast audit in both themes (text ≥ 4.5:1, non-text ≥ 3:1;
-      white-on-color text backgrounds forbidden for the four accent
-      tokens)
-- [ ] `/dashboard` renders live from the SSOT with zero direct writes
+      (deferred to live wiring; 27.3 renders a labeled mock)
 
-### Phase 27.2 — HITL Approval Center
+### Phase 27.2 — App Shell & Navigation Structure
+
+Owner directive 2026-10-03 (App Shell & Navigation Structure).
+
+- [x] Global shell: responsive RTL sidebar + header + main content
+      container, with a skip-link to main content
+- [x] Master Layout: sidebar navigation, header, light/dark theme
+      toggle with a no-flash pre-paint bootstrap, and a connection
+      status indicator (mock hook; live probe deferred)
+- [x] Header extras: environment badge, system status banner, and an
+      emergency kill-switch placeholder that is inert and says so
+- [x] Seven canonical routes scaffolded (`/dashboard`, `/hitl-queue`,
+      `/inventory`, `/automations`, `/ai-engine`, `/orders`,
+      `/settings`) with Persian titles, breadcrumbs, and card
+      containers
+- [x] Accessibility: `aria-current` on the active route, visible
+      focus rings, reduced-motion respect, SVG icons only, and
+      24 px web / 44 px coarse-pointer target floors
+
+### Phase 27.3 — Executive Overview Dashboard
+
+Owner directive 2026-10-03 (Executive Overview). `/dashboard` is
+upgraded from its stub to the executive surface.
+
+- [x] System health grid: PostgreSQL / Dokploy / n8n / Walrus with
+      explicit UNKNOWN or UNAVAILABLE (danger) states — absent
+      evidence is never green
+- [x] Executive KPI grid (4 columns, responsive) with trend
+      indicators and non-color-only direction cues
+- [x] Pending-approvals quick list (top 3, linking to
+      `/hitl-queue`) and recent system events (last 5, D-121 trace
+      ids)
+- [x] Emergency action trigger cards (soft-pause, system-wide flush
+      preview) — preview-only, disabled with an explicit Persian
+      reason
+- [x] Typed contracts in `src/types/telemetry.ts` +
+      `src/types/dashboard.ts` and a deterministic mock provider in
+      `src/lib/mock/dashboard-data.ts` behind a single
+      `DashboardDataSource` swap seam
+- [x] Zero external network calls in the mock layer; deterministic
+      values (fixed seed, fixed instants) so the page prerenders
+      statically
+- [x] Fail-closed consistency guard: a snapshot claiming `ok` while
+      any of its own metrics read NOT_PROBED/UNKNOWN/NOT_CONNECTED
+      throws at build time instead of rendering a green badge
+- [ ] Live data from the canonical SSOT (live-wiring phase) — this
+      phase is mock-only by design
+
+### Phase 27.4 — HITL Approval Center
 
 - [ ] Card-table over AI decisions: severity, category, source,
       age, status (severity-first ordering)
@@ -744,7 +802,7 @@ English status code); no raw hex in components; SVG icons only.
       preserved; irreversible acts require a second confirmation
 - [ ] Every action produces one D-121 traceable ledger record
 
-### Phase 27.3 — Telemetry & Gates
+### Phase 27.5 — Telemetry & Gates
 
 - [ ] Live service health for the 10 containers (`engine-local-*`,
       `engine-staging-*`)
@@ -755,7 +813,7 @@ English status code); no raw hex in components; SVG icons only.
 - [ ] Failure tracking with D-121 trace context and ledger links
 - [ ] Connection failure disables dependent actions explicitly
 
-### Phase 27.4 — Inventory & Products
+### Phase 27.6 — Inventory & Products
 
 - [ ] Data-dense table with keyset server-side pagination (stable
       under concurrent data change)
@@ -768,7 +826,7 @@ English status code); no raw hex in components; SVG icons only.
       derived from each other (D-015)
 - [ ] CSV export with rate limiting and a mandatory ledger record
 
-### Phase 27.5 — AI Ops & Shared Memory Hub
+### Phase 27.7 — AI Ops & Shared Memory Hub
 
 - [ ] Memory-layer status (Walrus / D-142) — `NOT_CONNECTED` shown
       explicitly until the D-045 owner gate is passed; never
@@ -781,7 +839,7 @@ English status code); no raw hex in components; SVG icons only.
 - [ ] No provider call originates from the UI; no credential is ever
       rendered
 
-### Phase 27.6 — Commerce & Analytics
+### Phase 27.8 — Commerce & Analytics
 
 - [ ] Orders table with channel tags (telegram / instagram_dm /
       web_store) along the D-081 lifecycle

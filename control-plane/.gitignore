@@ -1,0 +1,17 @@
+# Next.js build output
+/.next/
+/out/
+
+# Dependencies (also covered by the repo-root .gitignore)
+/node_modules/
+
+# Local env — the control plane holds NO credentials in this phase (D-171 §6)
+.env
+.env.local
+.env.*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Next.js generated types
+next-env.d.ts
