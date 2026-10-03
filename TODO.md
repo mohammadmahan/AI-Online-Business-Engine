@@ -686,6 +686,123 @@ owner-reviewed (D-170, 2026-09-29).
       future probe authors repeating the default-lock-claims-PG
       incident (carried over from Phases 10/11/12)
 
+## Phase 27 — Admin Dashboard Scaffolding & Control Plane (D-171)
+
+Unified Web Control Plane — **D-171 Approved (2026-10-03,
+owner-directed)**. Plan anchor: `MASTER_PLAN.md` §13 Phase 19 (Custom
+Internal Tools — "business command centers"). NOTE: this is the
+admin-dashboard track, **not** MASTER_PLAN §13 Phase 27
+(Optimization), which is distinct and unaffected. Spec:
+`docs/decisions/D-171-unified-web-control-plane.md`.
+
+Standing gates (unchanged): nothing installed, connected, provisioned,
+or activated; no live credentials exist or are requested (D-045);
+production activation remains the sole owner-gated act (D-139); the
+plane is never an authority (D-026/D-027/D-146 preserved). The
+existing static `dashboard/` snapshot stays untouched.
+
+Design standards are MANDATED (not advisory) by
+`.claude/skills/ui-ux-pro-max` v2.13.0: RTL + Vazirmatn; WCAG 2.2 AA
+contrast (text ≥ 4.5:1, large text ≥ 3:1, non-text/icons/borders ≥
+3:1, measured independently in BOTH themes); touch targets web ≥
+24×24 CSS px (or documented exception), mobile ≥ 44×44 pt / ≥ 48×48
+dp, ≥ 8px gap; non-color-dependent semantics (icon + Persian label +
+English status code); no raw hex in components; SVG icons only.
+
+### Phase 27.1 — Foundation & Scaffold
+
+- [ ] Next.js (App Router) + Tailwind CSS + Shadcn UI / Radix
+      scaffold committed to the repo (no package installed into the
+      engine's Python tree)
+- [ ] Strict RTL layout (`dir="rtl"`, `lang="fa"`), Vazirmatn
+      typographic hierarchy with `system-ui` fallback, font-display
+      swap
+- [ ] Auth layer with fail-closed sessions; no token persisted in
+      browser storage
+- [ ] Direct canonical PostgreSQL (D-055) connection — READ-ONLY
+      role, bounded pool, parameterized allow-listed queries only
+- [ ] Master Layout: sidebar navigation, header, light/dark theme,
+      live connection status indicator
+- [ ] Semantic color-token layer (`#1E40AF` primary, `#F8FAFC` /
+      `#0B0F19` backgrounds, `#FFFFFF` / `#111827` cards, `#D97706`
+      accent/warning, `#15803D` success, `#DC2626` destructive)
+- [ ] Contrast audit in both themes (text ≥ 4.5:1, non-text ≥ 3:1;
+      white-on-color text backgrounds forbidden for the four accent
+      tokens)
+- [ ] `/dashboard` renders live from the SSOT with zero direct writes
+
+### Phase 27.2 — HITL Approval Center
+
+- [ ] Card-table over AI decisions: severity, category, source,
+      age, status (severity-first ordering)
+- [ ] Diff drawer for payload and `payload_override`
+- [ ] Reasoning log rebuilt from D-027 events — never raw model
+      chain-of-thought
+- [ ] One-click actions (approve / modify / reject / escalate)
+      routed through the REAL HITL engine (D-068 / D-168)
+- [ ] No-token ⇒ action disabled; single-winner claim semantics
+      preserved; irreversible acts require a second confirmation
+- [ ] Every action produces one D-121 traceable ledger record
+
+### Phase 27.3 — Telemetry & Gates
+
+- [ ] Live service health for the 10 containers (`engine-local-*`,
+      `engine-staging-*`)
+- [ ] Gates V-01..V-10 rendered with explicit PASS / FAIL / UNKNOWN
+      plus the evidence reference for each — absent evidence is never
+      green; stale evidence is labeled STALE
+- [ ] n8n + Redis queue visibility: depth, processing rate, DLQ
+- [ ] Failure tracking with D-121 trace context and ledger links
+- [ ] Connection failure disables dependent actions explicitly
+
+### Phase 27.4 — Inventory & Products
+
+- [ ] Data-dense table with keyset server-side pagination (stable
+      under concurrent data change)
+- [ ] Inline edit (price, stock, status) with pre-submit validation
+      and rollback on error
+- [ ] Sync status with WooCommerce (D-003, D-034–D-045) and Notion
+      (D-060, D-156); conflicts explicit and fail-closed
+- [ ] D-011 provenance and missing-data states surfaced per value
+- [ ] Product ID / Variant ID / SKU displayed separately, never
+      derived from each other (D-015)
+- [ ] CSV export with rate limiting and a mandatory ledger record
+
+### Phase 27.5 — AI Ops & Shared Memory Hub
+
+- [ ] Memory-layer status (Walrus / D-142) — `NOT_CONNECTED` shown
+      explicitly until the D-045 owner gate is passed; never
+      fabricated data
+- [ ] Agent observability: execution routes, tools invoked, success
+      rate, latency
+- [ ] Token and cost analytics per route/model under the D-063 /
+      D-127 ceilings
+- [ ] AI proposal drafts and their D-060 lifecycle states
+- [ ] No provider call originates from the UI; no credential is ever
+      rendered
+
+### Phase 27.6 — Commerce & Analytics
+
+- [ ] Orders table with channel tags (telegram / instagram_dm /
+      web_store) along the D-081 lifecycle
+- [ ] Order detail: items with SKU, status history, D-084 receipts
+- [ ] Payment gateway log fully masked — zero PAN, auth code, or
+      gateway secret (D-114 / D-124)
+- [ ] Shipping status with provider UNSELECTED (open decision 11)
+- [ ] Invoice issuance in integer Toman, no decimals (D-010)
+- [ ] Transactional analytics (revenue, conversion, basket, returns)
+      rebuilt from SSOT events
+- [ ] **DRY-RUN ONLY** until the owner selects the payment provider
+      (open decision 10) and shipping provider (open decision 11) —
+      no real payment path exists in the UI
+
+### Phase 27 standing gates
+
+- [ ] Owner review of each phase completion record before the next
+      phase starts (PROJECT_RULES §3, D-139)
+- [ ] No production activation, provisioning, or live credential use
+      is authorized by D-171
+
 ## Forward previews
 
 - [x] Live Wiring program-level completion reconciliation — **DONE
