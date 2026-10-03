@@ -791,16 +791,40 @@ upgraded from its stub to the executive surface.
 
 ### Phase 27.4 — HITL Approval Center
 
-- [ ] Card-table over AI decisions: severity, category, source,
-      age, status (severity-first ordering)
-- [ ] Diff drawer for payload and `payload_override`
-- [ ] Reasoning log rebuilt from D-027 events — never raw model
-      chain-of-thought
-- [ ] One-click actions (approve / modify / reject / escalate)
-      routed through the REAL HITL engine (D-068 / D-168)
-- [ ] No-token ⇒ action disabled; single-winner claim semantics
+Owner directive 2026-10-04 (HITL Review Queue). The canonical
+vocabulary is mirrored from `local/canonical/hitl_contracts.py`
+(D-105/D-106) — queue types, lifecycle states, roles and the D-101
+severity/category taxonomy are the engine's own values, not UI
+inventions.
+
+- [x] Card-table over AI decisions: severity, category, source,
+      age, status (severity-first ordering; `sortBySeverityFirst`)
+- [x] Diff drawer for payload and `payload_override` — native
+      `<dialog>` (focus trap and Escape for free), per-field
+      current-vs-proposed table
+- [x] Reasoning log rebuilt from D-027 events — never raw model
+      chain-of-thought; each step carries its D-121 trace id
+- [x] Filters (severity / status / free text) as client state only:
+      filtering never mutates a ticket, and the hidden count is
+      stated as text
+- [x] No-token ⇒ action disabled; single-winner claim semantics
       preserved; irreversible acts require a second confirmation
-- [ ] Every action produces one D-121 traceable ledger record
+      (`ESCALATED` carries `CONFIRM_2X`)
+- [x] Fail-closed consistency guard: a snapshot claiming a state the
+      engine cannot produce throws at BUILD time instead of
+      rendering — verified live against two injected violations
+      (enabled action without token; `PENDING_REVIEW` carrying a
+      reviewer), each of which failed the build
+- [x] Zero external network calls in the mock layer; fixed literal
+      instants so the queue prerenders statically in both themes
+- [ ] One-click actions routed through the REAL HITL engine
+      (D-068 / D-168) — the four actions are rendered and DISABLED
+      with their own stated reason; the UI neither mints nor holds a
+      single-use owner token and has no signing key (D-146). Gated on
+      live wiring.
+- [ ] Every action produces one D-121 traceable ledger record — no
+      action can execute in this phase, so no such record exists yet.
+      Gated on the same live wiring as the item above.
 
 ### Phase 27.5 — Telemetry & Gates
 
