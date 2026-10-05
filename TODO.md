@@ -1111,7 +1111,8 @@ to read.
       steady, surge and payment-degraded plus an unrecognised scenario
       (NO_DATA); browser check (drawer, filtering, zero console
       messages); sidecar suite 19/19; backend regression battery
-      2433/2433 with the one known skip
+      2452/2452 with the one known skip (the 2433 baseline plus the
+      19 sidecar tests)
 - [ ] Conversion, basket and returns analytics rebuilt from SSOT
       events — needs the live read path; the revenue summary is
       delivered and guarded
@@ -1119,6 +1120,62 @@ to read.
       exist but the signed write path (D-171 §6), the owner token
       (D-146) and provider selections (decisions 10/11) remain absent
       by design
+
+### Phase 27 closeout — 2026-10-05
+
+Owner directive 2026-10-05 (Phase 27 Integration Closeout & Staging
+Health Verification Gate). The Unified Web Control Plane (D-171) is
+certified operational in BOTH modes, verified end to end:
+
+- [x] MOCK mode (the default build): every route prerenders statically
+      from a guarded deterministic mock — contrast gate 52/52, zero
+      raw hex outside the token layer, `tsc --noEmit` and
+      `npm run lint` clean, builds exit 0 across every scenario
+      harness (27.5/27.6/27.8), verified again in this closeout
+- [x] LIVE mode, end to end against the stdlib health sidecar:
+      `CP_PROBE_ENDPOINTS` pointed at `127.0.0.1:8088/health/*` (local
+      `.env.local`, never committed) makes `/automations` build as a
+      request-time (ƒ) route — no probe runs during a build — and each
+      request renders live payload digests, latency badges, endpoint
+      labels and health states (postgres/n8n HEALTHY with
+      `METRICS: UNAVAILABLE` where the payload exposes no CPU/memory;
+      redis/dokploy/walrus DOWN via the 503 mapping). Zero console
+      messages; the served HTML was scanned for credential material
+      (PGPASSWORD, bearer tokens, env-var names) and stack traces —
+      none present
+- [x] Negative fail-closed runtime verification: a 503 surface
+      degrades to DOWN with a Persian mapping reason and no metrics;
+      with the sidecar fully stopped every surface renders UNKNOWN
+      with «اتصال به endpoint کاوش برقرار نشد» reasons, all
+      measurements are discarded, the page still answers HTTP 200 and
+      no exception reaches the log or the client
+- [x] Quality battery (this closeout): contrast 52/52 + 0 raw hex;
+      `tsc` 0 errors; `npm run lint` 0 errors/0 warnings; backend
+      regression battery 2452/2452 (1 known skip) on a fresh isolated
+      DB, the same 2452 tests the single-process discover would cover
+- [ ] Single-process `python3 -m unittest discover -s local/tests`
+      against the DEFAULT local DB: it was run and does not terminate —
+      it stalls in `test_retry_isolation_live`
+      (`test_phase11_orchestration.TestM4LivePgE2E`), which spins
+      against leftover state (`business_engine_local` carries 2392
+      `admin.control_audit` rows from earlier drills). The module
+      passes in 9.4 s on a fresh isolated DB. Either keep using the
+      per-module 4-chunk runner (as the battery does) or make that
+      test hermetic against a populated local DB
+- [x] `/telemetry` is NOT a route: the canonical D-171 route map puts
+      the telemetry plane at `/automations` (the directive's
+      `/telemetry` reference resolves there); unknown paths answer 404
+      by design — no alias was added, because the route registry is
+      canonical and navigation must match it
+
+Remaining unchecked bullets across 27.1–27.8 stay unchecked ON
+PURPOSE: they are deferred by owner gates — live-wiring data paths
+(27.1/27.3/27.5), real HITL execution and its D-121 ledger records
+(27.4), ledger-linked failure tracking and DLQ (27.6/27.7), the probe
+credential policy (owner secrets decision), the roadmap's AI Ops
+section (27.7), and conversion/returns analytics plus write paths
+(27.8). This closeout certifies the control plane's MOCK and LIVE
+read-only modes; it does not silently close gated write paths.
 
 ### Phase 27 standing gates
 
