@@ -893,11 +893,16 @@ roadmap's AI Ops section keeps its label below.)
       builds exit 0 in MOCK (static prerender) and LIVE (dynamic)
       modes; browser check with zero console messages; backend
       regression battery 2433/2433 with the one known skip
-- [ ] Pointing the probes at the real `engine-local-*` /
-      `engine-staging-*` health surfaces — endpoints are unset by
-      default and the containers do not yet expose HTTP health paths
-      on the loopback; this needs an owner-provided read-only probe
-      sidecar and stays outside the UI layer (D-171 §6)
+- [x] Pointing the probes at a real loopback surface — the Phase 27.8
+      read-only sidecar (`local/services/health_sidecar.py`, pinned
+      `127.0.0.1:8088`) answers
+      `/health/{postgres,redis,n8n,dokploy,walrus}` with serialised
+      `ProbeResult`-shaped payloads; endpoints stay opt-in via
+      `CP_PROBE_ENDPOINTS`, so a default build still probes nothing
+- [ ] Redis, Dokploy and Walrus surfaces in a real deployment — no
+      Redis or Dokploy service exists locally and Walrus is PLANNED
+      (D-142); the sidecar reports those surfaces UNKNOWN/DOWN with
+      reasons rather than inventing a reading
 - [ ] Probe credential policy: tokens are read from the server
       environment only; rotation, scoping and an audit record for
       token use still need the owner-gated secrets decision
@@ -1047,18 +1052,73 @@ not scope stay unchecked below.
 
 ### Phase 27.8 — Commerce & Analytics
 
-- [ ] Orders table with channel tags (telegram / instagram_dm /
-      web_store) along the D-081 lifecycle
-- [ ] Order detail: items with SKU, status history, D-084 receipts
-- [ ] Payment gateway log fully masked — zero PAN, auth code, or
-      gateway secret (D-114 / D-124)
-- [ ] Shipping status with provider UNSELECTED (open decision 11)
-- [ ] Invoice issuance in integer Toman, no decimals (D-010)
-- [ ] Transactional analytics (revenue, conversion, basket, returns)
-      rebuilt from SSOT events
-- [ ] **DRY-RUN ONLY** until the owner selects the payment provider
+Owner directive 2026-10-05 (Commerce, Orders & Analytics). `/orders`
+renders the order book, its masked payment audit and the revenue
+roll-up from a deterministic mock behind the swap seam; the requested
+read-only health sidecar gives the Phase 27.7 probes a loopback surface
+to read.
+
+- [x] Stdlib read-only health sidecar (`local/services/health_sidecar.py`):
+      `ThreadingHTTPServer` pinned to `127.0.0.1:8088` (D-122
+      precedent), probing `/health/{postgres,redis,n8n,dokploy,walrus}`;
+      fail-closed — 200 only for HEALTHY/DEGRADED, 503 with a
+      structured JSON payload and a Persian reason otherwise; write
+      methods answer 501; a D-114 redaction gate masks
+      credential-shaped keys; 19 tests including the psql-channel
+      regression guard (host `psql`, docker fallback)
+- [x] Commerce contracts in `src/types/commerce.ts`: `ORD-#####` ids,
+      WooCommerce id, Persian customer, integer Toman (D-010), payment
+      `PAID`/`PENDING_PAYMENT`/`FAILED`/`REFUNDED`, fulfillment
+      `UNFULFILLED`/`PROCESSING`/`SHIPPED`/`DELIVERED`/`CANCELLED`,
+      risk score/level and the derived revenue summary (daily/weekly
+      GMV, AOV, pending settlement, failed count)
+- [x] Deterministic mock provider (`src/lib/mock/commerce-data.ts`):
+      orders covering every legal payment/fulfillment shape, D-081
+      history with D-121 traces, masked gateway audit (`GW-****NNNN`),
+      shipping provider UNSELECTED (decision 11), D-084 receipts;
+      `CP_COMMERCE_SCENARIO` = `steady` / `surge` / `payment-degraded`,
+      an unrecognised value falls back to `all-unknown` (NO_DATA)
+- [x] Fail-closed build-time invariant guard
+      (`assertCommerceConsistency`): a FAILED payment marked
+      SHIPPED/DELIVERED fails the build — verified twice (the spec
+      builder rejects the pair; with the legality table altered to
+      admit it, the snapshot guard failed the build with the exact
+      message and the source was restored byte-identical, sha256) — as
+      do a settlement/GMV/AOV roll-up disagreeing with integer-Toman
+      recomputation, an impossible D-081 triple/history, non-integer
+      money, a gateway reference leaking a digit run, and an action
+      enabled without an owner token and a selected provider
+- [x] Orders table with channel tags (telegram / instagram_dm /
+      web_store) along the D-081 lifecycle — RTL with
+      payment/fulfillment/risk badges and filters by order id,
+      WooCommerce id, customer, payment status, fulfillment status and
+      a strict placed-at date range that yields no rows when malformed
+- [x] Order detail: items with SKU, status history, D-084 receipts —
+      plus shipping and the full masked gateway log, in a native
+      `<dialog>` drawer reachable by keyboard
+- [x] Payment gateway log fully masked — zero PAN, auth code, or
+      gateway secret (D-114 / D-124); the guard rejects any reference
+      without the mask marker or with a 12+ digit run
+- [x] Shipping status with provider UNSELECTED (open decision 11)
+- [x] Integer-Toman invoice/receipt amounts, no decimals (D-010) —
+      enforced by the guard across orders, receipts and the audit log
+- [x] **DRY-RUN ONLY** until the owner selects the payment provider
       (open decision 10) and shipping provider (open decision 11) —
-      no real payment path exists in the UI
+      no real payment path exists in the UI; every fulfillment/payment
+      action is disabled with its own reason (no owner token, D-146)
+- [x] Verification: contrast gate 52/52 (0 raw hex outside the token
+      layer); `tsc` and ESLint clean; production builds exit 0 for
+      steady, surge and payment-degraded plus an unrecognised scenario
+      (NO_DATA); browser check (drawer, filtering, zero console
+      messages); sidecar suite 19/19; backend regression battery
+      2433/2433 with the one known skip
+- [ ] Conversion, basket and returns analytics rebuilt from SSOT
+      events — needs the live read path; the revenue summary is
+      delivered and guarded
+- [ ] Invoice issuance and fulfillment write paths — the gated actions
+      exist but the signed write path (D-171 §6), the owner token
+      (D-146) and provider selections (decisions 10/11) remain absent
+      by design
 
 ### Phase 27 standing gates
 
