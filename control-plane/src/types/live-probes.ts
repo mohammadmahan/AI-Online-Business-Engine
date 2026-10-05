@@ -21,6 +21,22 @@ import type { ContainerId } from '@/types/telemetry';
  */
 export type ProbeStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';
 
+/**
+ * Which path produced a probe's status (Phase 27.7 corrective).
+ *
+ * - `sidecar`   — the response carried a structurally validated canonical
+ *                 verdict body and its verdict is rendered exactly
+ *                 (`HEALTHY` / `DEGRADED` / `DOWN` / `UNKNOWN`);
+ * - `transport` — the seam assessed the surface from the transport facts
+ *                 alone: HTTP semantics without a canonical body, timeout,
+ *                 refused connection or an unusable endpoint.
+ *
+ * The field makes the seam's decision path explicit and type-safe instead of
+ * inferring it from the status alone, so the UI and the build-time guard can
+ * distinguish "the producer said UNKNOWN" from "nothing was assessable".
+ */
+export type ProbeVerdictSource = 'sidecar' | 'transport';
+
 /** One completed (or attempted) read-only probe. Serialisable by construction. */
 export interface ProbeResult {
   containerId: ContainerId;
@@ -33,9 +49,13 @@ export interface ProbeResult {
   probedAtUtc: string;
   /**
    * Persian explanation. Non-empty exactly when the status is not `HEALTHY` —
-   * a failed or refused probe always states why.
+   * a failed or refused probe always states why. Bounded and free of control
+   * characters: a canonical verdict reason is accepted only after structural
+   * validation, so a stack trace or credential-shaped blob cannot cross.
    */
   reasonFa: string;
+  /** Which decision path produced `status` (see `ProbeVerdictSource`). */
+  verdictSource: ProbeVerdictSource;
   /**
    * `host + pathname` of the probed endpoint, or `null` when no endpoint is
    * configured. Never a token, query string or credential.

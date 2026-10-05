@@ -10,14 +10,21 @@
  * secrets, no network handles.
  *
  * ── Fail-closed mapping ─────────────────────────────────────────────────────
- * A probe never fabricates a healthy state:
- *   - 2xx                → HEALTHY, or DEGRADED when slower than the threshold;
- *   - 3xx (not followed) → DEGRADED: the redirect target was never assessed;
- *   - 4xx/5xx            → DOWN: the endpoint answered with a failure;
+ * A probe never fabricates a healthy state. The response is resolved by
+ * `resolveResponseVerdict()` (see `@/lib/probes/verdict`):
+ *   - 2xx                 → the canonical verdict when the body carries one,
+ *                            otherwise HEALTHY, or DEGRADED when slower than
+ *                            the threshold;
+ *   - 3xx (not followed)  → DEGRADED: the redirect target was never assessed;
+ *   - 4xx/5xx             → the verdict the sidecar declared (`DOWN` or
+ *                            `UNKNOWN`) when its canonical body parses;
+ *                            otherwise UNKNOWN — the status code alone is not
+ *                            a verdict and is never coerced into `DOWN`;
  *   - timeout / network / invalid endpoint / missing configuration
  *                        → UNKNOWN with the Persian reason.
- * A `DOWN` or `UNKNOWN` surface carries no CPU/memory figures even when the
- * payload contained them, and the shared build-time guard re-checks that rule.
+ * A `DOWN` or `UNKNOWN` surface carries no CPU/memory figures and no queue
+ * readings even when the payload contained them, and the shared build-time
+ * guard re-checks that rule.
  *
  * ── Configuration ───────────────────────────────────────────────────────────
  *   CP_PROBE_ENDPOINTS   JSON object: { "postgres": "http://127.0.0.1:9540/healthz", ... }
@@ -50,6 +57,13 @@ import {
   redisPressure,
   summarizeTelemetry,
 } from '@/lib/mock/telemetry-data';
+import {
+  extractReadings,
+  PROBE_CONTAINER_IDS,
+  readProbeConfig,
+  resolveResponseVerdict,
+} from '@/lib/probes/verdict';
+import type { N8nReadings, ProbeConfig, RedisReadings } from '@/lib/probes/verdict';
 import type { ProbeResult } from '@/types/live-probes';
 import type {
   ContainerHealth,
@@ -63,180 +77,22 @@ import type {
   TelemetrySnapshot,
 } from '@/types/telemetry';
 
-const CONTAINER_IDS: ContainerId[] = ['postgres', 'n8n', 'redis', 'dokploy', 'walrus'];
-
-const DEFAULT_TIMEOUT_MS = 2_500;
-const MAX_TIMEOUT_MS = 10_000;
-const DEFAULT_SLOW_MS = 1_000;
-
-/** One parsed endpoint: a usable URL or the Persian reason it is unusable. */
-type EndpointSpec = { url: URL; label: string } | { invalidReasonFa: string };
-
-interface ProbeConfig {
-  endpoints: Partial<Record<ContainerId, EndpointSpec>>;
-  tokens: Partial<Record<ContainerId, string>>;
-  timeoutMs: number;
-  slowMs: number;
-  /** Non-null when the configuration itself is unusable (refuses every probe). */
-  configErrorFa: string | null;
-}
-
 /** What one probe attempt observed, plus whatever the payload safely exposed. */
 interface ProbeOutcome {
   result: ProbeResult;
   /** True when a request was actually attempted (affects `lastProbeUtc`). */
   attempted: boolean;
   metrics: ContainerMetrics | null;
-  redis: { depth: number; throughputPerMin: number } | null;
-  n8n: { active: number; waiting: number; failedLast24h: number } | null;
+  redis: RedisReadings | null;
+  n8n: N8nReadings | null;
 }
 
 function sha256(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-function readPositiveInt(raw: string | undefined, fallback: number, max: number): number {
-  if (raw === undefined || raw.trim() === '') return fallback;
-  const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value <= 0) return fallback;
-  return Math.min(value, max);
-}
-
-function parseJsonObject(
-  raw: string | undefined,
-  label: string,
-): { value: Record<string, unknown> | null; error: string | null } {
-  if (raw === undefined || raw.trim() === '') return { value: {}, error: null };
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { value: null, error: `${label} must be a JSON object` };
-    }
-    return { value: parsed as Record<string, unknown>, error: null };
-  } catch {
-    return { value: null, error: `${label} is not valid JSON` };
-  }
-}
-
-/** Read the server-side probe configuration; never throws. */
-export function readProbeConfig(): ProbeConfig {
-  const timeoutMs = readPositiveInt(process.env.CP_PROBE_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
-  const slowMs = readPositiveInt(process.env.CP_PROBE_SLOW_MS, DEFAULT_SLOW_MS, MAX_TIMEOUT_MS);
-
-  const endpointsRaw = parseJsonObject(process.env.CP_PROBE_ENDPOINTS, 'CP_PROBE_ENDPOINTS');
-  const tokensRaw = parseJsonObject(process.env.CP_PROBE_TOKENS, 'CP_PROBE_TOKENS');
-
-  const errors: string[] = [];
-  if (endpointsRaw.error) errors.push(endpointsRaw.error);
-  if (tokensRaw.error) errors.push(tokensRaw.error);
-
-  if (errors.length > 0) {
-    return {
-      endpoints: {},
-      tokens: {},
-      timeoutMs,
-      slowMs,
-      configErrorFa:
-        `پیکربندی کاوش زنده نامعتبر است (${errors.join('؛ ')})؛` +
-        ' برای حفظ رفتار fail-closed هیچ کاوشی اجرا نشد و همه‌ی سطوح نامشخص می‌مانند.',
-    };
-  }
-
-  const endpoints: Partial<Record<ContainerId, EndpointSpec>> = {};
-  for (const id of CONTAINER_IDS) {
-    const raw = endpointsRaw.value?.[id];
-    if (raw === undefined || raw === null || raw === '') continue;
-    if (typeof raw !== 'string') {
-      endpoints[id] = { invalidReasonFa: 'نشانی کاوش باید یک رشته‌ی http(s) باشد.' };
-      continue;
-    }
-    let url: URL;
-    try {
-      url = new URL(raw);
-    } catch {
-      endpoints[id] = { invalidReasonFa: 'نشانی کاوش قابل تجزیه نیست.' };
-      continue;
-    }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      endpoints[id] = { invalidReasonFa: 'نشانی کاوش باید http یا https باشد.' };
-      continue;
-    }
-    // host + pathname only: a token embedded in a query string is never echoed.
-    endpoints[id] = { url, label: `${url.host}${url.pathname}` };
-  }
-
-  const tokens: Partial<Record<ContainerId, string>> = {};
-  for (const id of CONTAINER_IDS) {
-    const raw = tokensRaw.value?.[id];
-    if (typeof raw === 'string' && raw !== '') tokens[id] = raw;
-  }
-
-  return { endpoints, tokens, timeoutMs, slowMs, configErrorFa: null };
-}
-
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function parseJson(text: string): Record<string, unknown> | null {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function asNonNegativeInt(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
-}
-
-/** Extract CPU/memory figures, but only when every field is present and sane. */
-function parseMetrics(payload: Record<string, unknown> | null): ContainerMetrics | null {
-  if (payload === null) return null;
-  const nested = payload.metrics;
-  const source =
-    nested !== null && typeof nested === 'object' && !Array.isArray(nested)
-      ? (nested as Record<string, unknown>)
-      : payload;
-  const cpuPercent = source.cpuPercent;
-  const memoryUsedMb = source.memoryUsedMb;
-  const memoryLimitMb = source.memoryLimitMb;
-  const uptimeSeconds = source.uptimeSeconds;
-  if (
-    typeof cpuPercent !== 'number' ||
-    typeof memoryUsedMb !== 'number' ||
-    typeof memoryLimitMb !== 'number' ||
-    typeof uptimeSeconds !== 'number'
-  ) {
-    return null;
-  }
-  if (cpuPercent < 0 || cpuPercent > 100) return null;
-  if (memoryUsedMb <= 0 || memoryLimitMb <= 0 || memoryUsedMb > memoryLimitMb) return null;
-  if (!Number.isInteger(uptimeSeconds) || uptimeSeconds < 0) return null;
-  return { cpuPercent, memoryUsedMb, memoryLimitMb, uptimeSeconds };
-}
-
-function parseRedisReadings(
-  payload: Record<string, unknown> | null,
-): { depth: number; throughputPerMin: number } | null {
-  if (payload === null) return null;
-  const depth = asNonNegativeInt(payload.depth);
-  const throughputPerMin = asNonNegativeInt(payload.throughputPerMin);
-  if (depth === null || throughputPerMin === null) return null;
-  return { depth, throughputPerMin };
-}
-
-function parseN8nReadings(
-  payload: Record<string, unknown> | null,
-): { active: number; waiting: number; failedLast24h: number } | null {
-  if (payload === null) return null;
-  const active = asNonNegativeInt(payload.active);
-  const waiting = asNonNegativeInt(payload.waiting);
-  const failedLast24h = asNonNegativeInt(payload.failedLast24h);
-  if (active === null || waiting === null || failedLast24h === null) return null;
-  return { active, waiting, failedLast24h };
 }
 
 function unassessed(id: ContainerId, reasonFa: string): ProbeOutcome {
@@ -249,6 +105,7 @@ function unassessed(id: ContainerId, reasonFa: string): ProbeOutcome {
       probedAtUtc: nowIso(),
       reasonFa,
       endpointLabel: null,
+      verdictSource: 'transport',
     },
     attempted: false,
     metrics: null,
@@ -294,49 +151,18 @@ async function probeEndpoint(
     const probedAtUtc = nowIso();
     const base = { containerId: id, latencyMs, payloadDigest: digest, probedAtUtc, endpointLabel: spec.label };
 
-    if (response.ok) {
-      const payload = parseJson(body);
-      const slow = latencyMs >= config.slowMs;
-      const status = slow ? 'DEGRADED' : 'HEALTHY';
-      return {
-        result: {
-          ...base,
-          status,
-          reasonFa: slow
-            ? `پاسخ کاوش کند بود (${latencyMs} ms ≥ آستانه‌ی ${config.slowMs} ms)؛ وضعیت تنزل‌یافته اعلام می‌شود.`
-            : '',
-        },
-        attempted: true,
-        metrics: parseMetrics(payload),
-        redis: parseRedisReadings(payload),
-        n8n: parseN8nReadings(payload),
-      };
-    }
-
-    if (response.status >= 300 && response.status < 400) {
-      return {
-        result: {
-          ...base,
-          status: 'DEGRADED',
-          reasonFa: `endpoint با ریدایرکت پاسخ داد (کد ${response.status}) و مقصد دنبال نشد؛ وضعیت تنزل‌یافته اعلام می‌شود.`,
-        },
-        attempted: true,
-        metrics: null,
-        redis: null,
-        n8n: null,
-      };
-    }
-
+    // Verdict fidelity: a canonical sidecar body is honored exactly (DOWN vs
+    // UNKNOWN); without one the status code is not coerced into a verdict.
+    const verdict = resolveResponseVerdict(response.status, body, id, config.slowMs, latencyMs);
+    // Readings cross only for a measured status on a 2xx response; a DOWN or
+    // UNKNOWN payload is discarded whole, metric fields included.
+    const readings = extractReadings(response.ok, verdict.status, body);
     return {
-      result: {
-        ...base,
-        status: 'DOWN',
-        reasonFa: `endpoint با کد وضعیت ${response.status} پاسخ داد؛ سلامت سرویس تأیید نشد (fail-closed).`,
-      },
+      result: { ...base, ...verdict },
       attempted: true,
-      metrics: null,
-      redis: null,
-      n8n: null,
+      metrics: readings.metrics,
+      redis: readings.redis,
+      n8n: readings.n8n,
     };
   } catch (error) {
     const timedOut =
@@ -352,6 +178,7 @@ async function probeEndpoint(
           ? `کاوش در ${config.timeoutMs} میلی‌ثانیه پاسخ نگرفت؛ وضعیت نامشخص می‌ماند (fail-closed).`
           : 'اتصال به endpoint کاوش برقرار نشد؛ وضعیت نامشخص می‌ماند (fail-closed).',
         endpointLabel: spec.label,
+        verdictSource: 'transport',
       },
       attempted: true,
       metrics: null,
@@ -437,14 +264,14 @@ export async function loadLiveTelemetry(): Promise<TelemetrySnapshot> {
   await connection();
 
   const config = readProbeConfig();
-  const outcomes = await Promise.all(CONTAINER_IDS.map((id) => probeEndpoint(id, config)));
+  const outcomes = await Promise.all(PROBE_CONTAINER_IDS.map((id) => probeEndpoint(id, config)));
   const byId = Object.fromEntries(
     outcomes.map((outcome) => [outcome.result.containerId, outcome]),
   ) as Record<ContainerId, ProbeOutcome>;
 
   const assessed = outcomes.some((outcome) => outcome.result.status !== 'UNKNOWN');
   const provenance: TelemetrySnapshot['provenance'] = assessed ? 'live' : 'unavailable';
-  const containers = CONTAINER_IDS.map((id) => containerFromProbe(id, byId[id], provenance));
+  const containers = PROBE_CONTAINER_IDS.map((id) => containerFromProbe(id, byId[id], provenance));
   const queues = queuesFromOutcomes(byId.redis, byId.n8n, config);
   const gates = evaluatingGates();
 

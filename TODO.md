@@ -855,12 +855,16 @@ roadmap's AI Ops section keeps its label below.)
       as an Authorization header, and the endpoint label is reduced to
       `host + pathname` so a query-string credential is never echoed
 - [x] Fail-closed probe mapping: 2xx → HEALTHY (slower than the
-      threshold → DEGRADED), 3xx (not followed) → DEGRADED, 4xx/5xx →
-      DOWN, timeout / network error / invalid or missing endpoint →
-      UNKNOWN with the Persian reason; a DOWN or UNKNOWN surface
-      discards any metrics its payload carried — verified live against
-      a 500 endpoint whose payload contained CPU/memory (rendered DOWN
-      with no metric bars)
+      threshold → DEGRADED), 3xx (not followed) → DEGRADED, and a
+      non-2xx response renders the verdict its canonical sidecar body
+      declares — `DOWN` or `UNKNOWN` — with a malformed or partial body
+      rejected to UNKNOWN rather than coerced into `DOWN` (corrected by
+      the 27.7 verdict-fidelity follow-up below; the original seam
+      collapsed every non-2xx to `DOWN`); timeout / network error /
+      invalid or missing endpoint → UNKNOWN with the Persian reason; a
+      DOWN or UNKNOWN surface discards any metrics its payload carried —
+      verified live against a 503 endpoint whose payload contained
+      CPU/memory (rendered with no metric bars)
 - [x] Graceful degradation: an unreachable endpoint affects only its
       own surface and the page still renders. Verified with all five
       endpoints unreachable (all UNKNOWN + NO_DATA notice) and with a
@@ -1139,12 +1143,17 @@ certified operational in BOTH modes, verified end to end:
       request renders live payload digests, latency badges, endpoint
       labels and health states (postgres/n8n HEALTHY with
       `METRICS: UNAVAILABLE` where the payload exposes no CPU/memory;
-      redis/dokploy/walrus DOWN via the 503 mapping). Zero console
+      redis/walrus DOWN and dokploy UNKNOWN, each rendered from its own
+      canonical 503 verdict — see the verdict-fidelity follow-up below,
+      which corrected the then-current mapping of every non-2xx to
+      `DOWN`). Zero console
       messages; the served HTML was scanned for credential material
       (PGPASSWORD, bearer tokens, env-var names) and stack traces —
       none present
-- [x] Negative fail-closed runtime verification: a 503 surface
-      degrades to DOWN with a Persian mapping reason and no metrics;
+- [x] Negative fail-closed runtime verification (at that commit a 503
+      surface degraded to DOWN with a Persian mapping reason and no
+      metrics; the verdict-fidelity follow-up below makes a canonical
+      `UNKNOWN` verdict render `UNKNOWN` instead):
       with the sidecar fully stopped every surface renders UNKNOWN
       with «اتصال به endpoint کاوش برقرار نشد» reasons, all
       measurements are discarded, the page still answers HTTP 200 and
@@ -1176,6 +1185,63 @@ credential policy (owner secrets decision), the roadmap's AI Ops
 section (27.7), and conversion/returns analytics plus write paths
 (27.8). This closeout certifies the control plane's MOCK and LIVE
 read-only modes; it does not silently close gated write paths.
+
+#### Phase 27.7 corrective — live verdict fidelity (2026-10-05)
+
+Owner directive 2026-10-05 (Close the LIVE Probe Verdict Seam). The
+closeout above recorded one limitation that was semantic, not
+cosmetic: the sidecar emits `UNKNOWN` in its canonical 503 body for a
+surface it could not assess (e.g. Dokploy without a configured
+loopback URL, Walrus PLANNED), but the seam collapsed every non-2xx
+response to `DOWN` — a stronger claim than the evidence supported.
+
+- [x] `src/lib/probes/verdict.ts` (new, dependency-free): exact typed
+      parsing of the canonical sidecar verdict body (`containerId`
+      must match the probed surface; `status` must be one of the four
+      canonical states; `reasonFa` must be a bounded,
+      control-character-free string, empty exactly for `HEALTHY`;
+      optional `latencyMs` / `probedAtUtc` must be well-typed when
+      present). A malformed or partial body is rejected — never
+      coerced — and the resolver honors the declared verdict exactly:
+      `503 + DOWN` → `DOWN`, `503 + UNKNOWN` → `UNKNOWN`, `200 +
+      UNKNOWN` never promoted, a non-2xx health claim refused to
+      `DOWN`, and a non-2xx body without a canonical verdict (or a
+      redirect) degrades to `UNKNOWN`. `ProbeResult` gained
+      `verdictSource: 'sidecar' | 'transport'`, so the decision path
+      is explicit in every probe record
+- [x] Fail-closed unchanged: measurements cross only for a 2xx
+      response whose resolved status is `HEALTHY`/`DEGRADED`; a `DOWN`
+      or `UNKNOWN` payload is discarded whole (container metrics and
+      Redis/n8n queue readings alike), and endpoint labels remain
+      `host + pathname` only
+- [x] Shared build-time guard extended (telemetry-data.ts): a
+      `sidecar` verdict requires its parsed payload digest, the
+      `verdictSource` vocabulary is closed, probe reasons are bounded
+      and control-free, and queue readings must be absent unless the
+      broker probe assessed `HEALTHY`/`DEGRADED` — all verified by
+      injected contradictions, not by inspection
+- [x] New suite `scripts/check-live-verdicts.mjs` (`npm run
+      check:live-verdicts`): 30/30 cases, covering verdict fidelity
+      (503 DOWN / 503 UNKNOWN / 200 UNKNOWN not promoted / malformed
+      and partial bodies rejected / contradiction refused), reading
+      gating (no phantom metrics or queue readings), label redaction,
+      and negative guard injections
+- [x] End-to-end against the production LIVE build: real sidecar
+      `503 + DOWN` (postgres) and `503 + UNKNOWN` (dokploy) rendered as
+      exactly those states; crafted `200 + UNKNOWN` stayed UNKNOWN with
+      every phantom field discarded; a malformed 503 body rendered
+      UNKNOWN; a query-string token never reached the page while the
+      `host + pathname` label did; full outage rendered transport
+      UNKNOWN reasons; a crafted `200 + HEALTHY` carried its measured
+      CPU/memory (21% / 300 of 2,048 MB) through the seam
+- [x] Regression battery re-run on a fresh isolated DB: 2452 unique
+      tests (1 known skip) across four chunks, all green; the only
+      non-green line under the fresh-DB chunking was
+      `test_stage_d_smoke.TestBootstrapContract.test_transport_guard_pins_staging_con
+      tainer`, which requires `LOCAL_PGDATABASE` to be unset and passes
+      in its own chunk (10/10) — and the canonical-DB run of the
+      `[p-z]` chunk still stalls in `test_retry_isolation_live`, so the
+      open bullet below remains open
 
 ### Phase 27 standing gates
 

@@ -34,6 +34,7 @@
  * (NO_DATA) so a typo can never render as healthy.
  */
 
+import type { ProbeResult } from '@/types/live-probes';
 import type { Provenance } from '@/types/telemetry';
 import type {
   ContainerHealth,
@@ -636,6 +637,47 @@ export function summarizeTelemetry(
 }
 
 /**
+ * Independent restatement of the verdict bounds (`@/lib/probes/verdict`).
+ *
+ * The guard deliberately does NOT import the seam implementation it verifies:
+ * it must be able to fail even if that implementation drifts, so the bound is
+ * written out here rather than shared.
+ */
+const PROBE_REASON_MAX_CHARS = 600;
+const PROBE_REASON_CONTROL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+
+/** True exactly for the statuses that may carry measurements. */
+function isMeasuredProbeStatus(status: ProbeResult['status']): boolean {
+  return status === 'HEALTHY' || status === 'DEGRADED';
+}
+
+/**
+ * Verdict-fidelity checks shared by every probe record (container or queue).
+ *
+ * A `sidecar` verdict is a parsed canonical body, so it must be able to prove
+ * it: the payload digest is present and the reason is a bounded, control-free
+ * message (no stack trace, blob or credential-shaped text can reach the UI).
+ * The rendered badge is compared against the verdict by the caller, so a
+ * parsed verdict can never disagree with the state the user sees.
+ */
+function probeRecordProblems(probe: ProbeResult, label: string, problems: string[]): void {
+  if (probe.verdictSource !== 'sidecar' && probe.verdictSource !== 'transport') {
+    problems.push(`${label}: probe verdictSource must be 'sidecar' or 'transport'`);
+  }
+  if (probe.verdictSource === 'sidecar' && probe.payloadDigest === null) {
+    problems.push(`${label}: a sidecar verdict requires the parsed payload digest`);
+  }
+  if (PROBE_REASON_CONTROL_RE.test(probe.reasonFa)) {
+    problems.push(`${label}: probe reason must not carry control characters`);
+  }
+  if (probe.reasonFa.length > PROBE_REASON_MAX_CHARS) {
+    problems.push(
+      `${label}: probe reason must stay within ${PROBE_REASON_MAX_CHARS} characters`,
+    );
+  }
+}
+
+/**
  * Assert the snapshot cannot display a state the canonical rules forbid.
  *
  * Throwing is the fail-closed behaviour: a contradictory telemetry snapshot is
@@ -739,9 +781,14 @@ export function assertTelemetryConsistency(snapshot: TelemetrySnapshot): Telemet
       if (probe.containerId !== container.id) {
         problems.push(`${id}: probe containerId ${probe.containerId} != container id`);
       }
+      // Verdict fidelity: the parsed verdict IS the rendered badge state, so a
+      // sidecar UNKNOWN can never render as DOWN (or any other state).
       if (probe.status !== container.status) {
-        problems.push(`${id}: probe status ${probe.status} != container status ${container.status}`);
+        problems.push(
+          `${id}: probe verdict ${probe.status} (${probe.verdictSource}) != rendered container status ${container.status}`,
+        );
       }
+      probeRecordProblems(probe, id, problems);
       if (!ISO_RE.test(probe.probedAtUtc)) {
         problems.push(`${id}: probe probedAtUtc is not an ISO-8601 literal`);
       }
@@ -893,6 +940,24 @@ export function assertTelemetryConsistency(snapshot: TelemetrySnapshot): Telemet
     if (probe === null) continue;
     if (probe.containerId !== broker) {
       problems.push(`${broker} queue probe must reference its own container`);
+    }
+    probeRecordProblems(probe, `${broker} queue`, problems);
+    // No phantom metrics: a broker verdict other than HEALTHY/DEGRADED
+    // discards the readings whole, whatever the payload exposed.
+    if (!isMeasuredProbeStatus(probe.status)) {
+      if (broker === 'redis' && (redis.depth !== null || redis.throughputPerMin !== null)) {
+        problems.push(
+          'redis readings must be absent unless the broker probe assessed HEALTHY/DEGRADED (fail-closed)',
+        );
+      }
+      if (
+        broker === 'n8n' &&
+        (n8n.active !== null || n8n.waiting !== null || n8n.failedLast24h !== null)
+      ) {
+        problems.push(
+          'n8n readings must be absent unless the probe assessed HEALTHY/DEGRADED (fail-closed)',
+        );
+      }
     }
     if (!ISO_RE.test(probe.probedAtUtc)) {
       problems.push(`${broker} queue probe instant is not an ISO-8601 literal`);
