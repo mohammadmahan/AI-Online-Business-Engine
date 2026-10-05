@@ -81,6 +81,44 @@ function ContainerCard({ container }: { container: ContainerHealth }) {
 
       <p className="text-cp-caption text-ink-muted">{container.detailFa}</p>
 
+      {container.probe !== null ? (
+        <div className="flex flex-col gap-2 rounded-[--radius-cp] border border-edge bg-surface-muted p-2">
+          <ToneBadge
+            tone="neutral"
+            label="تأخیر کاوش"
+            code="PROBE_LATENCY"
+            detail={
+              container.probe.latencyMs !== null
+                ? `${formatNumber(container.probe.latencyMs)} ms`
+                : 'بدون پاسخ'
+            }
+          />
+          <p className="text-cp-caption text-ink-muted">
+            کاوش در{' '}
+            <time dateTime={container.probe.probedAtUtc} className="tabular-nums text-ink">
+              {formatTimeUtc(container.probe.probedAtUtc)}
+            </time>{' '}
+            UTC
+            {container.probe.endpointLabel !== null ? (
+              <>
+                {' · '}
+                <span dir="ltr" className="font-mono">
+                  {container.probe.endpointLabel}
+                </span>
+              </>
+            ) : null}
+          </p>
+          {container.probe.payloadDigest !== null ? (
+            <p className="font-mono text-cp-caption text-ink-muted">
+              <span dir="ltr">sha256:{container.probe.payloadDigest.slice(0, 16)}…</span>
+            </p>
+          ) : null}
+          {container.probe.reasonFa.length > 0 ? (
+            <p className="text-cp-caption text-ink">{container.probe.reasonFa}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       {container.incident !== null ? (
         <div
           className={cn(

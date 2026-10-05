@@ -718,6 +718,11 @@ is unchanged; only these TODO labels follow the directives.
 Control directive places Inventory at **27.5**, ahead of Telemetry &
 Gates; those two labels swap below (D-171 §4 content unchanged).
 
+**Numbering note (2026-10-05):** the owner's Live Read-Only Probes
+directive labels the telemetry live-wiring milestone **27.7** (D-171
+§5.5) and adds it above the roadmap; the roadmap's own «Phase 27.7 —
+AI Ops & Shared Memory Hub» keeps its content and label below.
+
 ### Phase 27.1 — Foundation & Tooling Setup
 
 Owner directive 2026-10-03 (Foundation & Tooling Setup).
@@ -830,6 +835,76 @@ inventions.
       action can execute in this phase, so no such record exists yet.
       Gated on the same live wiring as the item above.
 
+### Phase 27.7 — Live Read-Only Probes & Mock Seam Retirement
+
+Owner directive 2026-10-05 (Live Read-Only Probes & Mock Seam
+Retirement). `/automations` gains a server-only read-only probe source
+behind the existing swap seam; the deterministic mock remains the
+default. (See the numbering note above: this is the owner's 27.7; the
+roadmap's AI Ops section keeps its label below.)
+
+- [x] Read-only probe contracts in `src/types/live-probes.ts`:
+      `ProbeResult` with latency (ms), status
+      (`HEALTHY`/`DEGRADED`/`DOWN`/`UNKNOWN`), SHA-256 payload digest,
+      probe instant and Persian reason — serialised by construction; no
+      token, credential or network handle can cross the seam
+- [x] Server-only live source in `src/lib/probes/live-source.ts` (Node
+      runtime): one bounded GET per configured endpoint; configuration
+      from `CP_PROBE_ENDPOINTS` / `CP_PROBE_TOKENS` (optionally
+      `CP_PROBE_TIMEOUT_MS` / `CP_PROBE_SLOW_MS`); tokens are used only
+      as an Authorization header, and the endpoint label is reduced to
+      `host + pathname` so a query-string credential is never echoed
+- [x] Fail-closed probe mapping: 2xx → HEALTHY (slower than the
+      threshold → DEGRADED), 3xx (not followed) → DEGRADED, 4xx/5xx →
+      DOWN, timeout / network error / invalid or missing endpoint →
+      UNKNOWN with the Persian reason; a DOWN or UNKNOWN surface
+      discards any metrics its payload carried — verified live against
+      a 500 endpoint whose payload contained CPU/memory (rendered DOWN
+      with no metric bars)
+- [x] Graceful degradation: an unreachable endpoint affects only its
+      own surface and the page still renders. Verified with all five
+      endpoints unreachable (all UNKNOWN + NO_DATA notice) and with a
+      mixed run (2 HEALTHY, 1 DEGRADED, 1 DOWN, 1 UNKNOWN, live queue
+      readings 12/90 parsed from the Redis payload)
+- [x] `getTelemetrySource()` factory: the deterministic mock stays the
+      default for CI; `CP_TELEMETRY_MODE=LIVE` selects the live source.
+      A default build statically prerenders the mock (the build-time
+      guard runs on it); a LIVE build opts the route into request-time
+      rendering via `connection()`, so probes never execute during a
+      build
+- [x] MOCK vs LIVE transparency: the snapshot carries `sourceMode`,
+      and the provenance notice renders a LIVE (green) or MOCK (amber)
+      badge, with NO_DATA on top when nothing could be assessed
+- [x] UI renders probe payloads: per-container latency badges, probe
+      instants, short SHA-256 digests and endpoint labels; the queue
+      monitor shows the same for Redis/n8n when their endpoints answer
+      and exposes `depth`/`throughputPerMin` and
+      `active`/`waiting`/`failedLast24h` only when the payload provides
+      every field (missing fields are never defaulted to zero)
+- [x] Shared build-time guard extended: a measurement (metrics OR
+      probe) is required for HEALTHY/DEGRADED, a probe's status must
+      match its container, a HEALTHY probe carries no error reason, a
+      mock snapshot carries no probe records, and queue probe records
+      are shape-checked — verified against an injected DOWN container
+      carrying live metrics (the build failed with the exact guard
+      message; source restored byte-identical, sha256)
+- [x] Verification: contrast gate 52/52 (0 violations, 0 raw hex
+      outside the token layer); `tsc` and ESLint clean; production
+      builds exit 0 in MOCK (static prerender) and LIVE (dynamic)
+      modes; browser check with zero console messages; backend
+      regression battery 2433/2433 with the one known skip
+- [ ] Pointing the probes at the real `engine-local-*` /
+      `engine-staging-*` health surfaces — endpoints are unset by
+      default and the containers do not yet expose HTTP health paths
+      on the loopback; this needs an owner-provided read-only probe
+      sidecar and stays outside the UI layer (D-171 §6)
+- [ ] Probe credential policy: tokens are read from the server
+      environment only; rotation, scoping and an audit record for
+      token use still need the owner-gated secrets decision
+- [ ] Failure tracking with D-121 ledger links — probe failures carry
+      their reasons and instants but are not yet written to the ledger
+      read path (same gate as Phase 27.6)
+
 ### Phase 27.6 — Telemetry & Gates
 
 Owner directive 2026-10-05 (Telemetry, Container Health & Pipeline
@@ -886,10 +961,11 @@ scope stay unchecked below.
       and Escape-to-close, read-only by construction
 - [x] Full RTL + Vazirmatn layout verified in a production build in
       both themes, with zero console errors
-- [ ] Live probes for the real containers (`engine-local-*` /
-      `engine-staging-*`) — this phase reads the deterministic mock
-      only; a live probe requires credentials the UI must never hold
-      (D-171 §6)
+- [x] Live probes for the containers — delivered in Phase 27.7: a
+      server-only read-only probe source behind the swap seam (mock
+      remains the default); pointing it at the real `engine-local-*` /
+      `engine-staging-*` health surfaces is tracked as its own unchecked
+      item there
 - [ ] Failure tracking with D-121 trace context and ledger links — the
       audit reasons and trace ids are rendered; ledger links need the
       live ledger read path

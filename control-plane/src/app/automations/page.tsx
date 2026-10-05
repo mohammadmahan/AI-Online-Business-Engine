@@ -1,4 +1,4 @@
-import { FlaskConical, PlugZap } from 'lucide-react';
+import { Activity, FlaskConical, PlugZap } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/page-shell';
@@ -10,32 +10,45 @@ import { TelemetrySummaryStrip } from '@/components/telemetry/telemetry-summary'
 import { Card, CardHeader } from '@/components/ui/card';
 import { ToneBadge } from '@/components/ui/tone-badge';
 import { formatTimeUtc } from '@/lib/format';
-import { activeTelemetryScenario, createMockTelemetrySource } from '@/lib/mock/telemetry-data';
+import { getTelemetrySource } from '@/lib/mock/telemetry-data';
 
 export const metadata: Metadata = {
   title: 'اتوماسیون‌ها',
 };
 
 /**
- * Telemetry, container health and pipeline gates (D-171 §5.4, Phase 27.6).
+ * The seam is selected from `CP_TELEMETRY_MODE` (default MOCK). A default build
+ * statically prerenders the deterministic mock — the build-time guard runs on
+ * it, and CI stays byte-stable. A build done in LIVE mode opts into request-time
+ * rendering (the live source awaits `connection()`), so probes run server-side
+ * per request and are never executed during a build.
+ */
+export const runtime = 'nodejs';
+
+/**
+ * Telemetry, container health and pipeline gates (D-171 §5.4/§5.5).
  *
- * Renders entirely from a `TelemetryDataSource`. Today that source is the
- * deterministic mock provider — the only implementation in this phase — so the
- * page states its provenance before any status is read: a mocked reading is not
- * evidence of health, and an unprobed surface is rendered as UNKNOWN rather
- * than zero (D-171 §2.2).
+ * Renders entirely from a `TelemetryDataSource`: the deterministic mock by
+ * default, or the live read-only probe source when the environment selects it.
+ * The page states which seam produced the snapshot before any status is read —
+ * a mocked reading is not evidence of health, and an unprobed surface is
+ * rendered as UNKNOWN rather than zero (D-171 §2.2).
  *
- * The page is READ-ONLY by construction. It never evaluates a gate, never mints
- * a token, holds no signing key and owns no write path; every emergency control
- * is rendered disabled with its own reason. Forcing a gate still requires a
- * single-use owner token (D-146) and the signed write path (D-171 §6).
+ * The page is READ-ONLY by construction, in both modes. It never evaluates a
+ * gate, never mints a token, holds no signing key and owns no write path; every
+ * emergency control is rendered disabled with its own reason. Forcing a gate
+ * still requires a single-use owner token (D-146) and the signed write path
+ * (D-171 §6) — live probes change what is KNOWN, never what may be executed.
  */
 export default async function Page() {
-  const source = createMockTelemetrySource(activeTelemetryScenario());
+  const source = await getTelemetrySource();
   const snapshot = await source.load();
   const unavailable = snapshot.provenance === 'unavailable';
+  const live = snapshot.sourceMode === 'LIVE';
   const worstContainer = snapshot.summary.worstContainer;
   const worstPressure = snapshot.summary.worstQueuePressure;
+
+  const noticeBorder = unavailable ? 'border-danger' : live ? 'border-success' : 'border-warning';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
@@ -47,28 +60,42 @@ export default async function Page() {
             <time dateTime={snapshot.generatedAt} className="tabular-nums">
               {formatTimeUtc(snapshot.generatedAt)}
             </time>{' '}
-            UTC · منبع: <span className="font-mono">{snapshot.provenance}</span> · بدترین وضعیت
-            کانتینر: <span className="font-mono">{worstContainer}</span> · فشار صف:{' '}
+            UTC · حالت: <span className="font-mono">{snapshot.sourceMode}</span> · منبع:{' '}
+            <span className="font-mono">{snapshot.provenance}</span> · بدترین وضعیت کانتینر:{' '}
+            <span className="font-mono">{worstContainer}</span> · فشار صف:{' '}
             <span className="font-mono">{worstPressure}</span>
           </p>
         }
       />
 
       <div
-        className={
-          unavailable
-            ? 'flex flex-wrap items-center gap-3 rounded-[--radius-cp] border border-danger bg-surface p-3'
-            : 'flex flex-wrap items-center gap-3 rounded-[--radius-cp] border border-warning bg-surface p-3'
-        }
+        className={`flex flex-wrap items-center gap-3 rounded-[--radius-cp] border ${noticeBorder} bg-surface p-3`}
         role="note"
       >
-        {unavailable ? (
-          <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
+        {live ? (
+          <ToneBadge tone="success" label="کاوش زنده" code="LIVE" Icon={Activity} />
         ) : (
           <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
         )}
+        {unavailable ? (
+          <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
+        ) : null}
         <p className="text-cp-label text-ink">
-          {unavailable ? (
+          {live ? (
+            unavailable ? (
+              <>
+                کاوش زنده اجرا شد اما هیچ endpointی پاسخ قابل‌ارزیابی نداد؛ همه‌ی سطوح{' '}
+                <strong>نامشخص (UNKNOWN)</strong> می‌مانند — نه صفر، نه سالم.
+              </>
+            ) : (
+              <>
+                خوانش‌ها از <strong>کاوش زنده‌ی فقط‌خواندنی</strong> روی endpointهای
+                پیکربندی‌شده آمده است؛ میله‌های CPU/حافظه تنها وقتی رسم می‌شوند که payload کاوش
+                آن‌ها را افشا کند و گیت‌های V-01..V-10 بدون ارزیاب زنده در وضعیت «در حال ارزیابی»
+                می‌مانند.
+              </>
+            )
+          ) : unavailable ? (
             <>
               تلمتری به هیچ منبع زنده‌ای متصل نیست؛ وضعیت همه‌ی کانتینرها{' '}
               <strong>نامشخص (UNKNOWN)</strong> و همه‌ی گیت‌ها <strong>در حال ارزیابی</strong> است — نه
@@ -90,7 +117,7 @@ export default async function Page() {
       <Card>
         <CardHeader
           title="سلامت کانتینرها"
-          description="پنج سطح کانتینری با خوانش CPU/حافظه و زمان کار؛ سطح بدون کاوش، «نامشخص» می‌ماند و هیچ میله‌ای برای آن رسم نمی‌شود."
+          description="پنج سطح کانتینری با خوانش CPU/حافظه، تأخیر کاوش و زمان کار؛ سطح بدون خوانش، «نامشخص» می‌ماند و هیچ میله‌ای برای آن رسم نمی‌شود."
         />
         <ContainerHealthGrid containers={snapshot.containers} />
       </Card>

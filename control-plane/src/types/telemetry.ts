@@ -101,7 +101,15 @@ export interface TelemetrySummary {
  * produced them (`metricsState: 'LIVE'`), a `DOWN` or `UNKNOWN` surface can
  * therefore never carry readable CPU/memory, and a gate is `passes: true` only
  * when its status IS `PASS` — the build-time guard rejects any other pairing.
+ *
+ * Phase 27.7 adds the live seam: `sourceMode` names whether the snapshot came
+ * from the deterministic mock or from real read-only probes, and a container
+ * may carry the `ProbeResult` that produced its status. A live `HEALTHY`
+ * reading is proven by the probe record even when the endpoint exposes no
+ * CPU/memory figures; a `DOWN` or `UNKNOWN` surface still carries none.
  */
+
+import type { ProbeResult, QueueProbeRecords } from '@/types/live-probes';
 
 /** The five container surfaces this screen reports on (owner directive). */
 export type ContainerId = 'postgres' | 'n8n' | 'redis' | 'dokploy' | 'walrus';
@@ -160,6 +168,11 @@ export interface ContainerHealth {
   detailFa: string;
   /** Non-null exactly for DEGRADED and DOWN. */
   incident: ContainerIncident | null;
+  /**
+   * The read-only probe that produced this row, or `null` for the mock source
+   * (which is not a probe and never fabricates a probe record).
+   */
+  probe: ProbeResult | null;
   provenance: Provenance;
 }
 
@@ -256,6 +269,8 @@ export interface N8nQueueTelemetry {
 export interface QueueTelemetry {
   redis: RedisQueueTelemetry;
   n8n: N8nQueueTelemetry;
+  /** Probe records for the queue surfaces; `null` when not probed. */
+  probe: QueueProbeRecords;
 }
 
 /**
@@ -312,6 +327,11 @@ export interface TelemetrySnapshot {
   generatedAt: string;
   scenario: string;
   provenance: Provenance;
+  /**
+   * Which seam produced the snapshot: the deterministic mock or the live
+   * read-only probe source. The UI states this explicitly (Phase 27.7).
+   */
+  sourceMode: 'MOCK' | 'LIVE';
   containers: ContainerHealth[];
   gates: PipelineGate[];
   queues: QueueTelemetry;

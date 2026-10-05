@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, Inbox, Timer } from 'lucide-react';
 import { MeterBar } from '@/components/telemetry/meter-bar';
 import { QUEUE_PRESSURE_META } from '@/components/telemetry/status-meta';
 import { ToneBadge } from '@/components/ui/tone-badge';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, formatTimeUtc } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { QueueTelemetry } from '@/types/telemetry';
 
@@ -94,6 +94,30 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
           </p>
         )}
 
+        {queues.probe.redis !== null ? (
+          <p className="text-cp-caption text-ink-muted">
+            کاوش زنده: تأخیر{' '}
+            <span className="tabular-nums text-ink">
+              {queues.probe.redis.latencyMs !== null
+                ? `${formatNumber(queues.probe.redis.latencyMs)} ms`
+                : 'بدون پاسخ'}
+            </span>
+            {' · '}
+            <time dateTime={queues.probe.redis.probedAtUtc} className="tabular-nums text-ink">
+              {formatTimeUtc(queues.probe.redis.probedAtUtc)}
+            </time>{' '}
+            UTC
+            {queues.probe.redis.payloadDigest !== null ? (
+              <>
+                {' · '}
+                <span dir="ltr" className="font-mono">
+                  sha256:{queues.probe.redis.payloadDigest.slice(0, 12)}…
+                </span>
+              </>
+            ) : null}
+          </p>
+        ) : null}
+
         <p className="text-cp-caption text-ink-muted">
           آستانه‌ها: هشدار از{' '}
           <span className="tabular-nums text-ink">{formatNumber(redis.warnAtDepth)}</span> · بحران از{' '}
@@ -162,6 +186,30 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
             خوانش‌های n8n در دسترس نیستند؛ شمار اجراها نامشخص است — نه صفر (fail-closed).
           </p>
         )}
+
+        {queues.probe.n8n !== null ? (
+          <p className="text-cp-caption text-ink-muted">
+            کاوش زنده: تأخیر{' '}
+            <span className="tabular-nums text-ink">
+              {queues.probe.n8n.latencyMs !== null
+                ? `${formatNumber(queues.probe.n8n.latencyMs)} ms`
+                : 'بدون پاسخ'}
+            </span>
+            {' · '}
+            <time dateTime={queues.probe.n8n.probedAtUtc} className="tabular-nums text-ink">
+              {formatTimeUtc(queues.probe.n8n.probedAtUtc)}
+            </time>{' '}
+            UTC
+            {queues.probe.n8n.payloadDigest !== null ? (
+              <>
+                {' · '}
+                <span dir="ltr" className="font-mono">
+                  sha256:{queues.probe.n8n.payloadDigest.slice(0, 12)}…
+                </span>
+              </>
+            ) : null}
+          </p>
+        ) : null}
 
         <p className="flex items-center gap-2 text-cp-caption text-ink-muted">
           <Timer aria-hidden="true" className="size-4 shrink-0" />

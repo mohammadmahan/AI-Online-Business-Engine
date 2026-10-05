@@ -453,20 +453,44 @@ const QUEUE_OVERRIDES: Partial<Record<TelemetryScenario, QueueSpec>> = {
   },
 };
 
-/** Build one container row: metrics state is derived from the status. */
+/**
+ * Metadata for the five canonical surfaces, shared with the live source so the
+ * two seams cannot drift apart in Persian vocabulary.
+ */
+export interface ContainerMeta {
+  titleFa: string;
+  containerRef: string | null;
+  portMapping: string | null;
+  detailFa: string;
+}
+
+export const CONTAINER_META = Object.fromEntries(
+  BASE_CONTAINERS.map((spec) => [
+    spec.id,
+    {
+      titleFa: spec.titleFa,
+      containerRef: spec.containerRef,
+      portMapping: spec.portMapping,
+      detailFa: spec.detailFa,
+    },
+  ]),
+) as Record<ContainerId, ContainerMeta>;
+
+/** Build one container row: metrics state is derived from the reading. */
 function buildContainer(spec: ContainerSpec, provenance: Provenance): ContainerHealth {
-  const live = spec.status === 'HEALTHY' || spec.status === 'DEGRADED';
   return {
     id: spec.id,
     titleFa: spec.titleFa,
     containerRef: spec.containerRef,
     status: spec.status,
-    metricsState: live ? 'LIVE' : 'UNAVAILABLE',
+    metricsState: spec.metrics !== null ? 'LIVE' : 'UNAVAILABLE',
     metrics: spec.metrics,
     portMapping: spec.portMapping,
     lastProbeUtc: spec.lastProbeUtc,
     detailFa: spec.detailFa,
     incident: spec.incident,
+    // The mock is not a probe: it never fabricates a probe record.
+    probe: null,
     provenance,
   };
 }
@@ -502,7 +526,7 @@ function buildQueues(spec: QueueSpec): QueueTelemetry {
     warnAtWaiting: N8N_WARN_WAITING,
     criticalAtWaiting: N8N_CRITICAL_WAITING,
   };
-  return { redis, n8n };
+  return { redis, n8n, probe: { redis: null, n8n: null } };
 }
 
 /** Containers for a scenario. `all-unknown` renders every surface as UNKNOWN. */
@@ -521,18 +545,27 @@ function containersFor(scenario: TelemetryScenario, provenance: Provenance): Con
   );
 }
 
+/**
+ * Every gate without a verdict. The live source cannot evaluate the cutover
+ * matrix either, so it renders exactly this list (fail-closed: no verdict is
+ * never a pass).
+ */
+export function evaluatingGates(): PipelineGate[] {
+  return BASE_GATES.map((spec) =>
+    buildGate({
+      ...spec,
+      status: 'EVALUATING',
+      evidence: null,
+      audit: null,
+      lastEvaluatedUtc: null,
+    }),
+  );
+}
+
 /** Gates for a scenario. `all-unknown` renders every gate as EVALUATING. */
 function gatesFor(scenario: TelemetryScenario): PipelineGate[] {
   if (scenario === 'all-unknown') {
-    return BASE_GATES.map((spec) =>
-      buildGate({
-        ...spec,
-        status: 'EVALUATING',
-        evidence: null,
-        audit: null,
-        lastEvaluatedUtc: null,
-      }),
-    );
+    return evaluatingGates();
   }
   const overrides = GATE_OVERRIDES[scenario] ?? {};
   return BASE_GATES.map((spec) => buildGate({ ...spec, ...(overrides[spec.id] ?? {}) }));
@@ -628,21 +661,26 @@ export function assertTelemetryConsistency(snapshot: TelemetrySnapshot): Telemet
       problems.push(`${id}: title and detail must not be empty`);
     }
 
-    const expectedMetricsState =
-      container.status === 'HEALTHY' || container.status === 'DEGRADED' ? 'LIVE' : 'UNAVAILABLE';
-    if (container.metricsState !== expectedMetricsState) {
-      problems.push(
-        `${id}: metricsState ${container.metricsState} != derived ${expectedMetricsState}`,
-      );
-    }
     if (container.status === 'DOWN' && container.metrics !== null) {
       problems.push(`${id}: DOWN container must not carry live metrics (fail-closed)`);
     }
     if (container.status === 'UNKNOWN' && container.metrics !== null) {
       problems.push(`${id}: UNKNOWN container must not carry metrics`);
     }
-    if ((container.metricsState === 'LIVE') !== (container.metrics !== null)) {
-      problems.push(`${id}: metrics must be present exactly when metricsState is LIVE`);
+    const expectedMetricsState = container.metrics !== null ? 'LIVE' : 'UNAVAILABLE';
+    if (container.metricsState !== expectedMetricsState) {
+      problems.push(
+        `${id}: metricsState ${container.metricsState} != derived ${expectedMetricsState}`,
+      );
+    }
+    // A live probe may prove health without exposing CPU/memory, so a
+    // measurement is required rather than resource metrics specifically.
+    if (
+      (container.status === 'HEALTHY' || container.status === 'DEGRADED') &&
+      container.metrics === null &&
+      container.probe === null
+    ) {
+      problems.push(`${id}: ${container.status} requires a measurement (metrics or probe)`);
     }
 
     const metrics = container.metrics;
@@ -694,6 +732,40 @@ export function assertTelemetryConsistency(snapshot: TelemetrySnapshot): Telemet
     }
     if (container.provenance !== snapshot.provenance) {
       problems.push(`${id}: container provenance must match the snapshot provenance`);
+    }
+
+    const probe = container.probe;
+    if (probe !== null) {
+      if (probe.containerId !== container.id) {
+        problems.push(`${id}: probe containerId ${probe.containerId} != container id`);
+      }
+      if (probe.status !== container.status) {
+        problems.push(`${id}: probe status ${probe.status} != container status ${container.status}`);
+      }
+      if (!ISO_RE.test(probe.probedAtUtc)) {
+        problems.push(`${id}: probe probedAtUtc is not an ISO-8601 literal`);
+      }
+      if (probe.status === 'HEALTHY' && probe.reasonFa.trim()) {
+        problems.push(`${id}: HEALTHY probe must not carry an error reason`);
+      }
+      if (probe.status !== 'HEALTHY' && !probe.reasonFa.trim()) {
+        problems.push(`${id}: non-HEALTHY probe must state its Persian reason`);
+      }
+      if (
+        probe.latencyMs !== null &&
+        (!Number.isInteger(probe.latencyMs) || probe.latencyMs < 0)
+      ) {
+        problems.push(`${id}: probe latency must be a non-negative integer or null`);
+      }
+      if (probe.status !== 'UNKNOWN' && probe.latencyMs === null) {
+        problems.push(`${id}: an assessable probe must carry its latency`);
+      }
+      if (probe.payloadDigest !== null && !/^[0-9a-f]{64}$/.test(probe.payloadDigest)) {
+        problems.push(`${id}: probe payload digest must be a SHA-256 hex or null`);
+      }
+      if (container.provenance === 'mock') {
+        problems.push(`${id}: a mock snapshot must not carry probe records`);
+      }
     }
   }
 
@@ -816,6 +888,37 @@ export function assertTelemetryConsistency(snapshot: TelemetrySnapshot): Telemet
     problems.push('n8n thresholds must satisfy 0 < warn < critical');
   }
 
+  for (const broker of ['redis', 'n8n'] as const) {
+    const probe = snapshot.queues.probe?.[broker] ?? null;
+    if (probe === null) continue;
+    if (probe.containerId !== broker) {
+      problems.push(`${broker} queue probe must reference its own container`);
+    }
+    if (!ISO_RE.test(probe.probedAtUtc)) {
+      problems.push(`${broker} queue probe instant is not an ISO-8601 literal`);
+    }
+    if (probe.status !== 'HEALTHY' && !probe.reasonFa.trim()) {
+      problems.push(`${broker} queue probe must state its Persian reason`);
+    }
+    if (
+      probe.latencyMs !== null &&
+      (!Number.isInteger(probe.latencyMs) || probe.latencyMs < 0)
+    ) {
+      problems.push(`${broker} queue probe latency must be a non-negative integer or null`);
+    }
+    if (probe.payloadDigest !== null && !/^[0-9a-f]{64}$/.test(probe.payloadDigest)) {
+      problems.push(`${broker} queue probe digest must be a SHA-256 hex or null`);
+    }
+  }
+
+  // ── the seam that produced the snapshot is stated, not inferred ──────────
+  if (snapshot.sourceMode === 'MOCK' && snapshot.provenance === 'live') {
+    problems.push('a MOCK snapshot must not claim live provenance');
+  }
+  if (snapshot.sourceMode === 'LIVE' && snapshot.provenance === 'mock') {
+    problems.push('a LIVE snapshot must not claim mock provenance');
+  }
+
   // ── summary is derived, never retyped ─────────────────────────────────────
   const expected = summarizeTelemetry(snapshot.containers, snapshot.gates, snapshot.queues);
   for (const key of Object.keys(expected) as Array<keyof TelemetryOverview>) {
@@ -869,7 +972,12 @@ const RESTART_REASON =
 const FLUSH_REASON =
   'تخلیه‌ی صف کنشی برگشت‌ناپذیر است و بدون توکن یک‌بارمصرف مالک و مسیر نوشتن امضاشده اجرا نمی‌شود (D-146/D-171 §6)';
 
-const ACTIONS: TelemetryActionSpec[] = [
+/**
+ * The gated emergency controls, exported so the live source renders the same
+ * disabled reality: live probes change what is KNOWN, never what may be
+ * executed.
+ */
+export const GATED_ACTIONS: TelemetryActionSpec[] = [
   {
     id: 'FORCE_GATE_PASS',
     titleFa: 'عبور اجباری از گیت',
@@ -909,10 +1017,11 @@ export function mockTelemetry(scenario: TelemetryScenario = 'steady'): Telemetry
     generatedAt: MOCK_INSTANT,
     scenario,
     provenance: unavailable ? 'unavailable' : 'mock',
+    sourceMode: 'MOCK',
     containers,
     gates,
     queues,
-    actions: ACTIONS,
+    actions: GATED_ACTIONS,
     // No token and no signed write path exist in this phase, so every action
     // must be disabled — the guard enforces that pairing.
     writeGate: { tokenPresent: false, signaturePathConnected: false },
@@ -944,4 +1053,20 @@ export function createMockTelemetrySource(
       return mockTelemetry(scenario);
     },
   };
+}
+
+/**
+ * The single production seam (D-171 §5.5, Phase 27.7).
+ *
+ * The deterministic mock remains the DEFAULT so CI and local runs stay
+ * byte-stable; `CP_TELEMETRY_MODE=LIVE` selects the server-side read-only
+ * probe source instead. The live module is imported lazily so its Node-only
+ * probe code is never pulled into a build (or bundle) that does not use it.
+ */
+export async function getTelemetrySource(): Promise<TelemetryDataSource> {
+  if (process.env.CP_TELEMETRY_MODE === 'LIVE') {
+    const { createLiveTelemetrySource } = await import('@/lib/probes/live-source');
+    return createLiveTelemetrySource();
+  }
+  return createMockTelemetrySource(activeTelemetryScenario());
 }
