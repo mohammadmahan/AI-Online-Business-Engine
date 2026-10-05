@@ -30,6 +30,25 @@ export function formatToman(value: number): string {
   return `${NUMBER.format(value)} تومان`;
 }
 
+/**
+ * Whole seconds as a Persian duration with Latin digits (e.g. «۱۲ روز و ۳ ساعت»).
+ * Deterministic: no locale API, no wall clock.
+ */
+export function formatUptimeSeconds(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const minutes = Math.floor((total % 3_600) / 60);
+  if (days > 0) {
+    return hours > 0 ? `${days} روز و ${hours} ساعت` : `${days} روز`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} ساعت و ${minutes} دقیقه` : `${hours} ساعت`;
+  }
+  if (minutes > 0) return `${minutes} دقیقه`;
+  return `${total} ثانیه`;
+}
+
 const TIME_UTC = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
   minute: '2-digit',

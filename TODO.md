@@ -832,14 +832,70 @@ inventions.
 
 ### Phase 27.6 — Telemetry & Gates
 
-- [ ] Live service health for the 10 containers (`engine-local-*`,
-      `engine-staging-*`)
-- [ ] Gates V-01..V-10 rendered with explicit PASS / FAIL / UNKNOWN
-      plus the evidence reference for each — absent evidence is never
-      green; stale evidence is labeled STALE
-- [ ] n8n + Redis queue visibility: depth, processing rate, DLQ
-- [ ] Failure tracking with D-121 trace context and ledger links
-- [ ] Connection failure disables dependent actions explicitly
+Owner directive 2026-10-05 (Telemetry, Container Health & Pipeline
+Gates). `/automations` is upgraded from its stub to a mock-backed,
+read-only telemetry plane; the D-171 §5.4 bullets the directive did not
+scope stay unchecked below.
+
+- [x] Typed contracts in `src/types/telemetry.ts`: container health for
+      the five named surfaces (postgres, n8n, redis, dokploy, walrus)
+      with `HEALTHY`/`DEGRADED`/`DOWN`/`UNKNOWN`, CPU/memory/uptime,
+      port mapping and last-probe instant; pipeline gates `V-01`..`V-10`
+      with `PASS`/`BLOCKED`/`EVALUATING`/`BYPASS_PREVENTED`, evidence
+      staleness and the D-121 audit record; queue telemetry (Redis
+      depth/throughput, n8n active/waiting/failed); and gated action
+      specs whose `blockedReasonFa` is non-optional
+- [x] Deterministic mock provider in `src/lib/mock/telemetry-data.ts`
+      with Persian metrics for all containers and V-01..V-10 — zero
+      external network calls, fixed literal instants, so the page
+      prerenders statically byte-identically
+- [x] Fail-closed build-time invariant guard
+      (`assertTelemetryConsistency`): a snapshot throws at BUILD time
+      when a container marked `DOWN` carries live metrics, or when a
+      gate whose status is not `PASS` claims to pass — plus absent/stale
+      evidence on a PASS gate, missing audit reasons on
+      BLOCKED/BYPASS_PREVENTED gates and actions enabled without token +
+      signed path; verified live against two injected violations, each
+      of which failed the build with the exact guard message, source
+      restored byte-identical (sha256)
+- [x] Scenario harness behind `CP_TELEMETRY_SCENARIO`: `steady`
+      (default), `degraded-pipeline`, `gate-blocked`; an unrecognised
+      value falls back to `all-unknown`, which renders NO_DATA with
+      UNKNOWN containers, EVALUATING gates and unread queues
+- [x] Container health grid — CPU/memory meters drawn from real
+      readings only; a `DOWN` or `UNKNOWN` surface renders no bar and
+      states `METRICS: UNAVAILABLE`; incident notes, probe instants and
+      the concrete `containerRef` (non-null only where a manifest names
+      a service; Walrus is PLANNED, D-142)
+- [x] Gates matrix V-01..V-10 — the canonical Cutover Verification
+      Matrix semantics (D-145) plus the Stage-F single-use owner
+      authorization (`V-10`, D-146/D-147): verifier FAIL → `BLOCKED`,
+      exit 2 → `EVALUATING`, V-10 refusal → `BYPASS_PREVENTED`; evidence
+      reference per gate with `FRESH`/`STALE` labeled, absent evidence
+      never green
+- [x] Queue & throughput monitor — Redis depth + throughput and n8n
+      active/waiting/failed with derived pressure against fixed
+      thresholds; an unread broker is `UNKNOWN`, never a zero-depth
+      queue
+- [x] Emergency gate override panel rendered DISABLED with per-action
+      stated reasons (force-gate / restart / flush-queue): no
+      single-use owner token exists here (D-146) and no signed write
+      path is connected (D-171 §6)
+- [x] Audit rationale drawer for blocked / bypass-prevented gates as a
+      native `<dialog>` — keyboard-accessible with platform focus trap
+      and Escape-to-close, read-only by construction
+- [x] Full RTL + Vazirmatn layout verified in a production build in
+      both themes, with zero console errors
+- [ ] Live probes for the real containers (`engine-local-*` /
+      `engine-staging-*`) — this phase reads the deterministic mock
+      only; a live probe requires credentials the UI must never hold
+      (D-171 §6)
+- [ ] Failure tracking with D-121 trace context and ledger links — the
+      audit reasons and trace ids are rendered; ledger links need the
+      live ledger read path
+- [ ] DLQ depth and listing — the queue monitor covers depth,
+      throughput and recent failures; a DLQ panel needs the live queue
+      API
 
 ### Phase 27.5 — Inventory & Canonical SKU Viewer
 

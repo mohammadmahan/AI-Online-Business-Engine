@@ -59,7 +59,7 @@ export const ROUTES: RouteSpec[] = [
     href: '/automations',
     title: 'اتوماسیون‌ها',
     code: 'AUTOMATIONS',
-    description: 'وضعیت و تلمتری جریان‌های کاری n8n و صف‌ها',
+    description: 'سلامت کانتینرها، تلمتری صف‌ها و ماتریس گیت‌های انتقال V-01..V-10',
     phase: 'Phase 27.6',
   },
   {
