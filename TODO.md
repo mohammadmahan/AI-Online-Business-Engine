@@ -714,6 +714,10 @@ this roadmap into 27.1 tooling, 27.2 app shell, and 27.3 executive
 overview, shifting the D-171 §4 phases to 27.4–27.8. D-171 §4 content
 is unchanged; only these TODO labels follow the directives.
 
+**Numbering note (2026-10-04):** the owner's Inventory & Canonical SKU
+Control directive places Inventory at **27.5**, ahead of Telemetry &
+Gates; those two labels swap below (D-171 §4 content unchanged).
+
 ### Phase 27.1 — Foundation & Tooling Setup
 
 Owner directive 2026-10-03 (Foundation & Tooling Setup).
@@ -826,7 +830,7 @@ inventions.
       action can execute in this phase, so no such record exists yet.
       Gated on the same live wiring as the item above.
 
-### Phase 27.5 — Telemetry & Gates
+### Phase 27.6 — Telemetry & Gates
 
 - [ ] Live service health for the 10 containers (`engine-local-*`,
       `engine-staging-*`)
@@ -837,17 +841,63 @@ inventions.
 - [ ] Failure tracking with D-121 trace context and ledger links
 - [ ] Connection failure disables dependent actions explicitly
 
-### Phase 27.6 — Inventory & Products
+### Phase 27.5 — Inventory & Canonical SKU Viewer
 
+Owner directive 2026-10-04 (Inventory & Canonical SKU Control).
+`/inventory` is upgraded from its stub to a mock-backed, read-only
+inventory control plane; the D-171 §5.3 bullets that the directive did
+not scope stay unchecked below.
+
+- [x] Typed contracts in `src/types/inventory.ts` mirroring the
+      canonical product/inventory schema: Product ID `P#####`, Variant
+      ID (canonical UUIDv4) and SKU `P#####[-CC][-SS]` with approved
+      D-032 axis codes (D-014/D-015/D-017), Persian product name,
+      integer Toman price (D-010), stock quantity + safe threshold,
+      sync status (`IN_SYNC`, `PENDING_SYNC`, `SYNC_ERROR`,
+      `DRIFT_DETECTED`), WooCommerce mapping ids (D-046 / `woo_live.py`)
+      and lock state (Price Freeze / Out-of-Stock Override)
+- [x] Deterministic mock provider in `src/lib/mock/inventory-data.ts`
+      with Persian catalog samples across tech, digital and physical
+      accessories — zero external network calls, fixed literals, so the
+      page prerenders statically byte-identically
+- [x] Fail-closed build-time invariant guard
+      (`assertInventoryConsistency`): a snapshot throws at BUILD time
+      when (a) a row with `stock_qty <= safe_threshold` carries no
+      low-stock alert, or (b) a `DRIFT_DETECTED` row is marked
+      clean/synced — verified live against both injected violations,
+      each of which failed the build, source restored byte-identical
+- [x] Scenario harness behind `CP_INVENTORY_SCENARIO`: `steady` (default),
+      `low-stock-surge`, `sync-drift`; an unrecognised value falls back
+      to `all-unknown`, which renders NO_DATA without any counts
+- [x] Metrics banner — Total SKUs, Low Stock Warnings, Out of Stock and
+      active WooCommerce Drift count — derived from the rendered rows and
+      guarded against disagreement
+- [x] Search & filter controls: SKU/title search, sync status, stock
+      category and price range; an invalid range is explicit and yields
+      no rows rather than silently ignoring the filter
+- [x] Dense RTL SKU table: integer-Toman price formatting, stock against
+      threshold, non-color-only status badges, and an expandable row
+      carrying the WooCommerce sync history (D-121 trace per step),
+      mapping ids, lock reason and D-026 provenance
+- [x] Manual sync / override gate rendered DISABLED with its own stated
+      reasons — no owner token (D-146) and no canonical/webhook write
+      path — preserving the fail-closed rule that no control looks live
+      while doing nothing (D-171 §6)
+- [x] Product ID / Variant ID / SKU displayed separately, never derived
+      from each other (D-015)
 - [ ] Data-dense table with keyset server-side pagination (stable
-      under concurrent data change)
+      under concurrent data change) — the 14-row mock needs none; gated
+      on the live read path
 - [ ] Inline edit (price, stock, status) with pre-submit validation
-      and rollback on error
+      and rollback on error — deliberately absent while there is no
+      write path (same gate as the action panel)
 - [ ] Sync status with WooCommerce (D-003, D-034–D-045) and Notion
-      (D-060, D-156); conflicts explicit and fail-closed
-- [ ] D-011 provenance and missing-data states surfaced per value
-- [ ] Product ID / Variant ID / SKU displayed separately, never
-      derived from each other (D-015)
+      (D-060, D-156); conflicts explicit and fail-closed — the
+      WooCommerce status/drift half is delivered and guarded; Notion
+      remains pending
+- [ ] D-011 provenance and missing-data states surfaced per value —
+      the row carries D-026 source/review state; per-value provenance
+      needs the D-026 store
 - [ ] CSV export with rate limiting and a mandatory ledger record
 
 ### Phase 27.7 — AI Ops & Shared Memory Hub

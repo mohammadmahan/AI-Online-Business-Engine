@@ -25,8 +25,10 @@ export interface RouteSpec {
   /**
    * Phase that implements the page's real content, following the owner's
    * renumbered Phase 27 sequence (27.1 foundations, 27.2 shell, 27.3
-   * executive overview, 27.4 HITL, 27.5 telemetry, 27.6 inventory, 27.7
-   * AI ops, 27.8 commerce).
+   * executive overview, 27.4 HITL, 27.5 inventory & canonical SKU control,
+   * 27.6 telemetry & gates, 27.7 AI ops, 27.8 commerce). The 2026-10-04
+   * inventory directive moved inventory ahead of telemetry, so those two
+   * labels swapped; D-171 §4 content is unchanged.
    */
   phase: string;
 }
@@ -51,14 +53,14 @@ export const ROUTES: RouteSpec[] = [
     title: 'موجودی و محصولات',
     code: 'INVENTORY',
     description: 'نمایش Product ID، Variant ID و SKU به‌صورت جداگانه',
-    phase: 'Phase 27.6',
+    phase: 'Phase 27.5',
   },
   {
     href: '/automations',
     title: 'اتوماسیون‌ها',
     code: 'AUTOMATIONS',
     description: 'وضعیت و تلمتری جریان‌های کاری n8n و صف‌ها',
-    phase: 'Phase 27.5',
+    phase: 'Phase 27.6',
   },
   {
     href: '/ai-engine',

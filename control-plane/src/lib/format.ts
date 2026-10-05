@@ -21,6 +21,15 @@ export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+/**
+ * Integer Toman amount with thousands separators (D-010 — amounts are integers
+ * with no decimals anywhere). The unit is part of the formatted value so a
+ * bare number can never be read as a different currency.
+ */
+export function formatToman(value: number): string {
+  return `${NUMBER.format(value)} تومان`;
+}
+
 const TIME_UTC = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
   minute: '2-digit',
