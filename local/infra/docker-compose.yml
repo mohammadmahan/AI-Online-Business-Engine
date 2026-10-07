@@ -107,7 +107,16 @@ services:
       - media_data:/data
     restart: "no"
     healthcheck:
-      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      # Health probe is the server's own liveness endpoint, not the
+      # `mc` client. `mc ready local` resolves an implicit alias from
+      # mc's compiled-in defaults and must write MC_CONFIG_DIR
+      # (/tmp/.mc) on first use — which returns
+      # "Unable to save new mc config. mkdir /tmp/.mc: read-only file
+      # system" (rc=1 forever) the moment this service is run with
+      # read_only: true, as compose.prod.yml does. curl is present in
+      # the minio image and /minio/health/live needs no config write,
+      # so the probe stays valid under a hardened rootfs.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://127.0.0.1:9000/minio/health/live || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
