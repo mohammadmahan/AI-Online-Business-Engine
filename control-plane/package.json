@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:build && node --import ./test/register.mjs --test .test-build",
+    "test:build": "tsc -p tsconfig.test.json",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:live-verdicts": "node scripts/check-live-verdicts.mjs",
     "check:view-isolation": "node scripts/check-view-isolation.mjs --base-url http://localhost:3000"

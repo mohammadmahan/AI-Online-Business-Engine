@@ -1306,6 +1306,44 @@ live-PostgreSQL pins with a TCP availability probe, and
 any provisioning or live credential, and owner review of each phase completion
 record (D-139/D-045).
 
+**Native unit-test surface — reconciliation 2026-10-07 (append-only per
+PROJECT_RULES §2.1):** the control plane now has a real `npm test`, closing the
+last High-risk gap the full-system audit raised (it had NO JavaScript test
+runner at all). **Tooling decision, stated with its evidence:** the audit's
+suggested command needed `tsx`, and `tsx`/`ts-node`/jest/vitest are **not
+installed** while the runtime is **Node 20.16.0**, which has no built-in
+TypeScript support (type stripping only arrives in 22.6) — so the directive's
+zero-external-bloat rule was honoured with the tooling already present:
+`tsc -p tsconfig.test.json` emits the test graph as ESM into the gitignored
+`.test-build/`, and a first-party 27-line hook (`test/register.mjs` +
+`test/alias-resolver.mjs`, built only on `node:module`) maps the `@/…` path
+alias and states the ESM format the package's Next-owned `package.json` cannot.
+**No dependency was added** (`package.json` dependencies and devDependencies are
+byte-identical; only the `test` and `test:build` scripts and a
+`.test-build/` ignore line are new). Coverage: 3 suites / **89 tests, 89 pass,
+0 fail, 0 skipped** — the render-time jargon guard (accepts `SKU` and the
+mandated status codes; rejects پروب/سایدکار/کانتینر/تلمتری/لجر/HTTP/latency/D-121/
+sidecar **and the V-01…V-10 gate ids**, plus empty text, a metric-less card, a
+green card without a live reading, and unavailable data reported as anything but
+«بدون داده»), the precedence/fail-closed ladder of all five cards (a NO_DATA
+source outranks every component state; mock data is never green; the worst state
+wins with no averaging), the deterministic Persian formatting layer, and the
+frozen view-gate contract (both class strings, the `data-view-gate`/
+`data-surface` census hooks, `display: contents`, and no cross-view gate leak)
+across both wrapper hops. **The suite was mutation-checked, not just run:**
+deleting `سایدکار` from the forbidden set and moving the NO_DATA short-circuit
+down both turned the suite red (88 pass / 1 fail each), and the restored source
+was byte-identical (md5 `d081dcb9…`) with 89/89 green again. The new tests are
+pure-logic pins: they render no DOM and mount no React component (that surface
+stays with the browser census, `npm run check:view-isolation`). The card guard
+was hardened in the same commit: cutover gate ids are now rejected on a Business
+card, matching the census's own classification of them as console-only assets.
+Regression: `typecheck`, `lint`, `check:contrast` (52/52), `check:live-verdicts`
+(30/30), `check:view-isolation` (7/7 routes, 0 leaks) and `build` (Compiled
+successfully, route table unchanged) all exit 0. Gates still open and unchanged:
+production activation, any provisioning or live credential, and owner review of
+each phase completion record (D-139/D-045).
+
 ### Phase 27.9 — View State Management & Header Dual-View Switcher — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).

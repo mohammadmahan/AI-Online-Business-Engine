@@ -1,0 +1,19 @@
+{
+  "//": "D-171 — build config for the native `npm test` surface. The runtime is Node 20, which has no TypeScript support and the project has no tsx/ts-node/jest/vitest (owner directive: zero external bloat), so the tests run through the ALREADY INSTALLED `tsc`: this config emits the test graph as ESM into .test-build/, and test/alias-resolver.mjs maps the '@/…' path alias plus the ESM module format at load time.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": ".test-build",
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": [
+    "src/lib/format.test.ts",
+    "src/lib/business-summary.test.ts",
+    "src/components/ui/view-gate.test.ts"
+  ],
+  "exclude": ["node_modules", ".next", ".test-build"]
+}

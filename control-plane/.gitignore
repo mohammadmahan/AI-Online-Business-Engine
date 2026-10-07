@@ -13,5 +13,8 @@
 # TypeScript build info
 *.tsbuildinfo
 
+# Compiled unit-test graph (npm test) — build output, never committed
+/.test-build/
+
 # Next.js generated types
 next-env.d.ts

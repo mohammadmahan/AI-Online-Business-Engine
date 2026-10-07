@@ -16,10 +16,11 @@
  * 2. A card whose data is unavailable says «بدون داده» and never zero: an
  *    unreachable source is not a store with nothing to do.
  * 3. `assertBusinessCard()` rejects, at render time, any card that carries
- *    operational jargon (پروب/سایدکار/کانتینر/تلمتری/لجر/HTTP/latency/D-121),
- *    no metric, an empty string, or a green status without live evidence. A
- *    Business card is therefore structurally incapable of leaking the
- *    technical vocabulary the Technical console owns (§2.3 الف).
+ *    operational jargon (پروب/سایدکار/کانتینر/تلمتری/لجر/HTTP/latency/D-121)
+ *    or a cutover gate id (`V-01`…`V-10` — console-only assets), no metric, an
+ *    empty string, or a green status without live evidence. A Business card is
+ *    therefore structurally incapable of leaking the technical vocabulary the
+ *    Technical console owns (§2.3 الف).
  *
  *    `SKU` (شناسه کالا / Stock Keeping Unit) is NOT jargon — the owner ruled
  *    it approved canonical commerce vocabulary, readable in Business cards and
@@ -93,9 +94,12 @@ const DRILL_DOWN = {
  * `SKU` is deliberately absent: the owner ruled it approved canonical commerce
  * vocabulary (شناسه کالا / Stock Keeping Unit) that a shop owner reads as their
  * own word for a product identifier, on a card or in a table alike (owner
- * ruling 2026-10-07; D-171 row 72). Everything else here stays console-only.
+ * ruling 2026-10-07; D-171 row 72). Everything else here stays console-only,
+ * including the V-01…V-10 cutover gate ids — the census already classifies gate
+ * ids as console-only assets (`check-view-isolation.mjs`), so a gate id on a
+ * Business card is a leak the card guard must reject too.
  */
-const FORBIDDEN = /(پروب|سایدکار|کانتینر|تلمتری|لجر|HTTP|latency|D-121|sidecar)/i;
+const FORBIDDEN = /(پروب|سایدکار|کانتینر|تلمتری|لجر|HTTP|latency|D-121|sidecar|V-\d{2})/i;
 
 /**
  * Fail-closed guard, in the same spirit as the mock providers' consistency
