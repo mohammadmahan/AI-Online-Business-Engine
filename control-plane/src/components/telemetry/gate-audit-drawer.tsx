@@ -101,13 +101,13 @@ export function GateAuditDrawer({
                 </p>
                 <dl className="grid grid-cols-1 gap-2 text-cp-label sm:grid-cols-2">
                   <div>
-                    <dt className="text-cp-caption text-ink-muted">شناسه‌ی ردیابی</dt>
+                    <dt className="text-cp-caption text-ink-muted">شناسهٔ ردیابی</dt>
                     <dd className="font-mono text-cp-caption text-ink">
                       <span dir="ltr">{audit.traceId}</span>
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-cp-caption text-ink-muted">لحظه‌ی منطقی (D-093)</dt>
+                    <dt className="text-cp-caption text-ink-muted">لحظهٔ منطقی (D-093)</dt>
                     <dd className="font-mono text-cp-caption text-ink">
                       <span dir="ltr">{audit.atLogical}</span>
                     </dd>

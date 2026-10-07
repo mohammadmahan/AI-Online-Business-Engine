@@ -38,7 +38,10 @@ export const ROUTES: RouteSpec[] = [
     href: '/dashboard',
     title: 'نمای فرماندهی',
     code: 'EXECUTIVE_OVERVIEW',
-    description: 'شاخص‌های کلیدی، وضعیت گیت‌ها و سلامت سرویس‌ها',
+    // Subtitle copy is shared by BOTH views (PageHeader), so it stays plain
+    // Persian: console vocabulary lives in the console's own panels. Phase
+    // 27.13 classification rule — see DECISIONS.md row 72.
+    description: 'یک نگاه کلی به فروش، سفارش‌ها و کارهایی که منتظر تصمیم شماست',
     phase: 'Phase 27.3',
   },
   {
@@ -52,21 +55,24 @@ export const ROUTES: RouteSpec[] = [
     href: '/inventory',
     title: 'موجودی و محصولات',
     code: 'INVENTORY',
-    description: 'نمایش Product ID، Variant ID و SKU به‌صورت جداگانه',
+    // Subtitle copy is shared by BOTH views, so it names the business meaning
+    // only; D-015's separate Product ID / Variant ID / SKU identity lives in
+    // the console's own columns (Phase 27.13).
+    description: 'موجودی، قیمت و وضعیت همگام‌سازی محصولات فروشگاه',
     phase: 'Phase 27.5',
   },
   {
     href: '/automations',
     title: 'اتوماسیون‌ها',
     code: 'AUTOMATIONS',
-    description: 'سلامت کانتینرها، تلمتری صف‌ها و ماتریس گیت‌های انتقال V-01..V-10',
+    description: 'کارهای خودکار فروشگاه و نتیجهٔ آخرین اجراها',
     phase: 'Phase 27.6',
   },
   {
     href: '/ai-engine',
     title: 'موتور هوش مصنوعی',
     code: 'AI_ENGINE',
-    description: 'مشاهده‌پذیری عامل‌ها، مصرف توکن و وضعیت حافظه‌ی مشترک',
+    description: 'وضعیت دستیارهای هوشمند فروشگاه و مصرف آن‌ها',
     phase: 'Phase 27.7',
   },
   {
@@ -80,7 +86,7 @@ export const ROUTES: RouteSpec[] = [
     href: '/settings',
     title: 'تنظیمات',
     code: 'SETTINGS',
-    description: 'پیکربندی سیستم، یکپارچه‌سازی‌ها و کلیدهای اضطراری',
+    description: 'تنظیمات فروشگاه، اتصال‌ها و کلید توقف اضطراری',
     phase: 'Phase 27.8',
   },
 ];

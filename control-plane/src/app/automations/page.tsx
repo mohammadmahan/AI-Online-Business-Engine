@@ -1,6 +1,7 @@
 import { Activity, FlaskConical, PlugZap } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BusinessStatusCard } from '@/components/business/business-status-card';
 import { PageHeader } from '@/components/page-shell';
 import { ContainerHealthGrid } from '@/components/telemetry/container-health-grid';
 import { OverridePanel } from '@/components/telemetry/override-panel';
@@ -9,6 +10,8 @@ import { QueueMonitor } from '@/components/telemetry/queue-monitor';
 import { TelemetrySummaryStrip } from '@/components/telemetry/telemetry-summary';
 import { Card, CardHeader } from '@/components/ui/card';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { TechnicalOnly } from '@/components/ui/view-gate';
+import { automationsBusinessCard } from '@/lib/business-summary';
 import { formatTimeUtc } from '@/lib/format';
 import { getTelemetrySource } from '@/lib/mock/telemetry-data';
 
@@ -55,19 +58,25 @@ export default async function Page() {
       <PageHeader
         href="/automations"
         meta={
-          <p className="mt-1 text-cp-caption text-ink-muted">
-            تصویر لحظه‌ای:{' '}
-            <time dateTime={snapshot.generatedAt} className="tabular-nums">
-              {formatTimeUtc(snapshot.generatedAt)}
-            </time>{' '}
-            UTC · حالت: <span className="font-mono">{snapshot.sourceMode}</span> · منبع:{' '}
-            <span className="font-mono">{snapshot.provenance}</span> · بدترین وضعیت کانتینر:{' '}
-            <span className="font-mono">{worstContainer}</span> · فشار صف:{' '}
-            <span className="font-mono">{worstPressure}</span>
-          </p>
+          // Mode, provenance and worst-case surface codes are console assets.
+          <TechnicalOnly surface="automations-page-meta">
+            <p className="mt-1 text-cp-caption text-ink-muted">
+              تصویر لحظه‌ای:{' '}
+              <time dateTime={snapshot.generatedAt} className="tabular-nums">
+                {formatTimeUtc(snapshot.generatedAt)}
+              </time>{' '}
+              UTC · حالت: <span className="font-mono">{snapshot.sourceMode}</span> · منبع:{' '}
+              <span className="font-mono">{snapshot.provenance}</span> · بدترین وضعیت کانتینر:{' '}
+              <span className="font-mono">{worstContainer}</span> · فشار صف:{' '}
+              <span className="font-mono">{worstPressure}</span>
+            </p>
+          </TechnicalOnly>
         }
       />
 
+      <BusinessStatusCard model={automationsBusinessCard(snapshot)} />
+
+      <TechnicalOnly surface="automations-notice">
       <div
         className={`flex flex-wrap items-center gap-3 rounded-[--radius-cp] border ${noticeBorder} bg-surface p-3`}
         role="note"
@@ -75,7 +84,7 @@ export default async function Page() {
         {live ? (
           <ToneBadge tone="success" label="کاوش زنده" code="LIVE" Icon={Activity} />
         ) : (
-          <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
+          <ToneBadge tone="warning" label="دادهٔ نمونه" code="MOCK" Icon={FlaskConical} />
         )}
         {unavailable ? (
           <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
@@ -84,12 +93,12 @@ export default async function Page() {
           {live ? (
             unavailable ? (
               <>
-                کاوش زنده اجرا شد اما هیچ endpointی پاسخ قابل‌ارزیابی نداد؛ همه‌ی سطوح{' '}
+                کاوش زنده اجرا شد اما هیچ endpointی پاسخ قابل‌ارزیابی نداد؛ همهٔ سطوح{' '}
                 <strong>نامشخص (UNKNOWN)</strong> می‌مانند — نه صفر، نه سالم.
               </>
             ) : (
               <>
-                خوانش‌ها از <strong>کاوش زنده‌ی فقط‌خواندنی</strong> روی endpointهای
+                خوانش‌ها از <strong>کاوش زندهٔ فقط‌خواندنی</strong> روی endpointهای
                 پیکربندی‌شده آمده است؛ میله‌های CPU/حافظه تنها وقتی رسم می‌شوند که payload کاوش
                 آن‌ها را افشا کند و گیت‌های V-01..V-10 بدون ارزیاب زنده در وضعیت «در حال ارزیابی»
                 می‌مانند.
@@ -97,13 +106,13 @@ export default async function Page() {
             )
           ) : unavailable ? (
             <>
-              تلمتری به هیچ منبع زنده‌ای متصل نیست؛ وضعیت همه‌ی کانتینرها{' '}
-              <strong>نامشخص (UNKNOWN)</strong> و همه‌ی گیت‌ها <strong>در حال ارزیابی</strong> است — نه
+              تلمتری به هیچ منبع زنده‌ای متصل نیست؛ وضعیت همهٔ کانتینرها{' '}
+              <strong>نامشخص (UNKNOWN)</strong> و همهٔ گیت‌ها <strong>در حال ارزیابی</strong> است — نه
               صفر، نه سالم.
             </>
           ) : (
             <>
-              سلامت کانتینرها، گیت‌ها و صف‌ها از <strong>داده‌ی نمونه‌ی قطعی</strong> خوانده شده است و
+              سلامت کانتینرها، گیت‌ها و صف‌ها از <strong>دادهٔ نمونهٔ قطعی</strong> خوانده شده است و
               هیچ کاوش زنده‌ای انجام نشده؛ هیچ خوانشی شاهد محسوب نمی‌شود و هیچ کنش اضطراری مجاز
               نیست.
             </>
@@ -111,9 +120,13 @@ export default async function Page() {
           سناریو: <span className="font-mono text-cp-caption">{snapshot.scenario}</span>
         </p>
       </div>
+      </TechnicalOnly>
 
-      <TelemetrySummaryStrip summary={snapshot.summary} />
+      <TechnicalOnly surface="automations-telemetry-strip">
+        <TelemetrySummaryStrip summary={snapshot.summary} />
+      </TechnicalOnly>
 
+      <TechnicalOnly surface="automations-containers">
       <Card>
         <CardHeader
           title="سلامت کانتینرها"
@@ -121,11 +134,15 @@ export default async function Page() {
         />
         <ContainerHealthGrid containers={snapshot.containers} />
       </Card>
+      </TechnicalOnly>
 
+      <TechnicalOnly surface="automations-gates">
       <Card>
         <PipelineGatesMatrix gates={snapshot.gates} />
       </Card>
+      </TechnicalOnly>
 
+      <TechnicalOnly surface="automations-queues">
       <Card>
         <CardHeader
           title="صف و نرخ پردازش"
@@ -133,10 +150,13 @@ export default async function Page() {
         />
         <QueueMonitor queues={snapshot.queues} />
       </Card>
+      </TechnicalOnly>
 
+      <TechnicalOnly surface="automations-override">
       <Card>
         <OverridePanel actions={snapshot.actions} writeGate={snapshot.writeGate} />
       </Card>
+      </TechnicalOnly>
     </div>
   );
 }

@@ -67,7 +67,7 @@ export function HealthSummary({ summary }: { summary: TelemetrySummary }) {
   return (
     <ul
       className="flex flex-wrap items-center gap-2"
-      aria-label="خلاصه‌ی وضعیت سرویس‌ها"
+      aria-label="خلاصهٔ وضعیت سرویس‌ها"
     >
       <li>
         <ToneBadge tone="success" label="سالم" code="OK" detail={`${summary.ok}`} />

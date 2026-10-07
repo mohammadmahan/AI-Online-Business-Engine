@@ -1,11 +1,14 @@
 import { FlaskConical, PlugZap } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BusinessStatusCard } from '@/components/business/business-status-card';
 import { OrdersWorkspace } from '@/components/commerce/orders-workspace';
 import { RevenueKpiStrip } from '@/components/commerce/revenue-kpi-strip';
 import { PageHeader } from '@/components/page-shell';
 import { Card, Placeholder } from '@/components/ui/card';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { TechnicalOnly } from '@/components/ui/view-gate';
+import { ordersBusinessCard } from '@/lib/business-summary';
 import { formatTimeUtc } from '@/lib/format';
 import { activeCommerceScenario, createMockCommerceSource } from '@/lib/mock/commerce-data';
 
@@ -42,16 +45,21 @@ export default async function Page() {
       <PageHeader
         href="/orders"
         meta={
-          <p className="mt-1 text-cp-caption text-ink-muted">
-            تصویر لحظه‌ای:{' '}
-            <time dateTime={snapshot.generatedAt} className="tabular-nums">
-              {formatTimeUtc(snapshot.generatedAt)}
-            </time>{' '}
-            UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
-          </p>
+          <TechnicalOnly surface="orders-page-meta">
+            <p className="mt-1 text-cp-caption text-ink-muted">
+              تصویر لحظه‌ای:{' '}
+              <time dateTime={snapshot.generatedAt} className="tabular-nums">
+                {formatTimeUtc(snapshot.generatedAt)}
+              </time>{' '}
+              UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
+            </p>
+          </TechnicalOnly>
         }
       />
 
+      <BusinessStatusCard model={ordersBusinessCard(snapshot)} />
+
+      <TechnicalOnly surface="orders-notice">
       <div
         className={
           unavailable
@@ -63,25 +71,26 @@ export default async function Page() {
         {unavailable ? (
           <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
         ) : (
-          <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
+          <ToneBadge tone="warning" label="دادهٔ نمونه" code="MOCK" Icon={FlaskConical} />
         )}
         <p className="text-cp-label text-ink">
           {unavailable ? (
             <>
-              دفتر سفارش‌ها به هیچ منبعی متصل نیست و هیچ سفارشی بارگذاری نشده است؛ درآمد و همه‌ی
+              دفتر سفارش‌ها به هیچ منبعی متصل نیست و هیچ سفارشی بارگذاری نشده است؛ درآمد و همهٔ
               شاخص‌ها <strong>نامشخص (UNKNOWN)</strong> می‌مانند — نه صفر، نه سالم.
             </>
           ) : (
             <>
-              سفارش‌ها، پرداخت و درآمد از <strong>داده‌ی نمونه‌ی قطعی</strong> خوانده شده‌اند و هیچ
+              سفارش‌ها، پرداخت و درآمد از <strong>دادهٔ نمونهٔ قطعی</strong> خوانده شده‌اند و هیچ
               خوانش زنده‌ای از WooCommerce، درگاه یا OMS انجام نشده؛ پرداخت و ارسال در حالت{' '}
               <strong>تمرینی (DRY-RUN)</strong> است — نه درگاه پرداخت انتخاب شده (تصمیم باز ۱۰) و
-              نه ارائه‌دهنده‌ی ارسال (تصمیم باز ۱۱) — پس هیچ کنش نوشتنی مجاز نیست.
+              نه ارائه‌دهندهٔ ارسال (تصمیم باز ۱۱) — پس هیچ کنش نوشتنی مجاز نیست.
             </>
           )}{' '}
           سناریو: <span className="font-mono text-cp-caption">{snapshot.scenario}</span>
         </p>
       </div>
+      </TechnicalOnly>
 
       {unavailable ? (
         <Card>

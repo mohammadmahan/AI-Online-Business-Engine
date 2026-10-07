@@ -484,7 +484,7 @@ function buildPaymentAudit(spec: OrderSpec, total: number): PaymentAuditEntry[] 
   const refunded: PaymentAuditEntry = {
     ...base,
     atUtc: plusMinutes(spec.placedAtUtc, 4_400),
-    eventFa: 'بازگشت وجه در درگاه ثبت شد (بدون داده‌ی حساس کارت).',
+    eventFa: 'بازگشت وجه در درگاه ثبت شد (بدون دادهٔ حساس کارت).',
     outcome: 'OK',
     traceId: traceIdFor(`${spec.orderId}:pay:refund`),
   };
@@ -631,7 +631,7 @@ const NO_TOKEN_REASON =
   'توکن یک‌بارمصرف مالک در این رابط ساخته نمی‌شود (D-146)؛ در حالت dry-run هیچ کنش نوشتنی مجاز نیست';
 
 const NO_PROVIDER_REASON =
-  'ارائه‌دهنده‌ی پرداخت/ارسال هنوز انتخاب نشده است (تصمیم‌های باز ۱۰ و ۱۱)؛ اجرای واقعی مسیر پرداخت ممکن نیست';
+  'ارائه‌دهندهٔ پرداخت/ارسال هنوز انتخاب نشده است (تصمیم‌های باز ۱۰ و ۱۱)؛ اجرای واقعی مسیر پرداخت ممکن نیست';
 
 const ACTIONS: CommerceActionSpec[] = [
   {
@@ -654,9 +654,9 @@ const ACTIONS: CommerceActionSpec[] = [
   },
   {
     id: 'RETRY_PAYMENT',
-    titleFa: 'تلاش دوباره‌ی پرداخت',
+    titleFa: 'تلاش دوبارهٔ پرداخت',
     descriptionFa:
-      'ایجاد دوباره‌ی درخواست پرداخت برای سفارش پرداخت‌نشده؛ کنشی که بدون ارائه‌دهنده‌ی انتخاب‌شده و حکم مالک ممکن نیست',
+      'ایجاد دوبارهٔ درخواست پرداخت برای سفارش پرداخت‌نشده؛ کنشی که بدون ارائه‌دهندهٔ انتخاب‌شده و حکم مالک ممکن نیست',
     requiresSecondConfirmation: true,
     enabled: false,
     blockedReasonFa: NO_PROVIDER_REASON,

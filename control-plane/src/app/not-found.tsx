@@ -5,7 +5,7 @@ export default function NotFound() {
     <div className="mx-auto flex max-w-xl flex-col gap-4 text-center">
       <h1 className="text-cp-display font-bold text-ink">صفحه یافت نشد</h1>
       <p className="text-cp-label text-ink-muted">
-        مسیر درخواستی در صفحه‌ی کنترل وجود ندارد. (NOT_FOUND)
+        مسیر درخواستی در صفحهٔ کنترل وجود ندارد. (NOT_FOUND)
       </p>
       <Link
         href="/dashboard"

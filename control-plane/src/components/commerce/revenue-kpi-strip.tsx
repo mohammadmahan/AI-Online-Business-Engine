@@ -1,6 +1,7 @@
 import { BadgePercent, CircleX, Coins, Gauge, Hourglass, PackageCheck } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatNumber, formatToman } from '@/lib/format';
 import type { RevenueSummary } from '@/types/commerce';
 
@@ -24,17 +25,17 @@ export function RevenueKpiStrip({ summary }: { summary: RevenueSummary }) {
   const kpis = [
     {
       key: 'dailyGmv',
-      title: 'GMV امروز',
+      title: 'ارزش کل فروش امروز',
       value: formatToman(summary.dailyGmvToman),
-      detail: `GMV هفتگی: ${formatToman(summary.weeklyGmvToman)}`,
+      detail: `ارزش کل فروش هفتگی: ${formatToman(summary.weeklyGmvToman)}`,
       Icon: Coins,
       danger: false,
     },
     {
       key: 'aov',
-      title: 'میانگین سبد خرید (AOV)',
+      title: 'میانگین ارزش هر سفارش',
       value: formatToman(summary.aovToman),
-      detail: `بر پایه‌ی ${formatNumber(summary.paidOrderCount)} سفارش پرداخت‌شده`,
+      detail: `بر پایهٔ ${formatNumber(summary.paidOrderCount)} سفارش پرداخت‌شده`,
       Icon: BadgePercent,
       danger: false,
     },
@@ -50,7 +51,7 @@ export function RevenueKpiStrip({ summary }: { summary: RevenueSummary }) {
       key: 'failedPayments',
       title: 'پرداخت‌های ناموفق',
       value: formatNumber(summary.failedPaymentCount),
-      detail: 'سفارش‌هایی که پرداختشان شکست خورده — هرگز بخشی از GMV نیستند',
+      detail: 'سفارش‌هایی که پرداختشان شکست خورده — هرگز بخشی از ارزش کل فروش نیستند',
       Icon: CircleX,
       danger: true,
     },
@@ -58,7 +59,7 @@ export function RevenueKpiStrip({ summary }: { summary: RevenueSummary }) {
       key: 'completed',
       title: 'سفارش‌های تکمیل‌شده',
       value: formatNumber(summary.completedOrderCount),
-      detail: 'چرخه‌ی D-081 تا COMPLETED رسیده است',
+      detail: 'چرخهٔ D-081 تا COMPLETED رسیده است',
       Icon: PackageCheck,
       danger: false,
     },
@@ -93,8 +94,14 @@ export function RevenueKpiStrip({ summary }: { summary: RevenueSummary }) {
           </div>
         ))}
       </dl>
-      <p className="text-cp-caption text-ink-muted">
-        همه‌ی مبالغ، عدد صحیح تومان‌اند و هیچ اعشاری نمایش داده نمی‌شود (D-010)؛ این اعداد از
+      {/* Derivation-guard internals (`summarizeRevenue`, build-time guard) are
+          console notes; the Business view keeps the revenue figures only. */}
+      <p
+        data-view-gate="technical"
+        data-surface="orders-revenue-footnote"
+        className={`text-cp-caption text-ink-muted ${VIEW_GATE_CLASS.technical}`}
+      >
+        همهٔ مبالغ، عدد صحیح تومان‌اند و هیچ اعشاری نمایش داده نمی‌شود (D-010)؛ این اعداد از
         همان ردیف‌هایی مشتق شده‌اند که در جدول پایین دیده می‌شوند و گارد ساخت، واگرایی آن‌ها را رد
         می‌کند.
       </p>

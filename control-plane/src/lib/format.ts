@@ -11,6 +11,33 @@
 
 const NUMBER = new Intl.NumberFormat('en-US');
 
+/**
+ * ── Narrative business counts (D-171 §10, Phase 27.12) ─────────────────────
+ * The Business view states counts in PROSE («۳ کار منتظر تصمیم شماست») and
+ * D-171 §3.1 asks for Persian numerals in narrative text. These helpers map
+ * digits themselves instead of calling a locale API, so the value is identical
+ * on the build machine, the server and every browser (no ICU variance, no
+ * hydration difference). Identifiers, SKU, raw amounts, tabular data and
+ * timestamps keep Latin digits (§3.1).
+ */
+const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'] as const;
+
+/** Latin digits → Persian digits; every other character is left untouched. */
+export function toPersianDigits(value: string | number): string {
+  return String(value).replace(/[0-9]/g, (digit) => PERSIAN_DIGITS[Number(digit)] ?? digit);
+}
+
+/**
+ * Whole count in Persian digits with the Persian thousands mark (`٬`), e.g.
+ * `2,450` → «۲٬۴۵۰». Grouping comes from the pinned `en-US` formatter, so the
+ * separators are deterministic.
+ */
+export function formatCountFa(value: number): string {
+  const whole = Math.round(value);
+  const grouped = NUMBER.format(Math.abs(whole)).replace(/,/g, '٬');
+  return `${whole < 0 ? '−' : ''}${toPersianDigits(grouped)}`;
+}
+
 /** Thousands-separated integer, Latin digits. Toman amounts are integers (D-010). */
 export function formatNumber(value: number): string {
   return NUMBER.format(value);

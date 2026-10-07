@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 
 import { ToneBadge, type Tone } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { KpiCard, KpiState } from '@/types/dashboard';
@@ -61,7 +62,14 @@ function KpiTile({ kpi }: { kpi: KpiCard }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-cp-label font-semibold text-ink">{kpi.title}</h3>
-          <p className="font-mono text-cp-caption text-ink-muted">{kpi.code}</p>
+          {/* The metric's machine key (`orders_revenue`, …) is a console asset. */}
+          <p
+            data-view-gate="technical"
+            data-surface="dashboard-kpi-codes"
+            className={`font-mono text-cp-caption text-ink-muted ${VIEW_GATE_CLASS.technical}`}
+          >
+            {kpi.code}
+          </p>
         </div>
         <ToneBadge tone={meta.tone} label={meta.label} code={kpi.state.toUpperCase()} Icon={meta.Icon} />
       </div>

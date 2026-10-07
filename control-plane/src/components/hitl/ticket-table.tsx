@@ -3,7 +3,11 @@
 import { Eye, ShieldQuestion } from 'lucide-react';
 
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { SEVERITY_META, STATUS_META } from '@/components/hitl/status-meta';
+
+/** Taxonomy code and engine source — machine identifiers (Phase 27.13). */
+const IDENTIFIER = VIEW_GATE_CLASS.technical;
 import { cn } from '@/lib/utils';
 import type { HitlTicket } from '@/types/hitl';
 
@@ -40,7 +44,7 @@ export function TicketTable({
     <div className="overflow-x-auto rounded-[--radius-cp] border border-edge">
       <table className="w-full border-collapse text-cp-label">
         <caption className="sr-only">
-          فهرست تیکت‌های تأیید انسانی، مرتب‌شده بر پایه‌ی شدت
+          فهرست تیکت‌های تأیید انسانی، مرتب‌شده بر پایهٔ شدت
         </caption>
         <thead>
           <tr className="bg-surface-muted text-cp-caption text-ink-muted">
@@ -53,7 +57,12 @@ export function TicketTable({
             <th scope="col" className="p-2 text-start font-medium">
               دسته
             </th>
-            <th scope="col" className="p-2 text-start font-medium">
+            <th
+              scope="col"
+              data-view-gate="technical"
+              data-surface="hitl-table-identifiers"
+              className={`p-2 text-start font-medium ${IDENTIFIER}`}
+            >
               منبع
             </th>
             <th scope="col" className="p-2 text-start font-medium">
@@ -89,11 +98,15 @@ export function TicketTable({
                 </td>
                 <td className="p-2 text-cp-label text-ink">
                   {ticket.categoryLabel}
-                  <span className="mt-1 block font-mono text-cp-caption text-ink-muted">
+                  <span
+                    className={`mt-1 block font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
+                  >
                     {ticket.category}
                   </span>
                 </td>
-                <td className="p-2 font-mono text-cp-caption text-ink-muted">{ticket.source}</td>
+                <td className={`p-2 font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
+                  {ticket.source}
+                </td>
                 <td className="p-2 text-cp-label text-ink tabular-nums">{ticket.ageLogical}</td>
                 <td className="p-2">
                   <ToneBadge

@@ -79,7 +79,7 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
             </dl>
             {redisSeverity !== null ? (
               <MeterBar
-                label="عمق صف نسبت به آستانه‌ی بحران"
+                label="عمق صف نسبت به آستانهٔ بحران"
                 value={redis.depth}
                 max={redis.criticalAtDepth}
                 valueText={`${formatNumber(redis.depth)} از ${formatNumber(redis.criticalAtDepth)}`}
@@ -166,7 +166,7 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
             </dl>
             {waitingSeverity !== null ? (
               <MeterBar
-                label="صف انتظار نسبت به آستانه‌ی بحران"
+                label="صف انتظار نسبت به آستانهٔ بحران"
                 value={n8n.waiting}
                 max={n8n.criticalAtWaiting}
                 valueText={`${formatNumber(n8n.waiting)} از ${formatNumber(n8n.criticalAtWaiting)}`}
@@ -176,7 +176,7 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
             {n8n.failedLast24h > 0 ? (
               <p className="flex items-start gap-2 text-cp-caption text-danger">
                 <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                شکست اجرا در بازه‌ی اخیر ثبت شده است؛ فشار کلی از بدترینِ «انتظار» و «شکست» محاسبه
+                شکست اجرا در بازهٔ اخیر ثبت شده است؛ فشار کلی از بدترینِ «انتظار» و «شکست» محاسبه
                 می‌شود و OK نیست.
               </p>
             ) : null}
@@ -213,7 +213,7 @@ export function QueueMonitor({ queues }: { queues: QueueTelemetry }) {
 
         <p className="flex items-center gap-2 text-cp-caption text-ink-muted">
           <Timer aria-hidden="true" className="size-4 shrink-0" />
-          آستانه‌ی انتظار: هشدار از{' '}
+          آستانهٔ انتظار: هشدار از{' '}
           <span className="tabular-nums text-ink">{formatNumber(n8n.warnAtWaiting)}</span> · بحران از{' '}
           <span className="tabular-nums text-ink">{formatNumber(n8n.criticalAtWaiting)}</span>
         </p>

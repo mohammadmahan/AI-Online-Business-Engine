@@ -46,7 +46,7 @@ export function TelemetrySummaryStrip({ summary }: { summary: TelemetryOverview 
         </h2>
         <ul
           className="mt-2 flex flex-wrap items-center gap-2"
-          aria-label="شمار کانتینرها بر پایه‌ی وضعیت"
+          aria-label="شمار کانتینرها بر پایهٔ وضعیت"
         >
           {containerCounts.map(({ count, meta }) => (
             <li key={meta.code}>
@@ -79,7 +79,7 @@ export function TelemetrySummaryStrip({ summary }: { summary: TelemetryOverview 
         </h2>
         <ul
           className="mt-2 flex flex-wrap items-center gap-2"
-          aria-label="شمار گیت‌ها بر پایه‌ی وضعیت"
+          aria-label="شمار گیت‌ها بر پایهٔ وضعیت"
         >
           {gateCounts.map(({ count, meta }) => (
             <li key={meta.code}>

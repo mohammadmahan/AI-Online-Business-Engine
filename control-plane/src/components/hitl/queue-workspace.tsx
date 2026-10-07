@@ -7,6 +7,7 @@ import { QueueFilters, applyFilters, EMPTY_FILTERS, type QueueFilterState } from
 import { TicketDrawer } from '@/components/hitl/ticket-drawer';
 import { TicketTable } from '@/components/hitl/ticket-table';
 import { Card } from '@/components/ui/card';
+import { TechnicalOnly } from '@/components/ui/view-gate';
 import type { HitlQueueSnapshot, HitlTicket } from '@/types/hitl';
 
 /**
@@ -44,17 +45,21 @@ export function QueueWorkspace({ snapshot }: { snapshot: HitlQueueSnapshot }) {
         <TicketTable tickets={visible} onSelect={setSelected} />
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [[data-view-mode=business]_&]:lg:grid-cols-1">
+        {/* Owner-token state and the decision-execution controls state gate
+            internals (D-146/D-168) — console assets in this phase (27.13). */}
+        <TechnicalOnly surface="hitl-action-panel">
+          <Card>
+            <ActionPanel
+              actions={snapshot.actions}
+              tokenPresent={snapshot.tokenPresent}
+              selected={selected}
+            />
+          </Card>
+        </TechnicalOnly>
         <Card>
-          <ActionPanel
-            actions={snapshot.actions}
-            tokenPresent={snapshot.tokenPresent}
-            selected={selected}
-          />
-        </Card>
-        <Card>
-          <section className="flex flex-col gap-3" aria-label="خلاصه‌ی صف">
-            <h2 className="text-cp-heading font-semibold text-ink">خلاصه‌ی صف</h2>
+          <section className="flex flex-col gap-3" aria-label="خلاصهٔ صف">
+            <h2 className="text-cp-heading font-semibold text-ink">خلاصهٔ صف</h2>
             <dl className="grid grid-cols-2 gap-3 text-cp-label">
               <div>
                 <dt className="text-cp-caption text-ink-muted">کل تیکت‌ها</dt>

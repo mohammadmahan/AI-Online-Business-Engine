@@ -29,7 +29,7 @@ export function MockNotice({
       >
         <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
         <p className="text-cp-label text-ink">
-          هیچ سرویسی متصل نیست و هیچ اندازه‌گیری‌ای انجام نشده است؛ همه‌ی
+          هیچ سرویسی متصل نیست و هیچ اندازه‌گیری‌ای انجام نشده است؛ همهٔ
           وضعیت‌ها <strong>نامشخص (UNKNOWN)</strong> هستند — نه صفر، نه موفق.
           سناریو: <span className="font-mono text-cp-caption">{scenario}</span>
         </p>
@@ -42,9 +42,9 @@ export function MockNotice({
       className="flex flex-wrap items-center gap-3 rounded-[--radius-cp] border border-warning bg-surface p-3"
       role="note"
     >
-      <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
+      <ToneBadge tone="warning" label="دادهٔ نمونه" code="MOCK" Icon={FlaskConical} />
       <p className="text-cp-label text-ink">
-        هیچ سرویسی متصل نیست؛ مقادیر این صفحه نمونه‌ی قطعی هستند و{' '}
+        هیچ سرویسی متصل نیست؛ مقادیر این صفحه نمونهٔ قطعی هستند و{' '}
         <strong>شاهد</strong> محسوب نمی‌شوند. سناریو:{' '}
         <span className="font-mono text-cp-caption">{scenario}</span> — اتصال
         زنده در فاز سیم‌کشی زنده (Live Wiring) انجام می‌شود.

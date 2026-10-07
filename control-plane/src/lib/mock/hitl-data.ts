@@ -50,7 +50,7 @@ export type HitlScenario = 'steady' | 'busy' | 'all-unknown';
 const MOCK_INSTANT = '2026-10-03T09:30:00.000Z';
 
 /** A mock value is never evidence, so it never renders as PASS. */
-const MOCK_DETAIL = 'داده‌ی نمونه — تصمیم‌گیری زنده انجام نشده است';
+const MOCK_DETAIL = 'دادهٔ نمونه — تصمیم‌گیری زنده انجام نشده است';
 
 /** The canonical queue types (D-105). */
 const QUEUE_TYPES: QueueType[] = [
@@ -281,7 +281,7 @@ const STEADY_TICKETS: HitlTicket[] = [
     reviewer_actor_id: null,
     created_at_logical: 'L-0000000000000090',
     ageLogical: '۲ دقیقه',
-    summary: 'کاهش ۳۸٪ قیمت پیشنهادی برای ۴ SKU — اثر مستقیم روی حاشیه‌ی سود',
+    summary: 'کاهش ۳۸٪ قیمت پیشنهادی برای ۴ SKU — اثر مستقیم روی حاشیهٔ سود',
     source: 'analyst:inventory_velocity',
     payload: [
       changed('price_toman', '4,250,000', '2,635,000'),
@@ -293,7 +293,7 @@ const STEADY_TICKETS: HitlTicket[] = [
         1,
         'L-0000000000000088',
         'insight.generated',
-        'بینش از افت نرخ گردش موجودی در بازه‌ی ۷ روزه ساخته شد',
+        'بینش از افت نرخ گردش موجودی در بازهٔ ۷ روزه ساخته شد',
         'trace-4a12b9c3',
       ),
       step(
@@ -366,7 +366,7 @@ const STEADY_TICKETS: HitlTicket[] = [
     reviewer_actor_id: null,
     created_at_logical: 'L-0000000000000055',
     ageLogical: '۳۱ دقیقه',
-    summary: 'انتشار پیش‌نویس توضیحات محصول در بازه‌ی بعدی — نیازمند تأیید ناشر',
+    summary: 'انتشار پیش‌نویس توضیحات محصول در بازهٔ بعدی — نیازمند تأیید ناشر',
     source: 'publisher:slot_gate',
     payload: [
       changed('slot_state', 'BLOCKED', 'OPEN'),
@@ -377,7 +377,7 @@ const STEADY_TICKETS: HitlTicket[] = [
         1,
         'L-0000000000000054',
         'slot.gate.blocked',
-        'بازه‌ی انتشار به دلیل نبود تأیید انسانی قفل شد',
+        'بازهٔ انتشار به دلیل نبود تأیید انسانی قفل شد',
         'trace-1d55f8e2',
       ),
       step(
@@ -401,7 +401,7 @@ const STEADY_TICKETS: HitlTicket[] = [
     reviewer_actor_id: null,
     created_at_logical: 'L-0000000000000041',
     ageLogical: '۵۲ دقیقه',
-    summary: 'پیشنهاد توقف کمپین کم‌بازده بر پایه‌ی نرخ تبدیل ۰٫۴٪',
+    summary: 'پیشنهاد توقف کمپین کم‌بازده بر پایهٔ نرخ تبدیل ۰٫۴٪',
     source: 'analyst:sales_performance',
     payload: [
       changed('campaign_state', 'RUNNING', 'PAUSED'),
@@ -412,7 +412,7 @@ const STEADY_TICKETS: HitlTicket[] = [
         1,
         'L-0000000000000039',
         'insight.generated',
-        'نرخ تبدیل زیر آستانه‌ی تعریف‌شده اندازه‌گیری شد',
+        'نرخ تبدیل زیر آستانهٔ تعریف‌شده اندازه‌گیری شد',
         'trace-9e07bb41',
       ),
       step(
@@ -468,7 +468,7 @@ const STEADY_TICKETS: HitlTicket[] = [
     reviewer_actor_id: null,
     created_at_logical: 'L-0000000000000004',
     ageLogical: '۱۹ ساعت',
-    summary: 'بازه‌ی انتشار منقضی شد — فقط sweep قطعی می‌تواند EXPIRED ثبت کند (D-105)',
+    summary: 'بازهٔ انتشار منقضی شد — فقط پویش خودکار قطعی می‌تواند EXPIRED ثبت کند (D-105)',
     source: 'publisher:slot_gate',
     payload: [unchanged('slot_state', 'BLOCKED')],
     reasoning: [
@@ -476,14 +476,14 @@ const STEADY_TICKETS: HitlTicket[] = [
         1,
         'L-0000000000000003',
         'hitl.ticket.created',
-        'تیکت بازه‌ی انتشار در صف ثبت شد (D-105)',
+        'تیکت بازهٔ انتشار در صف ثبت شد (D-105)',
         'trace-58cc72d0',
       ),
       step(
         2,
         'L-0000000000000004',
         'hitl.ticket.expired',
-        'sweep قطعی با ساعت منطقی تزریق‌شده تیکت را منقضی کرد — نه کنش بازبین',
+        'پویش خودکار قطعی با ساعت منطقی تزریق‌شده تیکت را منقضی کرد — نه کنش بازبین',
         'trace-58cc72d1',
       ),
     ],
@@ -515,7 +515,7 @@ const BUSY_TICKETS: HitlTicket[] = [
         1,
         'L-0000000000000091',
         'insight.generated',
-        'انحراف معنادار از خط پایه در پنجره‌ی ۲۴ ساعته اندازه‌گیری شد',
+        'انحراف معنادار از خط پایه در پنجرهٔ ۲۴ ساعته اندازه‌گیری شد',
         'trace-b104ea77',
       ),
       step(
@@ -571,7 +571,7 @@ const BUSY_TICKETS: HitlTicket[] = [
     reviewer_actor_id: 'role:ops',
     created_at_logical: 'L-0000000000000078',
     ageLogical: '۱۱ دقیقه',
-    summary: 'ارجاع به نقش بالاتر برای تصمیم درباره‌ی جبران سفارش ناقص (D-105)',
+    summary: 'ارجاع به نقش بالاتر برای تصمیم دربارهٔ جبران سفارش ناقص (D-105)',
     source: 'analyst:inventory_velocity',
     payload: [changed('compensation_state', 'PENDING', 'PROPOSED')],
     reasoning: [
@@ -644,7 +644,7 @@ export function hitlProvenanceNote(scenario: string, provenance: HitlQueueSnapsh
   if (provenance === 'unavailable') {
     return `هیچ تیکتی بارگذاری نشده است؛ صف به موتور HITL متصل نیست. سناریو: ${scenario}`;
   }
-  return `${MOCK_DETAIL}؛ صف از داده‌ی نمونه پر شده است. سناریو: ${scenario}`;
+  return `${MOCK_DETAIL}؛ صف از دادهٔ نمونه پر شده است. سناریو: ${scenario}`;
 }
 
 /** Severity → Persian label and English code, shared by the queue components. */

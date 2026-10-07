@@ -1243,6 +1243,291 @@ response to `DOWN` — a stronger claim than the evidence supported.
       `[p-z]` chunk still stalls in `test_retry_isolation_live`, so the
       open bullet below remains open
 
+### Phase 27 dual-view roadmap — sub-phases 27.9–27.14 (27.9–27.14 IMPLEMENTED & VERIFIED — **EPIC 27 COMPLETE**, uncommitted)
+
+**Numbering note (2026-10-05; status reconciled 2026-10-06):** the
+owner's Dual-View Architecture directive (D-171 amendment, approved
+2026-10-05) adds sub-phases 27.9–27.14 below; the spec is
+`docs/decisions/D-171-unified-web-control-plane.md` §2.3 and §10.
+**27.9–27.12 are now IMPLEMENTED and VERIFIED (uncommitted)**, as
+are **27.13 and 27.14 (status reconciled 2026-10-07)** — the owner
+started each sub-phase (2026-10-05/06/07) — so **every sub-phase of
+the dual-view arc is now IMPLEMENTED & VERIFIED and the Phase 27
+(Epic) objective is COMPLETE** (uncommitted; the owner gates below
+still stand). The sentences above are left intact as history per
+PROJECT_RULES §2.1. Every sub-phase keeps
+the 27.1–27.8 assets intact: the dual-view work adds a presentation
+layer, it does not rewrite completed phases. The 27.10 implementation
+deviation (CSS view-gating on the pre-paint `data-view-mode`
+attribute instead of `useViewMode()` in JS) is recorded in D-171 §10
+and in the D-171 decision row.
+
+### Phase 27.9 — View State Management & Header Dual-View Switcher — **IMPLEMENTED & VERIFIED (uncommitted)**
+
+Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
+
+- [x] Single view-state source with `BUSINESS` (default) and
+      `TECHNICAL` modes; a clean session resolves to `BUSINESS`
+- [x] Accessible in-header switcher (`aria-pressed`, live region,
+      focus ring, ≥ 44×44 target, ≥ 3:1 control contrast)
+- [x] Preference persisted client-side and restored after reload;
+      no server session, no credential, no new connection
+- [x] Acceptance: both views render independently; reload restores
+      the chosen view; a clean session defaults to Business
+- Evidence (2026-10-06): `npm run typecheck`, `npm run lint`,
+      `npm run check:contrast` (52/52 pairings), `npm run build`
+      (route table unchanged) and `npm run check:live-verdicts`
+      (30/30) all exit 0; browser-verified toggle, reload
+      persistence, fail-closed fallback on a corrupt token and on a
+      throwing `localStorage`, zero layout shift, no console errors.
+      **Uncommitted — the owner's commit decision is pending.**
+
+### Phase 27.10 — Dual Navigation Shell (Contextual Sidebar) — **IMPLEMENTED & VERIFIED (uncommitted)**
+
+- [x] Business view shows a short, task-oriented Persian sidebar;
+      the technical view keeps the full operational list
+- [x] `aria-current` tracks the active route in both shells, and the
+      corresponding route is kept when the view is switched
+- [x] Acceptance: each view carries its own navigation; no
+      technical surface is deleted — only contextualized/hidden in
+      Business; the active route is always explicit
+- Evidence (2026-10-06): `npm run typecheck`, `npm run lint`,
+      `npm run check:contrast`, `npm run build` and
+      `npm run check:live-verdicts` all exit 0; both nav sets render
+      in the first paint (CSS gate on the pre-paint `data-view-mode`
+      attribute — no flash, no hydration mismatch) and the inactive
+      set is `display:none` (not focusable, absent from the a11y
+      tree); switching views keeps the URL and the active row, the
+      off-view active route stays explicit through a «صفحهٔ جاری»
+      entry, no route was added/renamed/removed, and the pending
+      badge tracks its HITL source (`busy` ⇒ 5, unrecognised ⇒ no
+      badge). **Uncommitted — the owner's commit decision is
+      pending.**
+
+### Phase 27.11 — Persian Localization & Micro-Help Tooltip Integration — **IMPLEMENTED & VERIFIED (uncommitted, owner-scoped to the shell + switcher)**
+
+- [x] Business-view copy in plain Persian with zero unexplained IT
+      jargon (no container names, ports, HTTP, or stack names)
+- [x] Explanatory tooltips on every core card/table, reachable by
+      keyboard and screen reader, with an accessible label and SVG
+      icon (D-171 §3.5 — no emoji as a structural icon)
+- [x] Persian numerals in narrative text and Latin numerals in
+      identifiers/SKU/raw amounts (D-171 §3.1)
+- [x] Acceptance: no unexplained technical text in Business; every
+      core card has a reachable tooltip; typography rules honored
+- Evidence (2026-10-06): micro-help tooltips (hover + keyboard
+      focus, `aria-describedby`, token-only) on all five Business
+      sidebar items, the «صفحهٔ جاری» entry, all seven technical
+      entries, both switcher segments — and, added by 27.12, a help
+      button on every metric of every Business card; 114 ezafe
+      renderings corrected («صفحه‌ی» → «صفحهٔ»), 0 remaining on any
+      rendered route; zero forbidden jargon in the Business
+      navigation on all seven routes; the six ezafe forms inside the
+      protected probe seam (`src/lib/probes/verdict.ts`) are
+      deliberately untouched; `typecheck`, `lint`, `check:contrast`
+      (52/52), `build` and `check:live-verdicts` (30/30) all exit 0.
+      **Uncommitted — the owner's commit decision is pending.**
+
+### Phase 27.12 — Aggregate Business Health Badge & Drill-Down Bridge — **IMPLEMENTED & VERIFIED (uncommitted)**
+
+- [x] A single aggregate badge over SAFE / DEGRADED / DOWN / UNKNOWN
+      with no raw HTTP code or container id in the Business view
+- [x] Fail-closed: the aggregate never hides a worse component
+      state; absent evidence renders UNKNOWN, never green (§2.2)
+- [x] Drill-down link from the error badge to the matching technical
+      diagnostic entry
+- [x] Acceptance: the worst component state surfaces in the
+      aggregate; UNKNOWN is never green; the drill-down opens the
+      matching technical record
+- Evidence (2026-10-06): one aggregated Business card on each of
+      `/dashboard`, `/automations`, `/hitl-queue`, `/orders` and
+      `/inventory`, each derived from that page's OWN snapshot by the
+      pure `src/lib/business-summary.ts` (no new data source, no
+      fetch); counts render in Persian digits and every card string is
+      jargon-guarded at render time; the status ladder surfaces the
+      WORST component state and can never be green without a live
+      reading (mock ⇒ «نامشخص» + «دادهٔ نمونه», unavailable ⇒ «بدون
+      داده»); the guard caught and forced the fix of a real ordering
+      bug on the live `/automations` route; MOCK and every
+      `*-SCENARIO=bogus` run render 200 with «بدون داده»; the
+      drill-down switches the view on the SAME page — URL, scroll
+      position and page instance retained, no reload, focus handed to
+      the content region; the card is Business-only through the
+      approved pre-paint CSS gate, so the technical console is
+      byte-identical to 27.8; `typecheck`, `lint`, `check:contrast`
+      (52/52), `build` (route table unchanged) and
+      `check:live-verdicts` (30/30) all exit 0. **Uncommitted — the
+      owner's commit decision is pending.**
+
+### Phase 27.13 — Technical Diagnostics View Consolidation (Freeze & Isolate 27.1–27.8 assets) — **IMPLEMENTED & VERIFIED (uncommitted)**
+
+- [x] All 27.1–27.8 assets visible in the technical console:
+      container ids, live sidecar probes, latency, HTTP status, trace
+      context, payload (redacted), and the D-121 log stream
+- [x] No technical asset leaks into the default Business view and no
+      asset is deleted or weakened
+- [x] Acceptance: the full 27.1–27.8 asset set is present in the
+      technical view and absent from Business; the before/after asset
+      census is identical
+- Isolation uses the SAME approved pre-paint mechanism as 27.9/27.10/
+      27.12 (`src/components/ui/view-gate.tsx`: `VIEW_GATE_CLASS` +
+      `<TechnicalOnly>`/`<BusinessOnly>`, `display: contents` in the
+      active view and `display: none` in the other), so the correct
+      surface set is on screen in the FIRST paint — no JS read of the
+      view state, no hydration mismatch, no flicker, no layout jump.
+      The mechanism, the census and the boundary rules are recorded in
+      D-171 §10 and in the D-171 decision row (2026-10-07).
+- The census is executable, not documentary:
+      `node scripts/check-view-isolation.mjs [--dump] [--explain
+      <needle>] [--report <file>]` (dependency-free; needs the running
+      dev server; exit 1 on any violation) renders all seven routes and
+      proves BOTH directions from the markup — the Business view's
+      readable text (INCLUDING `sr-only` text and every accessible
+      name/`title`) carries zero technical assets, and every declared
+      console asset is still rendered in full — plus census fidelity
+      against a per-route manifest.
+- Evidence (2026-10-07): 7/7 routes, **0 Business-view leaks**, every
+      console asset proof intact (`/dashboard` 4/4, `/automations` 5/5,
+      `/hitl-queue` 2/2, `/orders` 1/1, `/inventory` 3/3, `/ai-engine`
+      1/1, `/settings` 1/1) with 11/11/8/9/10/5/5 gated surfaces per
+      route; `npm run typecheck`, `npm run lint`, `npm run
+      check:contrast` (52/52), `npm run build` (route table unchanged:
+      `/automations` ƒ, the rest ○) and `npm run check:live-verdicts`
+      (30/30) all exit 0; browser-verified in LIGHT **and** DARK —
+      Business view 16/16 gated surfaces hidden with the business card
+      visible, console 40/40 (inventory) and 16/16 (dashboard) shown
+      with the card hidden, cumulative layout shift 0.014 across view +
+      theme switching, console clean. **Uncommitted — the owner's commit
+      decision is pending.**
+- Boundary rules frozen this phase (recorded in the D-171 decision
+      row): STRUCTURED references a shop owner uses stay readable in
+      both views (canonical `ORD-`/`HITL-`/`P#####` record ids, the
+      merchant SKU code, `Product ID`, the store platform's own name,
+      D-### cross-references, the mandated English status codes beside
+      Persian labels), while OPAQUE machine values and developer
+      surfaces are console-only (service/container/probe names, probe
+      verdicts, latency and units, HTTP/telemetry readings, gate ids and
+      matrix, taxonomy/source codes, WooCommerce record numbers, variant
+      UUIDs in **both** the full and shortened rendering, trace contexts,
+      payload diffs and reasoning logs, override/write gates, route
+      machine codes, roadmap phase labels, debug tooling).
+- Six real Business-view leaks were found and fixed rather than
+      documented away — a shortened variant key was still readable
+      because only its full form had been gated; the `GMV`/`AOV`
+      acronyms in the `/orders` KPI strip; the English word `sweep` in a
+      HITL seed title; the internal roadmap label `Phase 27.x` on
+      `/settings` + `/ai-engine`; the transliterated console word
+      «کاننیکال» in the `/orders` section description and the order
+      drawer's item heading (now «مرجع»); and the Latin word `canonical`
+      in the expanded inventory row's lock note. Matching rules were
+      added to the gate (roadmap phase ref, finance acronyms, shortened
+      opaque key, engineering vocabulary, Persian console
+      transliterations) so each class is enforced on every route.
+- Honest scope limit of the script: drawers and expanded rows render
+      only after an interaction, so they are NOT in the initial markup
+      the census walks. They carry the same gates and were verified
+      separately in the browser — technical view: inventory expanded row
+      + order drawer + HITL drawer show their identifiers, provenance,
+      payload diff, reasoning log, logical ids and `sha256`/`trace`
+      context in full; Business view: the same surfaces are
+      `display: none` and the remaining drawer text is clean (the Latin
+      `canonical` leak above was found exactly this way; the Persian
+      transliteration class it also exposed is now an explicit rule).
+
+### Phase 27.14 — Security Scrubbing, Accessibility & Smoke Verification Gate — **IMPLEMENTED & VERIFIED (uncommitted)**
+
+- [x] Redaction audit across both views: zero token/secret/
+      credential/PAN (D-114/D-124)
+- [x] WCAG 2.2 AA verification in both views and both themes
+      (contrast, focus, touch targets, color-independent semantics)
+- [x] Smoke gate: both views render, the view switch is stable, zero
+      console errors, and no fail-closed regression in 27.1–27.8
+- [x] Acceptance: redaction audit PASS; accessibility PASS in both
+      themes; smoke PASS; the fail-closed guarantees of 27.1–27.8
+      remain intact
+- Evidence — **regression suite** (2026-10-07, all on the final tree):
+      `npm run typecheck` exit 0, `npm run lint` exit 0 **with zero
+      warnings**, `npm run check:contrast` 52/52 pairings 0 violations,
+      `npm run check:live-verdicts` **30/30**, `npm run build` exit 0
+      with an unchanged route table (`/automations` ƒ, the rest ○), and
+      `node scripts/check-view-isolation.mjs` **7/7 routes, 0 Business
+      leaks, every console proof intact** (4/4, 5/5, 2/2, 1/1, 3/3, 1/1,
+      1/1).
+- Evidence — **view transition & persistence**: the served HTML carries
+      `<html lang="fa" dir="rtl" data-theme="light"
+      data-view-mode="business">` (the mandated default) plus an inline
+      **synchronous** bootstrap in `<head>` (358 chars before `<body>`,
+      not `async`/`defer`/`module`) that reads `control_plane_view_mode`
+      and writes `dataset.viewMode` with a `try/catch` fail-closed
+      fallback to `business` — so the right view is on screen in the
+      first frame. Hard reload measured in both modes: `data-view-mode`
+      matches the stored value, the switcher's `aria-pressed` is already
+      correct, and **cold-load CLS = 0** (0 layout-shift entries,
+      DCL 120 ms); the keyboard view toggle produced **CLS = 0** with no
+      reload (`beforeunload` count 0, page instance retained, URL and
+      `scrollY` unchanged).
+- Evidence — **accessibility**: all seven routes audited in **both
+      modes × both themes**; Business view leaks 0 on every route with
+      16/16, 11/11, 8/8, 20/20, 40/40, 5/5 and 5/5 gated surfaces hidden
+      and the console showing the same counts revealed. Real `Tab`/
+      `Shift+Tab` walk on `/inventory`: skip link → BUSINESS → TECHNICAL
+      → theme toggle → sidebar, every stop with a visible 2px focus ring
+      and **zero stops inside a gated subtree**; the 5–11 focusables that
+      exist inside hidden gated subtrees cannot take focus at all
+      (programmatic `focus()` probe on every route: no leak). Switcher is
+      a `role="group"` labelled «انتخاب نمای صفحه» with `aria-pressed`
+      segments described by `role="tooltip"` help (`aria-describedby`),
+      and a polite live region announces «نمای مدیریت فروشگاه فعال
+      است» / «کنسول زیرساخت فعال است»; keyboard activation (Enter) of a
+      segment switches the view without a reload.
+- Evidence — **security / fail-closed**: no cookies, no iframes, no
+      `CP_*` environment variable name anywhere in the document, no
+      credential/secret/token value; `localStorage` holds exactly
+      `control_plane_view_mode` + `cp-theme` and `sessionStorage` is
+      empty (the temporary audit runner was removed and re-verified).
+      With the sidecar down the Business view of `/automations` reads
+      «بدون داده (NO_DATA)» with «هیچ جریانی خوانده نشده است» and the
+      Business text contains **no** endpoint, error, stack-trace or
+      socket signature; the dev-server log shows every request at 200
+      with no error line. Loopback probe-source URLs
+      (`127.0.0.1:8088/health/…`) appear only inside the gated console
+      provenance markup (and therefore in the SSR payload the console is
+      built from) — no credentials, no env names; classified as
+      diagnostics, not a secret (see the decision row).
+- Evidence — **routing**: `/webhooks`, `/logs`, `/webhooks/foo` and
+      `/logs/2026` all return **404** (strictly non-routable), while all
+      seven canonical routes return 200.
+- Evidence — **bundle / dependencies**: production `.next/static` is
+      **880 KB** across 16 JS chunks (723,830 bytes of chunk JS) with
+      **zero new dependencies** — `package.json` + lockfile diff empty
+      and every added import specifier is internal (`@/…`); the whole
+      dual-view feature adds 41,663 bytes of TypeScript source across
+      six small modules. **Limitation:** a numeric pre-27.9 baseline
+      could not be produced — Turbopack rejects the symlinked
+      `node_modules` in an out-of-tree worktree — so the delta is
+      bounded by source, not measured; the absolute numbers above are
+      the measurement.
+
+### Epic 27 — Unified Web Control Plane, dual-view arc (D-171) — **COMPLETED (uncommitted)**
+
+- [x] 27.1–27.8 diagnostic foundations preserved byte-for-byte; 27.9
+      view state + switcher, 27.10 dual navigation shell, 27.11 Persian
+      localization + guidance tooltips, 27.12 aggregated Business cards
+      + drill-down, 27.13 technical-asset census + strict isolation,
+      27.14 security/accessibility/regression gate — every sub-phase
+      IMPLEMENTED & VERIFIED
+- [x] Epic exit criteria: 7/7 routes clean in Business with 100% of
+      the console's diagnostic depth intact; contrast 52/52; probe seam
+      30/30; build green with an unchanged route table; zero hydration
+      flash (cold-load CLS 0); zero layout thrashing on view/theme
+      switches (CLS 0–0.014 measured); no credential, env name, cookie
+      or secret reachable from the client; `/webhooks` and `/logs`
+      non-routable (404)
+- [ ] **Owner gates that survive the Epic** (unchanged, D-139/D-045):
+      commit decision for the uncommitted work, production activation,
+      any provisioning or live credential, and owner review of each
+      phase completion record
+
 ### Phase 27 standing gates
 
 - [ ] Owner review of each phase completion record before the next

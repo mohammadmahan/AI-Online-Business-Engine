@@ -246,7 +246,7 @@ export function InventoryFilters({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-cp-label font-semibold text-ink">
-              بازه‌ی قیمت (تومان)
+              بازهٔ قیمت (تومان)
             </legend>
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1">
@@ -285,7 +285,7 @@ export function InventoryFilters({
                 role="alert"
                 className="rounded-[--radius-cp] border border-danger bg-surface p-2 text-cp-caption text-danger"
               >
-                بازه‌ی قیمت نامعتبر است (ورودی غیرعددی یا حد پایین بزرگ‌تر از حد بالا)؛ تا اصلاح
+                بازهٔ قیمت نامعتبر است (ورودی غیرعددی یا حد پایین بزرگ‌تر از حد بالا)؛ تا اصلاح
                 آن هیچ SKUی نمایش داده نمی‌شود.
               </p>
             ) : null}

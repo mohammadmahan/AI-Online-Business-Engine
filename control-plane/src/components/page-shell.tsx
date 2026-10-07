@@ -1,7 +1,11 @@
 import Link from 'next/link';
 
 import { Card, Placeholder } from '@/components/ui/card';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { routeByHref, type RouteSpec } from '@/lib/routes';
+
+/** Technical-only class, applied inline where a wrapper node would be wrong. */
+const TECHNICAL_ONLY_CLASS = VIEW_GATE_CLASS.technical;
 
 /**
  * Breadcrumb + Persian title + English code for one route.
@@ -26,7 +30,7 @@ export function PageHeader({
         <ol className="flex items-center gap-2 text-cp-caption text-ink-muted">
           <li>
             <Link href="/dashboard" className="hover:text-ink hover:underline">
-              صفحه‌ی کنترل
+              صفحهٔ کنترل
             </Link>
           </li>
           <li aria-hidden="true">/</li>
@@ -40,7 +44,13 @@ export function PageHeader({
         <h1 className="text-cp-display font-bold text-ink">{route.title}</h1>
         <p className="mt-1 text-cp-label text-ink-muted">
           {route.description}{' '}
-          <span className="font-mono text-cp-caption opacity-80">
+          {/* The route's machine code is a console asset (Phase 27.13): the
+              Business view shows the Persian title/description only. */}
+          <span
+            data-view-gate="technical"
+            data-surface="page-route-code"
+            className={`font-mono text-cp-caption opacity-80 ${TECHNICAL_ONLY_CLASS}`}
+          >
             ({route.code})
           </span>
         </p>
@@ -69,9 +79,17 @@ export function PageShell({
       <PageHeader href={href} />
       <Card>
         <Placeholder>
-          داده‌ی زنده در <strong>{route.phase}</strong> متصل می‌شود. تا آن زمان
-          وضعیت این صفحه <strong>نامشخص (UNKNOWN)</strong> است — نه صفر، نه
-          موفق.
+          دادهٔ زنده پس از تکمیل راه‌اندازی متصل می‌شود. تا آن زمان وضعیت این صفحه{' '}
+          <strong>نامشخص (UNKNOWN)</strong> است — نه صفر، نه موفق.
+          {/* The roadmap phase label is internal project vocabulary (Phase
+              27.13): the Business view states the truth without it. */}
+          <span
+            data-view-gate="technical"
+            data-surface="page-phase-ref"
+            className={`mt-1 block font-mono text-cp-caption text-ink-muted ${TECHNICAL_ONLY_CLASS}`}
+          >
+            فعال‌سازی در {route.phase}
+          </span>
         </Placeholder>
         {children}
       </Card>

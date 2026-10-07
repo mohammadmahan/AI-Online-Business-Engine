@@ -2,7 +2,11 @@ import { AlertTriangle, ArrowUpRight, BellRing, Inbox } from 'lucide-react';
 import Link from 'next/link';
 
 import { ToneBadge, type Tone } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import type { PendingApproval, Severity } from '@/types/dashboard';
+
+/** Machine identifiers (record id, taxonomy code, engine source) — console only. */
+const IDENTIFIER = VIEW_GATE_CLASS.technical;
 
 const SEVERITY_META: Record<Severity, { label: string; code: string; tone: Tone; Icon: typeof AlertTriangle }> = {
   critical: { label: 'بحرانی', code: 'CRITICAL', tone: 'danger', Icon: AlertTriangle },
@@ -64,12 +68,22 @@ export function PendingApprovalsCard({
                     code={meta.code}
                     Icon={meta.Icon}
                   />
-                  <span className="font-mono text-cp-caption text-ink-muted">{item.id}</span>
-                  <span className="text-cp-caption text-ink-muted">{item.category}</span>
+                  <span
+                    data-view-gate="technical"
+                    data-surface="dashboard-approvals-identifiers"
+                    className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
+                  >
+                    {item.id}
+                  </span>
+                  <span className={`text-cp-caption text-ink-muted ${IDENTIFIER}`}>
+                    {item.category}
+                  </span>
                   <span className="text-cp-caption text-ink-muted">· {item.age}</span>
                 </div>
                 <p className="text-cp-label text-ink">{item.summary}</p>
-                <p className="font-mono text-cp-caption text-ink-muted">{item.source}</p>
+                <p className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
+                  {item.source}
+                </p>
               </li>
             );
           })}

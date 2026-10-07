@@ -1,6 +1,7 @@
 import { AlertTriangle, Boxes, GitCompareArrows, PackageX } from 'lucide-react';
 
 import { Card } from '@/components/ui/card';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatNumber } from '@/lib/format';
 import type { InventorySummary } from '@/types/inventory';
 
@@ -61,7 +62,15 @@ export function MetricsBanner({ summary }: { summary: InventorySummary }) {
               <metric.Icon aria-hidden="true" className={`size-4 shrink-0 ${metric.ink}`} />
               <p className="text-cp-caption text-ink-muted">
                 {metric.label}{' '}
-                <span className="font-mono opacity-80">({metric.code})</span>
+                {/* Metric machine key (TOTAL_SKUS, DRIFT_DETECTED, …): console
+                    asset — the Business view keeps the label and the count. */}
+                <span
+                  data-view-gate="technical"
+                  data-surface="inventory-metrics-codes"
+                  className={`font-mono opacity-80 ${VIEW_GATE_CLASS.technical}`}
+                >
+                  ({metric.code})
+                </span>
               </p>
             </div>
             <p
@@ -72,6 +81,8 @@ export function MetricsBanner({ summary }: { summary: InventorySummary }) {
           </Card>
         ))}
       </div>
+      {/* Plain-Persian stock totals stay readable in both views; only the
+          machine metric keys above are console assets. */}
       <p className="text-cp-caption text-ink-muted">
         مجموع موجودی انبار: <span className="tabular-nums">{formatNumber(summary.totalStockUnits)}</span>{' '}
         واحد · شمار در انتظار همگام‌سازی:{' '}

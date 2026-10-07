@@ -11,6 +11,7 @@ import {
 } from '@/components/commerce/commerce-meta';
 import { OrderDrawer } from '@/components/commerce/order-drawer';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatTimeUtc, formatToman } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Order } from '@/types/commerce';
@@ -80,7 +81,13 @@ export function OrdersTable({
                     <span dir="ltr" className="block font-mono text-cp-label text-ink">
                       {order.orderId}
                     </span>
-                    <span className="mt-1 block text-cp-caption text-ink-muted">
+                    {/* Integration id (WooCommerce record number) — console only;
+                        the canonical order id above stays in both views. */}
+                    <span
+                      data-view-gate="technical"
+                      data-surface="orders-table-identifiers"
+                      className={`mt-1 block text-cp-caption text-ink-muted ${VIEW_GATE_CLASS.technical}`}
+                    >
                       Woo:{' '}
                       <span dir="ltr" className="font-mono">
                         {order.wooOrderId ?? '—'}

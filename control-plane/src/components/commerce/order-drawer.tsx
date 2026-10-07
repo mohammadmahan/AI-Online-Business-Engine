@@ -12,7 +12,16 @@ import {
   SETTLEMENT_STATE_META,
 } from '@/components/commerce/commerce-meta';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatNumber, formatTimeUtc, formatToman } from '@/lib/format';
+
+/**
+ * Machine identifiers inside an otherwise business drawer (Phase 27.13): the
+ * integration record number, the D-121 trace values and the masked gateway
+ * reference log. The canonical order id, items, amounts and the lifecycle
+ * history's Persian notes stay readable in both views.
+ */
+const IDENTIFIER = VIEW_GATE_CLASS.technical;
 import { cn } from '@/lib/utils';
 import type { Order } from '@/types/commerce';
 
@@ -112,7 +121,11 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
                 </time>{' '}
                 UTC
               </span>
-              <span>
+              <span
+                data-view-gate="technical"
+                data-surface="orders-drawer-identifiers"
+                className={IDENTIFIER}
+              >
                 WooCommerce:{' '}
                 <span dir="ltr" className="font-mono">
                   {order.wooOrderId ?? '—'}
@@ -137,7 +150,7 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
 
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
           <section className="flex flex-col gap-2" aria-label="اقلام سفارش">
-            <h3 className="text-cp-label font-semibold text-ink">اقلام (SKU کاننیکال)</h3>
+            <h3 className="text-cp-label font-semibold text-ink">اقلام سفارش (بر پایهٔ SKU مرجع)</h3>
             <div className="overflow-x-auto rounded-[--radius-cp] border border-edge">
               <table className="w-full border-collapse text-cp-caption">
                 <caption className="sr-only">
@@ -182,7 +195,7 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
           <section className="flex flex-col gap-2" aria-label="تاریخچه وضعیت">
             <h3 className="flex items-center gap-2 text-cp-label font-semibold text-ink">
               <ScrollText aria-hidden="true" className="size-4" />
-              تاریخچه‌ی وضعیت (D-081) با رد D-121
+              تاریخچهٔ وضعیت (D-081) با رد D-121
             </h3>
             <ol className="flex flex-col gap-2">
               {order.history.map((entry) => {
@@ -202,7 +215,10 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
                       <time dateTime={entry.atUtc} className="text-cp-caption text-ink-muted tabular-nums">
                         {formatTimeUtc(entry.atUtc)} UTC
                       </time>
-                      <span className="font-mono text-cp-caption text-ink-muted" dir="ltr">
+                      <span
+                        className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
+                        dir="ltr"
+                      >
                         {entry.traceId}
                       </span>
                     </div>
@@ -213,7 +229,12 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
             </ol>
           </section>
 
-          <section className="flex flex-col gap-2" aria-label="گزارش درگاه پرداخت (ماسک‌شده)">
+          <section
+            className={`flex flex-col gap-2 ${IDENTIFIER}`}
+            data-view-gate="technical"
+            data-surface="orders-drawer-payment-audit"
+            aria-label="گزارش درگاه پرداخت (ماسک‌شده)"
+          >
             <h3 className="text-cp-label font-semibold text-ink">
               گزارش درگاه پرداخت — ماسک‌شده (D-114/D-124)
             </h3>
@@ -271,10 +292,10 @@ export function OrderDrawer({ order, onClose }: { order: Order | null; onClose: 
             </h3>
             <div className="grid gap-2 text-cp-label sm:grid-cols-2">
               <div className="flex flex-col gap-1 rounded-[--radius-cp] border border-edge p-2">
-                <span className="text-cp-caption text-ink-muted">ارائه‌دهنده‌ی ارسال</span>
+                <span className="text-cp-caption text-ink-muted">ارائه‌دهندهٔ ارسال</span>
                 <ToneBadge tone="neutral" label="انتخاب‌نشده" code="UNSELECTED" Icon={Truck} />
                 <p className="text-cp-caption text-ink-muted">
-                  {order.shipping.statusFa} — ارائه‌دهنده‌ی ارسال هنوز انتخاب نشده است (تصمیم باز
+                  {order.shipping.statusFa} — ارائه‌دهندهٔ ارسال هنوز انتخاب نشده است (تصمیم باز
                   ۱۱).
                 </p>
                 <p className="text-cp-caption text-ink-muted">

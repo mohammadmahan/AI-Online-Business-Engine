@@ -1,9 +1,12 @@
 import { FlaskConical, PlugZap } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BusinessStatusCard } from '@/components/business/business-status-card';
 import { QueueWorkspace } from '@/components/hitl/queue-workspace';
 import { PageHeader } from '@/components/page-shell';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { TechnicalOnly } from '@/components/ui/view-gate';
+import { hitlBusinessCard } from '@/lib/business-summary';
 import { formatTimeUtc } from '@/lib/format';
 import { activeHitlScenario, createMockHitlSource } from '@/lib/mock/hitl-data';
 
@@ -34,16 +37,21 @@ export default async function Page() {
       <PageHeader
         href="/hitl-queue"
         meta={
-          <p className="mt-1 text-cp-caption text-ink-muted">
-            تصویر لحظه‌ای:{' '}
-            <time dateTime={snapshot.generatedAt} className="tabular-nums">
-              {formatTimeUtc(snapshot.generatedAt)}
-            </time>{' '}
-            UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
-          </p>
+          <TechnicalOnly surface="hitl-page-meta">
+            <p className="mt-1 text-cp-caption text-ink-muted">
+              تصویر لحظه‌ای:{' '}
+              <time dateTime={snapshot.generatedAt} className="tabular-nums">
+                {formatTimeUtc(snapshot.generatedAt)}
+              </time>{' '}
+              UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
+            </p>
+          </TechnicalOnly>
         }
       />
 
+      <BusinessStatusCard model={hitlBusinessCard(snapshot)} />
+
+      <TechnicalOnly surface="hitl-notice">
       <div
         className={
           unavailable
@@ -55,7 +63,7 @@ export default async function Page() {
         {unavailable ? (
           <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
         ) : (
-          <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
+          <ToneBadge tone="warning" label="دادهٔ نمونه" code="MOCK" Icon={FlaskConical} />
         )}
         <p className="text-cp-label text-ink">
           {unavailable ? (
@@ -65,13 +73,14 @@ export default async function Page() {
             </>
           ) : (
             <>
-              صف از <strong>داده‌ی نمونه‌ی قطعی</strong> پر شده است و هیچ تیکتی
+              صف از <strong>دادهٔ نمونهٔ قطعی</strong> پر شده است و هیچ تیکتی
               از موتور HITL خوانده نشده؛ هیچ کنشی روی این تیکت‌ها مجاز نیست.
             </>
           )}{' '}
           سناریو: <span className="font-mono text-cp-caption">{snapshot.scenario}</span>
         </p>
       </div>
+      </TechnicalOnly>
 
       <QueueWorkspace snapshot={snapshot} />
     </div>

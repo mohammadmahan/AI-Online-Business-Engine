@@ -4,7 +4,18 @@ import { FileDiff, History, ScrollText, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { ROLE_LABEL, QUEUE_TYPE_LABEL, SEVERITY_META, STATUS_META } from '@/components/hitl/status-meta';
+
+/**
+ * Machine identifiers and raw engine artefacts inside the drawer (Phase
+ * 27.13): taxonomy/queue/role codes, the engine source, the reviewer actor id,
+ * the logical instants, the payload diff and the D-027 reasoning log. The
+ * ticket id, summary, severity, status and Persian notes stay readable in both
+ * views. The drawer is interaction-revealed, so it is verified in the browser
+ * (see `scripts/check-view-isolation.mjs` — on-demand surfaces).
+ */
+const IDENTIFIER = VIEW_GATE_CLASS.technical;
 import { cn } from '@/lib/utils';
 import type { HitlTicket } from '@/types/hitl';
 
@@ -99,7 +110,7 @@ export function TicketDrawer({
               <dt className="text-cp-caption text-ink-muted">نوع صف</dt>
               <dd className="text-ink">
                 {queueType ? queueType.label : ticket.queue_type}{' '}
-                <span className="font-mono text-cp-caption text-ink-muted">
+                <span className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
                   ({ticket.queue_type})
                 </span>
               </dd>
@@ -108,7 +119,7 @@ export function TicketDrawer({
               <dt className="text-cp-caption text-ink-muted">دسته</dt>
               <dd className="text-ink">
                 {ticket.categoryLabel}{' '}
-                <span className="font-mono text-cp-caption text-ink-muted">
+                <span className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
                   ({ticket.category})
                 </span>
               </dd>
@@ -117,36 +128,49 @@ export function TicketDrawer({
               <dt className="text-cp-caption text-ink-muted">نقش لازم</dt>
               <dd className="text-ink">
                 {role.label}{' '}
-                <span className="font-mono text-cp-caption text-ink-muted">({role.code})</span>
+                <span className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
+                  ({role.code})
+                </span>
               </dd>
             </div>
             <div>
               <dt className="text-cp-caption text-ink-muted">منبع</dt>
-              <dd className="font-mono text-cp-caption text-ink">{ticket.source}</dd>
+              <dd
+                data-view-gate="technical"
+                data-surface="hitl-drawer-identifiers"
+                className={`font-mono text-cp-caption text-ink ${IDENTIFIER}`}
+              >
+                {ticket.source}
+              </dd>
             </div>
             <div>
               <dt className="text-cp-caption text-ink-muted">سن (ساعت منطقی)</dt>
               <dd className="text-ink">
                 {ticket.ageLogical}{' '}
-                <span className="font-mono text-cp-caption text-ink-muted">
+                <span className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}>
                   ({ticket.created_at_logical})
                 </span>
               </dd>
             </div>
             <div>
               <dt className="text-cp-caption text-ink-muted">بازبین</dt>
-              <dd className="font-mono text-cp-caption text-ink">
+              <dd className={`font-mono text-cp-caption text-ink ${IDENTIFIER}`}>
                 {ticket.reviewer_actor_id ?? '—'}
-                {ticket.reviewer_actor_id === null ? (
-                  <span className="ms-2 font-sans text-ink-muted">
-                    (بدون بازبین — وضعیت {ticket.resolution_status} بازبین ندارد)
-                  </span>
-                ) : null}
               </dd>
+              {ticket.reviewer_actor_id === null ? (
+                <p className="text-cp-caption text-ink-muted">
+                  هنوز بازبینی برای این کار ثبت نشده است.
+                </p>
+              ) : null}
             </div>
           </dl>
 
-          <section className="flex flex-col gap-2" aria-label="تفاوت بار مفید">
+          <section
+            className={`flex flex-col gap-2 ${IDENTIFIER}`}
+            data-view-gate="technical"
+            data-surface="hitl-drawer-payload-diff"
+            aria-label="تفاوت بار مفید"
+          >
             <h3 className="flex items-center gap-2 text-cp-label font-semibold text-ink">
               <FileDiff aria-hidden="true" className="size-4" />
               تفاوت payload و override
@@ -154,7 +178,7 @@ export function TicketDrawer({
             <div className="overflow-x-auto rounded-[--radius-cp] border border-edge">
               <table className="w-full border-collapse text-cp-label">
                 <caption className="sr-only">
-                  مقایسه‌ی مقدار فعلی و مقدار پیشنهادی برای هر فیلد
+                  مقایسهٔ مقدار فعلی و مقدار پیشنهادی برای هر فیلد
                 </caption>
                 <thead>
                   <tr className="bg-surface-muted text-cp-caption text-ink-muted">
@@ -206,14 +230,19 @@ export function TicketDrawer({
             <p className="font-mono text-cp-caption text-ink-muted">{ticket.payload_ref}</p>
           </section>
 
-          <section className="flex flex-col gap-2" aria-label="لاگ استدلال">
+          <section
+            className={`flex flex-col gap-2 ${IDENTIFIER}`}
+            data-view-gate="technical"
+            data-surface="hitl-drawer-reasoning-log"
+            aria-label="لاگ استدلال"
+          >
             <h3 className="flex items-center gap-2 text-cp-label font-semibold text-ink">
               <History aria-hidden="true" className="size-4" />
               لاگ استدلال (بازسازی از رویدادهای D-027)
             </h3>
             <p className="flex items-start gap-2 rounded-[--radius-cp] border border-edge bg-surface-muted p-2 text-cp-caption text-ink-muted">
               <ScrollText aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              این لاگ از رویدادهای ماندگار بازسازی شده است؛ زنجیره‌ی فکری خام مدل
+              این لاگ از رویدادهای ماندگار بازسازی شده است؛ زنجیرهٔ فکری خام مدل
               هرگز نمایش داده نمی‌شود (D-171 §5.2).
             </p>
             <ol className="flex flex-col divide-y divide-edge">

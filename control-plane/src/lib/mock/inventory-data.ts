@@ -164,9 +164,9 @@ interface ItemSpec {
 type ItemOverride = Partial<Pick<ItemSpec, 'stock_qty' | 'syncStatus'>>;
 
 const LOW_STOCK_REASON =
-  'موجودی به آستانه‌ی ایمن رسیده است؛ تا شارژ مجدد هشدار فعال می‌ماند (D-082)';
+  'موجودی به آستانهٔ ایمن رسیده است؛ تا شارژ مجدد هشدار فعال می‌ماند (D-082)';
 const OUT_OF_STOCK_REASON =
-  'موجودی صفر شده است و آستانه‌ی ایمن نقض شده؛ فروش بیش از موجودی ممنوع است (D-082)';
+  'موجودی صفر شده است و آستانهٔ ایمن نقض شده؛ فروش بیش از موجودی ممنوع است (D-082)';
 
 /**
  * The base catalog — Persian samples across tech, digital and physical
@@ -470,7 +470,9 @@ const BASE_CATALOG: ItemSpec[] = [
     ],
     lock: {
       state: 'PRICE_FREEZE',
-      reason: 'قیمت canonical تا حل واگرایی با WooCommerce قفل شده است',
+      // Phase 27.13: this reason renders in the Business view, so it names the
+      // source in plain Persian instead of the engineering term «canonical».
+      reason: 'قیمت در منبع مرجع تا حل واگرایی با فروشگاه آنلاین قفل شده است',
       setAtLogical: logical(169),
     },
     provenance: {

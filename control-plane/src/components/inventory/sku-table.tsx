@@ -13,7 +13,21 @@ import {
   SYNC_STATUS_META,
 } from '@/components/inventory/inventory-meta';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { VIEW_GATE_CLASS } from '@/components/ui/view-gate';
 import { formatNumber, formatToman } from '@/lib/format';
+
+/**
+ * Integration identifiers, taxonomy codes, opaque machine keys and engine
+ * actors inside an otherwise business table (Phase 27.13).
+ *
+ * Classification rule (DECISIONS.md row 72): STRUCTURED record references a shop
+ * owner uses — the canonical Product ID (`P90401`), the merchant SKU code, the
+ * WooCommerce record number's absence, every Persian label, count, price and
+ * stock reading — stay readable in BOTH views, so D-015's identity separation
+ * survives. OPAQUE machine values — the variant UUID (full or shortened),
+ * taxonomy codes, integration ids and engine actors — are console-only.
+ */
+const IDENTIFIER = VIEW_GATE_CLASS.technical;
 import { cn } from '@/lib/utils';
 import type { InventoryItem } from '@/types/inventory';
 
@@ -35,27 +49,33 @@ function SkuDetail({ item }: { item: InventoryItem }) {
       className="flex flex-col gap-4 text-cp-label"
     >
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <dt className="text-cp-caption text-ink-muted">شناسه WooCommerce (محصول)</dt>
-          <dd className="font-mono text-ink" dir="ltr">
-            {item.sync.woo.productId ?? '—'}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-cp-caption text-ink-muted">شناسه WooCommerce (واریانت)</dt>
-          <dd className="font-mono text-ink" dir="ltr">
-            {item.sync.woo.variationId ?? '—'}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-cp-caption text-ink-muted">مپینگ فعال (D-046)</dt>
-          <dd className="text-ink">{item.sync.woo.active ? 'بله' : 'خیر'}</dd>
-        </div>
-        <div>
-          <dt className="text-cp-caption text-ink-muted">آخرین تلاش همگام‌سازی</dt>
-          <dd className="font-mono text-cp-caption text-ink" dir="ltr">
-            {item.sync.lastAttemptLogical ?? '—'}
-          </dd>
+        <div
+          data-view-gate="technical"
+          data-surface="inventory-row-identifiers"
+          className={`contents ${IDENTIFIER}`}
+        >
+          <div>
+            <dt className="text-cp-caption text-ink-muted">شناسه WooCommerce (محصول)</dt>
+            <dd className="font-mono text-ink" dir="ltr">
+              {item.sync.woo.productId ?? '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-cp-caption text-ink-muted">شناسه WooCommerce (واریانت)</dt>
+            <dd className="font-mono text-ink" dir="ltr">
+              {item.sync.woo.variationId ?? '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-cp-caption text-ink-muted">مپینگ فعال (D-046)</dt>
+            <dd className="text-ink">{item.sync.woo.active ? 'بله' : 'خیر'}</dd>
+          </div>
+          <div>
+            <dt className="text-cp-caption text-ink-muted">آخرین تلاش همگام‌سازی</dt>
+            <dd className="font-mono text-cp-caption text-ink" dir="ltr">
+              {item.sync.lastAttemptLogical ?? '—'}
+            </dd>
+          </div>
         </div>
       </dl>
 
@@ -63,7 +83,10 @@ function SkuDetail({ item }: { item: InventoryItem }) {
         <div className="rounded-[--radius-cp] border border-warning bg-surface p-3">
           <div className="flex flex-wrap items-center gap-2">
             <ToneBadge tone="warning" label="هشدار موجودی" code="LOW_STOCK_ALERT" Icon={ShieldQuestion} />
-            <span className="font-mono text-cp-caption text-ink-muted" dir="ltr">
+            <span
+              className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
+              dir="ltr"
+            >
               {item.alert.raisedAtLogical}
             </span>
           </div>
@@ -89,19 +112,26 @@ function SkuDetail({ item }: { item: InventoryItem }) {
           </div>
           {item.lock.state === 'NONE' ? (
             <p className="mt-2 text-cp-caption text-ink-muted">
-              قفل دستی روی این SKU وجود ندارد؛ نوشتن همگام‌سازی تنها از مسیر canonical مجاز است.
+              قفل دستی روی این SKU وجود ندارد؛ نوشتن همگام‌سازی تنها از مسیر رسمی و مرجع (D-015) ممکن است.
             </p>
           ) : (
             <p className="mt-2 text-cp-label text-ink">
               {item.lock.reason}{' '}
-              <span className="font-mono text-cp-caption text-ink-muted" dir="ltr">
+              <span
+                className={`font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
+                dir="ltr"
+              >
                 ({item.lock.setAtLogical})
               </span>
             </p>
           )}
         </div>
 
-        <div className="rounded-[--radius-cp] border border-edge p-3">
+        <div
+          data-view-gate="technical"
+          data-surface="inventory-provenance"
+          className={`rounded-[--radius-cp] border border-edge p-3 ${IDENTIFIER}`}
+        >
           <p className="text-cp-caption text-ink-muted">منبع داده (D-026)</p>
           <p className="mt-1 text-cp-label text-ink">
             {provenance.label}{' '}
@@ -117,14 +147,18 @@ function SkuDetail({ item }: { item: InventoryItem }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div
+        data-view-gate="technical"
+        data-surface="inventory-sync-history"
+        className={`flex flex-col gap-2 ${IDENTIFIER}`}
+      >
         <h3 className="text-cp-label font-semibold text-ink">
-          تاریخچه‌ی همگام‌سازی WooCommerce
+          تاریخچهٔ همگام‌سازی WooCommerce
         </h3>
         <div className="overflow-x-auto rounded-[--radius-cp] border border-edge">
           <table className="w-full border-collapse text-cp-caption">
             <caption className="sr-only">
-              تاریخچه‌ی تلاش‌های همگام‌سازی برای SKU {item.sku}، از قدیم به جدید
+              تاریخچهٔ تلاش‌های همگام‌سازی برای SKU {item.sku}، از قدیم به جدید
             </caption>
             <thead>
               <tr className="bg-surface text-ink-muted">
@@ -170,7 +204,7 @@ function SkuDetail({ item }: { item: InventoryItem }) {
         </div>
         <p className="text-cp-caption text-ink-muted">
           تاریخچه از رویدادهای ماندگار بازسازی می‌شود و هر گام رد D-121 خود را دارد؛ هیچ
-          زنجیره‌ی خام یا مقدار ساختگی نمایش داده نمی‌شود.
+          زنجیرهٔ خام یا مقدار ساختگی نمایش داده نمی‌شود.
         </p>
       </div>
     </section>
@@ -209,13 +243,23 @@ export function SkuTable({
     <div className="overflow-x-auto rounded-[--radius-cp] border border-edge">
       <table className="w-full min-w-[1080px] border-collapse text-cp-label">
         <caption className="sr-only">
-          فهرست SKUها؛ شناسه‌ی محصول، شناسه‌ی واریانت و SKU جداگانه نمایش داده می‌شوند (D-015)
+          فهرست SKUها؛ شناسهٔ محصول، شناسهٔ واریانت و SKU جداگانه و بدون اشتقاق از یکدیگر نگهداری می‌شوند (D-015)
         </caption>
         <thead>
           <tr className="bg-surface-muted text-cp-caption text-ink-muted">
             <th scope="col" className="p-2 text-start font-medium">محصول</th>
             <th scope="col" className="p-2 text-start font-medium">Product ID</th>
-            <th scope="col" className="p-2 text-start font-medium">Variant ID</th>
+            {/* Opaque machine key column — console-only (Phase 27.13). The
+                header leaves the Business view with its cells, so the visible
+                table stays column-aligned. */}
+            <th
+              scope="col"
+              data-view-gate="technical"
+              data-surface="inventory-variant-key"
+              className={`p-2 text-start font-medium ${IDENTIFIER}`}
+            >
+              Variant ID
+            </th>
             <th scope="col" className="p-2 text-start font-medium">SKU</th>
             <th scope="col" className="p-2 text-start font-medium">قیمت</th>
             <th scope="col" className="p-2 text-start font-medium">موجودی / آستانه</th>
@@ -239,18 +283,31 @@ export function SkuTable({
                     <span className="block text-cp-label text-ink">{item.nameFa}</span>
                     <span className="mt-1 block text-cp-caption text-ink-muted">
                       {item.categoryLabel}{' '}
-                      <span className="font-mono opacity-80">({item.categoryCode})</span>
+                      {/* Taxonomy machine code — console asset (Phase 27.13). */}
+                      <span
+                        data-view-gate="technical"
+                        data-surface="inventory-table-identifiers"
+                        className={`font-mono opacity-80 ${IDENTIFIER}`}
+                      >
+                        ({item.categoryCode})
+                      </span>
                     </span>
                   </th>
                   <td className="p-2 font-mono text-cp-caption text-ink" dir="ltr">
                     {item.product_id}
                   </td>
+                  {/* Both the shortened and the full key are opaque machine
+                      values, so the whole cell is console-only; the former
+                      `title` affordance is now the second line of the console
+                      cell instead of a non-keyboard affordance. */}
                   <td
-                    className="p-2 font-mono text-cp-caption text-ink-muted"
+                    data-view-gate="technical"
+                    data-surface="inventory-variant-key"
+                    className={`p-2 font-mono text-cp-caption text-ink-muted ${IDENTIFIER}`}
                     dir="ltr"
-                    title={item.variant_id}
                   >
                     {shortVariant(item.variant_id)}
+                    <span className={`block ${IDENTIFIER}`}>{item.variant_id}</span>
                   </td>
                   <td className="p-2 font-mono text-cp-label text-ink" dir="ltr">
                     {item.sku}
@@ -295,7 +352,7 @@ export function SkuTable({
                       onClick={() => setExpandedSku(expanded ? null : item.sku)}
                       aria-expanded={expanded}
                       aria-controls={detailId}
-                      aria-label={`${expanded ? 'بستن' : 'نمایش'} جزئیات و تاریخچه‌ی همگام‌سازی ${item.sku}`}
+                      aria-label={`${expanded ? 'بستن' : 'نمایش'} جزئیات و تاریخچهٔ همگام‌سازی ${item.sku}`}
                       className={cn(
                         'cp-target inline-flex items-center gap-1 rounded-[--radius-cp]',
                         'border border-edge-strong bg-surface px-2 py-1',

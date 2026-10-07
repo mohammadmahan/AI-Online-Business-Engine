@@ -128,7 +128,7 @@ interface ContainerSpec {
 const BASE_CONTAINERS: ContainerSpec[] = [
   {
     id: 'postgres',
-    titleFa: 'پایگاه داده‌ی canonical (PostgreSQL)',
+    titleFa: 'پایگاه دادهٔ canonical (PostgreSQL)',
     containerRef: 'engine-local-postgres',
     status: 'HEALTHY',
     metrics: { cpuPercent: 12, memoryUsedMb: 384, memoryLimitMb: 2048, uptimeSeconds: 126_000 },
@@ -156,7 +156,7 @@ const BASE_CONTAINERS: ContainerSpec[] = [
     metrics: { cpuPercent: 4, memoryUsedMb: 96, memoryLimitMb: 512, uptimeSeconds: 126_000 },
     portMapping: null,
     lastProbeUtc: '2026-10-05T07:59:53.000Z',
-    detailFa: 'کارگزار صف/کش استقرار (Stage D)؛ بدون پورت منتشرشده و فقط روی شبکه‌ی داخلی (D-144).',
+    detailFa: 'کارگزار صف/کش استقرار (Stage D)؛ بدون پورت منتشرشده و فقط روی شبکهٔ داخلی (D-144).',
     incident: null,
   },
   {
@@ -173,7 +173,7 @@ const BASE_CONTAINERS: ContainerSpec[] = [
   },
   {
     id: 'walrus',
-    titleFa: 'لایه‌ی حافظه (Walrus)',
+    titleFa: 'لایهٔ حافظه (Walrus)',
     containerRef: null,
     status: 'UNKNOWN',
     metrics: null,
@@ -206,9 +206,9 @@ interface GateSpec {
 const BASE_GATES: GateSpec[] = [
   {
     id: 'V-01',
-    titleFa: 'تأییدیه‌ی انتشار D-138',
+    titleFa: 'تأییدیهٔ انتشار D-138',
     descriptionFa:
-      'تأییدیه‌ی D-138 برای کاندید نهایی GO است؛ کهنه یا ناموجود هرگز GO فرض نمی‌شود.',
+      'تأییدیهٔ D-138 برای کاندید نهایی GO است؛ کهنه یا ناموجود هرگز GO فرض نمی‌شود.',
     status: 'PASS',
     evidence: { reference: 'evidence:launch-attestation:go', staleness: 'FRESH' },
     audit: null,
@@ -218,7 +218,7 @@ const BASE_GATES: GateSpec[] = [
     id: 'V-02',
     titleFa: 'پاکیزگی محیط برنامه‌ریزی',
     descriptionFa:
-      'هیچ رمز تولیدی در پوسته‌ی برنامه‌ریزی نیست؛ اسکن زنده‌ی D-045 آن را اثبات می‌کند.',
+      'هیچ رمز تولیدی در پوستهٔ برنامه‌ریزی نیست؛ اسکن زندهٔ D-045 آن را اثبات می‌کند.',
     status: 'PASS',
     evidence: { reference: 'evidence:planning-env-scan:clean', staleness: 'FRESH' },
     audit: null,
@@ -238,7 +238,7 @@ const BASE_GATES: GateSpec[] = [
     id: 'V-04',
     titleFa: 'سقف منابع و سیاست restart',
     descriptionFa:
-      'سیاست restart و سقف CPU/حافظه روی همه‌ی سرویس‌های prod اعمال شده است.',
+      'سیاست restart و سقف CPU/حافظه روی همهٔ سرویس‌های prod اعمال شده است.',
     status: 'BLOCKED',
     evidence: null,
     audit: {
@@ -319,7 +319,7 @@ const BASE_GATES: GateSpec[] = [
     evidence: null,
     audit: {
       reasonFa:
-        'تلاش برای استفاده‌ی دوباره از توکن مصرف‌شده رد شد؛ فیلدهای ممنوعه در حکم نپذیرفته شدند (D-146).',
+        'تلاش برای استفادهٔ دوباره از توکن مصرف‌شده رد شد؛ فیلدهای ممنوعه در حکم نپذیرفته شدند (D-146).',
       traceId: 'trace-9b07e4d1',
       atLogical: logical(214),
     },
@@ -1032,10 +1032,10 @@ const FORCE_GATE_REASON =
   'عبور از گیت تنها با حکم یک‌بارمصرف مالک ممکن است (D-146)؛ این رابط نه توکن دارد و نه مسیر نوشتن امضاشده (D-171 §6)';
 
 const RESTART_REASON =
-  'راه‌اندازی دوباره نیازمند اعتبارنامه‌ی کنترل‌کننده‌ی استقرار است و هیچ اعتبارنامه‌ای در این رابط نگهداری نمی‌شود (D-171 §6)';
+  'راه‌اندازی دوباره نیازمند اعتبارنامهٔ کنترل‌کنندهٔ استقرار است و هیچ اعتبارنامه‌ای در این رابط نگهداری نمی‌شود (D-171 §6)';
 
 const FLUSH_REASON =
-  'تخلیه‌ی صف کنشی برگشت‌ناپذیر است و بدون توکن یک‌بارمصرف مالک و مسیر نوشتن امضاشده اجرا نمی‌شود (D-146/D-171 §6)';
+  'تخلیهٔ صف کنشی برگشت‌ناپذیر است و بدون توکن یک‌بارمصرف مالک و مسیر نوشتن امضاشده اجرا نمی‌شود (D-146/D-171 §6)';
 
 /**
  * The gated emergency controls, exported so the live source renders the same
@@ -1054,16 +1054,16 @@ export const GATED_ACTIONS: TelemetryActionSpec[] = [
   },
   {
     id: 'RESTART_CONTAINER',
-    titleFa: 'راه‌اندازی دوباره‌ی کانتینر',
+    titleFa: 'راه‌اندازی دوبارهٔ کانتینر',
     descriptionFa:
-      'بازگرداندن یک کانتینر از کارافتاده از مسیر کنترل‌کننده‌ی استقرار، با ثبت رکورد در لجر و بازگشت در صورت شکست (D-121)',
+      'بازگرداندن یک کانتینر از کارافتاده از مسیر کنترل‌کنندهٔ استقرار، با ثبت رکورد در لجر و بازگشت در صورت شکست (D-121)',
     requiresSecondConfirmation: false,
     enabled: false,
     blockedReasonFa: RESTART_REASON,
   },
   {
     id: 'FLUSH_QUEUE',
-    titleFa: 'تخلیه‌ی صف',
+    titleFa: 'تخلیهٔ صف',
     descriptionFa:
       'خالی‌کردن صف کار Redis پس از رفع انسداد؛ کنشی برگشت‌ناپذیر که نیازمند تأیید دوم و حکم مالک است',
     requiresSecondConfirmation: true,

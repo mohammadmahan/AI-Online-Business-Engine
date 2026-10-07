@@ -12,6 +12,7 @@ import {
 import { SkuTable } from '@/components/inventory/sku-table';
 import { SyncOverrideGate } from '@/components/inventory/sync-override-gate';
 import { Card } from '@/components/ui/card';
+import { TechnicalOnly } from '@/components/ui/view-gate';
 import type { InventorySnapshot } from '@/types/inventory';
 
 /**
@@ -33,7 +34,7 @@ export function InventoryWorkspace({ snapshot }: { snapshot: InventorySnapshot }
   );
 
   const emptyMessage = price.invalid
-    ? 'بازه‌ی قیمت نامعتبر است؛ تا اصلاح آن هیچ SKUی نمایش داده نمی‌شود.'
+    ? 'بازهٔ قیمت نامعتبر است؛ تا اصلاح آن هیچ SKUی نمایش داده نمی‌شود.'
     : 'هیچ SKUی با این فیلترها وجود ندارد — و فهرست خالی هرگز به معنای سلامت موجودی نیست.';
 
   return (
@@ -51,9 +52,12 @@ export function InventoryWorkspace({ snapshot }: { snapshot: InventorySnapshot }
         <SkuTable items={rows} emptyMessage={emptyMessage} />
       </Card>
 
-      <Card>
-        <SyncOverrideGate actions={snapshot.actions} gate={snapshot.gate} />
-      </Card>
+      {/* Owner-token / canonical write-path gate internals are console assets. */}
+      <TechnicalOnly surface="inventory-write-gate">
+        <Card>
+          <SyncOverrideGate actions={snapshot.actions} gate={snapshot.gate} />
+        </Card>
+      </TechnicalOnly>
     </div>
   );
 }

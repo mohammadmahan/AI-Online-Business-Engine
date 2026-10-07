@@ -49,7 +49,7 @@ export type Scenario = 'steady' | 'degraded' | 'all-unknown';
 const MOCK_INSTANT = '2026-10-03T09:30:00.000Z';
 
 /** A mock reading is never evidence, so it never renders as PASS. */
-const MOCK_DETAIL = 'داده‌ی نمونه — اعتبارسنجی زنده انجام نشده است';
+const MOCK_DETAIL = 'دادهٔ نمونه — اعتبارسنجی زنده انجام نشده است';
 
 /**
  * Metric values that mean "no measurement exists". The single source of truth
@@ -123,11 +123,11 @@ export function assertFailClosedConsistency(snapshot: DashboardSnapshot): Dashbo
  */
 const WALRUS_NOT_CONNECTED: ServiceHealth = {
   id: 'walrus',
-  title: 'حافظه‌ی مشترک (Walrus)',
+  title: 'حافظهٔ مشترک (Walrus)',
   code: 'MEMORY_LAYER',
   state: 'unavailable',
   provenance: 'unavailable',
-  detail: 'لایه‌ی حافظه PLANNED است و تا گذر از گیت مالک (D-045) متصل نمی‌شود',
+  detail: 'لایهٔ حافظه PLANNED است و تا گذر از گیت مالک (D-045) متصل نمی‌شود',
   metrics: [
     measured('وضعیت', 'STATE', 'NOT_CONNECTED'),
     unmeasured('نام‌فضاهای همگام‌شده', 'SYNCED_NAMESPACES'),
@@ -193,7 +193,7 @@ function services(scenario: Scenario): ServiceHealth[] {
       state: degraded ? 'degraded' : 'ok',
       provenance: 'mock',
       detail: degraded
-        ? 'داده‌ی نمونه: تأخیر استخر بالاتر از آستانه است'
+        ? 'دادهٔ نمونه: تأخیر استخر بالاتر از آستانه است'
         : MOCK_DETAIL,
       metrics: [
         measured('وضعیت اتصال', 'CONNECTION', 'CONNECTED'),
@@ -210,7 +210,7 @@ function services(scenario: Scenario): ServiceHealth[] {
       state: degraded ? 'degraded' : 'ok',
       provenance: 'mock',
       detail: degraded
-        ? 'داده‌ی نمونه: مصرف CPU و حافظه بالاتر از آستانه است'
+        ? 'دادهٔ نمونه: مصرف CPU و حافظه بالاتر از آستانه است'
         : MOCK_DETAIL,
       metrics: [
         measured('وضعیت عامل', 'AGENT', 'RESPONDING'),
@@ -226,7 +226,7 @@ function services(scenario: Scenario): ServiceHealth[] {
       state: degraded ? 'unavailable' : 'ok',
       provenance: degraded ? 'unavailable' : 'mock',
       detail: degraded
-        ? 'داده‌ی نمونه: وب‌هوک پاسخ نمی‌دهد — کنش‌های وابسته غیرفعال‌اند'
+        ? 'دادهٔ نمونه: وب‌هوک پاسخ نمی‌دهد — کنش‌های وابسته غیرفعال‌اند'
         : MOCK_DETAIL,
       // When unreachable, NO metric may report a reading.
       metrics: degraded
@@ -293,7 +293,7 @@ function kpis(scenario: Scenario): KpiCard[] {
       state: unknown ? 'unknown' : degraded ? 'alert' : 'warn',
       detail: unknown
         ? 'صف تأیید هنوز متصل نشده است'
-        : 'صف از داده‌ی نمونه پر شده است — بازبینی انسانی همچنان لازم است',
+        : 'صف از دادهٔ نمونه پر شده است — بازبینی انسانی همچنان لازم است',
       href: '/hitl-queue',
       provenance,
     },
@@ -330,7 +330,9 @@ function kpis(scenario: Scenario): KpiCard[] {
       state: unknown ? 'unknown' : degraded ? 'alert' : 'ok',
       detail: unknown
         ? 'هیچ اندازه‌گیری‌ای انجام نشده است'
-        : 'شمارش از داده‌ی نمونه است، نه از لجر زنده',
+        // Phase 27.13: this detail renders on a Business KPI tile, so it stays
+        // plain Persian; the ledger itself is a console asset.
+        : 'شمارش از دادهٔ نمونه است، نه از منبع زنده',
       provenance,
     },
   ];
@@ -442,7 +444,7 @@ const EMERGENCY_ACTIONS: EmergencyAction[] = [
     id: 'flush_preview',
     title: 'پاک‌سازی سراسری (پیش‌نمایش)',
     description: 'پیش‌نمایش پاک‌سازی کش و صف‌های موقت',
-    effect: 'صف‌ها و کش پاک می‌شوند؛ داده‌ی SSOT هرگز تغییر نمی‌کند',
+    effect: 'صف‌ها و کش پاک می‌شوند؛ دادهٔ SSOT هرگز تغییر نمی‌کند',
     requiresSecondConfirmation: true,
     enabled: false,
     blockedReason:

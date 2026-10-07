@@ -1,11 +1,14 @@
 import { FlaskConical, PlugZap } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BusinessStatusCard } from '@/components/business/business-status-card';
 import { InventoryWorkspace } from '@/components/inventory/inventory-workspace';
 import { MetricsBanner } from '@/components/inventory/metrics-banner';
 import { PageHeader } from '@/components/page-shell';
 import { Card, Placeholder } from '@/components/ui/card';
 import { ToneBadge } from '@/components/ui/tone-badge';
+import { TechnicalOnly } from '@/components/ui/view-gate';
+import { inventoryBusinessCard } from '@/lib/business-summary';
 import { formatTimeUtc } from '@/lib/format';
 import { activeInventoryScenario, createMockInventorySource } from '@/lib/mock/inventory-data';
 
@@ -37,16 +40,21 @@ export default async function Page() {
       <PageHeader
         href="/inventory"
         meta={
-          <p className="mt-1 text-cp-caption text-ink-muted">
-            تصویر لحظه‌ای:{' '}
-            <time dateTime={snapshot.generatedAt} className="tabular-nums">
-              {formatTimeUtc(snapshot.generatedAt)}
-            </time>{' '}
-            UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
-          </p>
+          <TechnicalOnly surface="inventory-page-meta">
+            <p className="mt-1 text-cp-caption text-ink-muted">
+              تصویر لحظه‌ای:{' '}
+              <time dateTime={snapshot.generatedAt} className="tabular-nums">
+                {formatTimeUtc(snapshot.generatedAt)}
+              </time>{' '}
+              UTC · منبع: <span className="font-mono">{snapshot.provenance}</span>
+            </p>
+          </TechnicalOnly>
         }
       />
 
+      <BusinessStatusCard model={inventoryBusinessCard(snapshot)} />
+
+      <TechnicalOnly surface="inventory-notice">
       <div
         className={
           unavailable
@@ -58,7 +66,7 @@ export default async function Page() {
         {unavailable ? (
           <ToneBadge tone="danger" label="بدون داده" code="NO_DATA" Icon={PlugZap} />
         ) : (
-          <ToneBadge tone="warning" label="داده‌ی نمونه" code="MOCK" Icon={FlaskConical} />
+          <ToneBadge tone="warning" label="دادهٔ نمونه" code="MOCK" Icon={FlaskConical} />
         )}
         <p className="text-cp-label text-ink">
           {unavailable ? (
@@ -68,7 +76,7 @@ export default async function Page() {
             </>
           ) : (
             <>
-              فهرست از <strong>داده‌ی نمونه‌ی قطعی</strong> پر شده است و هیچ مقدار زنده‌ای از
+              فهرست از <strong>دادهٔ نمونهٔ قطعی</strong> پر شده است و هیچ مقدار زنده‌ای از
               canonical یا WooCommerce خوانده نشده؛ هیچ اندازه‌گیری‌ای شاهد محسوب نمی‌شود و
               هیچ کنش نوشتنی مجاز نیست.
             </>
@@ -76,6 +84,7 @@ export default async function Page() {
           سناریو: <span className="font-mono text-cp-caption">{snapshot.scenario}</span>
         </p>
       </div>
+      </TechnicalOnly>
 
       {unavailable ? (
         <Card>

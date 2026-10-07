@@ -12,6 +12,7 @@ import {
 import { OrdersTable } from '@/components/commerce/orders-table';
 import { FulfillmentOverrideGate } from '@/components/commerce/fulfillment-override-gate';
 import { Card, CardHeader } from '@/components/ui/card';
+import { TechnicalOnly } from '@/components/ui/view-gate';
 import type { CommerceSnapshot } from '@/types/commerce';
 
 /**
@@ -30,7 +31,7 @@ export function OrdersWorkspace({ snapshot }: { snapshot: CommerceSnapshot }) {
   const rows = useMemo(() => applyOrderFilters(snapshot.orders, filters), [snapshot.orders, filters]);
 
   const emptyMessage = range.invalid
-    ? 'بازه‌ی تاریخ نامعتبر است؛ تا اصلاح آن هیچ سفارشی نمایش داده نمی‌شود.'
+    ? 'بازهٔ تاریخ نامعتبر است؛ تا اصلاح آن هیچ سفارشی نمایش داده نمی‌شود.'
     : 'هیچ سفارشی با این فیلترها وجود ندارد — و فهرست خالی هرگز به معنای درآمد سالم نیست.';
 
   return (
@@ -47,14 +48,17 @@ export function OrdersWorkspace({ snapshot }: { snapshot: CommerceSnapshot }) {
       <Card>
         <CardHeader
           title="سفارش‌ها"
-          description="هر ردیف یک سفارش کاننیکال است: مبلغ عدد صحیح تومان (D-010)، چرخه‌ی D-081 در ستون تأمین، و گزارش پرداخت کاملاً ماسک‌شده در جزئیات (D-114/D-124)."
+          description="هر ردیف یک سفارش مرجع است: مبلغ عدد صحیح تومان (D-010)، چرخهٔ D-081 در ستون تأمین، و گزارش پرداخت کاملاً ماسک‌شده در جزئیات (D-114/D-124)."
         />
         <OrdersTable orders={rows} emptyMessage={emptyMessage} />
       </Card>
 
-      <Card>
-        <FulfillmentOverrideGate actions={snapshot.actions} gate={snapshot.gate} />
-      </Card>
+      {/* Owner-token / write-path gate internals are console assets (27.13). */}
+      <TechnicalOnly surface="orders-write-gate">
+        <Card>
+          <FulfillmentOverrideGate actions={snapshot.actions} gate={snapshot.gate} />
+        </Card>
+      </TechnicalOnly>
     </div>
   );
 }

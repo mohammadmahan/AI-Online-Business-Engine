@@ -163,7 +163,7 @@ export function OrderFilters({
         </button>
 
         <label className="flex items-center gap-2">
-          <span className="sr-only">جست‌وجو بر اساس شناسه‌ی سفارش، شناسه‌ی ووکامرس یا نام مشتری</span>
+          <span className="sr-only">جست‌وجو بر اساس شناسهٔ سفارش، شناسهٔ ووکامرس یا نام مشتری</span>
           <input
             type="search"
             value={filters.query}
@@ -256,7 +256,7 @@ export function OrderFilters({
           <fieldset className="flex flex-col gap-2">
             <legend className="flex items-center gap-2 text-cp-label font-semibold text-ink">
               <CalendarRange aria-hidden="true" className="size-4" />
-              بازه‌ی زمان ثبت (UTC)
+              بازهٔ زمان ثبت (UTC)
             </legend>
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1">
@@ -289,7 +289,7 @@ export function OrderFilters({
                 role="alert"
                 className="rounded-[--radius-cp] border border-danger bg-surface p-2 text-cp-caption text-danger"
               >
-                بازه‌ی تاریخ نامعتبر است (قالب نادرست یا تاریخ شروع بعد از پایان)؛ تا اصلاح آن هیچ
+                بازهٔ تاریخ نامعتبر است (قالب نادرست یا تاریخ شروع بعد از پایان)؛ تا اصلاح آن هیچ
                 سفارشی نمایش داده نمی‌شود.
               </p>
             ) : null}
