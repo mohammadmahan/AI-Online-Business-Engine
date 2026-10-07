@@ -137,6 +137,31 @@ from canonical.security_engine import canonicalize_text  # noqa: E402
 RUN_ID = os.getpid()
 
 
+# --- live-infrastructure guard (§41: an absent environment SKIPs, never fails) -----
+# The two `test_live_pg_*` pins below exercise the canonical PostgreSQL store as
+# the operator runs it. When that container is not up they must SKIP with a
+# descriptive reason instead of raising a psql connection error, so an offline
+# battery reports the same signal in every environment (PROJECT_RULES §41/§23).
+def _live_postgres_available() -> bool:
+    """True when a TCP connection to the local canonical PostgreSQL port works."""
+    import socket
+    host = os.environ.get("LOCAL_PGHOST", "127.0.0.1")
+    port = int(os.environ.get("LOCAL_PGPORT", "55432"))
+    try:
+        with socket.create_connection((host, port), timeout=1.0):
+            return True
+    except OSError:
+        return False
+
+
+LIVE_PG = _live_postgres_available()
+LIVE_PG_SKIP = (
+    "local PostgreSQL not running (no TCP listener on the canonical "
+    "127.0.0.1:55432 port) — the offline suite pins the same D-027/D-095 "
+    "invariants without the live store"
+)
+
+
 class _Harness:
     def __init__(self):
         fd, self.store_path = tempfile.mkstemp(suffix=".json")
@@ -369,6 +394,7 @@ class TestM3Chaos(unittest.TestCase):
             "chaos", eid, "chaos_op", {"n": 1})["verdict"]
         self.assertEqual(verdict2, "skipped_duplicate")
 
+    @unittest.skipUnless(LIVE_PG, LIVE_PG_SKIP)
     def test_live_pg_abort_leaves_no_succeeded_row(self):
         from canonical.notion_ingest import PgEventStore, _exec, _txt
         store = PgEventStore()
@@ -396,6 +422,7 @@ class TestM3Chaos(unittest.TestCase):
             "chaos", eid, "chaos_op", {"n": 1})["verdict"]
         self.assertEqual(verdict, "skipped_duplicate")
 
+    @unittest.skipUnless(LIVE_PG, LIVE_PG_SKIP)
     def test_live_pg_slot_lock_race_key_isolation(self):
         """Pinned finding (D-095/D-096, Phase 21 net): the Phase 15
         live race derived its slot bucket from run_id[:2] (2 hex

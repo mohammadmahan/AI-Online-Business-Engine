@@ -16,10 +16,14 @@
  * 2. A card whose data is unavailable says «بدون داده» and never zero: an
  *    unreachable source is not a store with nothing to do.
  * 3. `assertBusinessCard()` rejects, at render time, any card that carries
- *    operational jargon (پروب/سایدکار/کانتینر/تلمتری/لجر/HTTP/latency/D-121/SKU),
+ *    operational jargon (پروب/سایدکار/کانتینر/تلمتری/لجر/HTTP/latency/D-121),
  *    no metric, an empty string, or a green status without live evidence. A
  *    Business card is therefore structurally incapable of leaking the
  *    technical vocabulary the Technical console owns (§2.3 الف).
+ *
+ *    `SKU` (شناسه کالا / Stock Keeping Unit) is NOT jargon — the owner ruled
+ *    it approved canonical commerce vocabulary, readable in Business cards and
+ *    tables (owner ruling 2026-10-07; D-171 row 72).
  *
  * Counts are rendered in Persian digits (Phase 27.12 directive); identifiers,
  * SKU and timestamps keep Latin digits (D-171 §3.1).
@@ -83,8 +87,15 @@ const DRILL_DOWN = {
   tip: 'نمای همین صفحه را به کنسول فنی می‌برد؛ آدرس صفحه و جای اسکرول عوض نمی‌شود و صفحه دوباره بارگذاری نمی‌شود.',
 } as const;
 
-/** Operational vocabulary that must never appear on a Business card. */
-const FORBIDDEN = /(پروب|سایدکار|کانتینر|تلمتری|لجر|HTTP|latency|D-121|SKU|sidecar)/i;
+/**
+ * Operational vocabulary that must never appear on a Business card.
+ *
+ * `SKU` is deliberately absent: the owner ruled it approved canonical commerce
+ * vocabulary (شناسه کالا / Stock Keeping Unit) that a shop owner reads as their
+ * own word for a product identifier, on a card or in a table alike (owner
+ * ruling 2026-10-07; D-171 row 72). Everything else here stays console-only.
+ */
+const FORBIDDEN = /(پروب|سایدکار|کانتینر|تلمتری|لجر|HTTP|latency|D-121|sidecar)/i;
 
 /**
  * Fail-closed guard, in the same spirit as the mock providers' consistency

@@ -37,6 +37,25 @@ sys.path.insert(0, str(SCRIPT.parent))
 import verify_cutover_readiness as vcr  # noqa: E402
 
 
+def _docker_stack_up() -> bool:
+    """True when the local docker compose stack is fully running.
+
+    Delegates to the shipped attester so this guard cannot drift from the
+    gate the pin below actually exercises (`launch_attestation.stack_up()`):
+    the D-138 composition runs both DR legs only when the stack is up, so
+    with the stack down the verdict is unassessable rather than negative
+    (PROJECT_RULES §41 — an absent environment SKIPs, it never FAILs).
+    """
+    try:
+        import launch_attestation as la
+    except Exception:
+        return False
+    try:
+        return la.stack_up()
+    except Exception:
+        return False
+
+
 def run_cli(*extra: str, env_extra: dict | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env.update(env_extra or {})
@@ -192,6 +211,13 @@ class AttestationComposition(unittest.TestCase):
         # probe is removed first, so a skip here means genuine
         # uncommitted work in the tree.
         self._probe.unlink(missing_ok=True)
+        if not _docker_stack_up():
+            self.skipTest(
+                "local docker compose stack is not running — the D-138 "
+                "attestation cannot compose both DR legs here, so the "
+                "clean-tree GO pin is not assessable (BAC-001/MON-001 "
+                "absent, not failed)"
+            )
         out = subprocess.run(
             ["git", "status", "--porcelain"],
             capture_output=True, text=True, cwd=str(REPO))

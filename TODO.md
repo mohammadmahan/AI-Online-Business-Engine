@@ -1275,6 +1275,37 @@ per PROJECT_RULES §2.1. Gates still open: production activation, any
 provisioning or live credential, and owner review of each phase completion
 record (D-139/D-045); the commit decision itself is closed.
 
+**Same-Signal Gates milestone — reconciliation 2026-10-07 (append-only; the
+sentences above are left intact as history per PROJECT_RULES §2.1):** the
+`git ls-remote` line above records the server-side ref as it stood at the
+`68b8d5b` push. It is now **stale as a current-state claim, not wrong as
+history**: two forward, docs-only commits followed it — `695e033`
+(`docs(control-plane)`: this block and the D-171 ledger row reconciled) and
+`2a5b912` (`docs(decisions)`: the D-171 record reconciled) — so **the current
+HEAD and `origin/main` are both `2a5b912`**, the working tree is clean, and
+`68b8d5b` remains an ancestor on the same fast-forward line (no force push, no
+divergence, nothing lost). Separately, the owner's **Same-Signal Gates**
+milestone closed the two gaps the full-system audit raised, under an owner
+ruling: (a) **`SKU` is approved canonical commerce vocabulary** (شناسه کالا /
+Stock Keeping Unit) — readable in Business cards *and* tables alike — so it was
+removed from the business-card jargon guard `assertBusinessCard` and promoted
+into the census's explicit, owner-controlled `BUSINESS_TERMS` allowlist
+(`control-plane/scripts/check-view-isolation.mjs`); every other console term
+stays forbidden. (b) **A test that needs absent infrastructure now SKIPs
+descriptively instead of failing** (PROJECT_RULES §41): the missing
+`check:view-isolation` npm script was registered in
+`control-plane/package.json`, `local/tests/test_phase21_qa.py` guards its two
+live-PostgreSQL pins with a TCP availability probe, and
+`local/tests/test_stage_e_cutover.py` guards the clean-tree GO pin on
+`launch_attestation.stack_up()` so a stopped Docker stack yields a named SKIP
+(`BAC-001`/`MON-001` absent, not failed). Verified: `typecheck`, `lint`,
+`check:contrast` (52/52), `check:live-verdicts` (30/30) and
+`check:view-isolation` (7/7 routes, 0 leaks) all exit 0; `test_ladder` 46 OK
+(3 env skips), `test_phase21_qa` 22 OK (2 named skips), `test_stage_e_cutover`
+16 OK (1 named skip). Gates still open and unchanged: production activation,
+any provisioning or live credential, and owner review of each phase completion
+record (D-139/D-045).
+
 ### Phase 27.9 — View State Management & Header Dual-View Switcher — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).

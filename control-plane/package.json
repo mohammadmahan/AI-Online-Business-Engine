@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check:contrast": "node scripts/check-contrast.mjs",
-    "check:live-verdicts": "node scripts/check-live-verdicts.mjs"
+    "check:live-verdicts": "node scripts/check-live-verdicts.mjs",
+    "check:view-isolation": "node scripts/check-view-isolation.mjs --base-url http://localhost:3000"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",

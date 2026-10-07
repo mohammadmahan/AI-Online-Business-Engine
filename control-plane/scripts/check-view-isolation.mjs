@@ -171,6 +171,17 @@ const LEAK = [
   { name: 'endpoint', re: /\b(?:https?:\/\/|127\.0\.0\.1|localhost)\S*/gi },
 ];
 
+// Business domain terms the OWNER has ruled are approved canonical commerce
+// vocabulary, NOT IT jargon: a shop owner reads `SKU` (شناسه کالا / Stock
+// Keeping Unit), `PRODUCT`, `ID` and `UTC` as their own words for their own
+// goods, so they are explicitly permitted in Business cards AND table contents
+// on every route (owner ruling 2026-10-07; DECISIONS.md row 72 / D-171).
+// Keep this list owner-controlled: adding a term here widens what the census
+// accepts as readable in the Business view.
+const BUSINESS_TERMS = new Set([
+  'SKU', 'PRODUCT', 'ID', 'UTC', 'DRY', 'RUN',
+]);
+
 // Mandated UI state vocabulary: every one of these codes is rendered as a
 // badge next to a Persian label (D-171 §3.1/§3.5, "icon + Persian label +
 // English status code"), so it is traceability, not a technical asset. The
@@ -192,8 +203,8 @@ const ALLOWED_CODES = new Set([
   'EXTERNAL_SYNC', 'IMPORTED', 'HUMAN_ENTERED', 'HUMAN_REVIEWED', 'HUMAN_VERIFIED',
   'AI_GENERATED', 'SYSTEM_GENERATED', 'NONE', 'PULL', 'PUSH', 'RECONCILE', 'STOCK_OVERRIDE',
   'PRICE_FREEZE',
-  // Business nouns / traceability words
-  'SKU', 'PRODUCT', 'ID', 'UTC', 'DRY', 'RUN',
+  // Business nouns / traceability words (owner-ruled permitted terms)
+  ...BUSINESS_TERMS,
 ]);
 
 // ── argv ────────────────────────────────────────────────────────────────────
