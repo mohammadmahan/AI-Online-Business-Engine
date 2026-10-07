@@ -1243,7 +1243,7 @@ response to `DOWN` — a stronger claim than the evidence supported.
       `[p-z]` chunk still stalls in `test_retry_isolation_live`, so the
       open bullet below remains open
 
-### Phase 27 dual-view roadmap — sub-phases 27.9–27.14 (27.9–27.14 IMPLEMENTED & VERIFIED — **EPIC 27 COMPLETE**, uncommitted)
+### Phase 27 dual-view roadmap — sub-phases 27.9–27.14 (27.9–27.14 IMPLEMENTED, VERIFIED, **COMMITTED `68b8d5b` & PUSHED** — EPIC 27 COMPLETE)
 
 **Numbering note (2026-10-05; status reconciled 2026-10-06):** the
 owner's Dual-View Architecture directive (D-171 amendment, approved
@@ -1262,7 +1262,20 @@ deviation (CSS view-gating on the pre-paint `data-view-mode`
 attribute instead of `useViewMode()` in JS) is recorded in D-171 §10
 and in the D-171 decision row.
 
-### Phase 27.9 — View State Management & Header Dual-View Switcher — **IMPLEMENTED & VERIFIED (uncommitted)**
+**Commit & push reconciled 2026-10-07:** the owner authorized the atomic
+commit and the push, so Phase 27 (27.9–27.14) is **committed in `68b8d5b`**
+("feat(control-plane): complete Phase 27 dual-view isolation and quality gate
+(27.9–27.14)", 48 files, +2772/−291) and **pushed to `origin/main`**
+(`a609513..68b8d5b`, fast-forward, exit 0; `git ls-remote` confirms
+`refs/heads/main = 68b8d5b`), with the working tree clean afterwards. Every
+"uncommitted" status marker in this block — including the sub-phase headings
+and the per-phase evidence lines that end «Uncommitted — the owner's commit
+decision is pending» — is **superseded for Phase 27** and kept only as history
+per PROJECT_RULES §2.1. Gates still open: production activation, any
+provisioning or live credential, and owner review of each phase completion
+record (D-139/D-045); the commit decision itself is closed.
+
+### Phase 27.9 — View State Management & Header Dual-View Switcher — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
 
@@ -1281,8 +1294,10 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       persistence, fail-closed fallback on a corrupt token and on a
       throwing `localStorage`, zero layout shift, no console errors.
       **Uncommitted — the owner's commit decision is pending.**
+      *(Superseded 2026-10-07: committed in `68b8d5b` and pushed to
+      `origin/main`.)*
 
-### Phase 27.10 — Dual Navigation Shell (Contextual Sidebar) — **IMPLEMENTED & VERIFIED (uncommitted)**
+### Phase 27.10 — Dual Navigation Shell (Contextual Sidebar) — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 - [x] Business view shows a short, task-oriented Persian sidebar;
       the technical view keeps the full operational list
@@ -1302,9 +1317,10 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       entry, no route was added/renamed/removed, and the pending
       badge tracks its HITL source (`busy` ⇒ 5, unrecognised ⇒ no
       badge). **Uncommitted — the owner's commit decision is
-      pending.**
+      pending.** *(Superseded 2026-10-07: committed in `68b8d5b` and
+      pushed to `origin/main`.)*
 
-### Phase 27.11 — Persian Localization & Micro-Help Tooltip Integration — **IMPLEMENTED & VERIFIED (uncommitted, owner-scoped to the shell + switcher)**
+### Phase 27.11 — Persian Localization & Micro-Help Tooltip Integration — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`, owner-scoped to the shell + switcher)**
 
 - [x] Business-view copy in plain Persian with zero unexplained IT
       jargon (no container names, ports, HTTP, or stack names)
@@ -1327,8 +1343,10 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       deliberately untouched; `typecheck`, `lint`, `check:contrast`
       (52/52), `build` and `check:live-verdicts` (30/30) all exit 0.
       **Uncommitted — the owner's commit decision is pending.**
+      *(Superseded 2026-10-07: committed in `68b8d5b` and pushed to
+      `origin/main`.)*
 
-### Phase 27.12 — Aggregate Business Health Badge & Drill-Down Bridge — **IMPLEMENTED & VERIFIED (uncommitted)**
+### Phase 27.12 — Aggregate Business Health Badge & Drill-Down Bridge — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 - [x] A single aggregate badge over SAFE / DEGRADED / DOWN / UNKNOWN
       with no raw HTTP code or container id in the Business view
@@ -1357,9 +1375,10 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       byte-identical to 27.8; `typecheck`, `lint`, `check:contrast`
       (52/52), `build` (route table unchanged) and
       `check:live-verdicts` (30/30) all exit 0. **Uncommitted — the
-      owner's commit decision is pending.**
+      owner's commit decision is pending.** *(Superseded 2026-10-07:
+      committed in `68b8d5b` and pushed to `origin/main`.)*
 
-### Phase 27.13 — Technical Diagnostics View Consolidation (Freeze & Isolate 27.1–27.8 assets) — **IMPLEMENTED & VERIFIED (uncommitted)**
+### Phase 27.13 — Technical Diagnostics View Consolidation (Freeze & Isolate 27.1–27.8 assets) — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 - [x] All 27.1–27.8 assets visible in the technical console:
       container ids, live sidecar probes, latency, HTTP status, trace
@@ -1398,7 +1417,8 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       visible, console 40/40 (inventory) and 16/16 (dashboard) shown
       with the card hidden, cumulative layout shift 0.014 across view +
       theme switching, console clean. **Uncommitted — the owner's commit
-      decision is pending.**
+      decision is pending.** *(Superseded 2026-10-07: committed in
+      `68b8d5b` and pushed to `origin/main`.)*
 - Boundary rules frozen this phase (recorded in the D-171 decision
       row): STRUCTURED references a shop owner uses stay readable in
       both views (canonical `ORD-`/`HITL-`/`P#####` record ids, the
@@ -1434,7 +1454,7 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       `canonical` leak above was found exactly this way; the Persian
       transliteration class it also exposed is now an explicit rule).
 
-### Phase 27.14 — Security Scrubbing, Accessibility & Smoke Verification Gate — **IMPLEMENTED & VERIFIED (uncommitted)**
+### Phase 27.14 — Security Scrubbing, Accessibility & Smoke Verification Gate — **IMPLEMENTED & VERIFIED (committed in `68b8d5b`)**
 
 - [x] Redaction audit across both views: zero token/secret/
       credential/PAN (D-114/D-124)
@@ -1508,7 +1528,7 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       bounded by source, not measured; the absolute numbers above are
       the measurement.
 
-### Epic 27 — Unified Web Control Plane, dual-view arc (D-171) — **COMPLETED (uncommitted)**
+### Epic 27 — Unified Web Control Plane, dual-view arc (D-171) — **COMPLETED, COMMITTED `68b8d5b` & PUSHED**
 
 - [x] 27.1–27.8 diagnostic foundations preserved byte-for-byte; 27.9
       view state + switcher, 27.10 dual navigation shell, 27.11 Persian
@@ -1523,10 +1543,11 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       switches (CLS 0–0.014 measured); no credential, env name, cookie
       or secret reachable from the client; `/webhooks` and `/logs`
       non-routable (404)
-- [ ] **Owner gates that survive the Epic** (unchanged, D-139/D-045):
-      commit decision for the uncommitted work, production activation,
-      any provisioning or live credential, and owner review of each
-      phase completion record
+- [ ] **Owner gates that survive the Epic** (D-139/D-045): production
+      activation, any provisioning or live credential, and owner review
+      of each phase completion record — the commit decision was closed
+      by the owner on 2026-10-07 (commit `68b8d5b`, pushed to
+      `origin/main`)
 
 ### Phase 27 standing gates
 
