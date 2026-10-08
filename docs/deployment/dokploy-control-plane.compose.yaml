@@ -1,0 +1,120 @@
+# ============================================================================
+# dokploy-control-plane.compose.yaml — Route A standalone Dokploy application
+# (D-171 control plane; D-141 deployment lineage)
+#
+# Route A (recorded in DECISIONS.md ledger row 43): the control plane ships as
+# its own Dokploy application. Stage D is NOT touched — no fifth image slot,
+# no generator change, no amendment to edge exclusivity (F-3).
+#
+# The hardening below mirrors `dokploy_compose_template.yaml` (Stage D) and
+# `compose.prod.yml` key-for-key — read_only, cap_drop ALL, no-new-privileges,
+# explicit uid:gid, zero published ports, explicit ceilings — and every element
+# was MEASURED on the built image before being written here (spec §2: all
+# routes served under read-only + cap-drop-all as non-root; the healthcheck
+# reached `healthy` through Docker's own engine).
+#
+# Fail-closed variables (D-045/D-124): every injected value is a
+# `${VAR:?reason}` reference — no value, secret or otherwise, exists in this
+# file. `docker compose config` REFUSES to render without them; that refusal is
+# part of the contract, not an obstacle.
+#
+# IMAGE — Case B of the deployment-environment inspection (2026-10-08): no
+# registry credentials exist in this environment (no GHCR/Docker Hub auth in
+# ~/.docker/config.json, no credential helper, GITHUB_TOKEN/GH_TOKEN unset, no
+# `gh` CLI), so nothing was pushed and the image stays local, pinned by its
+# LOCAL-ONLY digest:
+#
+#   CONTROL_PLANE_IMAGE=control-plane@sha256:90ea787726ccfe8f5202eeedbfb7df0e672208ac11c45a6a138871d60d513904
+#
+# That reference resolves only on a host that already carries the image. Before
+# ANY remote deployment it must be replaced by the digest a push produces, e.g.
+#   ghcr.io/mohammadmahan/control-plane@sha256:<registry digest>
+# The push is blocked on a missing owner grant (registry credentials), not on
+# code; nothing else in this manifest changes when that grant lands.
+#
+# Ingress is deliberately absent (G-4 in the readiness report): the
+# Dokploy/Traefik gateway attaches to the `edge` network and routing labels are
+# an operator step, never committed — the same rule the Stage B and Stage D
+# manifests follow.
+# ============================================================================
+
+services:
+  control-plane:
+    # Digest-pinned reference injected at deploy time. A floating tag can never
+    # reach this service: the deploy layer must supply an immutable digest, the
+    # same rule Stage D enforces for its four slots.
+    image: ${CONTROL_PLANE_IMAGE:?Route A required — digest-pinned image reference (see the header for the Case B local digest)}
+
+    environment:
+      # Non-secret runtime surface; the image declares the same defaults.
+      NODE_ENV: "production"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Read-only telemetry source (D-171 §2.1 — the dashboard writes nothing).
+      CP_TELEMETRY_MODE: "LIVE"
+      # Fail-closed probe contract. An unconfigured endpoint renders
+      # «وضعیت نامشخص» rather than a verdict, which on a staging dashboard is a
+      # silent degradation — so the deployment must state its endpoints.
+      # Supply `{}` when no probe is wired yet: an explicit decision, not a
+      # silent default.
+      CP_PROBE_ENDPOINTS: ${CP_PROBE_ENDPOINTS:?Route A required — JSON map of probe endpoints, or {} when none are wired}
+      # Bearer tokens exist only in the deployment secret envelope (D-045/D-124).
+      # `{}` when no probe requires one. A value never appears in Git.
+      CP_PROBE_TOKENS: ${CP_PROBE_TOKENS:?Route A required — JSON map of bearer tokens from the secret envelope, or {}}
+      # Deliberately not declared: CP_PROBE_TIMEOUT_MS (default 2500, capped at
+      # 10000) and CP_PROBE_SLOW_MS (default 1000) fall back to the
+      # application's own bounds. The CP_*_SCENARIO switches are local-dev only
+      # and must never appear in a deployed environment (they select mock data).
+
+    # Zero published ports — the gateway is the only surface. compose.prod.yml
+    # publishes nothing either, and Stage D attaches only app-orchestrator to
+    # edge. Loopback publishing is a local-verification convenience, never a
+    # deployment property.
+
+    restart: unless-stopped
+
+    # --- hardening (mirrors Stage D key-for-key) ----------------------------
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Stated rather than inherited: the image's own `node` user, so a base-image
+    # change cannot silently move the runtime identity.
+    user: "1000:1000"
+    # The verified read surface needs no writable path at all (measured). This
+    # tmpfs is bounded by the container's own mem_limit below (tmpfs pages are
+    # charged to the container cgroup), so a future runtime need cannot become
+    # an unbounded write or force the rootfs back open.
+    tmpfs:
+      - /tmp
+
+    # --- ceilings (spec §6: mirror the Stage D floors) ----------------------
+    mem_limit: 512m
+    cpus: 1.0
+
+    # --- health (identical semantics to the image's built-in HEALTHCHECK) ---
+    # `node -e` only: no curl/wget dependency, so the probe keeps working on a
+    # hardened rootfs and cannot be broken by a base-image swap. The endpoint is
+    # dependency-free and discloses nothing (no version, no probe state).
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
+    networks:
+      - edge
+
+    # No volumes — stated as an absence so a future addition must be
+    # deliberate: the control plane keeps no state (D-171 read-only surface).
+
+networks:
+  # The only network the gateway may route. Non-internal because Traefik
+  # attaches from outside the project, while the service itself still publishes
+  # nothing. Probe reachability is an operator decision at deploy time (attach
+  # the engine's network or route through the gateway), never a committed
+  # cross-project coupling.
+  edge:
