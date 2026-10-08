@@ -18,7 +18,7 @@ measured on this host. Nothing here deploys, publishes, or changes the running a
 | Lockfile | `package-lock.json`, 252 092 bytes → `npm ci` is reproducible | `ls -l` |
 | Node contract | **none declared** (no `engines`, no `packageManager`, no `.nvmrc`); local dev Node **v20.16.0**; `@types/node` 20.19.43 | `package.json`, `node --version` |
 | `output` in `next.config.mjs` | **absent** → standalone output is *not* enabled today | `cat next.config.mjs` |
-| Base image | `node:20-alpine` = **49 031 620 bytes (46.8 MiB)**, `node --version` → **v20.20.2** | `docker image inspect`, `docker run` |
+| Base image | `node:20-alpine` = **49 031 620 bytes (46.8 MiB) as pulled** (compressed layers; **194 MB unpacked on disk** — see the corrected budget in §7.1), `node --version` → **v20.20.2** | `docker image inspect`, `docker system df -v`, `docker run` |
 | Base image digest | `node@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293` — an **OCI image index** (`application/vnd.oci.image.index.v1+json`), i.e. a multi-arch pin: amd64 `sha256:afdf9821…`, arm64 `sha256:d63c3876…` | `docker image inspect` + Docker Hub registry `Docker-Content-Digest` |
 | Route surface | 7 pages + `/_not-found`; `/automations` **ƒ dynamic**, 6 **○ static** | `npm run build` route table |
 | HTTP API surface | **zero** route handlers, zero `'use server'` | `find src/app -name route.ts`, grep |
@@ -260,10 +260,22 @@ re-proof of the container healthcheck inside the deployed environment.
 
 | Component | Measured |
 | --- | --- |
-| Base `node:20-alpine` | 46.8 MiB |
-| `.next/standalone` | 49 MB |
+| Base `node:20-alpine`, as pulled (compressed layers) | 49.0 MB (46.8 MiB) |
+| Base, unpacked on disk | 194 MB |
+| `.next/standalone` (host measure) | 49 MB |
 | `.next/static` | 0.88 MB |
-| **Uncompressed total, before layer dedup** | **≈ 97 MB** |
+| **Built image — unique layers** (`docker system df -v`, UNIQUE SIZE) | **98.8 MB** |
+| Built image — on-disk total (shares the base's 193.8 MB) | 293 MB |
+| `docker image inspect .Size` (mixed accounting: compressed base + local layers) | 74.3 MB |
+
+**Correction (2026-10-08, after the first real build).** The first revision of this table
+was wrong: it paired a *compressed* registry figure for the base (46.8 MiB) with *unpacked*
+payload figures and summed them into a misleading "≈ 97 MB total". The measured truth, from
+the built image: the control plane adds **98.8 MB of unique layers** on top of the shared
+base — within the intended payload budget — and the image occupies **293 MB on disk** with
+the base unpacked. Quote the column that matches the question: layer/pull size (~74–100 MB)
+or unpacked disk footprint (293 MB). Anyone setting a disk quota from the old 97 MB figure
+would have under-provisioned by 3×.
 
 Optional trims, each needing its own verification and an owner decision:
 
