@@ -1,0 +1,23 @@
+# Build context for the control-plane image.
+#
+# Two jobs: keep the context small (node_modules alone is ~500 MB) and keep
+# local values out of every layer (D-124: no secret or local env file may
+# reach an image). Everything the production build actually needs stays in:
+# package.json, package-lock.json, next.config.mjs, postcss.config.mjs,
+# tsconfig.json and src/.
+
+.git
+.gitignore
+node_modules
+.next
+.test-build
+next-env.d.ts
+tsconfig.tsbuildinfo
+.env
+.env.*
+*.log
+coverage
+test
+scripts
+eslint.config.mjs
+tsconfig.test.json
