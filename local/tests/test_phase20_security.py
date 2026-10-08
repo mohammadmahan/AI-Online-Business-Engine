@@ -605,6 +605,78 @@ class TestM4Sweep(unittest.TestCase):
                                     ("ast", "entropy", "bounds")},
                                    default=str)[:400])
 
+    # --- D-116 harness-tolerance boundary pin (owner ruling 2026-10-08) ---
+    #
+    # `test_tooling` tolerates process tooling and a stdlib socket port
+    # probe INSIDE test directories only. The pin below proves the
+    # tolerance cannot leak into application code: one identical source
+    # file is a hard finding under a canonical path and tolerated — still
+    # recorded — under a `tests/` path.
+
+    _BOUNDARY_TOLERATED = ("import socket\n"
+                           "import subprocess\n"
+                           "\n"
+                           "def probe():\n"
+                           "    return socket, subprocess\n")
+    _BOUNDARY_NETWORK_LIB = ("import requests\n"
+                             "\n"
+                             "def fetch():\n"
+                             "    return requests.get('http://example.invalid')\n")
+
+    def _sweep_boundary_dir(self, dirname: str, source: str) -> dict:
+        """Sweep a throwaway tree holding one source file in `dirname`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            target = os.path.join(tmp, dirname)
+            os.makedirs(target)
+            with open(os.path.join(target, "probe.py"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(source)
+            return ast_sweep([target])
+
+    def test_harness_tolerance_never_reaches_canonical_paths(self):
+        rep = self._sweep_boundary_dir("canonical", self._BOUNDARY_TOLERATED)
+        self.assertEqual(sorted(f["kind"] for f in rep["findings"]),
+                         ["network_socket", "process_escape"])
+        self.assertEqual(rep["test_tooling"], [])
+        self.assertFalse(rep["clean"])
+
+    def test_harness_tolerance_covers_test_directories_only(self):
+        rep = self._sweep_boundary_dir("tests", self._BOUNDARY_TOLERATED)
+        self.assertEqual(rep["findings"], [])
+        self.assertEqual(sorted(f["kind"] for f in rep["test_tooling"]),
+                         ["network_socket", "process_escape"])
+        self.assertTrue(rep["clean"])
+
+    def test_network_library_stays_a_hard_finding_even_in_tests(self):
+        # The tolerance is deliberately narrow: an HTTP client in a
+        # harness must NOT slip through the allowance (it could hide an
+        # outbound data channel), so `network_library` is never bucketed.
+        rep = self._sweep_boundary_dir("tests", self._BOUNDARY_NETWORK_LIB)
+        self.assertEqual([f["kind"] for f in rep["findings"]],
+                         ["network_library"])
+        self.assertEqual(rep["test_tooling"], [])
+        self.assertFalse(rep["clean"])
+
+    def test_tolerance_keys_on_a_real_tests_segment_not_a_prefix(self):
+        # A lookalike directory (`tests_extra/`) is NOT a test directory:
+        # the rule keys on an exact `tests/` path segment.
+        rep = self._sweep_boundary_dir("tests_extra", self._BOUNDARY_TOLERATED)
+        self.assertEqual(sorted(f["kind"] for f in rep["findings"]),
+                         ["network_socket", "process_escape"])
+        self.assertEqual(rep["test_tooling"], [])
+        self.assertFalse(rep["clean"])
+
+    def test_repository_socket_probe_is_recorded_not_dropped(self):
+        # The live-PG port probe must keep being REPORTED (in its own
+        # bucket) — reclassified, never suppressed.
+        rep = ast_sweep([os.path.join(ROOT, "local", "tests")])
+        self.assertEqual(rep["findings"], [])
+        probes = [f for f in rep["test_tooling"]
+                  if f["kind"] == "network_socket"]
+        self.assertTrue(probes, "the harness socket probe must stay recorded")
+        self.assertTrue(all(os.sep + "tests" + os.sep in f["file"]
+                            for f in probes))
+
 
 # --- M4f: live PostgreSQL E2E -----------------------------------------------------
 
