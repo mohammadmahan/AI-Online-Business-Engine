@@ -78,10 +78,17 @@ _FORBIDDEN_CALLS: Dict[str, str] = {
 _BARE_EXCEPT = "bare_except"
 
 
-# Process-control kinds allowed in TEST harness code only (the
-# established Node/psql tooling since Phase 5): they are reported
-# separately for canonical modules they are hard violations.
-_TEST_ALLOWED_PROCESS = {"process_escape", "os_system", "os_popen"}
+# Harness-tolerated kinds, allowed in TEST code only: the established
+# Node/psql process tooling since Phase 5 and — per the owner ruling of
+# 2026-10-08 — the stdlib `socket` TCP port probe a test uses to decide
+# whether live PostgreSQL is available (`test_phase21_qa
+# ._live_postgres_available`). They are reported separately, in their own
+# bucket; inside canonical code every one of them stays a hard violation.
+# `network_library` (`requests`/`urllib`/`httpx`/`http.client`/…) is
+# deliberately NOT here: an HTTP client in a harness remains a hard
+# finding, so this tolerance cannot hide an outbound data channel.
+_TEST_ALLOWED_KINDS = {"process_escape", "os_system", "os_popen",
+                       "network_socket"}
 
 
 def _is_test_path(path: str) -> bool:
@@ -91,8 +98,9 @@ def _is_test_path(path: str) -> bool:
 def ast_sweep(paths: Iterable[str]) -> Dict[str, object]:
     """Sweep Python files for forbidden constructs. Returns a report
     with `findings` (hard violations), `style` (bare excepts), and
-    `test_tooling` (subprocess use confined to test harnesses —
-    informational, never present in canonical code)."""
+    `test_tooling` (process tooling and socket port probes confined to
+    test harnesses — informational, never present in canonical code,
+    where the same constructs are hard violations)."""
     findings: List[Dict[str, str]] = []
     style: List[Dict[str, str]] = []
     test_tooling: List[Dict[str, str]] = []
@@ -154,7 +162,7 @@ def ast_sweep(paths: Iterable[str]) -> Dict[str, object]:
                     })
 
     def _record(finding: Dict[str, str]) -> None:
-        if _is_test_path(finding["file"]) and finding["kind"] in _TEST_ALLOWED_PROCESS:
+        if _is_test_path(finding["file"]) and finding["kind"] in _TEST_ALLOWED_KINDS:
             test_tooling.append(finding)
         else:
             findings.append(finding)
