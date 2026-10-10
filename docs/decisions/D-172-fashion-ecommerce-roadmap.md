@@ -357,6 +357,96 @@ Roadmap fidelity and the two honest limits:
 - Tree hygiene: the temporary browser-verification routes were removed, the dev
   server stopped, and nothing was provisioned, connected or credentialled.
 
+### Phase 2 hardening — live PostgreSQL pass (2026-10-10, owner-authorized)
+
+**Why:** §6 above recorded an explicit limitation — Phase 2's writes were verified
+against the in-memory repository and unit-level rules, but never against a live
+PostgreSQL instance. That gap is now closed with a re-runnable harness, without
+changing any infrastructure stage and without a credential of any kind.
+
+**Harness (opt-in by construction):** `commerce/docker-compose.db.yml` —
+PostgreSQL **16.15** (`postgres:16-alpine`, the same version and image Phase 1's
+DDL validation used; digest `sha256:721873c3…`, linux/arm64, versus the
+`sha256:cf78e766…` Phase 1 recorded for the other architecture), own named
+network and volume, published on **127.0.0.1:55432 only**, no `restart:` policy,
+and no hook in the repository that starts it. Operator commands:
+`db:up` · `db:down` · `db:migrate` · `db:reset` · `smoke:db`.
+
+**Evidence — migrations 0000 + 0001 apply cleanly:**
+`COMMERCE_DATABASE_URL=… npm run db:migrate` → *migrations applied successfully*;
+`schema commerce` = 8 tables (the seven roadmap tables plus the §2.4 `coupons`
+table) + 3 enums; Drizzle journal `drizzle.__drizzle_migrations` = 2 rows. The
+smoke suite re-proves this on every run: it drops schema `commerce`, clears the
+journal rows (the table itself is kept — dropping only `commerce` would leave
+Drizzle believing 0000/0001 were applied while the namespace was empty), and
+re-applies both migrations through the committed `drizzle/` folder.
+
+**Evidence — the Postgres repository path, end to end:** `npm run smoke:db` →
+**22/22 pass, exit 0, twice consecutively** (`# tests 22 · # pass 22 · # fail 0`).
+The suite drives the REAL `createPostgresRepository` (never the memory double)
+and reads every result back from PostgreSQL, so a service that reported success
+without writing would fail it: category + product graph (4 variants, 2 images,
+counts computed by PostgreSQL), inline stock and price edits (including
+clearing an override), coupon creation with state DERIVED from the stored row
+(`ACTIVE` → `INACTIVE` → `ACTIVE` → `EXHAUSTED`, `EXPIRED` taking precedence),
+and the §2.3 lifecycle (PENDING → PAID → PROCESSING → SHIPPED with tracking
+recorded, PENDING → CANCELLED, packing-slip totals reconciling against the
+stored amount and flagging a deliberate drift).
+
+**Evidence — refusals refuse:** each of these was executed live and refused by
+the stated gate, with the stored row verified unchanged afterwards — stock < 0
+(service validation AND `product_variants_stock_non_negative`, 23514),
+`base_price` < 0 (service AND `products_base_price_non_negative`),
+duplicate `(product_id, size, color_name)` (`product_variants_matrix_unique`,
+23505), duplicate SKU (`product_variants_sku_unique`), duplicate coupon code
+(service CONFLICT AND `coupons_code_unique`), PERCENT 0/150 (service AND
+`coupons_percent_within_range`), `used_count` < 0
+(`coupons_used_count_non_negative`), `quantity = 0`
+(`order_items_quantity_positive`), an unknown status label (PostgreSQL 22P02),
+and illegal/terminal transitions (PENDING→SHIPPED, a self-transition,
+SHIPPED→CANCELLED) refused by `canTransition` with the row provably unmoved.
+
+**Two real defects found by the live pass and fixed (they were invisible to the
+in-memory double):**
+
+- `listProducts()` reported `variantCount` = 0 and `imageCount` = 0 for every
+  product, and `listOrders()` reported `itemCount` = 0 for every order. Drizzle
+  renders column references inside a raw `sql` chunk **unqualified**, so the
+  correlated subquery became `where "product_id" = "id"` — both names bound to
+  the subquery's OWN table (`product_variants.product_id = product_variants.id`),
+  a condition that is never true, while the rows sat in the table. Both read
+  models now aggregate over LEFT JOINs (`count(distinct …)` so two one-to-many
+  joins cannot multiply each other, `coalesce(sum(…), 0)` for an order without
+  lines) and are pinned by live assertions in the suite.
+
+**Fail-closed behaviour and guards, all measured:**
+`COMMERCE_DATABASE_URL` absent → the suite SKIPs with a named reason and exit 0
+(no target is guessed); a non-loopback target → SKIP with its named reason
+(staging/production stay out of reach); `db:reset` — the one destructive command
+— refused for `127.0.0.1:5432` (a canonical local instance), for
+`staging.internal`, and with no URL, exiting 1 in each case, and acting only on
+`127.0.0.1:55432`, where it dropped the 8-table schema, cleared the 2 journal
+rows and re-applied both migrations.
+
+**Separation and regression surface:** `npm run verify` exit 0 (typecheck, lint,
+**97 tests / 23 suites**, `db:check`) with the live suite skipping by name; with
+the harness up, `npm test` exit 0 (**119 tests / 28 suites**). `build` exit 0,
+with `.next/static` containing no `createPostgresRepository`, `db-context`,
+`drizzle-orm` or connection string (the server build contains them, so the check
+is not vacuous). A new static boundary test fails any `'use client'` module that
+value-imports `@/db` or `@/server` outside the `@/server/actions/*` edge, while
+allowing the type-only imports the panel already uses.
+
+**Boundaries honoured:** no Stage C, provisioning, staging or production step was
+taken or changed; no credential was created, requested or introduced (the compose
+password is the disposable container's own literal, published nowhere but
+loopback); no migration was applied outside the disposable harness; the one
+destructive command is guarded by loopback+port rather than by an environment
+variable alone. This block is appended to §6 and rewrites none of its history;
+`commerce/README.md`'s Phase 1-era "Not started: Phases 2–6" line was corrected
+because Phase 2 is implemented and now live-verified (§37: documentation must
+never be silently false).
+
 ## 7. References
 
 - [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](../roadmap/FASHION_ECOMMERCE_ROADMAP.md) — the adopted plan.

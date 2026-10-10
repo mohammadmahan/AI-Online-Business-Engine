@@ -14,6 +14,14 @@ import { defineConfig } from 'drizzle-kit';
  * canonical engine schemas (canonical/registry/events/provenance/oms/…) are
  * owned elsewhere (`local/db/schema.sql`, D-055) and must never be touched by
  * a fashion-track migration.
+ *
+ * Two variables, both explicit, neither guessed:
+ * - `DATABASE_URL` — the application's canonical connection variable.
+ * - `COMMERCE_DATABASE_URL` — the local disposable harness of
+ *   `docker-compose.db.yml` (Phase 2 hardening), so `npm run db:migrate` can be
+ *   pointed at the harness without pretending the harness is the canonical
+ *   instance. An empty value is still an empty value: nothing here defaults to
+ *   a host, a port or a database (D-171 §2.2 discipline).
  */
 export default defineConfig({
   dialect: 'postgresql',
@@ -21,6 +29,6 @@ export default defineConfig({
   out: './drizzle',
   schemaFilter: ['commerce'],
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? '',
+    url: process.env.DATABASE_URL ?? process.env.COMMERCE_DATABASE_URL ?? '',
   },
 });

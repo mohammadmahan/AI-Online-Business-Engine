@@ -76,14 +76,61 @@ development target.
 - **Matrix integrity:** `(product_id, size, color_name)` is unique — the Phase 2.1
   variant generator cannot produce duplicates, and `sku` is globally unique.
 
+## Live database harness (opt-in, disposable)
+
+The Phase 2 write paths are verified against a REAL PostgreSQL 16 server through
+`docker-compose.db.yml` — a throwaway container published on **127.0.0.1:55432
+only**, with its own network and volume. Nothing auto-starts it (no `restart:`
+policy, no hook in the repository); every step is an explicit operator command:
+
+| command | what it does |
+| --- | --- |
+| `npm run db:up` | starts the harness and waits for its healthcheck |
+| `npm run db:down` | stops it, keeping the volume |
+| `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
+| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000/0001 |
+| `npm run smoke:db` | runs the live smoke suite (migrations, §2.1–§2.4 writes, refusals) |
+
+```bash
+export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55432/commerce_smoke
+npm run db:up && npm run db:migrate && npm run smoke:db
+```
+
+The suite SKIPS with a named reason when `COMMERCE_DATABASE_URL` is absent (it
+never guesses a target: an absent configuration is a refusal, not a pass) and
+refuses a non-loopback target, so staging and production stay out of reach.
+`db:reset` — the one destructive command — refuses anything that is not
+loopback:55432. The credentials in the compose file are the disposable
+container's own literals; no real credential exists in this repository.
+
 ## Verification status
 
-`typecheck` exit 0 · `drizzle-kit generate` produces exactly the seven roadmap
-tables · `drizzle-kit check` exit 0 · generated DDL applied and probed on
+Phase 1: `typecheck` exit 0 · `drizzle-kit generate` produces exactly the seven
+roadmap tables · `drizzle-kit check` exit 0 · generated DDL applied and probed on
 PostgreSQL 16.15 (the local-stack image) in a throwaway container with no
 published ports: 7 tables, 2 enums, 80 constraints, 23 indexes, 10/10 refusal
-cases refused, cascades and `SET NULL` confirmed. Details in D-172 §6.
+cases refused, cascades and `SET NULL` confirmed.
 
-**Not started:** Phases 2–6 (admin panel, storefront, AI copywriting, social
-automation, payment/SMS/launch). Nothing is deployed or connected; no credential
-exists or is requested (D-045/D-139).
+Phase 2 (§2.1–§2.4): `npm run verify` exit 0 (typecheck, lint, 97 tests in 23
+suites, `db:check`) · `build` exit 0 · **live PostgreSQL 16.15 pass** —
+migrations 0000 + 0001 applied through the project's own toolchain (8 tables in
+schema `commerce`, 3 enums, journal at 2 rows), then `npm run smoke:db`
+**22/22 pass, exit 0, twice consecutively** against the real Postgres repository:
+product graph writes, stock/price edits, coupon state derivation, the order
+lifecycle, and every refusal path (stock < 0, base_price < 0, duplicate
+matrix cell, duplicate SKU, duplicate coupon code, percent > 100, unknown enum
+label, quantity 0, and illegal/terminal order transitions — each verified to
+leave the stored row untouched). The live pass also found and fixed two real
+defects the in-memory tests could not see: `listProducts()` reported
+`variantCount`/`imageCount` = 0 and `listOrders()` reported `itemCount` = 0 for
+every row, because Drizzle renders column references inside a raw `sql` chunk
+unqualified (`where "product_id" = "id"` bound both names to the subquery's own
+table — a condition that is never true). Both read models now aggregate over
+LEFT JOINs and are pinned by live assertions. Details in D-172 §6.
+
+**Not started:** Phases 3–6 (storefront, AI copywriting, social automation,
+payment/SMS/launch). The panel's open items are unchanged and recorded: media
+storage (G-5) is still unselected so a submission with pending image bytes is
+refused with its reason; the §2.3 buyer SMS stays a Phase 6 adapter (G-4);
+no audit table exists for order transitions. Nothing is deployed; no
+credential exists or is requested (D-045/D-139).

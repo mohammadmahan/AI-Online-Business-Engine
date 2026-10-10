@@ -1781,6 +1781,57 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           typechecked implementation and the Phase 1 DDL validation,
           not by a live query; the `commerce` migration was not applied
           anywhere
+    - [x] **Phase 2 — Live PostgreSQL evidence (hardening pass,
+          2026-10-10): CLOSED** — the gap recorded above is closed with
+          a repo-native, re-runnable harness rather than a one-off
+          probe: `commerce/docker-compose.db.yml` (PostgreSQL 16.15 =
+          `postgres:16-alpine`, the Phase 1 version; own network +
+          volume; published on **127.0.0.1:55432 only**; no restart
+          policy, so nothing auto-starts) plus `commerce/scripts/
+          db-reset.mjs` and the scripts `db:up` / `db:down` /
+          `db:reset` / `smoke:db`. Evidence: `npm run db:up` →
+          container healthy at `127.0.0.1:55432->5432/tcp`;
+          `COMMERCE_DATABASE_URL=… npm run db:migrate` → migrations
+          applied, journal `drizzle.__drizzle_migrations` = 2 rows,
+          schema `commerce` = 8 tables (the 7 roadmap tables + the
+          §2.4 `coupons` table) + 3 enums; `npm run smoke:db` →
+          **22/22 pass, exit 0, twice consecutively** (the suite resets
+          the schema and re-applies both migrations at the start of
+          every run, so it is re-runnable by construction) exercising
+          the REAL Postgres repository: category + product graph (4
+          variants, 2 images) writes, inline stock/price edits, coupon
+          creation + derived state, and the order lifecycle; refusal
+          paths refused live — stock < 0 (`product_variants_stock_
+          non_negative`), base_price < 0 (`products_base_price_
+          non_negative`), duplicate (product_id, size, color_name)
+          (`product_variants_matrix_unique`), duplicate SKU, duplicate
+          coupon code, percent > 100, `used_count` < 0, quantity = 0,
+          an unknown enum label (22P02), and illegal/terminal status
+          transitions (PENDING→SHIPPED, self-transition, SHIPPED→
+          CANCELLED) each proven to leave the stored row unmoved;
+          gates proven too — URL absent → SKIP with a named reason
+          (exit 0), non-loopback → SKIP, and `db:reset` refused on
+          `127.0.0.1:5432`, on `staging.internal`, and with no URL
+          (exit 1 each), acting only on loopback:55432. The live pass
+          **found and fixed two real defects the memory-double tests
+          could not see**: `listProducts()` reported
+          `variantCount`/`imageCount` = 0 and `listOrders()` reported
+          `itemCount` = 0 for every row — Drizzle renders column
+          references inside a raw `sql` chunk unqualified, so
+          `where "product_id" = "id"` bound both names to the
+          subquery's own table (never true); both read models now
+          aggregate over LEFT JOINs and are pinned by live assertions.
+          Regression + separation guards: `npm run verify` exit 0
+          (97 tests / 23 suites, live suite skipping with its named
+          reason) and, with the harness up, `npm test` exit 0
+          (119 tests / 28 suites); `build` exit 0 with `.next/static`
+          free of `createPostgresRepository`/`db-context`/
+          `drizzle-orm`/connection strings (server build contains it),
+          and a new static boundary test fails any `'use client'`
+          module that value-imports `@/db`/`@/server` outside the
+          `@/server/actions/*` edge. No secret introduced (the compose
+          credential is the throwaway container's own literal), no
+          environment provisioned, Stage C untouched
     - [ ] **Phase 3 — Customer Storefront** (roadmap §3.1–§3.4)
     - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
           §4.1–§4.2; AI provider selection still open — decision 9)

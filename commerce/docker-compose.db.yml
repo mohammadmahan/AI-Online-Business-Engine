@@ -1,0 +1,67 @@
+# D-172 Phase 2 hardening — the commerce track's LOCAL, OPT-IN PostgreSQL harness.
+#
+# What this is: a disposable PostgreSQL 16 container that exists so the Phase 1
+# migrations and the Phase 2 write paths can be exercised against a REAL server
+# (the evidence gap D-172 §5.2 recorded) without touching any stage.
+#
+# What this is NOT: the canonical instance (D-172 G-2 / D-055). It holds no
+# authority over it, is not reachable by the application unless an operator
+# exports `COMMERCE_DATABASE_URL` (or `DATABASE_URL`) pointing at it, and is not
+# referenced by any application, CI or deployment path. Nothing here is
+# auto-started: no `restart:` policy is set, and the repository contains no hook
+# that runs `docker compose up` — running it is an explicit operator command
+# (`npm run db:up`).
+#
+# Ports: the harness publishes its port on LOOPBACK ONLY (127.0.0.1:55432). A
+# published port is unavoidable here because the smoke suite runs on the host,
+# not inside the container; binding it to the loopback interface keeps it off
+# the LAN, and 55432 is deliberately not 5432 so a canonical/staging instance on
+# this machine can never be shadowed or confused with it.
+#
+# Credentials: the user/password below are the DISPOSABLE container's own
+# throwaway credential. They are not a secret in the D-045/D-124 sense — they
+# authenticate nothing outside this container's loopback port, they unlock no
+# remote system, and they are re-creatable by anyone who runs this file. No real
+# credential exists in this repository, and none is requested.
+#
+# Digest parity: Phase 1's live DDL validation ran against `postgres:16-alpine`
+# = PostgreSQL 16.15. This file pins the same tag; the digest resolved on
+# 2026-10-10 on this machine was
+#   postgres@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+# (linux/arm64). Phase 1 recorded `sha256:cf78e766…`, which is the same image
+# build for the other architecture — the tag was kept so the harness matches the
+# local stack (D-172 §6) rather than freezing one platform.
+
+name: commerce-db-harness
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: commerce-db-harness-postgres
+    environment:
+      POSTGRES_USER: commerce_smoke
+      POSTGRES_PASSWORD: commerce_smoke_local_only
+      POSTGRES_DB: commerce_smoke
+    ports:
+      - '127.0.0.1:55432:5432'
+    volumes:
+      - commerce-db-harness-data:/var/lib/postgresql/data
+    healthcheck:
+      # `--wait` on `db:up` blocks on this, so the smoke suite never races a
+      # half-started server.
+      test: ['CMD-SHELL', 'pg_isready -U commerce_smoke -d commerce_smoke -h 127.0.0.1']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      - commerce-db-harness-net
+
+volumes:
+  commerce-db-harness-data:
+    name: commerce-db-harness-data
+
+networks:
+  commerce-db-harness-net:
+    name: commerce-db-harness-net
+    driver: bridge

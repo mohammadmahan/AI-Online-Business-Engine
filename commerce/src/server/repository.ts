@@ -195,6 +195,18 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
     },
 
     async listProducts() {
+      /**
+       * Counts arrive as `count(distinct …)` over LEFT JOINs, not as correlated
+       * subqueries written in raw `sql`.
+       *
+       * Measured against live PostgreSQL (Phase 2 hardening): a raw `sql` chunk
+       * renders its column references UNQUALIFIED, so
+       * `(select count(*) from product_variants where product_id = id)` bound
+       * BOTH names to `product_variants` — `product_variants.product_id =
+       * product_variants.id` — and every product reported 0 variants and 0
+       * images while the rows sat in the table. `distinct` is what keeps the two
+       * one-to-many joins from multiplying each other's rows.
+       */
       const rows = await db
         .select({
           id: products.id,
@@ -203,10 +215,13 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           status: products.status,
           basePrice: products.basePrice,
           discountPrice: products.discountPrice,
-          variantCount: sql<number>`(select count(*) from ${productVariants} where ${productVariants.productId} = ${products.id})`,
-          imageCount: sql<number>`(select count(*) from ${productImages} where ${productImages.productId} = ${products.id})`,
+          variantCount: sql<number>`count(distinct ${productVariants.id})`,
+          imageCount: sql<number>`count(distinct ${productImages.id})`,
         })
         .from(products)
+        .leftJoin(productVariants, eq(productVariants.productId, products.id))
+        .leftJoin(productImages, eq(productImages.productId, products.id))
+        .groupBy(products.id)
         .orderBy(desc(products.createdAt));
       return rows.map((row) => ({
         ...row,
@@ -256,6 +271,12 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
     },
 
     async listOrders() {
+      // Same measured trap as `listProducts`: a raw `sql` subquery rendered
+      // `where "order_id" = "id"` with BOTH names bound to `order_items`, so
+      // every order reported a line count of 0 (vacuously, because the join
+      // condition was never true). The aggregate over the LEFT JOIN is correct
+      // and stays metadata-driven; `coalesce` keeps an order without lines at 0
+      // rather than NULL.
       const rows = await db
         .select({
           id: orders.id,
@@ -267,10 +288,12 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           shippingAmount: orders.shippingAmount,
           trackingCode: orders.trackingCode,
           createdAt: orders.createdAt,
-          itemCount: sql<number>`(select coalesce(sum(${orderItems.quantity}), 0) from ${orderItems} where ${orderItems.orderId} = ${orders.id})`,
+          itemCount: sql<number>`coalesce(sum(${orderItems.quantity}), 0)`,
         })
         .from(orders)
         .innerJoin(customers, eq(orders.customerId, customers.id))
+        .leftJoin(orderItems, eq(orderItems.orderId, orders.id))
+        .groupBy(orders.id, customers.id)
         .orderBy(desc(orders.createdAt));
       return rows.map((row) => ({ ...row, itemCount: Number(row.itemCount) }));
     },
