@@ -201,7 +201,7 @@ non-colour-dependent state as tone + Persian label + Latin status code).
 | `commerce/src/app/{layout,globals.css,page}.tsx`, `commerce/src/app/admin/**` | The panel shell and its five routes (`/admin`, `/admin/products/new`, `/admin/inventory`, `/admin/orders`, `/admin/orders/[id]/slip`, `/admin/promotions`), all `force-dynamic` |
 | `commerce/src/components/admin/variant-matrix-generator.tsx`, `image-uploader.tsx`, `product-ingestion-form.tsx` | §2.1 smart ingestion: colour × size matrix, browser-side compression with aspect-ratio locking, order/primary media, one submit |
 | `commerce/src/components/admin/inventory-workspace.tsx` | §2.2 inline stock/price grid with threshold badges and low/out/inactive filters |
-| `commerce/src/components/admin/order-workspace.tsx`, `packing-slip.tsx`, `print-button.tsx` | §2.3 status transitions, tracking-code modal, printable packing slip |
+| `commerce/src/components/admin/order-workspace.tsx`, `packing-slip.tsx`, `print-button.tsx`, `commerce/src/components/ui/dialog.tsx` | §2.3 status transitions behind an irreversible-action confirmation, tracking-code modal, printable packing slip |
 | `commerce/src/components/admin/coupon-manager.tsx` | §2.4 promotions: PERCENT/FIXED, min spend, expiry, usage limit, activation |
 | `commerce/src/lib/{variant-matrix,inventory-rules,order-rules,coupon-rules,validation,format,color-palette,image,utils}.ts` | The PURE rules and display helpers, shared by the browser and the server so a badge, a dropdown option and a refusal can never disagree |
 | `commerce/src/server/{repository,repository-memory,db-context,media}.ts` | The persistence seam (one Postgres implementation + a deterministic test double), the fail-closed connection gate and the media seam |
@@ -229,6 +229,13 @@ Roadmap fidelity and the two honest limits:
   migration `0001` (enum + table + constraints + indexes) committed so no
   environment can drift silently (G-3); the redemption arithmetic stays in the
   Phase 3/6 checkout write path and must be idempotent per order (D-027).
+- **Every irreversible action is confirmed.** The roadmap's merchant-panel
+  requirement asks for a confirmation on each irreversible action. In this
+  lifecycle every transition is one-way (no back-edges, no self-transitions), so
+  each status change opens a confirmation carrying the target state as a Persian
+  label + Latin code, with cancellation in the destructive style; cancelling the
+  dialog writes nothing. The copy claims no audit record, because none is
+  written yet (see the limitation below).
 - **Display state is derived, never stored.** Low-stock badges, coupon states
   (`ACTIVE`/`INACTIVE`/`EXPIRED`/`EXHAUSTED`) and packing-slip totals are
   computed at read time, so an expired coupon or a drifted order total cannot be
@@ -321,7 +328,33 @@ Roadmap fidelity and the two honest limits:
   applied to any environment. The browser pass ran against a fixture surface
   that was deleted before the commit; the shipped routes were re-verified in
   their fail-closed state after its removal.
-- Tree hygiene: the temporary browser-verification route was removed, the dev
+- **RTL modal centring (defect found and fixed during this pass).** The modal
+  primitive centred itself with the logical `start-1/2` inset plus a physical
+  `-translate-x-1/2`; in RTL that resolves to `right: 50%` and the transform then
+  pushes the dialog further left — measured in the browser at `left: -128px`,
+  i.e. partly off-screen and clipped. Centring is now physical
+  (`left-1/2 -translate-x-1/2`), measured after the fix at `left: 384` / `right:
+  896` in a 1280 px viewport (exact centre), close button inside the box, for
+  both the status-change and tracking-code dialogs.
+- **Merchant-panel confirmation (added after the first pass).** Selecting a
+  status no longer writes immediately; it opens a confirmation whose copy comes
+  from the pure `transitionConfirmation` rule (5 new tests: cancellation is
+  destructive and states finality, forward moves confirm without the danger
+  style, every reachable target is described, and the copy never implies an
+  audit record). Browser-verified: choosing a status opens the dialog before any
+  write, انصراف closes it with **no** message and no request, and confirming
+  round-trips through the real server action (refused by the fail-closed gate)
+  with the dialog closing so the refusal is visible on the row.
+- **Remaining gap against the roadmap's merchant-panel requirement, stated
+  rather than papered over:** the confirmation half is implemented, the
+  **auditable record is not** — a status change only moves the row's
+  `updated_at`, and the `commerce` namespace has no audit table (§1 enumerated
+  none, and enrolling the track in the engine's canonical provenance
+  (D-026/D-027) is a schema decision, not an inference). The confirmation copy
+  says exactly that. Likewise the low-stock threshold is currently the
+  `LOW_STOCK_THRESHOLD` constant plus a per-product override seam, not yet
+  merchant-configurable.
+- Tree hygiene: the temporary browser-verification routes were removed, the dev
   server stopped, and nothing was provisioned, connected or credentialled.
 
 ## 7. References

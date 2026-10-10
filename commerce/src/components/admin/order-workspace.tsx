@@ -10,6 +10,7 @@ import {
   ORDER_STATUS_LABELS,
   canSetTracking,
   nextStatuses,
+  transitionConfirmation,
 } from '@/lib/order-rules';
 import { cn } from '@/lib/utils';
 import type { OrderListItem } from '@/server/repository';
@@ -21,10 +22,13 @@ import { Badge, Card, CardHeader, Table, Td, Th, buttonClass, inputClass } from 
  * D-172 §2.3 — order list, status transitions and the tracking code.
  *
  * The dropdown offers ONLY the transitions `@/lib/order-rules` allows, and the
- * server re-checks the same map before writing. Recording a tracking code opens
- * a validated modal rather than editing the cell inline, because the roadmap
- * makes that entry the trigger for the buyer notification — it deserves an
- * explicit confirm step.
+ * server re-checks the same map before writing. Every status change is then put
+ * through a confirmation modal, because all of these transitions are one-way
+ * and the roadmap requires a confirmation on every irreversible action
+ * (cancellation additionally in the destructive style). Recording a tracking
+ * code opens a validated modal rather than editing the cell inline, because the
+ * roadmap makes that entry the trigger for the buyer notification — it
+ * deserves an explicit confirm step.
  *
  * The SMS itself is a Phase 6 adapter and is NOT bound here; the panel says so
  * after a successful save instead of implying a message went out.
@@ -37,10 +41,25 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [trackingValue, setTrackingValue] = useState('');
+  // A status change is confirmed before it is written: every transition in this
+  // lifecycle is one-way, and the roadmap requires a confirmation on every
+  // irreversible action (roadmap §UI/UX → merchant-panel-specific).
+  const [pendingChange, setPendingChange] = useState<{
+    orderId: string;
+    status: OrderStatus;
+    reference: string;
+  } | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
-  async function changeStatus(orderId: string, status: OrderStatus) {
+  async function confirmStatusChange() {
+    if (pendingChange === null) {
+      return;
+    }
+    const { orderId, status } = pendingChange;
+    setConfirmBusy(true);
     setBusy((current) => ({ ...current, [orderId]: true }));
     const response = await transitionOrderAction({ orderId, status });
+    setConfirmBusy(false);
     setBusy((current) => ({ ...current, [orderId]: false }));
     setMessages((current) => ({
       ...current,
@@ -48,6 +67,9 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
         ? { tone: 'ok', text: `وضعیت به «${ORDER_STATUS_LABELS[status]}» تغییر کرد.` }
         : { tone: 'error', text: response.message },
     }));
+    // Closed on both outcomes: on success the change is recorded, on refusal the
+    // server's message is already on the row — a modal left open would hide it.
+    setPendingChange(null);
   }
 
   async function saveTracking() {
@@ -142,7 +164,11 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
                           onChange={(event) => {
                             const value = event.target.value;
                             if (value.length > 0) {
-                              void changeStatus(order.id, value as OrderStatus);
+                              setPendingChange({
+                                orderId: order.id,
+                                status: value as OrderStatus,
+                                reference: order.id.slice(0, 8),
+                              });
                             }
                           }}
                         >
@@ -199,6 +225,57 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
           })}
         </Table>
       )}
+
+      <Modal
+        open={pendingChange !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingChange(null);
+          }
+        }}
+        title={
+          pendingChange === null
+            ? ''
+            : `${transitionConfirmation(pendingChange.status).title} — سفارش ${pendingChange.reference}`
+        }
+        description="تغییر وضعیت سفارش پس از تأیید ثبت می‌شود."
+      >
+        {pendingChange === null ? null : (
+          <>
+            <p className="text-cp-label text-ink">
+              {transitionConfirmation(pendingChange.status).body}
+            </p>
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-cp-label">
+              <span className="text-ink-muted">وضعیت جدید:</span>
+              <Badge tone={transitionConfirmation(pendingChange.status).danger ? 'danger' : 'neutral'}>
+                {ORDER_STATUS_LABELS[pendingChange.status]}{' '}
+                <span className="cp-code">{pendingChange.status}</span>
+              </Badge>
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                className={
+                  transitionConfirmation(pendingChange.status).danger
+                    ? buttonClass.danger
+                    : buttonClass.primary
+                }
+                disabled={confirmBusy}
+                onClick={() => void confirmStatusChange()}
+              >
+                تأیید و ثبت
+              </button>
+              <button
+                type="button"
+                className={buttonClass.neutral}
+                onClick={() => setPendingChange(null)}
+              >
+                انصراف
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <Modal
         open={trackingOrderId !== null}

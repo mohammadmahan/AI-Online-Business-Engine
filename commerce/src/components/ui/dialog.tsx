@@ -31,9 +31,12 @@ export function Modal({
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-40 bg-ink/40" />
         <RadixDialog.Content
-          className="fixed start-1/2 top-1/2 z-50 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-[--radius-cp] border border-edge bg-surface p-6 shadow-lg"
-          // RTL: translate-x is direction-agnostic here because the element is
-          // centred by inset + transform rather than by logical inset alone.
+          // Centring is PHYSICAL on purpose: `start-1/2` resolves to `right: 50%`
+          // in RTL, which the physical `-translate-x-1/2` then pushes further
+          // left — measured, that put the dialog at `left: -128px`, clipping it
+          // off-screen. Physical `left` + a negative physical translate centres
+          // it the same way in both writing directions.
+          className="fixed left-1/2 top-1/2 z-50 w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-[--radius-cp] border border-edge bg-surface p-6 shadow-lg"
           dir="rtl"
         >
           <RadixDialog.Title className="text-cp-heading font-semibold text-ink">

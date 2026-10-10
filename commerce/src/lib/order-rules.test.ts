@@ -11,6 +11,7 @@ import {
   computeTotals,
   isTerminal,
   nextStatuses,
+  transitionConfirmation,
 } from '@/lib/order-rules';
 import type { OrderDetail } from '@/server/repository';
 
@@ -62,6 +63,50 @@ describe('order lifecycle (§2.3)', () => {
     assert.equal(canSetTracking('PROCESSING'), true);
     assert.equal(canSetTracking('SHIPPED'), true);
     assert.equal(canSetTracking('CANCELLED'), false);
+  });
+});
+
+describe('transition confirmations (§2.3 / irreversible actions)', () => {
+  it('styles cancellation as destructive and states it is final', () => {
+    const cancel = transitionConfirmation('CANCELLED');
+    assert.equal(cancel.danger, true);
+    assert.match(cancel.title, /بازگشت‌پذیر نیست/);
+    assert.match(cancel.body, /پایانی/);
+  });
+
+  it('confirms a forward move without the destructive style, naming the target', () => {
+    const ship = transitionConfirmation('SHIPPED');
+    assert.equal(ship.danger, false);
+    assert.match(ship.title, /ارسال‌شده/);
+    assert.match(ship.body, /یک‌طرفه/);
+  });
+
+  it('never implies an audit record that does not exist', () => {
+    for (const status of Object.keys(ORDER_TRANSITIONS) as OrderStatus[]) {
+      const copy = transitionConfirmation(status);
+      assert.ok(copy.title.length > 0);
+      assert.ok(copy.body.length > 0);
+      assert.match(copy.body, /تاریخ آخرین ویرایش/);
+      assert.doesNotMatch(copy.body, /دفتر رویداد|audit/i);
+    }
+  });
+
+  it('has a confirmation for every status the panel can reach', () => {
+    const reachable = new Set(Object.values(ORDER_TRANSITIONS).flat());
+    assert.ok(reachable.size > 0);
+    for (const status of reachable) {
+      const copy = transitionConfirmation(status);
+      if (status === 'CANCELLED') {
+        // Cancellation is worded as the ACTION (لغو), not as the resulting state
+        // (لغوشده) — the resulting state and its code are shown in the dialog's
+        // badge, which the component renders.
+        assert.match(copy.title, /لغو/);
+        assert.equal(copy.danger, true);
+      } else {
+        assert.match(copy.title, new RegExp(ORDER_STATUS_LABELS[status]));
+        assert.equal(copy.danger, false);
+      }
+    }
   });
 });
 

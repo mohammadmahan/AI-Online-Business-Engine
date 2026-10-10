@@ -49,6 +49,42 @@ export function canSetTracking(status: OrderStatus): boolean {
   return TRACKING_ALLOWED_STATUSES.includes(status);
 }
 
+export interface TransitionConfirmation {
+  title: string;
+  body: string;
+  /** The destructive confirmation is styled as danger, not as a plain move. */
+  danger: boolean;
+}
+
+/**
+ * Confirmation copy for a status change.
+ *
+ * The roadmap's merchant-panel requirement is that every irreversible action
+ * carries a confirmation (roadmap §UI/UX → merchant-panel-specific). In THIS
+ * lifecycle every transition is one-way — the map above has no back-edges and
+ * refuses self-transitions — so every status change is confirmed, and
+ * cancellation is additionally styled as destructive.
+ *
+ * The copy states only what the panel actually does: the order is not
+ * recoverable to its previous status, and no audit record is written yet (only
+ * the row's update timestamp moves). No machinery is implied that does not
+ * exist.
+ */
+export function transitionConfirmation(to: OrderStatus): TransitionConfirmation {
+  if (to === 'CANCELLED') {
+    return {
+      title: 'لغو سفارش — این کار بازگشت‌پذیر نیست',
+      body: 'لغو، وضعیت پایانی سفارش است و بازگرداندن آن به وضعیت پیشین از این پنل ممکن نیست. پس از ثبت، فقط تاریخ آخرین ویرایش سفارش به‌روز می‌شود.',
+      danger: true,
+    };
+  }
+  return {
+    title: `تغییر وضعیت به «${ORDER_STATUS_LABELS[to]}»`,
+    body: 'مسیر وضعیت سفارش یک‌طرفه است؛ پس از ثبت، بازگشت به وضعیت پیشین ممکن نیست. پس از ثبت، فقط تاریخ آخرین ویرایش سفارش به‌روز می‌شود.',
+    danger: false,
+  };
+}
+
 export interface OrderTotals {
   itemsTotal: number;
   discountAmount: number;

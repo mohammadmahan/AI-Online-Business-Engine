@@ -1728,10 +1728,15 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           `updatePriceAction`, per-row result, Enter-to-save) with
           threshold badges and low/out/inactive filters;
           **§2.3 fulfillment** — order list whose dropdown offers only
-          the transitions `@/lib/order-rules` allows, tracking-code
-          modal, printable packing slip (`.cp-slip`/
-          `.cp-no-print`) that reports a stored-total drift instead of
-          printing an unreconciled number;
+          the transitions `@/lib/order-rules` allows and then REQUIRES
+          a confirmation before writing (every transition is one-way;
+          cancellation is styled destructive, and the copy promises no
+          audit record because none exists yet), tracking-code modal,
+          printable packing slip (`.cp-slip`/`.cp-no-print`) that
+          reports a stored-total drift instead of printing an
+          unreconciled number; RTL modal centring fixed after
+          measurement (the logical `start-1/2` + physical
+          `-translate-x-1/2` pairing had put dialogs at `left: -128px`);
           **§2.4 promotions** — coupon manager (PERCENT/FIXED, min
           spend, expiry, usage limit, activation toggle) with state
           DERIVED at read time (`ACTIVE`/`INACTIVE`/`EXPIRED`/
@@ -1756,8 +1761,9 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           checked, **not applied to any environment**.
           Evidence:
           `npm run verify` → `typecheck` exit 0, `lint` exit 0 (0
-          warnings), `npm test` **91/91 pass** across 20 suites
-          (validation, matrix generator, inventory/order/coupon rules,
+          warnings),          `npm test` **95/95 pass** across 21 suites
+          (validation, matrix generator, inventory/order/coupon rules
+          incl. the transition confirmations,
           formatting, the four services against the memory repository,
           and the fail-closed DB gate incl. the driver-message
           non-leak case), `build` exit 0 with the seven expected routes;
@@ -1784,6 +1790,17 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
     - [ ] **Phase 6 — Payment, Notification & Production Launch**
           (roadmap §6.1–§6.3; the payment (decision 10), shipping
           (decision 11) and SMS providers must be selected first)
+    - [ ] **Phase 2 open gaps (recorded, not silently resolved):**
+          the roadmap's merchant-panel requirement is half met — every
+          irreversible action now carries a confirmation, but NO
+          auditable record is written (a status change only moves
+          `updated_at`; no audit table exists in the `commerce`
+          namespace and enrolling the track in the engine's canonical
+          provenance is a schema decision for the owner); the low-stock
+          threshold is a constant + override seam, not yet
+          merchant-configurable; and the media-storage (G-5) and SMS
+          (G-4) seams stay open, with the panel refusing/stating each
+          rather than faking them
     - [ ] Standing gates unchanged: no deployment, provisioning,
           connection or live credential is authorized by D-172
           (D-045/D-139); owner review of each phase completion record
