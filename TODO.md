@@ -1675,23 +1675,54 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       (open decision 10) and shipping provider (open decision 11)
       must be selected before payment-capture and shipping-purchase
       go-live
-- [ ] E-Commerce & Social Publishing track — **ADOPTED, NOT STARTED
-      (D-172, owner-approved 2026-10-10)**:
+- [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
+      pre-start rulings DONE; Phase 1 COMPLETE & VERIFIED; Phases 2–6
+      NOT STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
-      is the **authoritative execution plan** for the fashion
-      commerce stack (P1 catalog core schema, P2 mobile-first
-      merchant admin, P3 customer storefront, P4 fashion AI
-      copywriting engine, P5 Telegram/Instagram social automation,
-      P6 payment/SMS/production hardening). Every prompt on this
-      track must cite the roadmap's Phase and Section. **Before any
-      phase starts, the owner must rule the open sub-decisions
-      recorded in D-172:** catalog SSOT against D-003 WooCommerce
-      SSOT (+ D-034–D-048 mapping), Supabase vs the D-055 canonical
-      PostgreSQL, Drizzle/Prisma vs the existing canonical data
-      layer, the provider selections (payment 10, shipping 11, SMS,
-      AI 9) and the storefront media storage. No execution,
-      provisioning, connection or live credential is authorized by
-      D-172 (D-045/D-139)
+      is the **authoritative execution plan** for the fashion commerce
+      stack; every prompt on this track must cite its Phase and
+      Section.
+    - [x] **Pre-start owner rulings (2026-10-10, D-172 §4):** **G-1**
+          — the roadmap's native PostgreSQL/Supabase schema is the
+          **sole SSOT** for this track and D-003 (WooCommerce SSOT)
+          with the legacy D-034–D-048 sync patterns is **SUPERSEDED
+          for the track only** (dated amendment, nothing dismantled,
+          non-fashion surfaces unchanged); **G-2** — one canonical
+          PostgreSQL instance (D-055) with Supabase as its hosting,
+          never a second database, D-053 promotion/parity binding;
+          **G-3** — Drizzle ORM owns this track's schema and
+          migrations (`schemaFilter: ['commerce']`), the engine
+          schemas staying with `local/db/schema.sql`
+    - [x] **Phase 1 — Fashion Catalog Database Core (roadmap
+          §1.1–§1.5): COMPLETE & VERIFIED** — new `commerce/` package:
+          Drizzle schema for `categories`, `products`,
+          `product_variants`, `product_images`, `customers`,
+          `orders`, `order_items` (plus enums and relations) in the
+          `commerce` namespace, strictly typed contracts (read
+          models, raw insert models, create/update payloads) for
+          every entity, and the committed migration
+          `commerce/drizzle/0000_sharp_ogun.sql`. Evidence:
+          `tsc --noEmit` exit 0; `drizzle-kit generate` → exactly the
+          seven roadmap tables; `drizzle-kit check` exit 0; live DDL
+          validation on PostgreSQL 16.15 (the local-stack image, in a
+          throwaway container with no published ports) → 7 tables, 2
+          enums, 80 constraints, 23 indexes, 10/10 refusal cases
+          refused, order→items CASCADE, variant→image SET NULL,
+          product→variants/images CASCADE
+    - [ ] **Phase 2 — Merchant Admin Panel** (roadmap §2.1–§2.4)
+    - [ ] **Phase 3 — Customer Storefront** (roadmap §3.1–§3.4)
+    - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
+          §4.1–§4.2; AI provider selection still open — decision 9)
+    - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap
+          §5.1–§5.2; publishing must reuse the canonical
+          Telegram/Instagram seams — G-6)
+    - [ ] **Phase 6 — Payment, Notification & Production Launch**
+          (roadmap §6.1–§6.3; the payment (decision 10), shipping
+          (decision 11) and SMS providers must be selected first)
+    - [ ] Standing gates unchanged: no deployment, provisioning,
+          connection or live credential is authorized by D-172
+          (D-045/D-139); owner review of each phase completion record
+          before the next phase starts
 
 ## Blocked / do-not-start
 

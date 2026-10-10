@@ -12,7 +12,7 @@ supporting material: shared vocabulary and per-phase working documents.
 | Path | Purpose |
 | --- | --- |
 | [glossary.md](glossary.md) | Shared vocabulary: entities, provenance states, autonomy tiers, conventions. |
-| [roadmap/FASHION_ECOMMERCE_ROADMAP.md](roadmap/FASHION_ECOMMERCE_ROADMAP.md) | E-Commerce & Social Publishing track (**D-172**, approved 2026-10-10): the **authoritative execution plan** for the fashion commerce stack — architecture, Phase 1 catalog schema, Phases 1–6, derived API contract set, UI/UX requirements, open owner sub-decisions. PLANNED: no provisioning, connection, credential or activation. |
+| [roadmap/FASHION_ECOMMERCE_ROADMAP.md](roadmap/FASHION_ECOMMERCE_ROADMAP.md) | E-Commerce & Social Publishing track (**D-172**, approved 2026-10-10): the **authoritative execution plan** for the fashion commerce stack — architecture, Phase 1 catalog schema, Phases 1–6, derived API contract set, UI/UX requirements, owner rulings G-1…G-6. **Phase 1 (schema + typed contracts) IMPLEMENTED** in `commerce/`; Phases 2–6 not started; no provisioning, connection, credential or activation. |
 | [phases/](phases/) | Per-phase scope, entry/exit criteria, and Definition-of-Done tracking. |
 | [deployment/dokploy-plan.md](deployment/dokploy-plan.md) | Work package “Dokploy Deployment Integration” (D-141 **Proposed**, PLANNED): optional/replaceable deployment layer — architecture, environments, release governance, security, backup model, stages A–H, risks, exit strategy, official references. |
 | [runbooks/dokploy-deployment.md](runbooks/dokploy-deployment.md) | PLANNED deployment runbook: preconditions, onboarding, promotion gates, rollback, stop conditions. |

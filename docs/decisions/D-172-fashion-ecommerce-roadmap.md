@@ -66,36 +66,93 @@ requirements** are recorded in the roadmap document itself.
 - **Portability.** Provider-neutral seams are retained so storage, database,
   AI and channel providers stay swappable (D-129–D-132, Phase 24).
 
-## 4. Open owner sub-decisions (recorded, NOT resolved)
+## 4. Owner sub-decisions — G-1, G-2 and G-3 RESOLVED (2026-10-10)
 
-The scope expansion touches standing decisions. Per `PROJECT_RULES.md` §2 step
-10 and §4, these are reported as **open**, with the existing decision standing
-until the owner rules:
+The scope expansion touched standing decisions. Per `PROJECT_RULES.md` §2 step
+10 and §4 they were recorded as **open** at adoption; the owner has now ruled,
+and the rulings are recorded here rather than left in the roadmap alone.
 
-1. **G-1 — catalog source of truth.** **D-003** makes WooCommerce the ecommerce
-   source of truth, and D-034–D-048 fix the WooCommerce mapping and sync
-   contract. The roadmap's Phase 1 schema (`products`, `product_variants`,
-   `orders`) must therefore be ruled either a projection over that SSOT, a
-   replacement of it, or a parallel store. Two SSOTs for one catalog is not an
-   acceptable steady state.
-2. **G-2 — Supabase vs the canonical PostgreSQL (D-055).** Supabase is
-   acceptable only as *hosting* of the one canonical database; a second,
-   separate database for the storefront would violate the single-SSOT rule. The
-   local-first promotion model (D-053) and local parity must still hold.
-3. **G-3 — Drizzle/Prisma vs the existing canonical data layer.** Which layer
-   owns schema definitions and migrations must be a single recorded authority;
-   two migration paths risk silent schema drift.
-4. **G-4 — provider selections** (payment decision 10, shipping decision 11,
-   SMS provider, AI provider decision 9) remain owner acts; the roadmap names
-   candidates only.
-5. **G-5 — storefront media storage** (`storage_path` / `public_url`) must be
-   decided on the existing media direction (D-049/D-056) and remain swappable
-   (D-129–D-132).
-6. **G-6 — channel publishing** stays on the canonical publisher seams
-   (D-069–D-072, D-073–D-076, D-077–D-080).
+| # | Sub-decision | Status |
+| --- | --- | --- |
+| G-1 | Catalog source of truth | **RESOLVED — owner ruling 2026-10-10** |
+| G-2 | Supabase vs the canonical PostgreSQL (D-055) | **RESOLVED — owner ruling 2026-10-10** |
+| G-3 | Drizzle/Prisma vs the canonical data layer | **RESOLVED — owner ruling 2026-10-10** |
+| G-4 | Provider selections (payment 10, shipping 11, SMS, AI 9) | **OPEN** — owner act, live credentials do not exist (D-045) |
+| G-5 | Storefront media storage | **OPEN** — not blocking: Phase 1 keeps the columns provider-agnostic |
+| G-6 | Channel publishing on the canonical seams | **OPEN as a build-time constraint** — publishing must keep using D-069–D-072 / D-073–D-076 / D-077–D-080 |
 
-No item in this list may be resolved silently; each requires an owner ruling
-recorded as its own decision (a D-003/D-055 amendment, where applicable).
+### 4.1 G-1 — catalog SSOT (RESOLVED)
+
+**Owner ruling (Mohammad, 2026-10-10):** the native PostgreSQL / Supabase schema
+defined in [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](../roadmap/FASHION_ECOMMERCE_ROADMAP.md)
+is hereby designated the **sole Authoritative Single Source of Truth (SSOT)** for
+the Fashion E-Commerce track. The previous dependency on WooCommerce as the
+ecommerce SSOT (**D-003**) and the related legacy sync patterns (D-034–D-048)
+are **SUPERSEDED for this track**.
+
+Scope of the supersession, stated rather than assumed:
+
+- The supersession is **scoped to the E-Commerce & Social Publishing track**.
+  It is recorded as a dated amendment, never an erasure (`PROJECT_RULES.md` §2.1);
+  D-003's historical row is left intact and has been annotated with a pointer to
+  this ruling so no reader meets a silent contradiction.
+- The roadmap's Phase 1 tables are therefore the **owning** catalog model — not a
+  projection, and not a parallel store.
+- **Nothing is dismantled.** No WooCommerce code path, mapping registry or sync
+  contract is removed, disabled or refactored by this ruling; the deployed Stage
+  B stack is untouched. Retiring the WooCommerce integration itself is a
+  separate owner decision this ruling does not take.
+- Any future WooCommerce bridge must be authored as an explicit, one-way
+  integration against this SSOT — never as a second source of truth.
+
+### 4.2 G-2 — database instance (RESOLVED)
+
+**Owner ruling:** the fashion schema lives on the **canonical PostgreSQL
+instance** (D-055); **Supabase is a hosting choice for that one instance, not a
+second database**. The single-SSOT rule stands, and the local-first promotion
+model (D-053) with local parity still binds: the local container stack remains
+the development target, staging and production are reached by promotion, and no
+environment may diverge in schema.
+
+The track's tables occupy their own `commerce` namespace inside that instance,
+so the engine's schemas (`canonical`, `registry`, `events`, `provenance`, `oms`,
+`hitl`, `admin`, `analytics`, …) and the fashion catalog are addressable and
+blast-radius separated without a second database.
+
+### 4.3 G-3 — schema and migration authority (RESOLVED)
+
+**Owner ruling:** schema definitions and migrations for this track are managed
+with **Drizzle ORM** against the canonical PostgreSQL/Supabase instance,
+aligned with D-055 and clean database-management principles.
+
+Recorded boundary with the existing data layer (no overlap, one database):
+
+- Drizzle owns the **`commerce` namespace** — its schema, its migrations and its
+  generated SQL. `drizzle.config.ts` pins `schemaFilter: ['commerce']` so a
+  fashion migration can never render against, or mutate, an engine schema.
+- The engine schemas stay owned by `local/db/schema.sql` (D-055) and are applied
+  by `local/scripts/apply_schema.py`; this track does not adopt them and does not
+  edit them.
+- Migration history is committed (generated SQL + journal) so no environment can
+  drift unnoticed; applying a migration to any shared environment remains an
+  owner-gated act (D-045/D-139).
+
+### 4.4 Remaining open items
+
+- **G-4 — provider selections** (payment decision 10, shipping decision 11, SMS
+  provider, AI provider decision 9) remain owner acts; the roadmap names
+  candidates only and no credential exists or is requested.
+- **G-5 — storefront media storage.** Phase 1 deliberately keeps the contract
+  provider-agnostic: `product_images` carries `storage_path` + `public_url` and
+  nothing in the code binds a storage SDK, so the D-049/D-056 direction and the
+  Phase 24 `MediaStoreContract` swappability (D-129–D-132) are preserved until
+  the owner selects a provider.
+- **G-6 — channel publishing.** Unchanged as a build-time constraint: publishing
+  keeps using the canonical seams (D-069–D-072, D-073–D-076, D-077–D-080) so
+  there is exactly one dispatch path per channel.
+
+No item in this list may be resolved silently; each requires its own owner
+ruling, recorded as a dated amendment.
 
 ## 5. Deliverables in this change
 
@@ -111,7 +168,30 @@ recorded as its own decision (a D-003/D-055 amendment, where applicable).
 Nothing else was changed: no code, no manifest, no schema, no dependency, no
 environment file, no credential.
 
-## 6. Verification performed for this change
+### 5.1 Phase 1 implementation — `commerce/` (2026-10-10, same day, owner-authorized)
+
+After the G-1/G-2/G-3 rulings the owner authorized immediate Phase 1 execution
+(roadmap §1.1–§1.5). The data core is a new `commerce/` package — the E-Commerce
+track's own home, kept separate from `control-plane/` because the control plane
+is a read-only presentation surface and must never own the SSOT (D-171 §2.1):
+
+| Artifact | Purpose |
+| --- | --- |
+| `commerce/src/db/schema/{schema,enums,catalog,ordering,relations,index}.ts` | Drizzle table/enum/relation definitions for `categories`, `products`, `product_variants`, `product_images`, `customers`, `orders`, `order_items` in the `commerce` namespace |
+| `commerce/src/contracts/{catalog,ordering,index}.ts` | Typed read models, raw insert models and write payloads for every entity (§1.1–§1.5) |
+| `commerce/drizzle/0000_sharp_ogun.sql` + `drizzle/meta/*` | The generated migration and its journal (committed history) |
+| `commerce/src/db/index.ts` | Inert client factory — no connection string, no connection at import, fails closed when called without one |
+| `commerce/drizzle.config.ts`, `commerce/package.json`, `commerce/tsconfig.json`, `commerce/.env.example`, `commerce/README.md` | Toolchain, scripts and the environment contract (placeholders only) |
+
+Roadmap fidelity notes: nullability follows the roadmap's explicit `nullable`
+markers, with absence inferred only where the lifecycle requires it
+(`orders.payment_ref_id`, `orders.tracking_code`); money and stock are integers
+(`bigint` Toman, D-010); a plain UNIQUE already is an index, so §1.1/§1.2's
+"unique, index" is realised once, not twice.
+
+## 6. Verification performed
+
+**Adoption change (2026-10-10):**
 
 - The roadmap document contains all six phases, the Phase 1 schema, the API
   contract set and the UI/UX requirements, and it is reachable from
@@ -119,9 +199,31 @@ environment file, no credential.
 - The ledger's register table remains a valid table and its existing content is
   unchanged apart from the appended row (append-only discipline, §2.1).
 - Repository documentation checks that read `DECISIONS.md` still pass
-  (`local/tests/test_phase6_notion_m2.py`).
-- Tree hygiene: the change is committed as one atomic documentation commit and
-  the working tree is clean afterwards.
+  (`local/tests/test_phase6_notion_m2.py` — 24/24, exit 0).
+- Tree hygiene: committed as one atomic documentation commit, tree clean after.
+
+**Phase 1 implementation (2026-10-10):**
+
+- `npm run typecheck` (`tsc --noEmit`) — **exit 0**, no diagnostics.
+- `npm run db:generate` — **exit 0**, exactly the seven roadmap tables
+  (categories 7 cols, products 14, product_variants 9, product_images 7,
+  customers 7, orders 11, order_items 5) with their indexes and foreign keys.
+- `npm run db:check` — **exit 0** (`Everything's fine`), migration journal
+  consistent with the schema snapshot.
+- **Live DDL validation against PostgreSQL 16.15** (the same `postgres:16-alpine`
+  image the local stack uses, digest `sha256:cf78e766…`): the generated
+  migration applied with `ON_ERROR_STOP` (exit 0) into a throwaway container with
+  no published ports, yielding 7 tables, 2 enums, 80 constraints and 23 indexes
+  in schema `commerce`. It then behaved as specified: defaults `DRAFT` /
+  `PENDING` / `is_active` true / `is_primary` false; **ten refusal cases each
+  refused** (stock < 0, base_price < 0, quantity = 0, duplicate matrix row,
+  duplicate sku, duplicate product slug, duplicate customer phone, deleting a
+  variant referenced by an order line, deleting a category in use, unknown
+  column); and the deletion semantics verified — order → order_items CASCADE
+  (1 → 0), variant → image `SET NULL` (image kept, binding cleared),
+  product → variants + images CASCADE with the category retained. Container
+  removed afterwards; nothing was provisioned, connected or left behind.
+- Committed as one atomic commit with the working tree clean afterwards.
 
 ## 7. References
 

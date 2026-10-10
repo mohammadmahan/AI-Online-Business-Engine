@@ -1107,9 +1107,36 @@ docs/
 > (D-139); the roadmap's own open sub-decisions (catalog SSOT vs
 > D-003, Supabase vs the D-055 canonical database, Drizzle/Prisma
 > vs the canonical data layer, provider selections, storefront
-> media storage) are recorded as OPEN in D-172 — none resolved
+> media storage) were recorded as OPEN in D-172 — none resolved
 > silently. The static `dashboard/` and the D-171 control plane are
 > distinct surfaces and are unaffected.
+>
+> **RULED 2026-10-10 (D-172 §4 amendment — append-only; the paragraph
+> above is left intact as the adoption-time record).** The owner ruled
+> the three blocking sub-decisions: **G-1** — the roadmap's native
+> PostgreSQL/Supabase schema is the **sole SSOT** for this track and
+> **D-003** (WooCommerce = ecommerce SSOT) plus the legacy
+> D-034–D-048 sync patterns are **SUPERSEDED for the track only**
+> (the D-003 row carries a pointer; nothing is dismantled and every
+> non-fashion surface is unchanged); **G-2** — one canonical
+> PostgreSQL instance (D-055), Supabase as its hosting, never a second
+> database, with D-053 promotion/parity binding and the track's tables
+> in a dedicated `commerce` namespace; **G-3** — **Drizzle ORM** owns
+> this track's schema and migrations (`schemaFilter: ['commerce']`),
+> the engine schemas staying with `local/db/schema.sql`. **Phase 1
+> (roadmap §1.1–§1.5) IMPLEMENTED:** the new `commerce/` package
+> carries the Drizzle schema (categories, products, product_variants,
+> product_images, customers, orders, order_items + enums and
+> relations), strictly typed contracts, and a committed migration;
+> it is deliberately separate from `control-plane/`, which is a
+> read-only surface that must never own the SSOT (D-171 §2.1).
+> Verified: typecheck 0, `drizzle-kit generate` → exactly the seven
+> tables, `drizzle-kit check` 0, and a live DDL validation on
+> PostgreSQL 16.15 (local-stack image) — 7 tables, 2 enums, 80
+> constraints, 23 indexes, 10/10 refusal cases refused, cascades and
+> SET NULL correct, throwaway container removed. **Phases 2–6 are NOT
+> started**, G-4/G-5/G-6 remain open, nothing is deployed or connected,
+> and production activation is still the sole owner-gated act (D-139).
 >
 
 ### Phase 0 --- Foundation
@@ -1407,12 +1434,23 @@ and Live Wiring programs; per-phase detail in §13 and the
     merchant admin panel, customer storefront, fashion AI engine,
     multi-channel social automation, payment/SMS/production
     hardening) with its own schema, API contract set and UI/UX
-    requirements. **PLANNED — no phase started:** nothing
-    provisioned, installed, connected or deployed, no live
-    credential exists or is requested (D-045/D-139); the catalog
-    SSOT (D-003), Supabase vs the D-055 canonical database, the
-    Drizzle/Prisma data layer and the provider selections remain
-    open owner sub-decisions recorded in D-172
+    requirements. **Amended 2026-10-10 (append-only — the adoption-time
+    text above is left intact):** the owner then ruled the blocking
+    sub-decisions (G-1 the roadmap schema as sole SSOT, D-003
+    superseded for this track; G-2 one canonical PostgreSQL instance
+    with Supabase as hosting; G-3 Drizzle owning schema and
+    migrations) and authorized immediate execution, so **Phase 1
+    (roadmap §1.1–§1.5) is IMPLEMENTED and VERIFIED** in the new
+    `commerce/` package — Drizzle schema, enums, relations, strictly
+    typed contracts and a committed migration, verified by typecheck,
+    `drizzle-kit generate`/`check` and a live DDL run on PostgreSQL
+    16.15 (7 tables, 2 enums, 80 constraints, 23 indexes, 10/10
+    refusals refused, cascades/SET NULL correct, throwaway container
+    removed). **Phases 2–6 are NOT started**, G-4 (provider
+    selections), G-5 (storefront media storage) and G-6 (channel
+    reuse) remain open, and nothing is provisioned, installed,
+    connected or deployed — no live credential exists or is requested
+    (D-045/D-139)
 
 Verified state at the D-169 reconciliation boundary:
 full battery **2225/2225 ×2 consecutive green across 84 modules**,

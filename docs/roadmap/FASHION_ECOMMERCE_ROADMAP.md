@@ -14,11 +14,17 @@
 > execution authority**: nothing is provisioned, installed, connected or
 > deployed by adopting it, no live credential exists or is requested (D-045),
 > and production activation remains the sole owner-gated act (D-139). The
-> owner sub-decisions that this scope expansion raises — catalog source of
-> truth vs D-003, Supabase vs the D-055 canonical PostgreSQL, and the
-> Drizzle/Prisma data layer — are recorded as **open** in
-> *Governance alignment & open sub-decisions* below and in D-172; none is
-> resolved silently (`PROJECT_RULES.md` §2 step 10, §4).
+> owner sub-decisions this scope expansion raised were recorded as open at
+> adoption and have since been **ruled**: **G-1, G-2 and G-3 are RESOLVED**
+> (owner rulings, 2026-10-10 — see *Governance alignment & owner rulings*
+> below and D-172 §4); **G-4, G-5 and G-6 remain open**. Nothing was resolved
+> silently (`PROJECT_RULES.md` §2 step 10, §4).
+>
+> **Phase 1 (this document's §1.1–§1.5) is IMPLEMENTED** — the schema and the
+> typed contracts live in `commerce/`, with the generated migration committed
+> (D-172 §5.1). No phase is deployed: the track remains build-without-activation,
+> and no environment beyond a throwaway validation container has ever seen this
+> schema.
 
 ---
 
@@ -243,20 +249,20 @@ bypass the owner gates on credentials and activation (D-045/D-139).
 
 ---
 
-## Governance alignment & open sub-decisions
+## Governance alignment & owner rulings
 
 Recorded so that no conflict is resolved silently (`PROJECT_RULES.md` §2.10,
-§4). Each item below is **open** and needs an explicit owner ruling before the
-affected phase is implemented; until then the existing decision stands.
+§4). The rulings below are the owner's, dated, and applied as amendments —
+never as rewrites of the decisions they touch (§2.1).
 
-| # | Open item | Existing decision it touches | Why it needs a ruling |
+| # | Item | Existing decision it touches | Status |
 |---|---|---|---|
-| G-1 | Catalog source of truth: is the fashion `products` / `product_variants` / `orders` schema the SSOT, or does WooCommerce remain the ecommerce SSOT with this storefront as a surface over it? | **D-003** (WooCommerce = ecommerce SSOT) + D-034–D-048 (mapping & sync contract) | Both cannot be the SSOT for the same catalog; the ruling determines whether the Phase 1 schema is a projection, a replacement, or a parallel store |
-| G-2 | Database: is **Supabase** the hosting of the one canonical PostgreSQL database, or a second database? | **D-055** (canonical PostgreSQL = SSOT) | A second database would violate the single-SSOT rule; if it is the same SSOT, the environment/promotion model (D-053) and the local-first parity rules must still hold |
-| G-3 | Data layer: **Drizzle/Prisma** vs the existing canonical data layer — who owns schema definitions and migrations? | D-055, D-053 (local → staging → production) | Schema authority and migration governance must be a single, recorded owner; two migration paths risk silent drift |
-| G-4 | Provider selections (all still open): payment (decision 10), shipping (decision 11), SMS provider (new), AI provider (decision 9) | open decisions 9/10/11, D-045 | Phase 6.1/6.2 name candidate providers only; selection is an owner act and live credentials do not exist |
-| G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | The storage provider must remain swappable (D-129–D-132), not implied by the schema |
-| G-6 | Channel publishing: reuse the canonical Instagram/Telegram publishers | D-069–D-072, D-073–D-076, D-077–D-080 | The roadmap adds copy generation and scheduling; publishing must stay on the existing seams so there is exactly one dispatch path per channel |
+| G-1 | Catalog source of truth: is the fashion `products` / `product_variants` / `orders` schema the SSOT, or does WooCommerce remain the ecommerce SSOT with this storefront as a surface over it? | **D-003** (WooCommerce = ecommerce SSOT) + D-034–D-048 (mapping & sync contract) | **RESOLVED 2026-10-10 (owner ruling):** the roadmap schema is the **sole SSOT** for this track; D-003 and the legacy sync patterns are **SUPERSEDED for the Fashion E-Commerce track** (D-172 §4.1). Nothing is dismantled — the scope is the track, and retiring the WooCommerce integration is a separate decision |
+| G-2 | Database: is **Supabase** the hosting of the one canonical PostgreSQL database, or a second database? | **D-055** (canonical PostgreSQL = SSOT) | **RESOLVED 2026-10-10 (owner ruling):** the **single canonical instance**; Supabase is a hosting choice for it, not a second database. D-053 local-first promotion and parity still bind; the track's tables live in their own `commerce` namespace (D-172 §4.2) |
+| G-3 | Data layer: **Drizzle/Prisma** vs the existing canonical data layer — who owns schema definitions and migrations? | D-055, D-053 (local → staging → production) | **RESOLVED 2026-10-10 (owner ruling):** **Drizzle ORM** owns this track's schema and migrations (`schemaFilter: ['commerce']`); the engine schemas stay owned by `local/db/schema.sql` (D-055). One database, no overlapping ownership, one migration path (D-172 §4.3) |
+| G-4 | Provider selections (all still open): payment (decision 10), shipping (decision 11), SMS provider (new), AI provider (decision 9) | open decisions 9/10/11, D-045 | **OPEN** — owner act; Phase 6.1/6.2 name candidate providers only and no live credential exists or is requested |
+| G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | **OPEN, not blocking** — the Phase 1 contract stays provider-agnostic (paths and URLs only, no storage SDK bound), keeping the swappability of D-129–D-132 intact until the owner selects a provider |
+| G-6 | Channel publishing: reuse the canonical Instagram/Telegram publishers | D-069–D-072, D-073–D-076, D-077–D-080 | **OPEN as a build-time constraint** — the roadmap adds copy generation and scheduling; publishing must stay on the existing seams so there is exactly one dispatch path per channel |
 
 ---
 

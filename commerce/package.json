@@ -1,0 +1,24 @@
+{
+  "name": "commerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "E-Commerce & Social Publishing track (D-172) — fashion catalog core: Drizzle schema, migrations and typed contracts over the canonical PostgreSQL instance (D-055, G-1/G-2/G-3)",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "verify": "npm run typecheck && npm run db:check"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11",
+    "typescript": "5.9.3"
+  }
+}

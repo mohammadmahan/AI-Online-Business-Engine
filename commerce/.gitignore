@@ -1,0 +1,12 @@
+# Dependencies (also covered by the repo-root .gitignore)
+/node_modules/
+
+# Local env — the commerce data core holds NO credentials (D-045/D-124)
+.env
+.env.local
+.env.*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Note: drizzle/ (migration SQL + journal) is COMMITTED source — never ignored.
