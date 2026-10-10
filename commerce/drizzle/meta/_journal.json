@@ -8,6 +8,13 @@
       "when": 1791631711301,
       "tag": "0000_sharp_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791636164424,
+      "tag": "0001_right_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

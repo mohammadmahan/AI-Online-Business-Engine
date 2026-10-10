@@ -1676,7 +1676,7 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       must be selected before payment-capture and shipping-purchase
       go-live
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
-      pre-start rulings DONE; Phase 1 COMPLETE & VERIFIED; Phases 2–6
+      pre-start rulings DONE; Phases 1–2 COMPLETE & VERIFIED; Phases 3–6
       NOT STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
@@ -1709,7 +1709,72 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           enums, 80 constraints, 23 indexes, 10/10 refusal cases
           refused, order→items CASCADE, variant→image SET NULL,
           product→variants/images CASCADE
-    - [ ] **Phase 2 — Merchant Admin Panel** (roadmap §2.1–§2.4)
+    - [x] **Phase 2 — Merchant Admin Panel (roadmap §2.1–§2.4):
+          IMPLEMENTED & VERIFIED (2026-10-10, `commerce/`)** — the
+          track's Next.js 16 admin surface, on the D-171 §3 design
+          system (same semantic tokens, RTL Persian-first, Vazirmatn
+          self-hosted by `next/font`, ESLint raw-hex gate, ≥16px body,
+          non-colour-dependent state = tone + Persian label + Latin
+          status code):
+          **§2.1 smart ingestion** — `variant-matrix-generator`
+          (multi-select colour palette + size chips → cartesian rows,
+          every SKU/stock/price cell editable, SKU proposed from the
+          product slug), `image-uploader` (browser-side compression with
+          longest edge 1600 px and aspect ratio preserved, previews,
+          order and primary toggles, external URL path) and
+          `product-ingestion-form` submitting ONE
+          `ProductCreatePayload` through a server action;
+          **§2.2 inventory** — inline grid (`updateStockAction` /
+          `updatePriceAction`, per-row result, Enter-to-save) with
+          threshold badges and low/out/inactive filters;
+          **§2.3 fulfillment** — order list whose dropdown offers only
+          the transitions `@/lib/order-rules` allows, tracking-code
+          modal, printable packing slip (`.cp-slip`/
+          `.cp-no-print`) that reports a stored-total drift instead of
+          printing an unreconciled number;
+          **§2.4 promotions** — coupon manager (PERCENT/FIXED, min
+          spend, expiry, usage limit, activation toggle) with state
+          DERIVED at read time (`ACTIVE`/`INACTIVE`/`EXPIRED`/
+          `EXHAUSTED`).
+          Services are a pure function of an injected repository
+          (`CommerceRepository`, Postgres impl + in-memory test double),
+          every write is validated server-side, and the whole panel is
+          fail-closed: with no `DATABASE_URL` each route states that
+          nothing is connected instead of rendering zeros.
+          **Honest open items (unchanged, not silently resolved):**
+          **G-5** — media storage is still unselected, so
+          `src/server/media.ts` resolves to `null` and a submission with
+          pending image bytes is REFUSED with its reason rather than
+          writing gallery rows pointing at images that do not exist;
+          the §2.3 buyer SMS stays a Phase 6 adapter (G-4) and the panel
+          says so after saving a tracking code.
+          §2.4 storage: the `coupons` table + `discount_type`
+          enum are owned by Drizzle (`db/schema/promotions.ts`) with
+          committed migration `commerce/drizzle/
+          0001_right_rocket_racer.sql` (12 columns, UNIQUE code, 6
+          CHECK constraints, 2 indexes) — generated and journal-
+          checked, **not applied to any environment**.
+          Evidence:
+          `npm run verify` → `typecheck` exit 0, `lint` exit 0 (0
+          warnings), `npm test` **91/91 pass** across 20 suites
+          (validation, matrix generator, inventory/order/coupon rules,
+          formatting, the four services against the memory repository,
+          and the fail-closed DB gate incl. the driver-message
+          non-leak case), `build` exit 0 with the seven expected routes;
+          browser-verified on the dev server at 1280×900 (the panel,
+          matrix generation → `MANTO-KETI-LENIN-36-1`… SKUs, the
+          inventory badges/filters, the PROCESSING-only transition set,
+          the tracking modal, both packing-slip reconciliation states
+          and all four coupon states), and each of the four
+          client→action paths (stock, price, tracking, coupon) round-
+          tripped through its real server action and surfaced the
+          fail-closed refusal in the row/banner. **Live PostgreSQL was
+          NOT available in this environment** (no server binary, Docker
+          daemon down), so the Postgres repository path — and the
+          `notFound()` 404 for an unknown order — are confirmed by the
+          typechecked implementation and the Phase 1 DDL validation,
+          not by a live query; the `commerce` migration was not applied
+          anywhere
     - [ ] **Phase 3 — Customer Storefront** (roadmap §3.1–§3.4)
     - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
           §4.1–§4.2; AI provider selection still open — decision 9)

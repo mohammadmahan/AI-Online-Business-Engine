@@ -16,5 +16,9 @@ export const orderStatus = commerce.enum('order_status', [
   'CANCELLED',
 ]);
 
+/** D-172 §2.4 — coupon kind: percentage or fixed amount. */
+export const discountType = commerce.enum('discount_type', ['PERCENT', 'FIXED']);
+
 export type ProductStatus = (typeof productStatus.enumValues)[number];
 export type OrderStatus = (typeof orderStatus.enumValues)[number];
+export type DiscountType = (typeof discountType.enumValues)[number];

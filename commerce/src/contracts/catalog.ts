@@ -84,8 +84,7 @@ export interface VariantPriceUpdatePayload {
   priceOverride: number | null;
 }
 
-export interface VariantUpdatePayload
-  extends Partial<Omit<VariantPayload, 'sku'>> {}
+export type VariantUpdatePayload = Partial<Omit<VariantPayload, 'sku'>>;
 
 /* ------------------------------------------------------------- §1.4 writes */
 

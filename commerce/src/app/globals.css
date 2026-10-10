@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+
+/*
+ * D-172 §2 — token layer for the merchant admin.
+ *
+ * The values are the D-171 §3 measured tokens VERBATIM (src/lib/palette.mjs +
+ * globals.css in `control-plane/`, where scripts/check-contrast.mjs enforces
+ * them). Two surfaces, one palette: the measured WCAG ratios recorded in D-171
+ * §3 therefore apply here unchanged, and no second colour system is invented.
+ * Hex literals are permitted in this file ONLY as token definitions — the ESLint
+ * gate in eslint.config.mjs blocks them anywhere else.
+ */
+@theme {
+  --radius-cp: 8px;
+
+  --spacing-target-web: 24px;
+  --spacing-target-touch: 44px;
+
+  --font-sans:
+    var(--font-vazirmatn), Vazirmatn, system-ui, -apple-system, 'Segoe UI',
+    Tahoma, sans-serif;
+
+  --text-cp-display: 2.25rem;
+  --text-cp-heading: 1.5rem;
+  --text-cp-body: 1rem;
+  --text-cp-label: 0.875rem;
+  --text-cp-caption: 0.75rem;
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --cp-canvas: #f8fafc;
+  --cp-surface: #ffffff;
+  --cp-surface-muted: #e9eef6;
+  --cp-text: #0f172a;
+  --cp-text-muted: #475569;
+  --cp-border: #dbeafe;
+  --cp-border-strong: #64748b;
+  --cp-primary: #1e40af;
+  --cp-success: #15803d;
+  --cp-danger: #dc2626;
+  --cp-warning: #b45309;
+  --cp-focus: #1e40af;
+  --cp-on-primary: #ffffff;
+  --cp-on-success: #ffffff;
+  --cp-on-danger: #ffffff;
+  --cp-on-warning: #ffffff;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --cp-canvas: #0f172a;
+  --cp-surface: #1e293b;
+  --cp-surface-muted: #111827;
+  --cp-text: #f8fafc;
+  --cp-text-muted: #94a3b8;
+  --cp-border: #334155;
+  --cp-border-strong: #64748b;
+  --cp-primary: #60a5fa;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #f59e0b;
+  --cp-focus: #60a5fa;
+  --cp-on-primary: #0f172a;
+  --cp-on-success: #0f172a;
+  --cp-on-danger: #0f172a;
+  --cp-on-warning: #0f172a;
+}
+
+@theme inline {
+  --color-canvas: var(--cp-canvas);
+  --color-surface: var(--cp-surface);
+  --color-surface-muted: var(--cp-surface-muted);
+  --color-ink: var(--cp-text);
+  --color-ink-muted: var(--cp-text-muted);
+  --color-edge: var(--cp-border);
+  --color-edge-strong: var(--cp-border-strong);
+  --color-primary: var(--cp-primary);
+  --color-success: var(--cp-success);
+  --color-danger: var(--cp-danger);
+  --color-warning: var(--cp-warning);
+  --color-focus: var(--cp-focus);
+  --color-on-primary: var(--cp-on-primary);
+  --color-on-success: var(--cp-on-success);
+  --color-on-danger: var(--cp-on-danger);
+  --color-on-warning: var(--cp-on-warning);
+}
+
+@layer base {
+  html {
+    /* RTL is the default for the merchant panel (D-171 §3.1). */
+    direction: rtl;
+  }
+
+  body {
+    background-color: var(--cp-canvas);
+    color: var(--cp-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-cp-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--cp-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Form controls inherit the token palette instead of the UA default. */
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .cp-target {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  @media (pointer: coarse) {
+    .cp-target {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /* Latin machine values (SKU, coupon code, tracking code) inside RTL text. */
+  .cp-code {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * §2.3 — printable packing slip (فاکتور بستهبندی).
+ * Printing must produce the slip and nothing else: navigation, buttons and
+ * result banners are removed, the surface becomes white-on-black text, and the
+ * table is prevented from splitting a line across pages.
+ */
+@media print {
+  .cp-no-print {
+    display: none !important;
+  }
+
+  body {
+    background: var(--cp-surface);
+  }
+
+  .cp-slip {
+    border: 0;
+    padding: 0;
+  }
+
+  .cp-slip table {
+    width: 100%;
+  }
+
+  .cp-slip tr {
+    break-inside: avoid;
+  }
+}

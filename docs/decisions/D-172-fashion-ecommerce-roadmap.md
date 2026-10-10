@@ -189,6 +189,55 @@ markers, with absence inferred only where the lifecycle requires it
 (`bigint` Toman, D-010); a plain UNIQUE already is an index, so §1.1/§1.2's
 "unique, index" is realised once, not twice.
 
+### 5.2 Phase 2 implementation — merchant admin panel (2026-10-10, same day, owner-authorized)
+
+Phase 2 (roadmap §2.1–§2.4) is delivered inside the same `commerce/` package as
+the track's admin surface, on the D-171 §3 design system (one token layer, RTL
+Persian-first, `next/font`-self-hosted Vazirmatn, the same raw-hex ESLint gate,
+non-colour-dependent state as tone + Persian label + Latin status code).
+
+| Artifact | Purpose |
+| --- | --- |
+| `commerce/src/app/{layout,globals.css,page}.tsx`, `commerce/src/app/admin/**` | The panel shell and its five routes (`/admin`, `/admin/products/new`, `/admin/inventory`, `/admin/orders`, `/admin/orders/[id]/slip`, `/admin/promotions`), all `force-dynamic` |
+| `commerce/src/components/admin/variant-matrix-generator.tsx`, `image-uploader.tsx`, `product-ingestion-form.tsx` | §2.1 smart ingestion: colour × size matrix, browser-side compression with aspect-ratio locking, order/primary media, one submit |
+| `commerce/src/components/admin/inventory-workspace.tsx` | §2.2 inline stock/price grid with threshold badges and low/out/inactive filters |
+| `commerce/src/components/admin/order-workspace.tsx`, `packing-slip.tsx`, `print-button.tsx` | §2.3 status transitions, tracking-code modal, printable packing slip |
+| `commerce/src/components/admin/coupon-manager.tsx` | §2.4 promotions: PERCENT/FIXED, min spend, expiry, usage limit, activation |
+| `commerce/src/lib/{variant-matrix,inventory-rules,order-rules,coupon-rules,validation,format,color-palette,image,utils}.ts` | The PURE rules and display helpers, shared by the browser and the server so a badge, a dropdown option and a refusal can never disagree |
+| `commerce/src/server/{repository,repository-memory,db-context,media}.ts` | The persistence seam (one Postgres implementation + a deterministic test double), the fail-closed connection gate and the media seam |
+| `commerce/src/server/services/{products,inventory,orders,coupons}.ts` + `commerce/src/server/actions/*.ts` | The four services (validating, repository-injected) and their server actions |
+| `commerce/src/lib/color-palette.ts` | The apparel colour palette as CATALOG DATA (the only JS/TS file the raw-hex rule exempts, because a garment colour is not a design token) |
+| `commerce/drizzle/0001_right_rocket_racer.sql` + `drizzle/meta/0001_snapshot.json` + `_journal.json` | The §2.4 storage migration: the `commerce.discount_type` enum and the `coupons` table (12 columns, UNIQUE code, 6 CHECK constraints, 2 indexes) |
+| `commerce/{eslint.config.mjs,next.config.mjs,postcss.config.mjs,tsconfig.test.json}` + `commerce/test/*` | Toolchain and the native `npm test` harness (no new dependency: `tsc` → `.test-build/`, `node --test`, a resolution hook) |
+
+Roadmap fidelity and the two honest limits:
+
+- **§2.3 tracking code → “automated SMS trigger to the buyer”.** The SMS adapter
+  is a Phase 6 deliverable and **G-4 is still OPEN**, so recording the code is
+  implemented and the notification is NOT faked: the panel states after a
+  successful save that the SMS is not yet active.
+- **§2.1 image upload.** **G-5 (media storage) is still OPEN**, so the uploader
+  compresses, previews, orders and primary-flags in the browser, and
+  `src/server/media.ts` resolves to `null`; a submission carrying pending image
+  bytes is **REFUSED with its reason** instead of creating a product whose
+  gallery points at nothing. A merchant can attach an externally hosted image by
+  path + URL today, and a product with no images is created normally (media is
+  optional, §1.4).
+- **Coupons have no dedicated §1 table.** As with the media contract, §2.4's
+  coupon table is derived from the roadmap section that requires it and is owned
+  by Drizzle in the `commerce` namespace — schema in `db/schema/promotions.ts`,
+  migration `0001` (enum + table + constraints + indexes) committed so no
+  environment can drift silently (G-3); the redemption arithmetic stays in the
+  Phase 3/6 checkout write path and must be idempotent per order (D-027).
+- **Display state is derived, never stored.** Low-stock badges, coupon states
+  (`ACTIVE`/`INACTIVE`/`EXPIRED`/`EXHAUSTED`) and packing-slip totals are
+  computed at read time, so an expired coupon or a drifted order total cannot be
+  rendered as something it is not.
+- **Fail-closed panel.** With no `DATABASE_URL` every route states that nothing
+  is connected (`DB_NOT_CONFIGURED`) instead of rendering zeros that would read
+  as measurements; the deterministic in-memory repository is a TEST DOUBLE only
+  and is wired into no route.
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**
@@ -224,6 +273,56 @@ markers, with absence inferred only where the lifecycle requires it
   product → variants + images CASCADE with the category retained. Container
   removed afterwards; nothing was provisioned, connected or left behind.
 - Committed as one atomic commit with the working tree clean afterwards.
+
+**Phase 2 implementation (2026-10-10):**
+
+- `npm run verify` — `tsc --noEmit` **exit 0**; `eslint .` **exit 0 with zero
+  warnings** (the raw-hex design gate included, exempting only the catalog
+  colour palette, the payload fixtures and the specs that assert colour
+  normalisation); `npm test` **91/91 pass, 0 fail** across 20 suites
+  (`node --test` over compiled output — no test dependency added). Coverage is
+  negative-first: money/stock/hex/slug/SKU/coupon bounds, instant parsing,
+  duplicate SKU and duplicate colour × size refusal, single-primary enforcement,
+  the matrix row ceiling, HTML escaping of merchant text, the four order
+  transitions that must be refused, tracking only in `PROCESSING`/`SHIPPED`, the
+  four derived coupon states, inventory badge/filter/summary thresholds, slip
+  reconciliation (including the drifted case), and the fail-closed DB gate —
+  including that a driver error message is never echoed to the panel.
+- `npm run db:generate` — **exit 0**, generating `drizzle/0001_right_rocket_racer.sql`
+  for exactly the one new table (`coupons` 12 columns, 2 indexes) plus the
+  `discount_type` enum, leaving the seven Phase 1 tables untouched; `npm run
+  db:check` — **exit 0** (`Everything's fine`), journal and snapshot consistent.
+  The migration was **not applied to any environment** (no server available, and
+  applying it anywhere shared remains an owner-gated act per D-045/D-139).
+- `npm run build` — **exit 0**, seven routes as expected (`/`, `/_not-found`,
+  `/admin`, `/admin/inventory`, `/admin/orders`, `/admin/orders/[id]/slip`,
+  `/admin/products/new`, `/admin/promotions`), with the panel routes dynamic.
+- **Browser verification** on the dev server (1280×900, `next dev`): the shell
+  and all five admin routes render RTL Persian with the unconfigured-database
+  banner and no fabricated rows; the matrix generator produced
+  `MANTO-KETI-LENIN-36-1`, `MANTO-KETI-LENIN-38-1`, `MANTO-KETI-LENIN-36-2`,
+  `MANTO-KETI-LENIN-38-2` from مشکی+کرم × 36+38 with editable SKU cells; the
+  inventory grid showed `IN_STOCK`/`LOW_STOCK`/`OUT_OF_STOCK` with matching
+  filter counts; the order list offered exactly `SHIPPED`/`CANCELLED` for a
+  `PROCESSING` order and reported the shipped one as terminal; the tracking
+  modal opened with its hint and both action buttons; both packing-slip states
+  rendered (consistent totals, and the drift warning when the stored total
+  disagrees); and all four coupon states rendered with their tone and Latin
+  code. Each client→server-action path (stock, price, tracking code, coupon
+  create) round-tripped through the real action and displayed the fail-closed
+  refusal in its own row or banner — no optimistic success, no console errors.
+- **Stated limits (not claimed as verified):** the environment had **no
+  PostgreSQL server binary and no running Docker daemon**, so the Postgres
+  repository implementation, the generated DDL and the `notFound()` 404 for an
+  unknown order id are NOT live-verified in this change; the service layer is
+  verified against the deterministic memory repository (which models identity,
+  joins, mutations and counters, but not the database's CHECK/UNIQUE
+  constraints — those remain Phase 1's live-DDL evidence), and no migration was
+  applied to any environment. The browser pass ran against a fixture surface
+  that was deleted before the commit; the shipped routes were re-verified in
+  their fail-closed state after its removal.
+- Tree hygiene: the temporary browser-verification route was removed, the dev
+  server stopped, and nothing was provisioned, connected or credentialled.
 
 ## 7. References
 
