@@ -1675,6 +1675,23 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       (open decision 10) and shipping provider (open decision 11)
       must be selected before payment-capture and shipping-purchase
       go-live
+- [ ] E-Commerce & Social Publishing track — **ADOPTED, NOT STARTED
+      (D-172, owner-approved 2026-10-10)**:
+      [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
+      is the **authoritative execution plan** for the fashion
+      commerce stack (P1 catalog core schema, P2 mobile-first
+      merchant admin, P3 customer storefront, P4 fashion AI
+      copywriting engine, P5 Telegram/Instagram social automation,
+      P6 payment/SMS/production hardening). Every prompt on this
+      track must cite the roadmap's Phase and Section. **Before any
+      phase starts, the owner must rule the open sub-decisions
+      recorded in D-172:** catalog SSOT against D-003 WooCommerce
+      SSOT (+ D-034–D-048 mapping), Supabase vs the D-055 canonical
+      PostgreSQL, Drizzle/Prisma vs the existing canonical data
+      layer, the provider selections (payment 10, shipping 11, SMS,
+      AI 9) and the storefront media storage. No execution,
+      provisioning, connection or live credential is authorized by
+      D-172 (D-045/D-139)
 
 ## Blocked / do-not-start
 

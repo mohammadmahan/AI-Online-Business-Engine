@@ -1,0 +1,264 @@
+# Master Roadmap: AI-Powered Fashion E-Commerce Platform
+
+- Status: APPROVED & ACTIVE
+- Owner: Mohammad
+- Authority: `PROJECT_RULES.md` §3 (only the human owner approves decisions);
+  adopted by **D-172** (Approved 2026-10-10, owner-directed)
+- Track: **E-Commerce & Social Publishing** — this document is the
+  **authoritative execution plan** for that track (`MASTER_PLAN.md` §13/§16;
+  `DECISIONS.md` ledger row 73)
+- Companion record: [D-172](../decisions/D-172-fashion-ecommerce-roadmap.md)
+- Stack Alignment: Next.js (App Router), Supabase / PostgreSQL, Drizzle/Prisma, Tailwind CSS, Shadcn UI, Redis Queue, n8n Automation Engine.
+
+> **Boundary (unchanged by this roadmap).** This document grants **no
+> execution authority**: nothing is provisioned, installed, connected or
+> deployed by adopting it, no live credential exists or is requested (D-045),
+> and production activation remains the sole owner-gated act (D-139). The
+> owner sub-decisions that this scope expansion raises — catalog source of
+> truth vs D-003, Supabase vs the D-055 canonical PostgreSQL, and the
+> Drizzle/Prisma data layer — are recorded as **open** in
+> *Governance alignment & open sub-decisions* below and in D-172; none is
+> resolved silently (`PROJECT_RULES.md` §2 step 10, §4).
+
+---
+
+## Architecture Overview
+
+Flow:
+[Merchant Admin Portal] (Product Input, Size/Color Matrix, Media Upload)
+  -> [Supabase PostgreSQL] (E-Commerce Catalog, Inventory, Orders)
+  -> [Webhook Trigger to AI Engine]
+       -> 1. Fashion Copywriting & Caption Generation
+       -> 2. SEO & Trend Hashtag Optimization
+       -> [Social Distribution Queue]
+            -> Telegram Channel (Rich Photo Album + Buy Button)
+            -> Instagram Graph API (Publishing Pipeline)
+
+[Customer Storefront] reads Realtime Catalog, One-Page Checkout, Payment Gateway.
+
+---
+
+## Phase 1: Database Architecture & Fashion Catalog Core
+Objective: Implement relational schema in PostgreSQL supporting apparel variants, sizes, colors, and inventory.
+
+### 1.1 Categories Table (categories)
+- id (uuid, PK)
+- name (varchar, e.g., مانتو، شومیز، شلوار)
+- slug (varchar, unique, index)
+- parent_id (uuid, self-referential FK for subcategories)
+- description (text, nullable)
+- created_at, updated_at (timestamptz)
+
+### 1.2 Products Table (products)
+- id (uuid, PK)
+- category_id (uuid, FK -> categories.id)
+- title (varchar, e.g., مانتو کتی لنین بهاره)
+- slug (varchar, unique, index)
+- base_price (bigint, in Tomans)
+- discount_price (bigint, nullable)
+- description_raw (text, raw merchant description)
+- description_html (text, rich formatted)
+- fabric_type (varchar, e.g., مازراتی، لنین، کرپ)
+- season (varchar, e.g., بهاره، تابستانه)
+- care_instructions (text, nullable)
+- status (enum: 'DRAFT', 'PUBLISHED', 'ARCHIVED')
+- created_at, updated_at (timestamptz)
+
+### 1.3 Variants Table (product_variants)
+- id (uuid, PK)
+- product_id (uuid, FK -> products.id, cascade delete)
+- sku (varchar, unique barcode/identifier)
+- color_name (varchar, e.g., کرم، مشکی، نسکافه‌ای)
+- color_hex (varchar, e.g., #F5F5DC)
+- size (varchar, e.g., 36, 38, 40, FreeSize)
+- stock_quantity (int, default 0)
+- price_override (bigint, nullable)
+- is_active (boolean, default true)
+
+### 1.4 Images Table (product_images)
+- id (uuid, PK)
+- product_id (uuid, FK -> products.id, cascade delete)
+- variant_id (uuid, FK -> product_variants.id, nullable)
+- storage_path (text, Supabase Storage key)
+- public_url (text)
+- display_order (int, default 0)
+- is_primary (boolean, default false)
+
+### 1.5 Orders & Fulfillment Tables (orders, order_items, customers)
+- orders: id, customer_id, total_amount, discount_amount, shipping_amount, status ('PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'CANCELLED'), payment_ref_id, shipping_address, tracking_code.
+- order_items: id, order_id, variant_id, quantity, unit_price.
+- customers: id, phone_number (unique), full_name, address, postal_code.
+
+---
+
+## Phase 2: Merchant Admin Panel (Mobile-First UX)
+Objective: Frictionless management interface for boutique owners.
+
+### 2.1 Smart Product Ingestion
+- Clean multi-image uploader with auto-compression and aspect ratio locking.
+- Fast Matrix Generator: Select colors + select size range -> auto-generate variant rows.
+- Raw text input or voice note transcript field for AI ingestion.
+
+### 2.2 Inventory & Inline Management
+- Grid view with inline editing for stock and pricing without page refresh.
+- Threshold-based low-stock visual badges.
+
+### 2.3 Order Fulfillment & Shipping
+- Order list with status transition dropdowns.
+- Postal tracking code input with automated SMS trigger to the buyer.
+- Printable packing slip view.
+
+### 2.4 Promotions & Discounts
+- Percentage and fixed-amount coupon codes with expiry dates and minimum spend limits.
+
+---
+
+## Phase 3: Customer Storefront (High-Conversion UX)
+Objective: Modern, ultrafast e-commerce storefront utilizing Next.js Server Components.
+
+### 3.1 Homepage & Collections
+- Responsive hero section and visual story-style category circles.
+- Featured, New Arrivals, and Best-Selling carousels.
+
+### 3.2 Catalog & Real-Time Filtering
+- Faceted search: Instant filtering by size, color palette, price slider, and availability.
+- Infinite scroll / responsive pagination.
+
+### 3.3 Product Detail Page (PDP)
+- Swipeable high-res photo gallery with zoom capability.
+- Dynamic color selector updating primary image preview.
+- Interactive Size Selector with automatic disabled state for out-of-stock variants.
+- Modal Size Chart Guide with garment measurements in centimeters.
+
+### 3.4 One-Step Frictionless Checkout
+- Slide-over Cart Drawer.
+- Mobile-friendly checkout: Phone number OTP verification (no mandatory passwords).
+- Shipping method selection (Express Courier, Standard Post, Tipax).
+
+---
+
+## Phase 4: Fashion AI Engine & Copywriting Hub
+Objective: Transform raw product attributes into marketing assets.
+
+### 4.1 Fashion Copywriting Engine
+- Prompt pipeline taking fabric_type, season, title, and raw notes to generate:
+  - Engaging Instagram caption with tone presets (Luxury, Casual, Trendy).
+  - Clean Telegram announcement text.
+  - SEO-optimized meta description and web copy.
+
+### 4.2 Trend & Hashtag Intelligence
+- Auto-generation of targeted niche fashion hashtags based on garment category and season.
+
+---
+
+## Phase 5: Multi-Channel Social Automation
+Objective: One-click publishing across key Iranian e-commerce social channels.
+
+### 5.1 Telegram Channel Publisher
+- Automated post assembly: Image group + formatted caption + inline keyboard with direct purchase link.
+- Webhook trigger via n8n pipeline or direct Telegram Bot API.
+
+### 5.2 Instagram Business Publisher
+- Image preparation and container publishing via Meta Graph API.
+- Scheduled publishing queue for peak customer engagement hours.
+
+---
+
+## Phase 6: Payment, Notification & Production Launch
+Objective: Financial settlement and deployment hardening.
+
+### 6.1 Payment Gateway Integration
+- Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
+
+### 6.2 SMS Notification System
+- SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.
+
+### 6.3 Deployment & Staging Hardening
+- Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.
+
+---
+
+## API Contracts
+
+The flow above implies the following contracts. They are a **derived reading of
+the approved flow**, not a new authority: no endpoint here is implemented by
+this roadmap, every mutating path stays behind the same owner gates, and the
+canonical channel/order/notification seams already specified in the decision
+ledger are **reused, not duplicated** (AC-5…AC-9).
+
+| # | Contract | Producer → Consumer | Transport / boundary | Idempotency & safety |
+|---|---|---|---|---|
+| AC-1 | Catalog write (product, variant matrix, images, stock) | Merchant Admin Panel → catalog database | Server-side write through the canonical service layer; the storefront never writes | One write per merchant action; stock writes are variant-scoped |
+| AC-2 | Product publication event (`status → PUBLISHED`) | Catalog database → n8n | Signed n8n webhook trigger (D-004/D-155) carrying product id, revision and target channels | Keyed by product revision — a replayed event is a no-op (D-027) |
+| AC-3 | Copy-generation request (`fabric_type`, `season`, `title`, raw notes → Instagram caption + Telegram text + SEO meta/web copy) | n8n → Fashion AI engine (Phase 4) | Internal task call on the AI runtime seam (D-062–D-068); provider credentials stay behind D-045 | Deterministic request key per product revision; output is a proposal, never a publication decision |
+| AC-4 | Social distribution enqueue | Fashion AI engine → distribution queue | Durable queue record (Redis/queue): media refs, caption, hashtags, purchase link, target channels, `scheduled_at` | The queue item is the unit of exactly-once dispatch; a duplicate enqueue is suppressed |
+| AC-5 | Telegram publication | Distribution worker → Telegram Bot API | `sendMediaGroup` + inline keyboard buy button, on the existing Telegram publisher/ingress seam (D-073–D-076) | SHA-256 publish-idempotency vault + rate pacer; live credentials owner-gated (D-045) |
+| AC-6 | Instagram publication | Distribution worker → Meta Graph API | Container create → bounded status poll → publish, on the existing Instagram seam (D-069–D-072) | Publish lock is absolute; usage guard + D-052 error classification; live credentials owner-gated (D-045) |
+| AC-7 | Storefront catalog read | Storefront (React Server Components) → catalog read model | Server-side read-only; no client-side write path | Fail-closed: absent or stale evidence renders UNKNOWN/STALE, never a fabricated value |
+| AC-8 | Checkout → payment authorisation → order state | Storefront → payment gateway adapter → orders | Server-verified gateway callback; order transitions follow the canonical lifecycle (D-081–D-084) | Callback verification + idempotent order update; money is integer Toman (D-010); provider UNSELECTED (open decision 10) |
+| AC-9 | Notification dispatch (OTP, order confirmation, tracking code) | Order/AI services → SMS adapter | Notification contract on the existing notification seam (D-089–D-092) with per-channel fan-out | Deduplication key per event; failed sends go to the DLQ, never silently dropped; provider selection owner-gated |
+| AC-10 | Order fulfilment update (status transition, tracking code) | Merchant Admin Panel → orders | Server-side transition through the canonical order lifecycle | Illegal transitions refused; tracking code attached to the fulfilment record, never to a payment record |
+
+Cross-cutting contract rules: every mutating request is server-authorized and
+audited on the canonical event store (D-026/D-027); every response and log is
+redacted (D-114/D-124); no customer PII, credential, token or PAN appears in a
+URL, in client storage or in a log line; and nothing in this contract set may
+bypass the owner gates on credentials and activation (D-045/D-139).
+
+---
+
+## UI/UX Requirements
+
+### Cross-cutting (both storefront and merchant panel)
+- **RTL Persian-first.** Layout, typography and number formatting are Persian /
+  RTL by default; product and customer-facing language is Persian.
+- **Design system.** Tailwind CSS with semantic tokens and Shadcn UI / Radix
+  primitives; no raw hex in components; token-only color usage (D-171 §3).
+- **Accessibility.** WCAG 2.2 AA: text contrast ≥ 4.5:1, non-text/controls
+  ≥ 3:1, visible focus indicator, non-color-dependent state (icon + Persian
+  label + status code), `prefers-reduced-motion` honoured.
+- **Type & numerals.** Body ≥ 16px with 1.5 line-height; Persian numerals in
+  prose, Latin numerals only for identifiers and money (D-171 §3, D-010).
+- **Fail-closed surfaces.** A panel that has no data says so («بدون داده» /
+  UNKNOWN) instead of showing zeros that read as real measurements.
+- **Mobile-first.** The merchant panel is designed phone-first (boutique owners
+  work from a phone); tap targets ≥ 44×44 pt with ≥ 8px spacing.
+- **Performance.** Storefront routes are server-rendered (Next.js Server
+  Components); the product grid and filters must stay responsive on mobile
+  networks, with images sized and compressed at upload (Phase 2.1).
+
+### Storefront-specific
+- Filter and PDP interactions must never require a full page reload
+  (faceted filtering, color-driven image swap, size availability states).
+- Out-of-stock variants are visibly disabled, not silently rejected at
+  checkout.
+- Checkout collects nothing that is not required to fulfil the order: phone
+  (OTP), name, address, postal code, shipping method.
+
+### Merchant-panel-specific
+- Inline editing of stock and price without a page refresh, with the previous
+  value recoverable; low stock is flagged at a configurable threshold.
+- Every irreversible action (archive, cancel, publish) carries a confirmation
+  and leaves an auditable record.
+
+---
+
+## Governance alignment & open sub-decisions
+
+Recorded so that no conflict is resolved silently (`PROJECT_RULES.md` §2.10,
+§4). Each item below is **open** and needs an explicit owner ruling before the
+affected phase is implemented; until then the existing decision stands.
+
+| # | Open item | Existing decision it touches | Why it needs a ruling |
+|---|---|---|---|
+| G-1 | Catalog source of truth: is the fashion `products` / `product_variants` / `orders` schema the SSOT, or does WooCommerce remain the ecommerce SSOT with this storefront as a surface over it? | **D-003** (WooCommerce = ecommerce SSOT) + D-034–D-048 (mapping & sync contract) | Both cannot be the SSOT for the same catalog; the ruling determines whether the Phase 1 schema is a projection, a replacement, or a parallel store |
+| G-2 | Database: is **Supabase** the hosting of the one canonical PostgreSQL database, or a second database? | **D-055** (canonical PostgreSQL = SSOT) | A second database would violate the single-SSOT rule; if it is the same SSOT, the environment/promotion model (D-053) and the local-first parity rules must still hold |
+| G-3 | Data layer: **Drizzle/Prisma** vs the existing canonical data layer — who owns schema definitions and migrations? | D-055, D-053 (local → staging → production) | Schema authority and migration governance must be a single, recorded owner; two migration paths risk silent drift |
+| G-4 | Provider selections (all still open): payment (decision 10), shipping (decision 11), SMS provider (new), AI provider (decision 9) | open decisions 9/10/11, D-045 | Phase 6.1/6.2 name candidate providers only; selection is an owner act and live credentials do not exist |
+| G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | The storage provider must remain swappable (D-129–D-132), not implied by the schema |
+| G-6 | Channel publishing: reuse the canonical Instagram/Telegram publishers | D-069–D-072, D-073–D-076, D-077–D-080 | The roadmap adds copy generation and scheduling; publishing must stay on the existing seams so there is exactly one dispatch path per channel |
+
+---
+
+## Execution Protocol
+All future development prompts shall explicitly cite the Phase and Section of this document (e.g., "Implement Phase 1, Section 1.2 Products Table") to ensure strict compliance and zero drift from approved specifications.

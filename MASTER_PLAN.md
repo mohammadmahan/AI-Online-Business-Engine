@@ -1074,6 +1074,43 @@ docs/
 > selection (open decisions 10/11) remain owner-gated
 > (D-045/D-139, plan §17/§21).
 >
+> **Post-baseline work package — “Fashion E-Commerce & Social
+> Publishing track” (2026-10-10, APPROVED & ACTIVE; D-172,
+> owner-directed scope expansion).** The owner expanded scope to a
+> full fashion/apparel commerce stack — storefront, merchant admin
+> panel, fashion AI copywriting engine and multi-channel social
+> automation — and adopted
+> `docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md` as the
+> **authoritative execution plan** for the **E-Commerce & Social
+> Publishing** track (companion record
+> `docs/decisions/D-172-fashion-ecommerce-roadmap.md`; ledger row
+> 73). Six phases: P1 fashion catalog core schema (categories,
+> products, product_variants, product_images, orders/order_items/
+> customers in PostgreSQL, integer Toman), P2 mobile-first merchant
+> admin (matrix variant generator, compressed multi-image upload,
+> inline stock/price grid, order transitions + tracking code,
+> packing slip, coupons), P3 customer storefront on Next.js Server
+> Components (collections, faceted size/color/price filtering, PDP
+> with per-color image switching and per-variant size disabling,
+> size chart, slide-over cart, phone-OTP checkout), P4 fashion AI
+> engine (Luxury/Casual/Trendy caption presets, Telegram text, SEO
+> meta and web copy, hashtag/trend intelligence), P5 multi-channel
+> social automation (Telegram album + inline buy button; Instagram
+> Graph container pipeline with a scheduling queue), P6
+> payment/SMS/production hardening (gateway adapter with idempotent
+> callback verification, SMS adapter for OTP/order/tracking,
+> staging readiness and cutover checklist). **Every future prompt on
+> this track must cite the roadmap's Phase and Section** (drift
+> control). **No execution authority:** nothing provisioned,
+> installed, connected or deployed; zero live credentials exist or
+> are requested (D-045); production activation stays owner-gated
+> (D-139); the roadmap's own open sub-decisions (catalog SSOT vs
+> D-003, Supabase vs the D-055 canonical database, Drizzle/Prisma
+> vs the canonical data layer, provider selections, storefront
+> media storage) are recorded as OPEN in D-172 — none resolved
+> silently. The static `dashboard/` and the D-171 control plane are
+> distinct surfaces and are unaffected.
+>
 
 ### Phase 0 --- Foundation
 
@@ -1363,6 +1400,19 @@ and Live Wiring programs; per-phase detail in §13 and the
     transactional + decision-ledger drills (EV-BAC-001), off-host
     archive replication via Phase 24 `MediaStoreContract`, two-leg
     D-138 launch-gate binding, unified `qa.launch_attestation.v1`
+-   E-Commerce & Social Publishing track: the owner-approved fashion
+    commerce roadmap ([`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md),
+    **D-172**, approved 2026-10-10) is the **authoritative execution
+    plan** for that track — six phases (fashion catalog core,
+    merchant admin panel, customer storefront, fashion AI engine,
+    multi-channel social automation, payment/SMS/production
+    hardening) with its own schema, API contract set and UI/UX
+    requirements. **PLANNED — no phase started:** nothing
+    provisioned, installed, connected or deployed, no live
+    credential exists or is requested (D-045/D-139); the catalog
+    SSOT (D-003), Supabase vs the D-055 canonical database, the
+    Drizzle/Prisma data layer and the provider selections remain
+    open owner sub-decisions recorded in D-172
 
 Verified state at the D-169 reconciliation boundary:
 full battery **2225/2225 ×2 consecutive green across 84 modules**,
