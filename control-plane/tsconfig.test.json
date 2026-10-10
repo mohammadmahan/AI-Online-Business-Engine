@@ -13,6 +13,7 @@
   "include": [
     "src/lib/format.test.ts",
     "src/lib/business-summary.test.ts",
+    "src/lib/ai-ops.test.ts",
     "src/components/ui/view-gate.test.ts"
   ],
   "exclude": ["node_modules", ".next", ".test-build"]

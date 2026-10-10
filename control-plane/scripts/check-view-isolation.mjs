@@ -84,7 +84,21 @@ const SURFACES = {
     'inventory-variant-key',
     'inventory-write-gate',
   ],
-  '/ai-engine': [...SHELL, 'page-phase-ref'],
+  // Phase 27.7 (AI Ops & Shared Memory Hub): the memory layer, the agent
+  // observability table, the token/cost table, the proposal drafts and the
+  // gated controls are console surfaces — the Business view reads the
+  // aggregated card and the plain-Persian header/summary only.
+  '/ai-engine': [
+    ...SHELL,
+    'ai-engine-page-meta',
+    'ai-engine-notice',
+    'ai-engine-memory',
+    'ai-engine-routes',
+    'ai-engine-cost',
+    'ai-engine-proposals',
+    'ai-engine-controls',
+    'page-phase-ref',
+  ],
   '/settings': [...SHELL, 'page-phase-ref'],
 };
 
@@ -129,7 +143,16 @@ const ASSET_PROOF = {
     { id: 'variant-keys', re: /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g, min: 1 },
     { id: 'opaque-key-short-form', re: /\b[0-9a-f]{6,}[\u2026.]+[0-9a-f]{4}\b/g, min: 1 },
   ],
-  '/ai-engine': [{ id: 'roadmap-phase-ref', re: /Phase\s*27\.\d/g, min: 1 }],
+  '/ai-engine': [
+    { id: 'roadmap-phase-ref', re: /Phase\s*27\.\d/g, min: 1 },
+    { id: 'memory-layer-state', re: /\bNOT_CONNECTED\b/g, min: 1 },
+    { id: 'route-task-types', re: /\b(?:propose_content_idea|generate_caption|enrich_description)\b/g, min: 3 },
+    { id: 'observability-stages', re: /\b(?:provider_call|validation|divergence|lifecycle|hitl_decision|fallback)\b/g, min: 1 },
+    { id: 'budget-resource', re: /\bllm_tokens\b/g, min: 1 },
+    { id: 'proposal-ids', re: /\baiprop\|[0-9a-f]{12}\b/g, min: 1 },
+    { id: 'proposal-states', re: /\b(?:PROPOSED|IN_REVIEW|ACCEPTED|REJECTED|MODIFIED_BY_HUMAN)\b/g, min: 1 },
+    { id: 'latency-measurement', re: /\b\d[\d,]* ms\b/g, min: 1 },
+  ],
   '/settings': [{ id: 'roadmap-phase-ref', re: /Phase\s*27\.\d/g, min: 1 }],
 };
 
@@ -188,8 +211,11 @@ const BUSINESS_TERMS = new Set([
 // machine keys / taxonomy codes / measurement codes are deliberately NOT here —
 // those are census assets and must not reach the Business view.
 const ALLOWED_CODES = new Set([
-  // Business card + provenance states
-  'OK', 'MOCK', 'LIVE', 'NO_DATA', 'UNKNOWN', 'REVIEW', 'ACTION', 'PROCESSING',
+  // Business card + provenance states. `NOT_CONNECTED` is the mandated memory
+  // layer state of D-171 §5.5 (D-142 is PLANNED until the D-045 owner gate), so
+  // it is a status code the Business view states explicitly rather than a
+  // machine key it must hide.
+  'OK', 'MOCK', 'LIVE', 'NO_DATA', 'UNKNOWN', 'REVIEW', 'ACTION', 'PROCESSING', 'NOT_CONNECTED',
   // HITL severity / status / decision
   'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'PENDING', 'PENDING_REVIEW', 'CLAIMED', 'EXPIRED',
   'APPROVED', 'REJECTED', 'MODIFIED', 'ESCALATED',

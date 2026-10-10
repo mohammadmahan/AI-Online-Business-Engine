@@ -30,6 +30,7 @@
  * SKU and timestamps keep Latin digits (D-171 §3.1).
  */
 
+import type { AiOpsSnapshot, BudgetPressure, MemoryConnectionState } from '@/types/ai-ops';
 import type { CommerceSnapshot } from '@/types/commerce';
 import type { KpiCard, DashboardSnapshot } from '@/types/dashboard';
 import type { HitlQueueSnapshot } from '@/types/hitl';
@@ -79,6 +80,26 @@ const STATUS = {
 } as const satisfies Record<string, BusinessCardModel['status']>;
 
 /**
+ * Shared-memory layer state in plain Persian (D-142). The English code is the
+ * mandated one (`NOT_CONNECTED`, D-171 §5.5) and travels beside the label, so a
+ * reader never has to infer the state from a colour.
+ */
+const MEMORY_STATE_FA: Record<MemoryConnectionState, string> = {
+  NOT_CONNECTED: 'وصل نشده',
+  CONNECTED: 'متصل',
+  DEGRADED: 'تنزل‌یافته',
+  UNKNOWN: 'نامشخص',
+};
+
+/** Consumption pressure in plain Persian (D-063 soft ratio / D-127 windows). */
+const BUDGET_PRESSURE_FA: Record<BudgetPressure, string> = {
+  OK: 'عادی',
+  WARNING: 'نزدیک به سقف',
+  EXCEEDED: 'از سقف گذشته',
+  UNKNOWN: 'نامشخص',
+};
+
+/**
  * The drill-down bridge (§2.3 ج). One shared action: it switches the view on
  * the SAME page — no navigation, no reload — and the view switch keeps the
  * scroll position.
@@ -102,6 +123,14 @@ const DRILL_DOWN = {
 const FORBIDDEN = /(پروب|سایدکار|کانتینر|تلمتری|لجر|HTTP|latency|D-121|sidecar|V-\d{2})/i;
 
 /**
+ * The AI-ops half of the same rule (D-171 §5.5): provider/model ids, tariff
+ * numbers, observability stage names and `aiprop|…` proposal ids are console
+ * assets. A Business card may say THAT a reading is near its ceiling; it may
+ * never carry the machine vocabulary of the reading itself.
+ */
+const AI_OPS_FORBIDDEN = /(ارائه‌دهنده|provider|model|stage|token|micro|aiprop)/i;
+
+/**
  * Fail-closed guard, in the same spirit as the mock providers' consistency
  * guards: a contradictory or jargon-carrying card is never rendered.
  */
@@ -123,6 +152,10 @@ export function assertBusinessCard(model: BusinessCardModel): BusinessCardModel 
     if (value.trim().length === 0) problems.push('empty string on a card');
     const jargon = value.match(FORBIDDEN);
     if (jargon) problems.push(`operational jargon "${jargon[0]}" in: ${value}`);
+  }
+  for (const value of strings) {
+    const aiOpsJargon = value.match(AI_OPS_FORBIDDEN);
+    if (aiOpsJargon) problems.push(`AI-ops machine vocabulary "${aiOpsJargon[0]}" in: ${value}`);
   }
   if (model.metrics.length === 0) problems.push('card carries no metric');
   if (model.status.tone === 'success' && model.provenance.code !== 'LIVE') {
@@ -399,6 +432,63 @@ export function ordersBusinessCard(snapshot: CommerceSnapshot): BusinessCardMode
         label: 'آخرین تغییر سفارش‌ها',
         value: clock(lastChange),
         tip: 'ساعت آخرین به‌روزرسانی سفارش‌ها (به وقت جهانی).',
+      },
+    ],
+    drillDown: DRILL_DOWN,
+  });
+}
+
+/** `/ai-engine` — AI ops & shared-memory summary (D-171 §5.5, Phase 27.7). */
+export function aiEngineBusinessCard(snapshot: AiOpsSnapshot): BusinessCardModel {
+  const summary = snapshot.summary;
+  const unavailable = snapshot.provenance === 'unavailable';
+  const awaiting = summary.proposalsAwaitingDecision;
+
+  // A NO_DATA source outranks every component reading; a budget warning is a
+  // real operational state the owner must see; everything else stays UNKNOWN
+  // until a live reading exists — the memory layer alone is never a failure.
+  const status = unavailable
+    ? STATUS.noData
+    : summary.hasBudgetAlert
+      ? STATUS.review
+      : STATUS.unknown;
+
+  const headline = unavailable
+    ? 'دستیارهای هوشمند فروشگاه: بدون داده — هیچ خوانشی از موتور هوش مصنوعی ثبت نشده است.'
+    : summary.hasBudgetAlert
+      ? 'دستیارهای هوشمند فروشگاه: مصرف هوش مصنوعی به سقف تعیین‌شده نزدیک شده است.'
+      : awaiting > 0
+        ? `دستیارهای هوشمند فروشگاه: ${formatCountFa(awaiting)} پیش‌نویس منتظر تصمیم شماست.`
+        : 'دستیارهای هوشمند فروشگاه: بر پایهٔ دادهٔ نمونه، مصرف در محدودهٔ عادی است و حافظهٔ مشترک هنوز وصل نشده.';
+
+  return assertBusinessCard({
+    id: 'ai-engine',
+    title: 'خلاصهٔ دستیارهای هوشمند',
+    headline,
+    status,
+    provenance: PROVENANCE[snapshot.provenance],
+    metrics: [
+      {
+        label: 'دستیارهای دارای گزارش',
+        value: `${formatCountFa(summary.routesMeasured)} از ${formatCountFa(
+          summary.routesMeasured + summary.routesUnmeasured,
+        )}`,
+        tip: 'تعداد دستیارهایی که گزارشی از کارشان ثبت شده، از کل دستیارهای فروشگاه.',
+      },
+      {
+        label: 'حافظهٔ مشترک دستیارها',
+        value: `${MEMORY_STATE_FA[summary.memoryState]} (${summary.memoryState})`,
+        tip: 'حافظهٔ مشترکی که دستیارها می‌توانند خاطرات و زمینه را در آن نگه دارند؛ تا وصل نشدن، هیچ داده‌ای گزارش نمی‌شود.',
+      },
+      {
+        label: 'پیش‌نویس‌های در انتظار تصمیم شما',
+        value: formatCountFa(awaiting),
+        tip: 'پیش‌نویس‌هایی که هوش مصنوعی آماده کرده و منتظر تأیید یا رد شما هستند.',
+      },
+      {
+        label: 'وضعیت مصرف هوش مصنوعی',
+        value: BUDGET_PRESSURE_FA[summary.worstBudgetPressure],
+        tip: 'میزان مصرف روزانهٔ هوش مصنوعی در برابر سقفی که برای آن تعیین شده است.',
       },
     ],
     drillDown: DRILL_DOWN,
