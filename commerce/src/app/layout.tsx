@@ -49,8 +49,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const connected = isDatabaseConfigured();
 
   return (
-    <html lang="fa" dir="rtl" data-theme="light" className={vazirmatn.variable}>
-      <body className="min-h-dvh">
+    // `suppressHydrationWarning` on BOTH top-level tags is deliberate and
+    // applies only to these two elements (React does not suppress their
+    // subtree). Browser extensions — ColorZilla's `cz-shortcut-listen`, ad
+    // blockers, password managers — inject attributes into `<html>`/`<body>`
+    // before hydration, which React reports as an attribute mismatch it
+    // cannot reconcile: the injected attribute exists in no server render and
+    // in no source file, so there is nothing for the app to fix. Warning is
+    // suppressed here instead of leaving a permanent false alarm that would
+    // mask genuine mismatches deeper in the tree.
+    <html
+      lang="fa"
+      dir="rtl"
+      data-theme="light"
+      className={vazirmatn.variable}
+      suppressHydrationWarning
+    >
+      <body className="min-h-dvh" suppressHydrationWarning>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:rounded-[--radius-cp] focus:bg-primary focus:px-4 focus:py-2 focus:text-on-primary"

@@ -73,7 +73,10 @@ export default function RootLayout({
         {/* Applies the stored view mode (default: business) before first paint. */}
         <script dangerouslySetInnerHTML={{ __html: VIEW_MODE_BOOTSTRAP }} />
       </head>
-      <body className="min-h-dvh">
+      {/* Same extension-injection defence as the commerce shell (D-172):
+          extensions add attributes such as `cz-shortcut-listen` to `<body>`
+          before hydration, producing a mismatch no render can reconcile. */}
+      <body className="min-h-dvh" suppressHydrationWarning>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:rounded-[--radius-cp] focus:bg-primary focus:px-4 focus:py-2 focus:text-surface"
