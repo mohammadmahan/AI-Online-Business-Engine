@@ -141,6 +141,62 @@ Objective: Modern, ultrafast e-commerce storefront utilizing Next.js Server Comp
 - Mobile-friendly checkout: Phone number OTP verification (no mandatory passwords).
 - Shipping method selection (Express Courier, Standard Post, Tipax).
 
+#### Phase 3 completion record (2026-10-12) — §3.1–§3.4 IMPLEMENTED & VERIFIED
+
+Appended; the section text above is the specification and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full evidence in `D-172` §5.3 and §6.
+
+- **§3.1 Homepage & collections.** Hero + category circles + three rails
+  (جدیدها، پیشنهادهای تخفیف‌دار، پرفروش‌ها), each derived from real reads and
+  **hidden when empty** — no invented "featured" badge and no rail of
+  placeholders. Best-sellers are quantity shipped with cancelled orders
+  excluded.
+- **§3.2 Catalog & real-time filtering.** Faceted by category, size, colour and
+  a price range, plus availability and search; facets are **derived from the
+  published cards**, so a size nobody stocks is never offered. Filtering and
+  paging run in the browser (instant, no round trip); an empty result says so and
+  offers a way back.
+- **§3.3 Product detail page.** Client-side gallery viewer, colour selector that
+  re-scopes the gallery to that colour's photos, an interactive colour × size
+  matrix with **out-of-stock variants disabled** (never silently rejected at
+  checkout), stock stated as a LEVEL (موجود / موجودی محدود / ناموجود — raw
+  quantities never leave the server), a size-chart modal in centimetres, and a
+  related-products rail from the same category via the public read path.
+- **§3.4 One-step checkout.** Slide-over cart drawer; persistent cart
+  (`localStorage`, read through an external store so the server render and the
+  hydrating client render agree); customer form validated with the same rules the
+  server applies (Persian phone/address/postal); coupon applied server-side
+  against the existing promotions service; order breakdown (subtotal, discount,
+  shipping, total); shipping method selection (پست پیشتاز، پیک، تیپاکس).
+  The order is persisted through a server action as `PENDING`.
+- **Payment adapter interface (roadmap §3.4 → Phase 6 prerequisite).**
+  `MockPaymentGateway` implements the fail-closed gateway interface and answers
+  `UNAVAILABLE` — the customer is told nothing was charged and the order exists as
+  `PENDING` (AC-8: never a faked status). Selecting the live Iranian provider
+  stays the owner's Phase 6 decision (**G-4** / open decision 10).
+- **Still open, stated rather than faked:** phone-number **OTP** verification was
+  **not** built — it needs the SMS provider selection (G-4) and a mock code entry
+  would be worse than none; the number is validated and stored as the customer
+  identity. Live payment capture, image zoom and swipe gestures remain Phase 6 /
+  follow-up work; the gallery is client-side navigation, and mobile gestures were
+  not device-tested.
+- **Fail-closed states (§3.3 of the roadmap's UI/UX requirements).** With no
+  canonical connection the storefront renders *«در این لحظه نمایش داده نمی‌شود»*
+  on every data surface and **no checkout form at all**, rather than an empty shop
+  or an order it cannot write. Grid/PDP loading skeletons and empty states for
+  search and cart are in place.
+- **Evidence.** `npm run verify` exit 0 (typecheck, lint **0 problems**,
+  **146 tests / 37 suites** pass, `db:check`); `npm run build` exit 0 with every
+  storefront route dynamic (`/`, `/catalog`, `/checkout`, `/products/[slug]`) and
+  the admin routes intact; browser-verified on the dev server (RTL — `lang="fa"`
+  and `dir="rtl"` on the document, the cart adopted from `localStorage` after
+  hydration → badge «سبد خرید، ۳ کالا»، the drawer's quantity control writing
+  quantity 4 back and updating the badge, a clean console). **No live PostgreSQL was available in
+  this environment** (Docker daemon down), so the storefront's data paths are
+  covered by the memory-double suites and the opt-in live smoke suite stayed
+  SKIPPED with its named reason; the live storefront read path is therefore
+  **not** yet exercised end-to-end against a real server.
+
 ---
 
 ## Phase 4: Fashion AI Engine & Copywriting Hub

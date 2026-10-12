@@ -245,6 +245,61 @@ Roadmap fidelity and the two honest limits:
   as measurements; the deterministic in-memory repository is a TEST DOUBLE only
   and is wired into no route.
 
+### 5.3 Phase 3 implementation — customer storefront (2026-10-12, owner-authorized)
+
+The customer half of the track, in the same `commerce/` package and on the same
+design system. One structural change to the existing surface: the document shell
+(`app/layout.tsx`) now owns only language, direction, font, tokens and the skip
+link, and the merchant chrome moved to `app/admin/layout.tsx` — so a customer
+never sees the merchant navigation and the storefront never shows the connection
+badge (`robots: noindex` moved with it; the storefront is a public shop).
+
+- **§3.1 Homepage & collections** — hero, category circles and three rails.
+  Every rail is derived from a real read and hides itself when empty: «جدیدها»
+  is the read path's own newest-first order, «پیشنهادهای تخفیف‌دار» are products
+  that actually carry a discount price (a "featured" badge is never invented),
+  and «پرفروش‌ها» is quantity shipped with cancelled orders excluded.
+- **§3.2 Catalog & real-time filtering** — `catalog-browser` (client) filters by
+  category, size, colour, price range, availability and free text, with sort and
+  pagination; facets are DERIVED from the published cards, so a size nobody
+  stocks is never offered, and the facet derivation, filtering, paging and the
+  "nothing matched" copy are pure functions in `@/lib/catalog-filters` under
+  test.
+- **§3.3 Product detail page** — gallery viewer, colour selector that re-scopes
+  the gallery to that colour's photos with the product gallery as the fallback
+  (never an empty gallery), colour × size matrix with out-of-stock variants
+  disabled, stock as a LEVEL (raw quantities never reach the browser),
+  centimetre size-chart modal, related products from the same category. The
+  merchant's `description_html` is deliberately NOT rendered to customers — the
+  description is rendered from `descriptionRaw` as escaped text, because
+  sanitizing merchant-authored HTML is a separate decision and shipping it
+  unsanitized would be a stored-XSS surface.
+- **§3.2/§3.4 Cart** — a pure cart module (`@/lib/cart-rules`: merge, cap,
+  remove, parse, serialize) plus an external store (`@/lib/cart-store`) read
+  through `useSyncExternalStore`. `localStorage` is untrusted input, so the
+  parser is fail-closed (malformed blob → empty cart, malformed line dropped,
+  quantity clamped, duplicates collapsed) and the stored price is display data
+  only. The store models storage as what it is — state React does not own — so
+  the server render and the hydrating client render agree and a `hydrated` flag
+  distinguishes "no basket yet" from "an empty basket" (the effect + `setState`
+  shape this replaced was also a cascading render on every mount and is
+  rejected by the project's lint gate).
+- **§3.4 Checkout** — `checkout-form` validates the customer block with the same
+  `@/lib/validation` rules the server applies, PRE-FLIGHTS the cart
+  (`checkCartAvailabilityAction`, non-authoritative) and reports a price the
+  server disagrees with before submitting, then calls `placeOrderAction`.
+  Totals are computed server-side inside the transaction and the discount is
+  never predicted by the browser.
+- **§3.4 Payment adapter** — `src/server/payments/gateway.ts` defines the
+  fail-closed gateway interface and `MockPaymentGateway`, which answers
+  `UNAVAILABLE`; the order is written as `PENDING` and the customer is told
+  nothing was charged. This is the seam the Phase 6 live provider plugs into
+  (G-4 / open decision 10); no credential exists or is requested.
+- **Open, stated rather than faked** — OTP verification is NOT implemented (SMS
+  provider unselected, G-4; a mock code field would be worse than none), image
+  zoom / swipe gestures and live payment capture remain Phase 6 work, and mobile
+  gesture behaviour was not device-tested.
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**
@@ -446,6 +501,85 @@ variable alone. This block is appended to §6 and rewrites none of its history;
 `commerce/README.md`'s Phase 1-era "Not started: Phases 2–6" line was corrected
 because Phase 2 is implemented and now live-verified (§37: documentation must
 never be silently false).
+
+### Phase 3 verification — customer storefront (2026-10-12, owner-authorized)
+
+Appended to §6; nothing above is rewritten (append-only, §2.1).
+
+**Static and unit surface.** `npm run verify` **exit 0** — `typecheck` no
+diagnostics, `lint` **0 problems** (0 errors, 0 warnings), `npm test` **146
+tests / 37 suites, 146 pass / 0 fail**, `db:check` "Everything's fine".
+The 49 new tests are the pure modules and the new store: catalog facets,
+filtering/paging and the "nothing matched" copy; cart merge/cap/remove and the
+fail-closed `localStorage` parser (non-JSON, non-array, malformed lines dropped,
+quantity clamped, duplicates collapsed, a hand-edited price parsed but never
+trusted); money arithmetic and coupon eligibility; the centimetre size chart; the
+shipping table incl. the refusal of an unknown method id; the payment gateway's
+refusal paths; and the cart STORE against a stubbed `window` — server snapshot
+empty, stable and never the live one, adoption of a stored basket through the
+parser on the first subscription, every mutation persisted and notified, the
+cross-tab `storage` event adopting another tab's basket while ignoring unrelated
+keys, and a full clear emptying the basket.
+
+**Boundary and bundle.** The client/server separation test still passes and now
+covers the storefront tree (no `'use client'` module value-imports `@/db` or
+`@/server` outside the `@/server/actions/*` edge). `npm run build` **exit 0**:
+`/`, `/catalog`, `/checkout`, `/products/[slug]` all dynamic (`ƒ`, correct for a
+shop whose stock and prices move), the four admin routes and the packing-slip
+route intact, `/_not-found` static.
+
+**Browser pass (dev server, 2026-10-12).** `/`, `/catalog`, `/checkout` and
+`/admin` return 200 with `lang="fa"` and `dir="rtl"` on the document. With no
+canonical connection configured, every data surface renders the fail-closed
+notice and `/checkout` renders **no form at all**; the storefront header, cart
+drawer and footer are present, and the admin shell states «تنظیم‌نشده» up front.
+The cart was exercised end-to-end through the real UI: a basket seeded into
+`commerce.cart.v1` was adopted after hydration (badge «سبد خرید، ۳ کالا»), the
+drawer opened and listed the line with its display-only subtotal, and the
+«افزودن یک عدد» control wrote quantity 4 back to `localStorage` while the badge
+became ۴ — i.e. the store's persist-and-notify path, not just its render path.
+The dev console was clean throughout (no hydration error, no warning).
+
+**D-172 Phase 3 — hydration defence, verified at the mechanism.** The root
+layout's `suppressHydrationWarning` on `<html>` and `<body>` (present in `HEAD`)
+was re-checked against the installed React, because the failure mode it guards is
+an extension injecting `cz-shortcut-listen` and similar attributes between HTML
+parse and hydration. `node_modules/react-dom`'s `diffHydratedProperties`
+contains the gate
+`0 < extraAttributes.size && !0 !== props.suppressHydrationWarning &&
+warnForExtraAttributes(...)` — the extra-attribute difference is reported
+**unless that element's props** carry the flag (the gate is per element, not per
+subtree, which is why it is set on both tags and nowhere else), and React 19.3's
+hydration error text names "a browser extension installed which messes with the
+HTML before React loaded" as one of its causes. The rendered markup carries the
+flag on both tags (`suppressHydrationWarning: true` in the served HTML and flight
+payload), and the browser console is clean.
+
+**Attempted and INCONCLUSIVE (recorded, not claimed as a pass).** A local proxy
+that injects `cz-shortcut-listen` into the served HTML — the extension scenario
+itself — was built to A/B the console with and without the flag; the proxied
+origin never hydrated under the Turbopack dev server (`window.__next_f` present,
+no React fibre on any host node, controls inert), so the comparison produced no
+signal either way. The mechanism-level proof above is what stands; the proxy was
+not added to the repository.
+
+**Container and test-stack state (this pass).** `npm run db:down` was attempted
+and reported the Docker API unreachable (the Colima VM is not running), which is
+consistent with the observed state: no `postgres`/`dockerd` process, no listener
+on `127.0.0.1:55432` or `:5432`, no `engine-staging-*` container — there was no
+test container to stop, and none is left behind. The harness remains strictly
+opt-in by construction (no `restart:` policy, no hook in the repository runs
+`db:up`; it is an explicit operator command only), and the live suite proved it
+at runtime by SKIPPING with its named reason (`COMMERCE_DATABASE_URL not set — no
+target is guessed; fail-closed`). The staging stack lives in
+`local/infra/compose.staging.yml`, is referenced by no commerce script, test or
+build path, and was not started or touched.
+
+**Boundaries honoured:** no deployment, provisioning, connection, migration or
+credential of any kind; no environment was changed; the one local service started
+is the commerce dev server on loopback (plus the throwaway proxy, since killed);
+the storefront renders fail-closed rather than an empty shop while the canonical
+database is absent.
 
 ## 7. References
 

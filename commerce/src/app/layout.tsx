@@ -1,16 +1,19 @@
 import type { Metadata, Viewport } from 'next';
 import { Vazirmatn } from 'next/font/google';
-import Link from 'next/link';
-
-import { isDatabaseConfigured } from '@/server/db-context';
 
 import './globals.css';
 
 /**
- * D-172 §2 — merchant admin shell.
+ * D-172 — the document shell, shared by both surfaces.
  *
- * Vazirmatn is self-hosted at build time by `next/font`, so the running panel
- * makes no external request for typography (D-171 §3.1); RTL is the default and
+ * This file owns only what is true for EVERY page: the language and direction,
+ * the self-hosted font, the design tokens and the skip link. The merchant panel
+ * and the customer storefront each render their own chrome, in
+ * `app/admin/layout.tsx` and `app/(storefront)/layout.tsx` respectively — so a
+ * customer never sees the admin navigation and a merchant never sees the cart.
+ *
+ * Vazirmatn is self-hosted at build time by `next/font`, so neither surface makes
+ * an external request for typography (D-171 §3.1). RTL is the default and
  * `lang="fa"` is declared once here.
  */
 const vazirmatn = Vazirmatn({
@@ -21,12 +24,11 @@ const vazirmatn = Vazirmatn({
 
 export const metadata: Metadata = {
   title: {
-    default: 'پنل مدیریت فروشگاه — D-172',
-    template: '%s · پنل فروشگاه',
+    default: 'فروشگاه پوشاک',
+    template: '%s · فروشگاه پوشاک',
   },
   description:
-    'پنل مدیریت فروشگاهی (D-172): محصولات، موجودی، سفارش‌ها و تخفیف‌ها. fail-closed و بدون اعتبارنامهٔ داخلی.',
-  robots: { index: false, follow: false },
+    'فروشگاه پوشاک (D-172): فهرست محصولات، صفحهٔ محصول و تسویهٔ خرید — با اتصال fail-closed به پایگاهِ دادهٔ مرجع.',
 };
 
 export const viewport: Viewport = {
@@ -35,19 +37,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-const NAV = [
-  { href: '/admin', label: 'نمای کلی' },
-  { href: '/admin/products/new', label: 'افزودن محصول' },
-  { href: '/admin/inventory', label: 'موجودی و قیمت' },
-  { href: '/admin/orders', label: 'سفارش‌ها' },
-  { href: '/admin/promotions', label: 'تخفیف‌ها' },
-] as const;
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  // Rendered once for the whole shell: when the canonical connection is absent
-  // the panel says so up front instead of failing page by page (D-171 §2.2).
-  const connected = isDatabaseConfigured();
-
   return (
     // `suppressHydrationWarning` on BOTH top-level tags is deliberate and
     // applies only to these two elements (React does not suppress their
@@ -72,39 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           پرش به محتوای اصلی
         </a>
-        <div className="flex min-h-dvh flex-col">
-          <header className="cp-no-print border-b border-edge bg-surface">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <p className="text-cp-label font-semibold text-ink">پنل مدیریت فروشگاه</p>
-              <span
-                className={
-                  connected
-                    ? 'rounded-[--radius-cp] border border-success bg-success px-2 py-0.5 text-cp-caption text-on-success'
-                    : 'rounded-[--radius-cp] border border-warning bg-warning px-2 py-0.5 text-cp-caption text-on-warning'
-                }
-              >
-                {connected ? 'اتصال به پایگاهِ داده: تنظیم‌شده' : 'اتصال به پایگاهِ داده: تنظیم‌نشده'}
-              </span>
-            </div>
-            <nav aria-label="بخش‌های پنل" className="mx-auto max-w-6xl px-4 pb-3">
-              <ul className="flex flex-wrap gap-2">
-                {NAV.map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className="cp-target inline-flex items-center rounded-[--radius-cp] border border-edge-strong bg-surface px-3 py-2 text-cp-label text-ink"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </header>
-          <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 p-4 sm:p-6">
-            {children}
-          </main>
-        </div>
+        {children}
       </body>
     </html>
   );

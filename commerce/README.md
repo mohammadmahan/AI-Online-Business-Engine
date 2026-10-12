@@ -1,7 +1,9 @@
 # commerce/ — E-Commerce & Social Publishing track (D-172)
 
-Data core for the fashion commerce stack: the **Phase 1 catalog schema** and its
-typed contracts, implemented against the canonical PostgreSQL instance.
+The fashion commerce stack: the **Phase 1 catalog schema** and its typed
+contracts implemented against the canonical PostgreSQL instance, the **Phase 2
+merchant admin panel** (`/admin`) and the **Phase 3 customer storefront**
+(`/`, `/catalog`, `/products/[slug]`, `/checkout`).
 
 - **Plan of record:** [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](../docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
   (Phase 1 = §1.1–§1.5; every change on this track must cite its Phase/Section)
@@ -30,9 +32,18 @@ migration can never render against — or mutate — an engine schema.
 
 ```
 src/db/schema/   schema.ts (namespace) · enums.ts · catalog.ts (§1.1–§1.4)
-                 ordering.ts (§1.5) · relations.ts · index.ts
+                 ordering.ts (§1.5) · promotions.ts (§2.4) · relations.ts · index.ts
 src/db/index.ts  inert client factory (no connection string, no import-time I/O)
 src/contracts/   typed read models, raw insert models and write payloads
+                 (incl. storefront.ts — the customer surface's view of them)
+src/lib/         pure rules shared by both surfaces: validation, variant matrix,
+                 inventory/order/coupon rules, cart + cart store, catalog
+                 filters, checkout arithmetic, shipping, size chart, display copy
+src/server/      db-context (fail-closed gate) · repository.ts (Postgres impl) ·
+                 repository-memory.ts (test double) · services/ (read + write
+                 paths) · actions/ (the 'use server' edge) · payments/ (gateway iface)
+src/app/         (storefront)/ — the customer surface · admin/ — the merchant panel
+src/components/  ui/ (primitives) · admin/ · storefront/
 drizzle/         generated migration SQL + journal (committed, never hand-edited)
 ```
 
@@ -40,13 +51,22 @@ drizzle/         generated migration SQL + journal (committed, never hand-edited
 
 ```bash
 npm ci                 # install (lockfile committed)
+npm run dev            # dev server (both surfaces)
 npm run typecheck      # tsc --noEmit                      — offline
+npm run lint           # eslint .                          — offline
+npm test               # compiles src/**/*.test.ts to .test-build and runs node --test
 npm run db:generate    # regenerate SQL from the schema    — offline
 npm run db:check       # journal/schema consistency        — offline
-npm run verify         # typecheck + db:check
+npm run verify         # typecheck + lint + test + db:check — offline
+npm run build          # production build                  — offline
 npm run db:migrate     # APPLY migrations — needs DATABASE_URL, owner-gated
 npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 ```
+
+The test harness adds no dependency: `tsc` (already installed) compiles the
+tests and `node --test` runs them, with `test/alias-resolver.mjs` mapping the
+`@/…` alias at load time. The live suite (`npm run smoke:db`) is separate and
+opt-in — see below.
 
 `generate` / `check` never open a connection. Only `migrate` / `studio` read
 `DATABASE_URL`; see `.env.example` for the placeholder contract. **No credential
@@ -128,9 +148,23 @@ unqualified (`where "product_id" = "id"` bound both names to the subquery's own
 table — a condition that is never true). Both read models now aggregate over
 LEFT JOINs and are pinned by live assertions. Details in D-172 §6.
 
-**Not started:** Phases 3–6 (storefront, AI copywriting, social automation,
-payment/SMS/launch). The panel's open items are unchanged and recorded: media
-storage (G-5) is still unselected so a submission with pending image bytes is
-refused with its reason; the §2.3 buyer SMS stays a Phase 6 adapter (G-4);
-no audit table exists for order transitions. Nothing is deployed; no
-credential exists or is requested (D-045/D-139).
+Phase 3 (§3.1–§3.4, customer storefront): `npm run verify` exit 0 (typecheck,
+lint 0 problems, **146 tests in 37 suites**, `db:check`) · `build` exit 0 with
+`/`, `/catalog`, `/checkout` and `/products/[slug]` dynamic · browser-verified on
+the dev server (RTL, the fail-closed notice on every data surface and **no
+checkout form at all** with no canonical connection, and the cart exercised
+end-to-end: a seeded basket adopted after hydration, the drawer listing it, and a
+quantity change written back to `localStorage`). With no connection the
+storefront still refuses rather than rendering an empty shop. Details in D-172
+§5.3 and §6.
+
+**Not started:** Phases 4–6 (AI copywriting, social automation, payment/SMS/
+launch). Open items, unchanged and recorded: media storage (G-5) is still
+unselected so a submission with pending image bytes is refused with its reason;
+the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so checkout has **no OTP** — the
+phone number is validated and stored as the customer identity; payment is a
+fail-closed `MockPaymentGateway` that answers `UNAVAILABLE` and leaves the order
+`PENDING`; no audit table exists for order transitions; and the live PostgreSQL
+smoke suite is **SKIPPED** in this environment (Docker daemon down), so the
+storefront's read path is not yet exercised against a real server. Nothing is
+deployed; no credential exists or is requested (D-045/D-139).

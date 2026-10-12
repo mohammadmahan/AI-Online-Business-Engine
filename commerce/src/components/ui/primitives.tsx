@@ -203,3 +203,17 @@ export function Td({ children, className }: { children: ReactNode; className?: s
 export function Code({ children }: { children: ReactNode }) {
   return <span className="cp-code text-cp-caption">{children}</span>;
 }
+
+/**
+ * A loading placeholder (§3.3). Token-only and `aria-hidden`, so a screen reader
+ * hears the page's real landmarks rather than a row of invisible boxes; the pulse
+ * is switched off by the global `prefers-reduced-motion` rule in `globals.css`.
+ */
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn('block animate-pulse rounded-[--radius-cp] bg-surface-muted', className)}
+    />
+  );
+}

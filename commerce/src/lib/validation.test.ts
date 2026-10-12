@@ -9,9 +9,17 @@ import {
   isStock,
   issuesToMessage,
   normalizeCouponCode,
+  normalizeDigits,
+  normalizePhoneNumber,
+  normalizePostalCode,
   normalizeSku,
   parseInstant,
+  validateAddress,
+  validateCheckoutCustomer,
   validateCoupon,
+  validateCustomerName,
+  validatePhoneNumber,
+  validatePostalCode,
   validatePriceOverride,
   validateProduct,
   validateStockValue,
@@ -254,5 +262,81 @@ describe('validation — fulfillment and promotions (§2.3–§2.4)', () => {
       ).ok,
       false,
     );
+  });
+});
+
+/**
+ * D-172 §3.4 — checkout input rules.
+ *
+ * The customer types on a phone with a Persian keyboard, so the digit sets are
+ * normalised (Persian and Arabic-Indic → Latin) but nothing else is: a phone
+ * number that is not an Iranian mobile is refused with its reason rather than
+ * "cleaned" into something that looks valid.
+ */
+describe('validation — checkout customer block (§3.4)', () => {
+  it('reads Persian and Arabic-Indic digits as the digits they are', () => {
+    assert.equal(normalizeDigits('۰۹۱۲۳۴۵۶۷۸۹'), '09123456789');
+    assert.equal(normalizeDigits('٠٩١٢٣٤٥٦٧٨٩'), '09123456789');
+    assert.equal(normalizeDigits('۰a1٢'), '0a12');
+    assert.equal(normalizeDigits(''), '');
+  });
+
+  it('accepts an Iranian mobile written with separators or Persian digits', () => {
+    assert.equal(validatePhoneNumber('09123456789').ok, true);
+    assert.equal(validatePhoneNumber('۰۹۱۲۳۴۵۶۷۸۹').ok, true);
+    assert.equal(validatePhoneNumber('0912-345-6789').ok, true);
+    assert.equal(validatePhoneNumber('(0912) 345 6789').ok, true);
+    assert.equal(normalizePhoneNumber('۰۹۱۲ ۳۴۵ ۶۷۸۹'), '09123456789');
+  });
+
+  it('refuses a number that is not an Iranian mobile, naming the field', () => {
+    for (const bad of ['0812345678', '091234567', '091234567890', '+989123456789', 'phone']) {
+      const result = validatePhoneNumber(bad);
+      assert.equal(result.ok, false, `${bad} must be refused`);
+      assert.ok(!result.ok && result.issues[0]?.field === 'phoneNumber');
+    }
+    assert.equal(validatePhoneNumber(undefined).ok, false);
+    assert.equal(validatePhoneNumber(1234).ok, false);
+  });
+
+  it('requires a ten-digit postal code', () => {
+    assert.equal(validatePostalCode('1234567890').ok, true);
+    assert.equal(validatePostalCode('۱۲۳۴۵۶۷۸۹۰').ok, true);
+    assert.equal(normalizePostalCode('12345-67890'), '1234567890');
+    assert.equal(validatePostalCode('123456789').ok, false);
+    assert.equal(validatePostalCode('12345678901').ok, false);
+    assert.equal(validatePostalCode('12345abcde').ok, false);
+  });
+
+  it('bounds the name and the address by length, not by guesswork', () => {
+    assert.equal(validateCustomerName('سارا محمدی').ok, true);
+    assert.equal(validateCustomerName(' ا ').ok, false);
+    assert.equal(validateCustomerName('x'.repeat(121)).ok, false);
+    assert.equal(validateAddress('تهران، خیابان ولیعصر، پلاک ۱۲').ok, true);
+    assert.equal(validateAddress('تهران').ok, false);
+    assert.equal(validateAddress('ی'.repeat(501)).ok, false);
+  });
+
+  it('reports every offending field at once, so nothing is fixed one round-trip at a time', () => {
+    const result = validateCheckoutCustomer({
+      fullName: 'ا',
+      phoneNumber: '123456',
+      address: 'کوتاه',
+      postalCode: '123',
+    });
+    assert.equal(result.ok, false);
+    assert.ok(!result.ok);
+    assert.deepEqual(
+      result.issues.map((entry) => entry.field).sort(),
+      ['address', 'fullName', 'phoneNumber', 'postalCode'],
+    );
+
+    const good = validateCheckoutCustomer({
+      fullName: 'سارا محمدی',
+      phoneNumber: '۰۹۱۲۳۴۵۶۷۸۹',
+      address: 'تهران، خیابان ولیعصر، پلاک ۱۲، واحد ۳',
+      postalCode: '۱۲۳۴۵۶۷۸۹۰',
+    });
+    assert.equal(good.ok, true);
   });
 });

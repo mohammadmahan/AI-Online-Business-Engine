@@ -1,3 +1,4 @@
+import type { StockLevel } from '@/contracts/storefront';
 import type { InventoryRow } from '@/server/repository';
 
 /**
@@ -10,6 +11,24 @@ import type { InventoryRow } from '@/server/repository';
 
 /** Default low-stock threshold; a per-product override is a later concern. */
 export const LOW_STOCK_THRESHOLD = 3;
+
+/**
+ * The ONE place a quantity becomes a public level (D-172 §3).
+ *
+ * The admin badge and the storefront badge must never disagree about where
+ * "low" starts, and the storefront must never receive the number itself, so both
+ * surfaces derive their state from this function and the storefront's read models
+ * carry only its result.
+ */
+export function stockLevelFor(
+  stockQuantity: number,
+  threshold = LOW_STOCK_THRESHOLD,
+): StockLevel {
+  if (stockQuantity <= 0) {
+    return 'OUT';
+  }
+  return stockQuantity <= threshold ? 'LOW' : 'IN';
+}
 
 export type StockFilter = 'all' | 'low' | 'out' | 'inactive';
 

@@ -1676,7 +1676,7 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
       must be selected before payment-capture and shipping-purchase
       go-live
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
-      pre-start rulings DONE; Phases 1–2 COMPLETE & VERIFIED; Phases 3–6
+      pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phases 4–6
       NOT STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
@@ -1832,7 +1832,90 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           `@/server/actions/*` edge. No secret introduced (the compose
           credential is the throwaway container's own literal), no
           environment provisioned, Stage C untouched
-    - [ ] **Phase 3 — Customer Storefront** (roadmap §3.1–§3.4)
+    - [x] **Phase 3 — Customer Storefront (roadmap §3.1–§3.4):
+          IMPLEMENTED & VERIFIED (2026-10-12, `commerce/`)** — the customer
+          surface, on the same D-171 §3 design system as the panel. One
+          structural change: the document shell now owns only language,
+          direction, font, tokens and the skip link, the merchant chrome moved
+          to `app/admin/layout.tsx`, and the storefront has its own
+          `(storefront)/layout.tsx` — so a customer never sees the merchant
+          navigation (and `robots: noindex` moved with the panel; the shop is
+          public).
+          **§3.1** hero + category circles + three rails, each from a real read
+          and hidden when empty (newest = the read path's order, discounted =
+          products that actually carry a discount price, best-sellers =
+          quantity shipped with cancelled orders excluded) — no invented
+          "featured" badge, no rail of placeholders.
+          **§3.2** `catalog-browser` filters by category, size, colour, price
+          range, availability and text with sort + paging; the facets are
+          DERIVED from the published cards (a size nobody stocks is never
+          offered) and the derivation/filter/paging/empty-copy are pure
+          functions under test.
+          **§3.3** PDP: gallery viewer, colour selector re-scoping the gallery
+          to that colour's photos (product gallery as fallback, never empty),
+          colour × size matrix with out-of-stock variants disabled, stock as a
+          LEVEL (raw quantities never reach the browser), centimetre size-chart
+          modal, related products from the same category; the merchant's
+          `description_html` is deliberately NOT rendered to customers (the
+          description is escaped `descriptionRaw` text — sanitizing
+          merchant-authored HTML is a separate decision).
+          **§3.2/§3.4 cart** — pure `@/lib/cart-rules` (merge, cap, remove,
+          parse, serialize) behind `@/lib/cart-store`, read through
+          `useSyncExternalStore`: `localStorage` is untrusted input, so the
+          parser is fail-closed (corrupt blob → empty cart, malformed line
+          dropped, quantity clamped, duplicates collapsed) and the stored price
+          is display data only. The store replaced an effect + `setState`
+          read that was a cascading render on every mount and is rejected by
+          the project's lint gate; `hydrated` still separates "no basket yet"
+          from "an empty basket".
+          **§3.4 checkout** — customer block validated with the same
+          `@/lib/validation` rules the server applies, cart PRE-FLIGHTED
+          (`checkCartAvailabilityAction`, non-authoritative, reports a server
+          price the browser disagreed with before submitting), coupon applied
+          server-side against the existing promotions service, totals computed
+          inside the order transaction, order persisted as `PENDING`.
+          **§3.4 payment adapter** — `src/server/payments/gateway.ts` defines
+          the fail-closed gateway interface + `MockPaymentGateway` answering
+          `UNAVAILABLE` (the customer is told nothing was charged); this is the
+          seam the Phase 6 live provider plugs into (G-4 / decision 10).
+          **Open, stated rather than faked:** OTP verification is NOT built
+          (SMS provider unselected, G-4 — a mock code field would be worse than
+          none; the phone number is validated and stored as the identity),
+          image zoom / swipe gestures and live payment capture stay Phase 6,
+          mobile gesture behaviour was not device-tested, and the live
+          storefront read path is not yet exercised against a real server.
+          Evidence: `npm run verify` **exit 0** (typecheck no diagnostics, lint
+          **0 problems**, `npm test` **146 tests / 37 suites — 146 pass / 0
+          fail** incl. the new catalog/cart/checkout/size-chart/shipping/
+          gateway suites and the cart store's cross-tab + persistence cases,
+          `db:check` fine); `npm run build` **exit 0** with `/`, `/catalog`,
+          `/checkout`, `/products/[slug]` dynamic (`ƒ`) and the admin routes
+          intact; the client/server boundary test still passes over the
+          enlarged tree. Browser-verified on the dev server: RTL
+          (`lang="fa" dir="rtl"`) on every route, the fail-closed notice on
+          every data surface and **no checkout form at all** while the
+          canonical connection is absent, and the cart exercised end-to-end —
+          a seeded `commerce.cart.v1` adopted after hydration (badge «سبد
+          خرید، ۳ کالا»), the drawer listing the line, and «افزودن یک عدد»
+          writing quantity 4 back to `localStorage` with the badge at ۴; dev
+          console clean (no hydration error, no warning). The hydration
+          defence (`suppressHydrationWarning` on `<html>`/`<body>`, committed
+          earlier) was re-verified against the installed React:
+          `diffHydratedProperties` reports extra attributes
+          (`cz-shortcut-listen`) **unless the element's own props** carry the
+          flag — per element, not per subtree, hence both tags and nowhere
+          else. An A/B reproduction through a loopback proxy that injects the
+          extension attribute was attempted and is **INCONCLUSIVE** (the
+          proxied origin never hydrated under Turbopack dev), recorded as such
+          and not as a pass; the proxy was not added to the repository.
+          Container/test-stack state: `npm run db:down` reported the Docker API
+          unreachable (Colima not running), consistent with the observed
+          reality — no `postgres`/`dockerd` process, nothing listening on
+          55432/5432, no `engine-staging-*` container — so nothing was left
+          running and nothing had to be stopped; the harness stays opt-in by
+          construction (no `restart:`, no hook runs `db:up`) and the live suite
+          proved it by SKIPPING with its named reason. No deployment,
+          provisioning, migration, credential or environment change
     - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
           §4.1–§4.2; AI provider selection still open — decision 9)
     - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap

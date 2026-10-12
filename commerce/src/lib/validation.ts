@@ -283,6 +283,105 @@ export function validateCoupon(payload: CouponCreatePayload, now = new Date()): 
   return fromIssues(issues);
 }
 
+/* --------------------------------------------------------------- §3.4 input */
+
+const PERSIAN_DIGITS_RE = /[\u06F0-\u06F9]/g;
+const ARABIC_INDIC_DIGITS_RE = /[\u0660-\u0669]/g;
+
+/**
+ * Latin digits from whatever the customer's keyboard produced.
+ *
+ * Persian and Arabic-Indic numerals are the DEFAULT on many Iranian phones, so
+ * a phone number typed as «۰۹۱۲…» must not be rejected as malformed. This
+ * normalises the three digit sets — and only those — leaving every other
+ * character for the validators below to judge.
+ */
+export function normalizeDigits(value: string): string {
+  return value
+    .replace(PERSIAN_DIGITS_RE, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(ARABIC_INDIC_DIGITS_RE, (digit) => String(digit.charCodeAt(0) - 0x0660));
+}
+
+const MOBILE_RE = /^09\d{9}$/;
+const POSTAL_RE = /^\d{10}$/;
+
+/** Iranian mobile number (`09xxxxxxxxx`) after digit and separator normalisation. */
+export function normalizePhoneNumber(value: string): string {
+  return normalizeDigits(value).replace(/[\s\-()]/g, '');
+}
+
+export function validatePhoneNumber(value: unknown): Validation {
+  if (typeof value !== 'string') {
+    return { ok: false, issues: [issue('phoneNumber', 'شمارهٔ موبایل الزامی است.')] };
+  }
+  const normalized = normalizePhoneNumber(value);
+  if (!MOBILE_RE.test(normalized)) {
+    return {
+      ok: false,
+      issues: [issue('phoneNumber', 'شمارهٔ موبایل باید ۱۱ رقم و با ۰۹ شروع شود (مثال: ۰۹۱۲۰۰۰۰۰۰۰).')],
+    };
+  }
+  return { ok: true };
+}
+
+/** Iranian postal code: exactly ten digits (IMEI-style separators tolerated). */
+export function normalizePostalCode(value: string): string {
+  return normalizeDigits(value).replace(/[\s\-]/g, '');
+}
+
+export function validatePostalCode(value: unknown): Validation {
+  if (typeof value !== 'string') {
+    return { ok: false, issues: [issue('postalCode', 'کد پستی الزامی است.')] };
+  }
+  if (!POSTAL_RE.test(normalizePostalCode(value))) {
+    return { ok: false, issues: [issue('postalCode', 'کد پستی باید ۱۰ رقم باشد.')] };
+  }
+  return { ok: true };
+}
+
+function lengthIssue(field: string, label: string, value: unknown, min: number, max: number): ValidationIssue[] {
+  if (!isNonEmptyString(value)) {
+    return [issue(field, `${label} الزامی است.`)];
+  }
+  const trimmed = value.trim();
+  if (trimmed.length < min) {
+    return [issue(field, `${label} حداقل ${min} نویسه باشد.`)];
+  }
+  if (trimmed.length > max) {
+    return [issue(field, `${label} بیش از ${max} نویسه است.`)];
+  }
+  return [];
+}
+
+export function validateCustomerName(value: unknown): Validation {
+  return fromIssues(lengthIssue('fullName', 'نام و نام خانوادگی', value, 3, 120));
+}
+
+export function validateAddress(value: unknown): Validation {
+  return fromIssues(lengthIssue('address', 'نشانی', value, 10, 500));
+}
+
+/**
+ * One checkout submission (§3.4): the customer block only. Lines, coupon and
+ * shipping are validated by `placeOrder`, which also re-resolves them against
+ * the SSOT — format validation and stock/pricing authority are separate steps
+ * on purpose.
+ */
+export function validateCheckoutCustomer(input: {
+  fullName: unknown;
+  phoneNumber: unknown;
+  address: unknown;
+  postalCode: unknown;
+}): Validation {
+  const results = [
+    validateCustomerName(input.fullName),
+    validatePhoneNumber(input.phoneNumber),
+    validateAddress(input.address),
+    validatePostalCode(input.postalCode),
+  ];
+  return fromIssues(results.flatMap((result) => (result.ok ? [] : result.issues)));
+}
+
 /* ------------------------------------------------------------------ helpers */
 
 export function dupes(values: string[]): string[] {
