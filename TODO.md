@@ -1916,6 +1916,67 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           construction (no `restart:`, no hook runs `db:up`) and the live suite
           proved it by SKIPPING with its named reason. No deployment,
           provisioning, migration, credential or environment change
+    - [x] **Phase 3 — live PostgreSQL storefront pass (2026-10-12,
+          owner-authorized): CLOSED** — the gap the record above stated is
+          closed by `commerce/src/__tests__/live-db/
+          phase3-storefront-live.test.ts`, which drives the REAL Postgres
+          repository through the whole customer funnel and asserts against
+          rows read back from the database: §3.1 category counts (a DRAFT
+          product is never counted, listed or readable by slug) and the
+          rails; §3.2 facet derivation from published ACTIVE variants only
+          (a deactivated variant leaves the sizes, colours and the matrix)
+          plus every filter and search; §3.3 PDP levels derived from stored
+          quantities, price resolution (override > discount > base), gallery
+          order, and no raw quantity in the read model; §3.3/§3.4 the
+          pre-flight check writing nothing; §3.4 the real order — PENDING
+          row, `order_items` with the server-resolved unit price, coupon
+          counter incremented in the same transaction, Persian-digit
+          phone/postal normalised to ASCII in the customer row,
+          `payment_ref_id` NULL — and every refusal with its own code and
+          provably no write. Evidence: harness up (`db:up` healthy,
+          `db:migrate` → 8 tables + 2 journal rows on PostgreSQL 16.15),
+          `npm run smoke:db` → **41/41 pass, exit 0, twice consecutively**
+          (22 Phase 2 + 19 Phase 3), each file resetting and re-applying
+          both migrations so the run is re-runnable; `npm run verify` exit 0
+          (**155 tests / 40 suites**, lint 0 problems) with both live suites
+          skipping by name when `COMMERCE_DATABASE_URL` is absent;
+          `npm run build` exit 0. **The live pass found two REAL defects,
+          both fixed here:** (1) `placeOrder` locked its rows with
+          `for update of "commerce"."product_variants"`, which PostgreSQL
+          refuses (42601 — the OF list must be unqualified) while Drizzle
+          renders the schema-bound table qualified, so **every** checkout
+          failed at the lock before it could write anything and the
+          fail-closed wrapper reported it as a generic `UNEXPECTED`; the
+          lock is now a single-table `for update` on `product_variants`
+          (no OF needed for one relation) with the product columns read in a
+          second statement, so only variant rows are locked and catalog rows
+          stay writeable. (2) **Nothing consumed stock**, so the last piece
+          could be sold repeatedly; on the owner's ruling this pass, an
+          order now consumes stock atomically inside its own transaction
+          (conditional `update … where stock_quantity >= n`, backed by the
+          column's `>= 0` CHECK, with a throw so a partial decrement can
+          never commit) and `updateOrderStatus(CANCELLED)` returns the lines
+          exactly once — in BOTH repository implementations, the memory
+          double's stored order lines now keeping the variant binding the
+          restock needs. Concurrency is measured, not asserted: two orders
+          for a variant with ONE piece left, submitted simultaneously
+          through the real service, yield exactly one order and zero stock.
+          The reservation rule is therefore a §3.4 behaviour the
+          specification did not spell out: **stock is reserved at checkout,
+          not at payment capture**, cancellations restock, and coupon usage
+          is not refunded (asserted). Offline half: new
+          `src/server/services/checkout.test.ts` (9 tests over the double)
+          so the rule cannot regress between live passes. Harness: the local
+          Colima VM was started for this pass only and the disposable
+          container + network were removed with `db:down`, the VM returned
+          to its as-found stopped state; the `engine-staging-*` containers
+          came up on the daemon's own `restart: unless-stopped` policy,
+          publish no host ports (so they cannot shadow the harness, 5432 or
+          a dev server), their policy was left untouched, and they went down
+          with the VM; `smoke:db` now serialises the live directory with
+          `--test-concurrency=1` because both files share one database and
+          each resets it. No deployment, provisioning, migration outside the
+          disposable harness, credential or push
     - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
           §4.1–§4.2; AI provider selection still open — decision 9)
     - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap

@@ -197,6 +197,35 @@ Appended; the section text above is the specification and is **not** rewritten
   SKIPPED with its named reason; the live storefront read path is therefore
   **not** yet exercised end-to-end against a real server.
 
+#### Phase 3 live pass — the funnel against real PostgreSQL (2026-10-12, same day)
+
+Appended; the record above is not rewritten (append-only). It CLOSES the gap its
+own last bullet stated. Details and the full evidence trail are in `D-172` §6.
+
+- `commerce/src/__tests__/live-db/phase3-storefront-live.test.ts` drives the real
+  repository through §3.1 category counts and rails, §3.2 faceting/filtering/
+  availability, §3.3 PDP levels, price resolution and the gallery, and §3.4 the
+  order write — asserting against rows read back from PostgreSQL, not against a
+  service's return value. `npm run smoke:db` → **41/41 pass, exit 0, twice
+  consecutively** on PostgreSQL 16.15 (the disposable loopback harness), with
+  both live files resetting and re-applying the committed migrations per run.
+- **Two real defects were found and fixed by that pass.** (1) `placeOrder` locked
+  its rows with `for update of "commerce"."product_variants"`, which PostgreSQL
+  refuses (42601) — so **every** checkout failed at the lock before writing
+  anything; the lock is now a single-table `for update` on `product_variants`.
+  (2) **Nothing consumed stock**, so the last piece could be sold repeatedly; per
+  the owner's ruling on this pass, an order now consumes stock atomically inside
+  its own transaction and a cancellation returns it exactly once (both repository
+  implementations). Two simultaneous buyers of one remaining piece are proven to
+  yield exactly one order and zero stock.
+- **Storefront checkout (§3.4) therefore has one behaviour the specification
+  above did not spell out:** stock is RESERVED at checkout, not at payment
+  capture, and released on cancellation. Coupon usage is not refunded.
+- Offline half added so the rule survives without a server:
+  `src/server/services/checkout.test.ts` (9 tests over the in-memory double).
+  `npm run verify` → exit 0 (**155 tests / 40 suites**, lint 0 problems);
+  `npm run build` → exit 0.
+
 ---
 
 ## Phase 4: Fashion AI Engine & Copywriting Hub

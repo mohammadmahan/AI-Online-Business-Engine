@@ -18,7 +18,7 @@
     "db:up": "docker compose -f docker-compose.db.yml up -d --wait",
     "db:down": "docker compose -f docker-compose.db.yml down",
     "db:reset": "node scripts/db-reset.mjs && npm run db:migrate",
-    "smoke:db": "npm run test:build && node --import ./test/register.mjs --test .test-build/__tests__/live-db",
+    "smoke:db": "npm run test:build && node --import ./test/register.mjs --test --test-concurrency=1 .test-build/__tests__/live-db",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run db:check"
   },
   "dependencies": {

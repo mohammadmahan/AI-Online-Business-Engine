@@ -109,16 +109,20 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run db:down` | stops it, keeping the volume |
 | `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
 | `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000/0001 |
-| `npm run smoke:db` | runs the live smoke suite (migrations, §2.1–§2.4 writes, refusals) |
+| `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel) |
 
 ```bash
 export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55432/commerce_smoke
 npm run db:up && npm run db:migrate && npm run smoke:db
 ```
 
-The suite SKIPS with a named reason when `COMMERCE_DATABASE_URL` is absent (it
-never guesses a target: an absent configuration is a refusal, not a pass) and
-refuses a non-loopback target, so staging and production stay out of reach.
+The suites SKIP with a named reason when `COMMERCE_DATABASE_URL` is absent (they
+never guess a target: an absent configuration is a refusal, not a pass) and
+refuse a non-loopback target, so staging and production stay out of reach. Both
+live files share this one database and each resets the `commerce` schema and
+re-applies the committed migrations in `before()`, so `smoke:db` passes
+`--test-concurrency=1`: in parallel processes the second `drop schema` would
+truncate the first suite's fixtures mid-run.
 `db:reset` — the one destructive command — refuses anything that is not
 loopback:55432. The credentials in the compose file are the disposable
 container's own literals; no real credential exists in this repository.
@@ -149,14 +153,30 @@ table — a condition that is never true). Both read models now aggregate over
 LEFT JOINs and are pinned by live assertions. Details in D-172 §6.
 
 Phase 3 (§3.1–§3.4, customer storefront): `npm run verify` exit 0 (typecheck,
-lint 0 problems, **146 tests in 37 suites**, `db:check`) · `build` exit 0 with
+lint 0 problems, **155 tests in 40 suites**, `db:check`) · `build` exit 0 with
 `/`, `/catalog`, `/checkout` and `/products/[slug]` dynamic · browser-verified on
 the dev server (RTL, the fail-closed notice on every data surface and **no
 checkout form at all** with no canonical connection, and the cart exercised
 end-to-end: a seeded basket adopted after hydration, the drawer listing it, and a
 quantity change written back to `localStorage`). With no connection the
-storefront still refuses rather than rendering an empty shop. Details in D-172
-§5.3 and §6.
+storefront still refuses rather than rendering an empty shop.
+
+Phase 3 **live pass** (with the harness below up): `npm run smoke:db` → **41/41
+pass, exit 0, twice consecutively** — 22 Phase 2 subtests plus 19 in
+`src/__tests__/live-db/phase3-storefront-live.test.ts`, which drives the real
+repository through the whole customer funnel (category counts and rails, facet
+derivation and every filter, PDP stock levels and price resolution, the order
+write with its items, coupon counter and normalised customer row, the refusals)
+and asserts against rows read back from PostgreSQL. It also proves the two
+properties the in-memory double cannot: an order **consumes** stock atomically in
+its own transaction (returned exactly once on cancellation, coupon usage not
+refunded), and two simultaneous buyers of the LAST piece yield exactly one order
+and zero stock. That pass found and fixed two real defects — a `for update of
+"commerce"."product_variants"` lock clause PostgreSQL refuses (42601), which had
+made **every** checkout fail before it could write, and the complete absence of
+stock consumption. `smoke:db` runs the live directory with
+`--test-concurrency=1` because both live files share one database and each resets
+it. Details in D-172 §5.3 and §6.
 
 **Not started:** Phases 4–6 (AI copywriting, social automation, payment/SMS/
 launch). Open items, unchanged and recorded: media storage (G-5) is still
@@ -164,7 +184,9 @@ unselected so a submission with pending image bytes is refused with its reason;
 the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so checkout has **no OTP** — the
 phone number is validated and stored as the customer identity; payment is a
 fail-closed `MockPaymentGateway` that answers `UNAVAILABLE` and leaves the order
-`PENDING`; no audit table exists for order transitions; and the live PostgreSQL
-smoke suite is **SKIPPED** in this environment (Docker daemon down), so the
-storefront's read path is not yet exercised against a real server. Nothing is
-deployed; no credential exists or is requested (D-045/D-139).
+`PENDING`; no audit table exists for order transitions; image zoom / swipe
+gestures and mobile gesture behaviour remain untested on a device; and stock is
+now reserved at checkout rather than at payment capture, which is the owner's
+ruling on the Phase 3 live pass (a cancelled order restocks; coupon usage is not
+refunded). Nothing is deployed; no credential exists or is requested
+(D-045/D-139).

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 
 import type {
   CartAvailabilityLine,
@@ -99,6 +99,22 @@ export interface OrderDetail extends OrderListItem {
   postalCode: string;
   paymentRefId: string | null;
   items: OrderItemView[];
+}
+
+/**
+ * Thrown when the conditional stock decrement finds less stock than the locked
+ * rows promised. It exists so a partial decrement can never commit: the throw
+ * aborts the transaction, and `placeOrder` catches it OUTSIDE the transaction
+ * and turns it into the ordinary `STOCK_INSUFFICIENT` refusal.
+ */
+class StockConflictError extends Error {
+  readonly variantId: string;
+
+  constructor(variantId: string) {
+    super('stock was consumed by a concurrent order');
+    this.name = 'StockConflictError';
+    this.variantId = variantId;
+  }
 }
 
 export interface NewProductGraph {
@@ -637,13 +653,51 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
       return { ...head, itemCount, items };
     },
 
+    /**
+     * Status change, with the ONE side effect a status carries: cancelling an
+     * order returns the stock that order consumed (§3.4 reservation).
+     *
+     * Both halves run in one transaction and the order row is locked first, so a
+     * cancellation restocks exactly once even under concurrent requests; the
+     * `previous !== 'CANCELLED'` check is what makes it idempotent rather than
+     * relying on the lifecycle map alone (`transitionOrder` already refuses an
+     * exit from a terminal status, but this repository method is the last line
+     * of defence, and the panel is not its only possible caller).
+     *
+     * A variant referenced by an order line can never have been deleted
+     * (`order_items.variant_id` is RESTRICT), so every line has a row to credit.
+     */
     async updateOrderStatus(orderId, status) {
-      const rows = await db
-        .update(orders)
-        .set({ status, updatedAt: new Date() })
-        .where(eq(orders.id, orderId))
-        .returning({ id: orders.id });
-      return rows.length === 1;
+      return db.transaction(async (tx) => {
+        const [current] = await tx
+          .select({ status: orders.status })
+          .from(orders)
+          .where(eq(orders.id, orderId))
+          .for('update');
+        if (!current) {
+          return false;
+        }
+
+        if (status === 'CANCELLED' && current.status !== 'CANCELLED') {
+          const lines = await tx
+            .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
+            .from(orderItems)
+            .where(eq(orderItems.orderId, orderId));
+          for (const line of lines) {
+            await tx
+              .update(productVariants)
+              .set({ stockQuantity: sql`${productVariants.stockQuantity} + ${line.quantity}` })
+              .where(eq(productVariants.id, line.variantId));
+          }
+        }
+
+        const rows = await tx
+          .update(orders)
+          .set({ status, updatedAt: new Date() })
+          .where(eq(orders.id, orderId))
+          .returning({ id: orders.id });
+        return rows.length === 1;
+      });
     },
 
     async updateOrderTracking(orderId, trackingCode) {
@@ -840,159 +894,223 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         };
       }
 
-      return db.transaction(async (tx) => {
-        const variantIds = input.items.map((item) => item.variantId);
+      try {
+        return await db.transaction(async (tx) => {
+          const variantIds = input.items.map((item) => item.variantId);
 
-        // Lock the variant rows for the duration of the write: two customers
-        // buying the last piece cannot both pass the availability check. Only
-        // `product_variants` is locked (`of`) so catalog rows stay writeable.
-        const locked = await tx
-          .select({
-            variantId: productVariants.id,
-            isActive: productVariants.isActive,
-            stockQuantity: productVariants.stockQuantity,
-            priceOverride: productVariants.priceOverride,
-            basePrice: products.basePrice,
-            discountPrice: products.discountPrice,
-            status: products.status,
-          })
-          .from(productVariants)
-          .innerJoin(products, eq(productVariants.productId, products.id))
-          .where(inArray(productVariants.id, variantIds))
-          .for('update', { of: productVariants });
-
-        const unitPriceByVariant = new Map<string, number>();
-        let subtotal = 0;
-
-        for (const item of input.items) {
-          const row = locked.find((entry) => entry.variantId === item.variantId);
-          if (!row || !row.isActive || row.status !== 'PUBLISHED') {
-            return {
-              ok: false,
-              code: 'VARIANT_UNAVAILABLE',
-              message: 'این گونه دیگر در دسترس نیست.',
-              variantId: item.variantId,
-            };
-          }
-          if (row.stockQuantity < item.quantity) {
-            return {
-              ok: false,
-              code: 'STOCK_INSUFFICIENT',
-              message: 'موجودی این گونه کافی نیست.',
-              variantId: item.variantId,
-            };
-          }
-          // Same resolution the storefront displayed (D-024), re-read here.
-          const unitPrice = row.priceOverride ?? row.discountPrice ?? row.basePrice;
-          unitPriceByVariant.set(item.variantId, unitPrice);
-          subtotal += unitPrice * item.quantity;
-        }
-
-        let discount = 0;
-        let couponId: string | null = null;
-        if (input.couponCode) {
-          const [coupon] = await tx
-            .select()
-            .from(coupons)
-            .where(eq(coupons.code, input.couponCode))
+          // Lock the variant rows for the duration of the write: two customers
+          // buying the last piece cannot both pass the availability check.
+          //
+          // The lock is taken with a SINGLE-TABLE select on purpose. The variant
+          // rows are locked so catalog rows stay writeable, but PostgreSQL
+          // refuses `for update of "commerce"."product_variants"` (42601:
+          // "FOR UPDATE must specify unqualified relation names") and Drizzle
+          // renders this schema-bound table qualified — so asking for `of: table`
+          // on the join made EVERY checkout fail at the lock before it could
+          // write anything. A lock on `product_variants` alone needs no `OF`
+          // clause at all, and the product columns are read in the next query.
+          // The live storefront suite is what caught this.
+          const locked = await tx
+            .select({
+              variantId: productVariants.id,
+              productId: productVariants.productId,
+              isActive: productVariants.isActive,
+              stockQuantity: productVariants.stockQuantity,
+              priceOverride: productVariants.priceOverride,
+            })
+            .from(productVariants)
+            .where(inArray(productVariants.id, variantIds))
             .for('update');
-          if (!coupon) {
-            return {
-              ok: false,
-              code: 'COUPON_INVALID',
-              message: 'کد تخفیف معتبر نیست.',
-              field: 'couponCode',
-            };
+
+          const productIds = [...new Set(locked.map((row) => row.productId))];
+          const productRows =
+            productIds.length === 0
+              ? []
+              : await tx
+                  .select({
+                    id: products.id,
+                    status: products.status,
+                    basePrice: products.basePrice,
+                    discountPrice: products.discountPrice,
+                  })
+                  .from(products)
+                  .where(inArray(products.id, productIds));
+
+          const unitPriceByVariant = new Map<string, number>();
+          let subtotal = 0;
+
+          for (const item of input.items) {
+            const variant = locked.find((entry) => entry.variantId === item.variantId);
+            const product = variant
+              ? productRows.find((entry) => entry.id === variant.productId)
+              : undefined;
+            if (!variant || !product || !variant.isActive || product.status !== 'PUBLISHED') {
+              return {
+                ok: false,
+                code: 'VARIANT_UNAVAILABLE',
+                message: 'این گونه دیگر در دسترس نیست.',
+                variantId: item.variantId,
+              };
+            }
+            if (variant.stockQuantity < item.quantity) {
+              return {
+                ok: false,
+                code: 'STOCK_INSUFFICIENT',
+                message: 'موجودی این گونه کافی نیست.',
+                variantId: item.variantId,
+              };
+            }
+            // Same resolution the storefront displayed (D-024), re-read here.
+            const unitPrice = variant.priceOverride ?? product.discountPrice ?? product.basePrice;
+            unitPriceByVariant.set(item.variantId, unitPrice);
+            subtotal += unitPrice * item.quantity;
           }
-          const decision = evaluateCoupon(
-            {
-              id: coupon.id,
-              code: coupon.code,
-              discountType: coupon.discountType,
-              discountValue: coupon.discountValue,
-              minSpend: coupon.minSpend,
-              expiresAt: coupon.expiresAt,
-              usageLimit: coupon.usageLimit,
-              usedCount: coupon.usedCount,
-              isActive: coupon.isActive,
-            },
-            subtotal,
+
+          let discount = 0;
+          let couponId: string | null = null;
+          if (input.couponCode) {
+            const [coupon] = await tx
+              .select()
+              .from(coupons)
+              .where(eq(coupons.code, input.couponCode))
+              .for('update');
+            if (!coupon) {
+              return {
+                ok: false,
+                code: 'COUPON_INVALID',
+                message: 'کد تخفیف معتبر نیست.',
+                field: 'couponCode',
+              };
+            }
+            const decision = evaluateCoupon(
+              {
+                id: coupon.id,
+                code: coupon.code,
+                discountType: coupon.discountType,
+                discountValue: coupon.discountValue,
+                minSpend: coupon.minSpend,
+                expiresAt: coupon.expiresAt,
+                usageLimit: coupon.usageLimit,
+                usedCount: coupon.usedCount,
+                isActive: coupon.isActive,
+              },
+              subtotal,
+            );
+            if (!decision.ok) {
+              return { ok: false, code: 'COUPON_INVALID', message: decision.message, field: 'couponCode' };
+            }
+            discount = decision.discount;
+            couponId = coupon.id;
+          }
+
+          // ── consume the stock, as the FIRST write of the transaction ────────
+          // The rows are already locked `for update`, so nothing can slip between
+          // the check above and this write; the conditional update still repeats
+          // the bound (`stock_quantity >= quantity`, backed by the column's
+          // `>= 0` CHECK) so check-and-consume is ONE statement per variant and
+          // overselling stays impossible even if a future edit drops the lock.
+          // A mismatch here is therefore an invariant violation, not a customer
+          // error: it THROWS so the whole transaction rolls back (an order must
+          // never exist without the stock it consumed), and the catch below turns
+          // it into the ordinary refusal.
+          for (const item of input.items) {
+            const consumed = await tx
+              .update(productVariants)
+              .set({ stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}` })
+              .where(
+                and(
+                  eq(productVariants.id, item.variantId),
+                  gte(productVariants.stockQuantity, item.quantity),
+                ),
+              )
+              .returning({ id: productVariants.id });
+            if (consumed.length !== 1) {
+              throw new StockConflictError(item.variantId);
+            }
+          }
+
+          const phoneNumber = normalizePhoneNumber(input.customer.phoneNumber);
+          // Idempotent by identity, not by name: an existing customer row is
+          // reused UNTOUCHED (no silent overwrite of the profile), while this
+          // order carries the address the customer typed for THIS shipment.
+          const [inserted] = await tx
+            .insert(customers)
+            .values({
+              phoneNumber,
+              fullName: input.customer.fullName.trim(),
+              address: input.customer.address.trim(),
+              postalCode: normalizePostalCode(input.customer.postalCode),
+            })
+            .onConflictDoNothing({ target: customers.phoneNumber })
+            .returning({ id: customers.id });
+          const customerId =
+            inserted?.id ??
+            (
+              await tx
+                .select({ id: customers.id })
+                .from(customers)
+                .where(eq(customers.phoneNumber, phoneNumber))
+            )[0]?.id;
+          if (!customerId) {
+            throw new Error('customer resolution returned no row');
+          }
+
+          const totals = computeCheckoutTotals({ subtotal, discount, shipping: shippingAmount });
+          const [order] = await tx
+            .insert(orders)
+            .values({
+              customerId,
+              totalAmount: totals.total,
+              discountAmount: totals.discount,
+              shippingAmount: totals.shipping,
+              status: 'PENDING',
+              paymentRefId: input.paymentRefId,
+              shippingAddress: input.shippingAddress.trim(),
+            })
+            .returning({ id: orders.id });
+          if (!order) {
+            throw new Error('order insert returned no row');
+          }
+
+          await tx.insert(orderItems).values(
+            input.items.map((item) => ({
+              orderId: order.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              unitPrice: unitPriceByVariant.get(item.variantId) as number,
+            })),
           );
-          if (!decision.ok) {
-            return { ok: false, code: 'COUPON_INVALID', message: decision.message, field: 'couponCode' };
-          }
-          discount = decision.discount;
-          couponId = coupon.id;
-        }
 
-        const phoneNumber = normalizePhoneNumber(input.customer.phoneNumber);
-        // Idempotent by identity, not by name: an existing customer row is
-        // reused UNTOUCHED (no silent overwrite of the profile), while this
-        // order carries the address the customer typed for THIS shipment.
-        const [inserted] = await tx
-          .insert(customers)
-          .values({
-            phoneNumber,
-            fullName: input.customer.fullName.trim(),
-            address: input.customer.address.trim(),
-            postalCode: normalizePostalCode(input.customer.postalCode),
-          })
-          .onConflictDoNothing({ target: customers.phoneNumber })
-          .returning({ id: customers.id });
-        const customerId =
-          inserted?.id ??
-          (
+          if (couponId !== null) {
             await tx
-              .select({ id: customers.id })
-              .from(customers)
-              .where(eq(customers.phoneNumber, phoneNumber))
-          )[0]?.id;
-        if (!customerId) {
-          throw new Error('customer resolution returned no row');
-        }
+              .update(coupons)
+              .set({ usedCount: sql`${coupons.usedCount} + 1`, updatedAt: new Date() })
+              .where(eq(coupons.id, couponId));
+          }
 
-        const totals = computeCheckoutTotals({ subtotal, discount, shipping: shippingAmount });
-        const [order] = await tx
-          .insert(orders)
-          .values({
-            customerId,
-            totalAmount: totals.total,
-            discountAmount: totals.discount,
-            shippingAmount: totals.shipping,
-            status: 'PENDING',
-            paymentRefId: input.paymentRefId,
-            shippingAddress: input.shippingAddress.trim(),
-          })
-          .returning({ id: orders.id });
-        if (!order) {
-          throw new Error('order insert returned no row');
-        }
-
-        await tx.insert(orderItems).values(
-          input.items.map((item) => ({
+          return {
+            ok: true as const,
             orderId: order.id,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            unitPrice: unitPriceByVariant.get(item.variantId) as number,
-          })),
-        );
-
-        if (couponId !== null) {
-          await tx
-            .update(coupons)
-            .set({ usedCount: sql`${coupons.usedCount} + 1`, updatedAt: new Date() })
-            .where(eq(coupons.id, couponId));
+            customerId,
+            totals,
+            couponApplied: couponId !== null,
+            status: 'PENDING' as const,
+          };
+        });
+      } catch (error) {
+        // The ONLY refusal raised from inside the transaction: the stock it was
+        // about to consume had already moved. Reported as the same code the
+        // pre-check uses, and never as a partial write.
+        if (error instanceof StockConflictError) {
+          return {
+            ok: false,
+            code: 'STOCK_INSUFFICIENT',
+            message: 'موجودی این گونه کافی نیست.',
+            variantId: error.variantId,
+          };
         }
-
-        return {
-          ok: true as const,
-          orderId: order.id,
-          customerId,
-          totals,
-          couponApplied: couponId !== null,
-          status: 'PENDING' as const,
-        };
-      });
+        throw error;
+      }
     },
 
     async setOrderPaymentRef(orderId, paymentRefId) {

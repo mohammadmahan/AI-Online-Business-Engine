@@ -15,6 +15,7 @@ import {
   type NewCouponInput,
   type NewProductGraph,
   type OrderDetail,
+  type OrderItemView,
   type OrderListItem,
   type ProductListItem,
   type StorefrontHeadRow,
@@ -111,6 +112,16 @@ interface MemoryCustomerRow {
   postalCode: string;
 }
 
+/**
+ * The double's stored order line: the public view plus the variant binding a
+ * cancellation needs to return stock. PostgreSQL carries the same information in
+ * `order_items.variant_id` — here it is spelled out on the row rather than kept
+ * in a side table, so the double still has ONE source of truth per order.
+ */
+type MemoryOrderItem = OrderItemView & { variantId: string | null };
+
+type MemoryOrderRow = Omit<OrderDetail, 'items'> & { items: MemoryOrderItem[] };
+
 export function createMemoryRepository(seed: MemoryRepositorySeed = {}): CommerceRepository {
   const categories = seed.categories ?? [
     { id: 'cat-1', name: 'مانتو', slug: 'manto' },
@@ -180,10 +191,12 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     addProduct(graph);
   });
 
-  const ordersTable: OrderDetail[] = (seed.orders ?? []).map((order) => ({
+  const ordersTable: MemoryOrderRow[] = (seed.orders ?? []).map((order) => ({
     ...order,
     itemCount: order.items.reduce((total, item) => total + item.quantity, 0),
-    items: order.items.map((item) => ({ ...item, id: nextId('item') })),
+    // A seeded order carries no variant binding, so cancelling one restocks
+    // nothing — the double cannot invent which variant it was.
+    items: order.items.map((item) => ({ ...item, id: nextId('item'), variantId: null })),
   }));
 
   const couponsTable: CouponRow[] = (seed.coupons ?? []).map((coupon) => ({
@@ -321,6 +334,20 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       const order = ordersTable.find((entry) => entry.id === orderId);
       if (!order) {
         return false;
+      }
+      // Cancelling returns the stock the order consumed — the same rule the SQL
+      // path applies, and the `previous !== 'CANCELLED'` check makes it
+      // idempotent rather than trusting the lifecycle map alone.
+      if (status === 'CANCELLED' && order.status !== 'CANCELLED') {
+        for (const item of order.items) {
+          if (item.variantId === null) {
+            continue;
+          }
+          const variant = variantsTable.find((entry) => entry.variantId === item.variantId);
+          if (variant) {
+            variant.stockQuantity += item.quantity;
+          }
+        }
       }
       order.status = status;
       return true;
@@ -550,6 +577,17 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         coupon = found;
       }
 
+      // Consume the stock as the FIRST write of the order, mirroring the SQL
+      // path: every refusal above happened before any state changed, so a
+      // refused checkout leaves the double exactly as it was.
+      for (const item of input.items) {
+        const variant = variantsTable.find((entry) => entry.variantId === item.variantId);
+        if (!variant) {
+          continue;
+        }
+        variant.stockQuantity -= item.quantity;
+      }
+
       const phoneNumber = normalizePhoneNumber(input.customer.phoneNumber);
       const existing = customersTable.find((entry) => entry.phoneNumber === phoneNumber);
       if (!existing) {
@@ -592,6 +630,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
           const product = productsTable.find((entry) => entry.id === variant?.productId);
           return {
             id: nextId('item'),
+            variantId: item.variantId,
             sku: variant?.sku ?? '',
             productTitle: product?.title ?? '',
             size: variant?.size ?? '',

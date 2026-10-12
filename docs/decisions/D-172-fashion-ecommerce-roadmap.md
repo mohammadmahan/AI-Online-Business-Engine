@@ -289,7 +289,10 @@ badge (`robots: noindex` moved with it; the storefront is a public shop).
   (`checkCartAvailabilityAction`, non-authoritative) and reports a price the
   server disagrees with before submitting, then calls `placeOrderAction`.
   Totals are computed server-side inside the transaction and the discount is
-  never predicted by the browser.
+  never predicted by the browser. An order also CONSUMES the stock of its lines
+  atomically in that same transaction, and a cancellation returns it exactly
+  once, so the "last piece" cannot be sold twice — see §6 (this arrived with the
+  live pass, not with the first cut of this phase).
 - **§3.4 Payment adapter** — `src/server/payments/gateway.ts` defines the
   fail-closed gateway interface and `MockPaymentGateway`, which answers
   `UNAVAILABLE`; the order is written as `PENDING` and the customer is told
@@ -580,6 +583,105 @@ credential of any kind; no environment was changed; the one local service starte
 is the commerce dev server on loopback (plus the throwaway proxy, since killed);
 the storefront renders fail-closed rather than an empty shop while the canonical
 database is absent.
+
+### Phase 3 live storefront pass — the funnel against real PostgreSQL (2026-10-12, owner-authorized)
+
+Appended to §6; nothing above is rewritten (append-only, §2.1). This CLOSES the
+gap the previous block recorded ("no live PostgreSQL was available in this
+environment"), and it is the second live pass on this track after the Phase 2
+hardening pass.
+
+**Harness.** The local Colima VM was started for this pass only, then
+`npm run db:up` → `commerce-db-harness-postgres` healthy → `npm run db:migrate`
+applied both committed migrations to schema `commerce` on **PostgreSQL 16.15**
+(schema = 8 tables, `drizzle.__drizzle_migrations` = 2 rows). Teardown is
+recorded under "Boundaries" below. Tenancy target stayed where it belongs:
+loopback only, `127.0.0.1:55432`.
+
+**The suite.** `commerce/src/__tests__/live-db/phase3-storefront-live.test.ts`
+drives the REAL repository through the whole customer funnel and asserts against
+rows read back from the database, never against a service's word: §3.1 category
+counts (a DRAFT product is never counted, listed or readable by slug) and the
+rails; §3.2 facets derived from published ACTIVE variants only (a deactivated
+variant disappears from sizes, colours and the matrix), category/size/colour/
+price-range/availability filters, and search; §3.3 PDP levels (`IN`/`LOW`/`OUT`
+derived from stored quantities), price resolution (override > discount > base),
+the gallery order and the fact that **no raw quantity crosses the read model**;
+§3.3/§3.4 the optimistic pre-flight (per-line level, availability and server
+price, no write); §3.4 the real order — `PENDING` row, `order_items` with the
+server-resolved unit price, coupon applied with its usage counter incremented in
+the same transaction, Persian-digit phone/postal normalised to ASCII in the
+customer row, `payment_ref_id` NULL; the refusals (empty cart, bad phone/postal,
+unknown shipping method, unknown coupon, quantity above the per-line ceiling)
+each with its own code and provably writing nothing. Evidence: `npm run smoke:db`
+→ **41/41 pass, exit 0, twice consecutively** (22 Phase 2 + 19 Phase 3 subtests),
+with each file resetting the schema and re-applying both migrations, so the run
+is re-runnable by construction.
+
+**Two REAL defects the live pass found — both fixed here, neither visible to the
+in-memory double or to typecheck.**
+
+1. **Every checkout failed at the row lock (SQLSTATE 42601).** `placeOrder`
+   locked the variant rows with `for update of "commerce"."product_variants"`,
+   and PostgreSQL refuses a QUALIFIED name in the `OF` list ("FOR UPDATE must
+   specify unqualified relation names"). Drizzle renders this schema-bound table
+   qualified, so the statement was a syntax error before it could write anything:
+   the entire storefront checkout — the one path that must not fail — could never
+   have succeeded against a real server, and the fail-closed wrapper reported it
+   as a generic `UNEXPECTED`. Fix: the lock is taken with a SINGLE-TABLE
+   `select … for update` on `product_variants` (no `OF` clause is needed to lock
+   one relation), and the product columns the pricing needs are read in a second
+   statement. Behaviour is unchanged — only variant rows are locked, so catalog
+   rows stay writeable — and the live suite now exercises it on every run.
+2. **Nothing consumed stock, so the last piece could be sold twice.** The
+   availability check refused on a shortage but no write ever decremented
+   anything; the only stock write path in the track was the merchant's absolute
+   `updateStock`. The owner ruled on this pass: implement the reservation. An
+   order now consumes stock **inside its own transaction** with a conditional
+   `update … set stock_quantity = stock_quantity - n where id = … and
+   stock_quantity >= n` — check-and-consume as ONE statement, backed by the
+   column's `stock_quantity >= 0` CHECK — and a mismatch throws so the whole
+   transaction rolls back into the ordinary `STOCK_INSUFFICIENT` refusal rather
+   than committing a partial decrement. `updateOrderStatus(CANCELLED)` returns the
+   order's lines in the same transaction, guarded by `previous !== 'CANCELLED'`,
+   so a cancellation restocks exactly once. Coupon usage is deliberately NOT
+   refunded on cancellation (the conservative direction for a discount counter),
+   and that is asserted rather than left implicit. Both repository
+   implementations carry the rule (the Postgres one plus the memory double, whose
+   stored order lines now keep the variant binding the restock needs).
+
+**Concurrency — the property the double cannot show.** For a variant with ONE
+piece left, two orders were submitted simultaneously through the real service: the
+row lock serialises them, the loser re-reads the committed stock and is refused,
+and the database ends with exactly one order and zero stock. That test is in the
+suite, so "atomic" is measured rather than asserted.
+
+**Harness correction this pass required.** `phase3-storefront-live.test.ts` and
+`phase2-live.test.ts` share ONE database and each resets it, so `smoke:db` now
+runs the live directory with `--test-concurrency=1`; without it node:test runs the
+two files in parallel processes and the second `drop schema` truncates the first
+suite's fixtures mid-run.
+
+**Offline half.** `commerce/src/server/services/checkout.test.ts` was added so the
+reservation rule is not only proven against a server that has to be started by
+hand: 9 tests over the in-memory double cover line normalisation, the totals, the
+coupon counter, the reservation, the oversell refusal, the restock-exactly-once
+rule, the refusals writing nothing, and a mock AUTHORIZED reference that still
+leaves the order `PENDING`. `npm run verify` → **exit 0** (typecheck, lint **0
+problems**, **155 tests / 40 suites**, `db:check`), with both live suites skipping
+by name when `COMMERCE_DATABASE_URL` is absent; `npm run build` → **exit 0** with
+the same eleven routes.
+
+**Boundaries honoured on this pass:** the only services started were the local
+Colima VM (for the harness) and the commerce dev server on loopback; the harness
+was torn down with `npm run db:down` (container and network removed) and the VM
+was returned to the **stopped** state it was found in. The `engine-staging-*`
+containers came up on the Docker daemon's own `restart: unless-stopped` policy
+when the VM booted; they publish **no host ports** (so they cannot shadow the
+harness, `5432`, or a dev server), their restart policy was left alone — stopping
+them by hand would have silently disabled that policy — and they went down with
+the VM. No deployment, provisioning, migration outside the disposable harness, or
+credential; nothing was pushed.
 
 ## 7. References
 
