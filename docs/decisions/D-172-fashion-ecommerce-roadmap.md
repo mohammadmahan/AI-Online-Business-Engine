@@ -683,6 +683,106 @@ them by hand would have silently disabled that policy — and they went down wit
 the VM. No deployment, provisioning, migration outside the disposable harness, or
 credential; nothing was pushed.
 
+### Phase 3 CLOSE-OUT — reservation policy ratified, funnel guarded offline, inventory reconciliation asserted (2026-10-12, owner-authorized)
+
+Appended to §6; nothing above is rewritten (append-only, §2.1). This block
+**closes Phase 3**: it promotes the rules the live pass discovered into stated
+policy, and it moves the guard on those rules from a suite that needs a database
+to the suite that runs on every `npm test`.
+
+**1. The inventory reservation policy is ratified (this is the rule of record).**
+The live pass implemented it; this block states it, so it cannot be re-litigated
+as an accident of implementation:
+
+| # | Rule | Why |
+| --- | --- | --- |
+| a | Placing an order consumes its lines' stock **atomically**, in the same transaction as the `PENDING` order row | A `PENDING` order must not exist without the pieces it reserved; the last piece must not be sellable twice |
+| b | A transition to `CANCELLED` returns **exactly** the quantities that order consumed, **once** | Restock must be exact and idempotent; the guard is the previous status, and `CANCELLED` is terminal |
+| c | A redeemed coupon is **not** refunded — the usage counter keeps the redemption | The conservative direction for a discount counter: a code cannot be re-spent by cancelling |
+
+The policy is written into the persistence seam's own contract rather than only
+into prose: the `placeOrder` doc block on `CommerceRepository`
+(`commerce/src/server/repository.ts`) now states (a)–(c) explicitly. The stale
+comment it replaced claimed the opposite — that the path did NOT decrement stock
+and that reservation belonged to a later phase — which is exactly the kind of
+silently-false documentation `PROJECT_RULES.md` §37 forbids.
+
+**2. Merchant inventory reconciliation is now asserted, not assumed.** The
+owner's question behind this block was whether `/admin/inventory` reflects what
+customers did. It does, and the assertion is against the panel's OWN rules rather
+than against a quantity read by hand: `commerce/src/__tests__/funnel.test.ts`
+places an order and then evaluates `inventorySummary`, `stockState` and
+`filterInventory` (the functions `inventory-workspace.tsx` renders from) over a
+fresh `listInventory()`. The basket is fixture-chosen so the order crosses two
+thresholds at once — one line takes a variant from 4 to 2 (into low stock) and
+another from 2 to 0 (sold out) — so the grid must show `OUT_OF_STOCK` on the
+emptied row, `LOW_STOCK` on the reduced one, the «ناموجود» chip must list exactly the empty rows, and after
+the cancellation **every** opening quantity must be back with the summary
+returned to its pre-order state. The same read also proves the customer side
+agrees: the sold-out colour can no longer be chosen and the colour that was bought
+down reads «موجودی محدود».
+
+**3. The customer funnel is guarded hermetically — eight stages, on every
+`npm test`.** New suite `commerce/src/__tests__/funnel.test.ts` walks the journey
+in the order a customer meets it: catalog read and facet narrowing (a DRAFT
+product is invisible on every read path) → PDP colour × size matrix (a sellable
+colour opens, the sold-out cell stays visible and disabled, a colour with no such
+size is a different state) → cart lines produced by `toCartLine` and stored in the
+real drawer store, including the `localStorage` round trip and the merge/stepper
+semantics → the pre-flight check warning about an over-quantity that cannot be
+bought, while writing nothing → `placeCheckoutOrder` writing the `PENDING` order
+with server-computed totals, the coupon applied and the stock consumed → the
+merchant grid reconciling → cancellation restoring stock exactly once with the
+coupon counter untouched → and finally the REAL `placeOrderAction` entry point
+refusing `DB_NOT_CONFIGURED` with no canonical connection, so the fail-closed gate
+is proven at the surface the browser actually calls. It runs on the in-memory
+double and a stubbed `localStorage`: no browser, no database, no network.
+
+**4. The PDP's selection rules became a pure module so the funnel test could be a
+real guard.** `commerce/src/lib/variant-selection.ts` now owns: which colour opens
+(the first SELLABLE one — falling back to the first, so a sold-out product still
+shows its own selector instead of an empty one), which sizes are DISABLED rather
+than hidden, what the badge may claim before a size is picked (the colour's own
+aggregate, and `OUT` rather than a reassuring `IN` when nothing is sellable), the
+quantity cap per level, the colour-scoped gallery, and the cart line with its
+clamp. `variant-selection.test.ts` pins each of those, and
+`product-experience.tsx` keeps only state and markup. Behaviour is
+equivalence-preserving: the same functions drive the same branches the component
+had inline.
+
+**5. One harness gap was found and closed.** `next` ships real extensionless
+subpath files and declares **no** `exports` map, so `import … from 'next/cache'`
+— which every storefront server action needs — is unresolvable to Node's own ESM
+resolver, which is what the offline suite runs under. The test resolver
+(`commerce/test/alias-resolver.mjs`) now retries a FAILED bare specifier as
+`X.js` (CommonJS resolution's own rule), as a fallback only: anything that already
+resolved keeps resolving the same way, and the original error is re-raised when
+the retry fails too. Without it, no offline test could reach a server action, and
+stage 8 of the funnel guard would not exist.
+
+**Evidence after these changes (all re-run on the final tree):**
+
+- `npm run verify` → **exit 0** — `tsc --noEmit`, `eslint .` **0 problems**,
+  `npm test` **176/176 pass across 46 suites** (both live suites skipping by name
+  with `COMMERCE_DATABASE_URL` absent, as designed), `drizzle-kit check`
+  (`Everything's fine`).
+- `npm run build` → **exit 0**, the same eleven routes, all storefront routes
+  dynamic.
+- `npm run smoke:db` → **41/41 pass, exit 0** on PostgreSQL 16.15 in the
+  disposable loopback harness (`commerce-db-harness-postgres`, migrations
+  re-applied per file), re-run AFTER this block's changes to confirm the offline
+  additions did not disturb the live path.
+- **Boundaries.** Colima was started for the live re-run and the harness torn down
+  afterwards (`db:down`; container, network and Colima returned to the stopped
+  state they were found in). No deployment, no provisioning, no migration outside
+  the disposable harness, no credential, nothing pushed.
+
+**Phase 3 status: CLOSED.** Open items carried forward unchanged (they are the
+owner's, and no item here resolves one silently): OTP/SMS and the payment and
+shipping providers (**G-4**, decisions 10/11), storefront media storage (**G-5**),
+the missing audit record for order transitions, image zoom / swipe gestures, and
+device testing of the PDP on a phone.
+
 ## 7. References
 
 - [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](../roadmap/FASHION_ECOMMERCE_ROADMAP.md) — the adopted plan.

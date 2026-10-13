@@ -3,7 +3,7 @@
 import { Ruler, ShoppingBag } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import type { CartLine, StorefrontProductDetail } from '@/contracts/storefront';
+import type { StorefrontProductDetail } from '@/contracts/storefront';
 import { formatCountFa, formatToman } from '@/lib/format';
 import {
   SIZE_CHART,
@@ -12,13 +12,19 @@ import {
   SIZE_CHART_UNKNOWN_NOTE,
   sizeChartRow,
 } from '@/lib/size-chart';
+import { STOCK_LEVEL_LABELS, STOCK_LEVEL_TONE } from '@/lib/storefront-display';
 import {
-  STOCK_LEVEL_LABELS,
-  STOCK_LEVEL_TONE,
-  galleryForColor,
-  isSellableLevel,
-  quantityCapForLevel,
-} from '@/lib/storefront-display';
+  canAddVariant,
+  colorOptions,
+  defaultColor,
+  findVariant,
+  selectionCap,
+  selectionGallery,
+  selectionLevel,
+  selectionPrice,
+  sizeOptions,
+  toCartLine,
+} from '@/lib/variant-selection';
 import { Modal } from '@/components/ui/dialog';
 import { Badge, Table, Td, Th, buttonClass } from '@/components/ui/primitives';
 import { cn } from '@/lib/utils';
@@ -42,6 +48,10 @@ import { ProductGallery } from './product-gallery';
  * came for size L learns that this colour has no L instead of wondering where the
  * button went (the roadmap's "automatic disabled state").
  *
+ * The selection RULES live in `@/lib/variant-selection` so the matrix, the cap,
+ * the badge's claim and the cart line can be driven by a hermetic funnel test
+ * (`src/__tests__/funnel.test.ts`). This component keeps only state and markup.
+ *
  * The quantity cap follows the level: a «موجودی محدود» line can only be taken up
  * to the boutique's low-stock threshold. That reduces — never guarantees — an
  * oversell; the write path re-reads the real quantity inside its transaction.
@@ -49,60 +59,35 @@ import { ProductGallery } from './product-gallery';
 export function ProductExperience({ product }: { product: StorefrontProductDetail }) {
   const { add, openCart } = useCart();
 
-  const colors = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const variant of product.variants) {
-      if (!seen.has(variant.colorName)) {
-        seen.set(variant.colorName, variant.colorHex);
-      }
-    }
-    return [...seen.entries()].map(([name, hex]) => ({ name, hex }));
-  }, [product.variants]);
-
-  const [selectedColor, setSelectedColor] = useState<string | null>(() => {
-    const sellable = product.variants.find((variant) => isSellableLevel(variant.level));
-    return sellable?.colorName ?? colors[0]?.name ?? null;
-  });
+  const colors = useMemo(() => colorOptions(product.variants), [product.variants]);
+  const [selectedColor, setSelectedColor] = useState<string | null>(() =>
+    defaultColor(product.variants),
+  );
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
 
-  const colorVariants = product.variants.filter((variant) => variant.colorName === selectedColor);
-  const selectedVariant = colorVariants.find((variant) => variant.size === selectedSize) ?? null;
-  const gallery = galleryForColor(
-    product.images,
-    colorVariants.map((variant) => variant.variantId),
+  const sizes = useMemo(
+    () => sizeOptions(product.sizes, product.variants, selectedColor),
+    [product.sizes, product.variants, selectedColor],
   );
+  const selectedVariant = findVariant(product.variants, selectedColor, selectedSize);
+  const gallery = selectionGallery(product, selectedColor);
 
   // The badge answers about the chosen variant when there is one, and about the
   // colour as a whole before a size is picked — never a claim the data cannot
   // support.
-  const level = selectedVariant
-    ? selectedVariant.level
-    : colorVariants.some((variant) => isSellableLevel(variant.level))
-      ? 'IN'
-      : 'OUT';
-  const cap = quantityCapForLevel(level);
-  const canAdd = selectedVariant !== null && isSellableLevel(selectedVariant.level);
-  const price = selectedVariant?.effectivePrice ?? product.effectivePrice;
+  const level = selectionLevel(product.variants, selectedColor, selectedSize);
+  const cap = selectionCap(level);
+  const canAdd = canAddVariant(selectedVariant);
+  const price = selectionPrice(product, selectedVariant);
   const chartRow = selectedSize === null ? null : sizeChartRow(selectedSize);
 
   function addToCart() {
     if (!selectedVariant) {
       return;
     }
-    const line: CartLine = {
-      variantId: selectedVariant.variantId,
-      productSlug: product.slug,
-      productTitle: product.title,
-      size: selectedVariant.size,
-      colorName: selectedVariant.colorName,
-      colorHex: selectedVariant.colorHex,
-      unitPrice: selectedVariant.effectivePrice,
-      quantity: Math.min(quantity, cap),
-      imageUrl: product.primaryImageUrl,
-    };
-    add(line);
+    add(toCartLine(product, selectedVariant, quantity));
     openCart();
   }
 
@@ -146,10 +131,8 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
           <legend className="text-cp-label font-medium text-ink">رنگ</legend>
           <div className="flex flex-wrap gap-2">
             {colors.map((color) => {
-              const sellable = product.variants.some(
-                (variant) => variant.colorName === color.name && isSellableLevel(variant.level),
-              );
               const isSelected = selectedColor === color.name;
+              const sellable = color.sellable;
               return (
                 <button
                   key={color.name}
@@ -194,37 +177,33 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {product.sizes.map((size) => {
-              const variant = colorVariants.find((entry) => entry.size === size) ?? null;
-              const available = variant !== null && isSellableLevel(variant.level);
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  aria-pressed={selectedSize === size}
-                  disabled={!available}
-                  title={available ? undefined : 'این اندازه برای رنگ انتخابی ناموجود است'}
-                  className={cn(
-                    buttonClass.neutral,
-                    selectedSize === size && 'border-primary text-primary',
-                    !available && 'opacity-50',
-                  )}
-                  onClick={() => {
-                    setSelectedSize(size);
-                    setQuantity(1);
-                  }}
-                >
-                  <span className="cp-code">{size}</span>
-                  {variant === null ? (
-                    <span className="text-cp-caption text-ink-muted">—</span>
-                  ) : (
-                    <span className="text-cp-caption text-ink-muted">
-                      {STOCK_LEVEL_LABELS[variant.level]}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {sizes.map(({ size, variant, available }) => (
+              <button
+                key={size}
+                type="button"
+                aria-pressed={selectedSize === size}
+                disabled={!available}
+                title={available ? undefined : 'این اندازه برای رنگ انتخابی ناموجود است'}
+                className={cn(
+                  buttonClass.neutral,
+                  selectedSize === size && 'border-primary text-primary',
+                  !available && 'opacity-50',
+                )}
+                onClick={() => {
+                  setSelectedSize(size);
+                  setQuantity(1);
+                }}
+              >
+                <span className="cp-code">{size}</span>
+                {variant === null ? (
+                  <span className="text-cp-caption text-ink-muted">—</span>
+                ) : (
+                  <span className="text-cp-caption text-ink-muted">
+                    {STOCK_LEVEL_LABELS[variant.level]}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 

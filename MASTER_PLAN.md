@@ -1446,9 +1446,42 @@ and Live Wiring programs; per-phase detail in §13 and the
     `drizzle-kit generate`/`check` and a live DDL run on PostgreSQL
     16.15 (7 tables, 2 enums, 80 constraints, 23 indexes, 10/10
     refusals refused, cascades/SET NULL correct, throwaway container
-    removed). **Phases 2–6 are NOT started**, G-4 (provider
-    selections), G-5 (storefront media storage) and G-6 (channel
-    reuse) remain open, and nothing is provisioned, installed,
+    removed). **Amended 2026-10-12 (append-only — the sentence above was
+    true when Phase 1 landed and is superseded for Phases 2 and 3; the
+    full records are in D-172 §5.2/§5.3/§6 and the roadmap):**
+    **Phase 2 (merchant admin panel, roadmap §2.1–§2.4) and Phase 3
+    (customer storefront, roadmap §3.1–§3.4) are IMPLEMENTED, VERIFIED
+    and — for Phase 3 — CLOSED.** Phase 2: the five panel routes on the
+    D-171 §3 design system (matrix generator, image ingestion, inline
+    stock/price grid, order transitions with confirmation and tracking
+    code, coupons), with a live PostgreSQL pass (22/22) that fixed the
+    read-model counts it exposed and with an executable client/server
+    boundary gate. Phase 3: the server-rendered storefront (home rails,
+    faceted catalog, PDP with the colour × size matrix and levels instead
+    of quantities, persistent slide-over cart, checkout persisting
+    `PENDING` through a server action) — verified offline, by `build`,
+    and by a live PostgreSQL pass (41/41 pass twice) that found and fixed
+    two REAL defects: a `for update of "commerce"."product_variants"`
+    clause PostgreSQL refuses (42601), which failed EVERY checkout before
+    it could write, and the total absence of stock consumption, which let
+    the last piece be sold repeatedly. **The inventory reservation policy
+    is RATIFIED**: an order consumes its stock atomically with its
+    `PENDING` row; a cancellation returns exactly those quantities once;
+    a redeemed coupon is not refunded. The Phase 3 close-out guards all
+    three on every `npm test` (a hermetic eight-stage funnel suite ending
+    at the real `placeOrderAction` fail-closed gate, plus the PDP's
+    selection rules extracted into a pure tested module) and asserts
+    MERCHANT INVENTORY RECONCILIATION through the panel's own rules, so a
+    bought-out variant reads «ناموجود» on `/admin/inventory` immediately
+    and a cancellation returns the grid to its pre-order state. Offline
+    evidence on the final tree: `npm run verify` exit 0 (typecheck, lint 0
+    problems, 176 tests / 46 suites), `npm run build` exit 0, live
+    `smoke:db` 41/41 exit 0. **Phases 4–6 are NOT started**, G-4 (provider
+    selections — payment 10, shipping 11, SMS, AI 9), G-5 (storefront
+    media storage) and G-6 (channel
+    reuse) remain open, as do the missing order-transition audit record,
+    OTP at checkout, image zoom/swipe gestures and device testing of the
+    PDP; nothing is provisioned, installed,
     connected or deployed — no live credential exists or is requested
     (D-045/D-139)
 

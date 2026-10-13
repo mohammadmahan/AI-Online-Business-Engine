@@ -38,7 +38,8 @@ src/contracts/   typed read models, raw insert models and write payloads
                  (incl. storefront.ts — the customer surface's view of them)
 src/lib/         pure rules shared by both surfaces: validation, variant matrix,
                  inventory/order/coupon rules, cart + cart store, catalog
-                 filters, checkout arithmetic, shipping, size chart, display copy
+                 filters, checkout arithmetic, variant selection (the PDP's
+                 colour × size matrix), shipping, size chart, display copy
 src/server/      db-context (fail-closed gate) · repository.ts (Postgres impl) ·
                  repository-memory.ts (test double) · services/ (read + write
                  paths) · actions/ (the 'use server' edge) · payments/ (gateway iface)
@@ -65,8 +66,9 @@ npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 
 The test harness adds no dependency: `tsc` (already installed) compiles the
 tests and `node --test` runs them, with `test/alias-resolver.mjs` mapping the
-`@/…` alias at load time. The live suite (`npm run smoke:db`) is separate and
-opt-in — see below.
+`@/…` alias at load time (and retrying a bare dependency subpath as `X.js` when
+Node cannot resolve it — `next` ships extensionless files and no `exports` map).
+The live suite (`npm run smoke:db`) is separate and opt-in — see below.
 
 `generate` / `check` never open a connection. Only `migrate` / `studio` read
 `DATABASE_URL`; see `.env.example` for the placeholder contract. **No credential
@@ -177,6 +179,26 @@ made **every** checkout fail before it could write, and the complete absence of
 stock consumption. `smoke:db` runs the live directory with
 `--test-concurrency=1` because both live files share one database and each resets
 it. Details in D-172 §5.3 and §6.
+
+Phase 3 **close-out** (same day, after the live pass): the reservation policy the
+live pass discovered is now the track's stated rule (**a** an order consumes its
+lines' stock atomically with the `PENDING` row, **b** a cancellation returns
+exactly those quantities once, **c** a redeemed coupon is not refunded), written
+into the `placeOrder` contract on `CommerceRepository` rather than only into
+prose. Two new offline suites guard it on every `npm test`: `src/lib/
+variant-selection.ts` (+ its tests) holds the PDP's colour × size rules — which
+colour opens, which sizes are disabled instead of hidden, the level the badge may
+claim, the cap, the gallery scope and the cart line — and
+`src/__tests__/funnel.test.ts` walks the whole journey in eight stages (catalog →
+facets → matrix → persisted cart drawer → pre-flight → order → **merchant grid
+reconciliation** → cancellation), ending by driving the real `placeOrderAction`
+to prove it refuses `DB_NOT_CONFIGURED` instead of faking an order. The merchant
+side is asserted through the panel's own rules (`inventorySummary`, `stockState`,
+`filterInventory`), so an order that empties a variant is shown as «ناموجود» on
+`/admin/inventory` immediately and a cancellation returns the grid to its
+pre-order state. Evidence on the final tree: `npm run verify` exit 0 (typecheck,
+lint 0 problems, **176 tests / 46 suites**), `npm run build` exit 0 (same eleven
+routes), `npm run smoke:db` **41/41 exit 0** against the loopback harness.
 
 **Not started:** Phases 4–6 (AI copywriting, social automation, payment/SMS/
 launch). Open items, unchanged and recorded: media storage (G-5) is still

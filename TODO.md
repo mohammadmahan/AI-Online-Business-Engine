@@ -1977,6 +1977,63 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
           `--test-concurrency=1` because both files share one database and
           each resets it. No deployment, provisioning, migration outside the
           disposable harness, credential or push
+    - [x] **Phase 3 — CLOSED: reservation policy ratified, funnel guarded
+          offline, inventory reconciliation asserted (2026-10-12,
+          owner-authorized)** — three deliverables on top of the live pass.
+          (1) **Policy of record**, promoted from "what the implementation
+          happens to do" to a stated rule written into the `placeOrder`
+          contract on `CommerceRepository`: (a) placing an order consumes its
+          lines' stock atomically in the same transaction as the `PENDING`
+          row; (b) a transition to `CANCELLED` returns exactly the quantities
+          that order consumed, once, guarded by the previous status (and
+          `CANCELLED` is terminal); (c) a redeemed coupon is NOT refunded —
+          the usage counter keeps the redemption. The doc comment that claimed
+          the opposite ("does NOT decrement stock … reservation is a later
+          owner decision") was itself made false by the live pass and was
+          replaced at the cause rather than left standing
+          (`PROJECT_RULES.md` §37).
+          (2) **Merchant inventory reconciliation is now asserted** against
+          the panel's OWN rules rather than a hand-read quantity: after a real
+          order, `inventorySummary`/`stockState`/`filterInventory` (the
+          functions `/admin/inventory` renders from) must show the emptied
+          variant as `OUT_OF_STOCK`/«ناموجود», the reduced one as
+          `LOW_STOCK` (4 → 2), the «ناموجود» chip must list exactly the empty
+          rows, the storefront's colour selector must agree from the same
+          read, and cancelling must return EVERY opening quantity with the
+          summary back to its pre-order state and the coupon counter
+          untouched.
+          (3) **Hermetic funnel guard + extracted PDP rules** — new
+          `src/lib/variant-selection.ts` (which colour opens, which sizes are
+          disabled rather than hidden, what the badge may claim before a size
+          is picked, the per-level cap, the colour-scoped gallery, the cart
+          line) with `variant-selection.test.ts`, and
+          `src/__tests__/funnel.test.ts`, which walks eight stages
+          (catalog → facets → colour × size matrix → cart line in the
+          PERSISTED drawer store, `localStorage` round trip and merge/stepper
+          semantics included → pre-flight warning that writes nothing →
+          `placeCheckoutOrder` writing the PENDING order with server-side
+          totals and consuming stock → merchant grid reconciliation →
+          cancellation → the REAL `placeOrderAction` refusing
+          `DB_NOT_CONFIGURED` with no canonical connection, proving the
+          fail-closed gate at the surface the browser calls). No browser, no
+          database, no network: it runs on every `npm test`. One harness gap
+          closed on the way: `next` declares no `exports` map and ships
+          extensionless subpath files, so `test/alias-resolver.mjs` now
+          retries a FAILED bare specifier as `X.js` (fallback only; the
+          original error is re-raised when the retry fails), without which no
+          offline test could import a server action that calls
+          `revalidatePath`.
+          Evidence on the final tree: `npm run verify` exit 0 (typecheck,
+          lint 0 problems, **176 tests / 46 suites**, `db:check`);
+          `npm run build` exit 0 (same eleven routes); `npm run smoke:db`
+          **41/41 pass, exit 0** against the disposable loopback harness
+          (PostgreSQL 16.15), re-run after these changes. Phase 3 open items
+          carried forward, unchanged and unresolved: OTP/§3.4 SMS (G-4),
+          live payment capture (decision 10), media storage (G-5), the absent
+          audit record for order transitions, image zoom/swipe gestures, and
+          device testing of the PDP. Harness torn down and the local VM
+          returned to its as-found stopped state; nothing deployed, nothing
+          provisioned, no credential, nothing pushed
     - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
           §4.1–§4.2; AI provider selection still open — decision 9)
     - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap

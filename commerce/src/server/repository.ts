@@ -365,10 +365,20 @@ export interface CommerceRepository {
    *
    * Everything authoritative happens inside this call: prices, stock, coupon
    * eligibility and the totals are resolved from the SSOT under row locks, and
-   * the caller's numbers are never trusted. It does NOT decrement stock —
-   * reservation semantics belong to the canonical order layer (D-081–D-084) and
-   * are an owner decision, so this path validates availability atomically and
-   * records the order instead of inventing a reservation model.
+   * the caller's numbers are never trusted.
+   *
+   * RESERVATION POLICY — ratified for Phase 3 (D-172 §3.4/§6, G-1/G-2/G-3):
+   *   (a) placing an order CONSUMES its stock atomically, in the same
+   *       transaction as the order row, so a `PENDING` order always has the
+   *       pieces it asked for and the last piece cannot be sold twice;
+   *   (b) cancelling an order returns EXACTLY the quantities it consumed, once
+   *       — the restock is guarded by the previous status, so a repeated
+   *       transition cannot inflate the shelf;
+   *   (c) a redeemed coupon is NOT refunded on cancellation: the usage counter
+   *       stays where the redemption put it (the conservative direction for a
+   *       discount counter).
+   * An order can therefore never exist without the stock it reserved, and the
+   * merchant's grid reads the SAME rows the storefront just changed.
    */
   placeOrder(input: PlaceOrderInput): Promise<PlaceOrderWriteResult>;
 

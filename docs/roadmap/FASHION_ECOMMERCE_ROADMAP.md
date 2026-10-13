@@ -226,6 +226,68 @@ own last bullet stated. Details and the full evidence trail are in `D-172` §6.
   `npm run verify` → exit 0 (**155 tests / 40 suites**, lint 0 problems);
   `npm run build` → exit 0.
 
+#### Phase 3 CLOSE-OUT — policy ratified, funnel guarded on every `npm test` (2026-10-12, same day)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1). With
+this block **Phase 3 is closed**. Full evidence in `D-172` §5.3/§6.
+
+- **The inventory reservation policy is RATIFIED as the track's rule** — the
+  behaviour the live pass discovered is no longer an implementation detail:
+  (a) placing an order **consumes** its lines' stock atomically, in the same
+  transaction as the `PENDING` order row, so an order can never exist without the
+  pieces it reserved; (b) a transition to `CANCELLED` returns **exactly** the
+  quantities that order consumed, **once** (the restock is guarded by the
+  previous status, and `CANCELLED` is terminal); (c) a redeemed coupon is **not**
+  refunded — the usage counter stays where the redemption put it. The policy is
+  stated in the persistence seam's own contract (`placeOrder`,
+  `CommerceRepository`) rather than in prose only, and every clause is asserted in
+  one place or another (a–b live and offline, c live).
+- **Merchant inventory reconciliation is now an asserted property, not an
+  assumption.** The customer funnel test drives a real order through the
+  in-memory repository and then reads the merchant grid's OWN rules
+  (`inventorySummary`, `stockState`, `filterInventory` — the functions the panel
+  renders from): the bought-out variant reads `OUT_OF_STOCK`/«ناموجود» and the
+  reduced one crosses into `LOW_STOCK` immediately, the «ناموجود» chip lists
+  exactly the empty rows, the storefront's own colour selector agrees with the
+  grid from the same stock read, and a cancellation returns the grid to its
+  pre-order state with the coupon counter untouched.
+- **Browser-level checkout funnel guard, hermetically.**
+  `commerce/src/__tests__/funnel.test.ts` walks the customer journey in eight
+  stages — catalog → facet filter → PDP colour × size matrix → cart line in the
+  persisted drawer store (`localStorage` round trip included) → pre-flight
+  warning → `placeCheckoutOrder` → order row → merchant grid → cancellation —
+  and ends by driving the REAL `placeOrderAction` entry point to prove the
+  funnel refuses loudly (`DB_NOT_CONFIGURED`) rather than faking an order when
+  no canonical connection is configured. No browser, no database, no network:
+  it runs on every `npm test`.
+- **The PDP's selection rules were extracted to be testable.**
+  `commerce/src/lib/variant-selection.ts` holds which colour opens (the first
+  SELLABLE one, falling back to the first so a sold-out product still shows its
+  selector), which sizes are disabled rather than hidden, what the badge may
+  claim before a size is picked, the quantity cap per level, the colour-scoped
+  gallery and the cart line itself; `variant-selection.test.ts` pins them, and
+  the product page keeps only state and markup. This is what makes the funnel
+  guard above a real guard rather than a rendered component's side effect.
+- **Evidence.** `npm run verify` → exit 0 (typecheck, lint **0 problems**,
+  **176 tests / 46 suites**, `db:check`); `npm run build` → exit 0 with the same
+  eleven routes; `npm run smoke:db` against the disposable loopback harness →
+  **41/41 pass, exit 0** (re-run after these changes). One harness gap was
+  closed on the way: `next` ships extensionless subpath files and declares no
+  `exports` map, so the test resolver now retries a failed bare specifier as
+  `X.js` — without that, no test could import a server action that calls
+  `revalidatePath`.
+- **Phase 4 readiness.** Nothing in the AI copywriting hub depends on an open
+  item here: its inputs are the merchant's `description_raw` (already stored,
+  with `description_html` reserved as its target) and the product facts already
+  read by `@/server/services/products`. What Phase 4 still needs from the owner
+  is the AI provider selection (**G-4** / decision 9) — unchanged, and no
+  credential exists or is requested.
+
+**Phase 3 open items carried forward (unchanged, not silently resolved):** OTP
+verification (SMS provider, G-4), live payment capture (decision 10), media
+storage (G-5), the missing audit record for order transitions, image zoom/swipe
+gestures, and device testing of the PDP on a phone.
+
 ---
 
 ## Phase 4: Fashion AI Engine & Copywriting Hub

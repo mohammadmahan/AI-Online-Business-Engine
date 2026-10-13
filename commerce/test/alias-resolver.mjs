@@ -14,6 +14,14 @@
  *   3. MODULE FORMAT — this package declares no `"type"`, so a bare `.js` is
  *      CommonJS to Node while the emitted code is ESM. The format is stated per
  *      file here rather than changing the package type (which Next.js owns).
+ *   4. EXTENSIONLESS DEPENDENCY SUBPATHS — `next` ships real files and declares
+ *      NO `exports` map, so `import { revalidatePath } from 'next/cache'` (which
+ *      the storefront's server actions need, and which Next/webpack resolve)
+ *      is unresolvable to Node's own ESM resolver. As a FALLBACK — only after
+ *      the plain specifier has failed — an extensionless bare subpath is retried
+ *      as `X.js`, which is CommonJS resolution's own rule. Nothing that already
+ *      resolves changes shape, and the original error is re-raised when the
+ *      fallback fails too.
  *
  * Only `.test-build/` output is affected; application and dependency modules
  * resolve exactly as they always do. Only resolution failures are swallowed
@@ -52,5 +60,20 @@ export async function resolve(specifier, context, next) {
     }
   }
 
-  return asEsm(await next(specifier, context));
+  try {
+    return asEsm(await next(specifier, context));
+  } catch (error) {
+    const isBareSubpath =
+      !specifier.startsWith('.') &&
+      !specifier.startsWith('/') &&
+      !specifier.startsWith('node:') &&
+      !/\.[cm]?js$/.test(specifier);
+    if (isBareSubpath) {
+      const retried = await firstResolvable([`${specifier}.js`], context, next);
+      if (retried) {
+        return asEsm(retried);
+      }
+    }
+    throw error;
+  }
 }
