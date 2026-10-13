@@ -1,0 +1,39 @@
+# =============================================================================
+# .graphifyignore — graph-tooling exclusions (gitignore syntax)
+#
+# Authority: Phase 1-5 Graph Remediation Track (FreeBuf governance)
+# Rationale: docs/standards/graph-hygiene-and-exclusions.md
+#
+# NOTE (tool semantics, verified): .graphifyignore patterns can only ever
+# exclude MORE, never re-include a .gitignore-excluded path.
+# =============================================================================
+
+# --- R-1: vendored skill bundles (immutable third-party tree) ----------------
+# Phase 3 proved these are an intentional upstream bundle mirror layout
+# (src/ = only source of truth; cli/assets/ + .claude/skills/ = synced copies).
+# Indexing them produced 12,411 'ui-ux-pro-max' node refs and all
+# duplicate-name false positives for core.py / design_system.py / validate_data.py.
+.claude/skills/**
+
+# --- R-2: generated graph output (never a source of truth) -------------------
+graphify-out/
+
+# --- R-3: local runtime volumes / state (already .gitignore'd; belt-and-braces)
+local/volumes/
+local/local/
+*.log
+logs/
+
+# --- R-4: dependency + build artifacts --------------------------------------
+node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- R-5: OS / editor noise --------------------------------------------------
+.DS_Store
+._*
+.idea/
+.vscode/

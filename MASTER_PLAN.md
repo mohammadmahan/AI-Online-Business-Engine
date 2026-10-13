@@ -1505,6 +1505,29 @@ and Live Wiring programs; per-phase detail in §13 and the
     PDP; nothing is provisioned, installed,
     connected or deployed — no live credential exists or is requested
     (D-045/D-139)
+-   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
+    graph-tooling audit returned **zero real defects**. Phase 1 (baseline
+    drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked
+    drift, the sole untracked entry `graphify-out/`. Phase 2 (test runtime
+    leakage / cross-coupling): **INFERRED false positive** --- 73 tests,
+    `OK (skipped=7)`, byte-identical in forward and reverse order, no test
+    file modified. Phase 3 (duplicate-named modules): `core.py` x7,
+    `design_system.py` x3, `validate_data.py` x3 all originate inside the
+    immutable vendored pack `.claude/skills/ui-ux-pro-max/**` with **zero**
+    project importers, so the tree is untouched. Phase 4 (God nodes):
+    `EventStore` (162 edges) and `PgEventStore` (106 edges) are legitimate
+    **one-way Event-Sourcing hubs**, not violations --- allowlisted rather
+    than suppressed. Phase 5 codified the findings as rules **R-1--R-7** in
+    [`docs/standards/graph-hygiene-and-exclusions.md`](docs/standards/graph-hygiene-and-exclusions.md),
+    enforced by `.graphifyignore` with `graphify-out/` also excluded in
+    `.gitignore` so the working tree reports clean between runs. The track
+    changed **no** runtime logic, **no** canonical contract and **no** test
+    assertion; the vendored tree was neither deleted nor symlinked; no live
+    database was touched; nothing was deployed. Standing owner gates
+    (D-139/D-045) are unaffected --- repository hygiene is **not**
+    deployment authorization, and per §11 a GitHub push is never production
+    authorization.
+
 
 Verified state at the D-169 reconciliation boundary:
 full battery **2225/2225 ×2 consecutive green across 84 modules**,

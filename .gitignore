@@ -15,6 +15,8 @@ logs/
 
 # --- Local tooling state (never commit) ----------------------------------------
 .freebuff/
+# graphify graph artifacts: regenerated output, never committed (Phase 5 hygiene)
+graphify-out/
 
 # --- OS / editor noise ---------------------------------------------------------
 .DS_Store

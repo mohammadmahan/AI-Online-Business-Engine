@@ -1648,6 +1648,37 @@ Owner directive 2026-10-05 (Dual-View Architecture, D-171 amendment).
 - [ ] No production activation, provisioning, or live credential use
       is authorized by D-171
 
+## Graph Remediation Track — Phases 1–5 (closed 2026-10-14)
+
+Status: **Complete** — artifacts committed as
+`chore(graph): close 5-phase graph remediation and codify hygiene rules`.
+
+- [x] **Phase 1 — baseline drift audit:** HEAD `913531a` byte-identical to
+      the audit anchor; zero tracked drift; the sole untracked entry was
+      `graphify-out/` (now excluded)
+- [x] **Phase 2 — test runtime leakage / cross-coupling:** INFERRED false
+      positive; the three suspect modules are byte-identical in forward and
+      reverse order (73 tests, `OK (skipped=7)`); no test file modified
+- [x] **Phase 3 — duplicate-named modules:** `core.py` ×7,
+      `design_system.py` ×3, `validate_data.py` ×3 all originate inside the
+      immutable vendored pack `.claude/skills/ui-ux-pro-max/**`; zero project
+      importers; untouched
+- [x] **Phase 4 — God-node coupling audit:** `EventStore` (162 edges) and
+      `PgEventStore` (106 edges) are legitimate one-way Event-Sourcing hubs,
+      not violations; no cycle; allowlisted rather than suppressed
+- [x] **Phase 5 — hygiene codification:** rules **R-1…R-7** recorded in
+      [`docs/standards/graph-hygiene-and-exclusions.md`](docs/standards/graph-hygiene-and-exclusions.md)
+      and enforced by `.graphifyignore`, with `graphify-out/` also excluded
+      in `.gitignore` so the tree reports clean between runs
+- [x] **Regression gate green on the closing tree:** `python3 -m unittest`
+      → 73 tests, `OK (skipped=7)` (the 7 skips are docker/Postgres env guards)
+
+Non-goals held: no runtime logic, canonical contract, or test assertion was
+changed; the vendored tree was neither deleted nor symlinked; no live database
+was touched. Standing owner gates (D-139/D-045) are unaffected — this track is
+repository hygiene, not deployment authorization.
+
+
 ## Forward previews
 
 - [x] Live Wiring program-level completion reconciliation — **DONE
