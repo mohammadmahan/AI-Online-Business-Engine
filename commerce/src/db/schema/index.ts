@@ -4,10 +4,15 @@
  * type so a consumer imports from one place.
  */
 export { commerce } from './schema';
-export { productStatus, orderStatus, discountType } from './enums';
-export type { ProductStatus, OrderStatus, DiscountType } from './enums';
+export { productStatus, orderStatus, discountType, orderStatusSource } from './enums';
+export type {
+  ProductStatus,
+  OrderStatus,
+  DiscountType,
+  OrderStatusSource,
+} from './enums';
 export { categories, products, productVariants, productImages } from './catalog';
-export { customers, orders, orderItems } from './ordering';
+export { customers, orders, orderItems, orderStatusHistory } from './ordering';
 export { coupons } from './promotions';
 export {
   categoriesRelations,
@@ -17,4 +22,5 @@ export {
   customersRelations,
   ordersRelations,
   orderItemsRelations,
+  orderStatusHistoryRelations,
 } from './relations';

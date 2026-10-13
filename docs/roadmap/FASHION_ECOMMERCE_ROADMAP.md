@@ -288,6 +288,83 @@ verification (SMS provider, G-4), live payment capture (decision 10), media
 storage (G-5), the missing audit record for order transitions, image zoom/swipe
 gestures, and device testing of the PDP on a phone.
 
+#### Phase 4 TRANSITION — order audit trail and the payment-callback ingress seam (2026-10-13)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1). This
+is the GROUNDWORK Phase 4 and §6.1 both need, taken before the AI engine and the
+provider selections, and it **closes one carried-forward item**: the "missing
+audit record for order transitions" listed directly above is now implemented and
+verified. **Phase 4 itself (the copywriting engine) is NOT started.**
+
+- **The order state machine has an audit trail.** New table
+  `commerce.order_status_history` (migration `0002`, alongside a closed enum
+  `order_status_source`): one row per status an order REACHES — previous status
+  (`NULL` only for the creation row), new status, WHO asked (`STOREFRONT` ·
+  `MERCHANT_PANEL` · `PAYMENT_CALLBACK` · `SYSTEM`), optional `metadata` for facts
+  with no column of their own, and a timestamp. It is not a general activity log:
+  line items, the coupon counter and `updated_at` are not duplicated, and
+  recording a tracking code writes NO row because it is not a status change.
+- **The audit row is written by the same transaction as the move.** Order creation
+  (`PENDING`, source `STOREFRONT`) and every transition append their row inside the
+  one transaction that changes the order, so a status change cannot commit without
+  its trail and a REFUSED change leaves neither a row nor a restock. The trigger
+  source is a REQUIRED argument on the write path — a default would silently
+  attribute a machine's move to the merchant panel, which is the one fact an audit
+  trail exists to get right.
+- **Idempotency is enforced at the storage layer, not only in code.**
+  `unique (order_id, to_status)` reflects this one-way lifecycle: an order reaches
+  a given status at most once, so a retried callback cannot append a second row
+  even if the code above it were wrong. A repeat asked of the repository is a
+  documented NO-OP (success, nothing written: no second restock, no second row).
+  The index is an assumption about the lifecycle and a future phase adding a
+  back-edge must drop it in its own reviewed migration.
+- **The async payment/notification callback now has an ingress seam.**
+  `POST /api/webhooks/payment` exists as a three-line shim over a tested
+  pipeline, refusing in a fixed order: no secret configured → `503` (there is NO
+  unverified mode, not even locally); missing, malformed or mismatched
+  HMAC-SHA256 signature over the RAW body → `401` (constant-time comparison);
+  oversized body → `413`; unparseable JSON or a payload outside the contract →
+  `400`; no canonical connection → `503`; unknown order → `404`; a
+  lifecycle-illegal move → `409`. A valid delivery dispatches through the SAME
+  transition service the merchant panel uses — so the lifecycle map, the restock
+  and the audit row are the governed ones — and a REPLAY is answered
+  `200 { duplicate: true }` writing nothing, because a provider that sees an error
+  retries forever. A callback may assert only `PAID` or `CANCELLED`: `PROCESSING`
+  and `SHIPPED` are merchant acts about a parcel, and accepting them would let a
+  provider drive fulfilment. The signing scheme is provider-neutral ON PURPOSE
+  (the provider is **G-4** / decision 10); Phase 6.1 adapts this seam to the real
+  one rather than replacing it, and the secret lives in
+  `COMMERCE_PAYMENT_WEBHOOK_SECRET` — unset today, and unset means refuse.
+- **Evidence.** `npm run verify` → exit 0 (typecheck, lint **0 problems**,
+  **194 tests / 51 suites**, `db:check`); `npm run build` → exit 0 with twelve
+  routes (`/api/webhooks/payment` present); `npm run smoke:db` → **54/54 pass,
+  exit 0, twice consecutively** (22 Phase 2 + 19 Phase 3 + 13 Phase 4-transition),
+  including a REAL `23505` provoked by hand to prove the status move ROLLS BACK
+  when its audit row cannot be written, the three audit CHECKs and the unique
+  index refused at the database, and the callback path persisting its row against
+  real PostgreSQL. Over real HTTP against a running `next start`: unsigned `503`
+  with no secret, `SIGNATURE_MISSING` / `SIGNATURE_MISMATCH` `401` with one,
+  `DB_NOT_CONFIGURED` `503` when signed but unconnected, `ORDER_NOT_FOUND` `404`
+  when connected, `INVALID_EVENT` / `INVALID_JSON` `400`, `405` on GET — and the
+  same server ACCEPTED a correctly signed `PAID` delivery for a real order in the
+  harness (`200 { duplicate: false }`), after which SQL showed that order `PAID`
+  with its `payment_ref_id` stored and a `PAYMENT_CALLBACK` row (`PENDING →
+  PAID`) carrying `{ eventId, reference }`; the identical delivery replayed
+  answered `duplicate: true` with no third row. The server was started for this
+  check and stopped afterwards.
+- **Scope honesty — what this does NOT audit.** The merchant-panel requirement
+  above ("every irreversible action … leaves an auditable record") now holds for
+  ORDER transitions only. A PRODUCT status change (archive/publish), a stock or
+  price edit and a coupon edit are still unrecorded, so the requirement is met
+  for the order lifecycle and NOT yet for the catalog surface; that gap is named
+  here instead of being implied away by the existence of the audit table.
+- **Phase 4 readiness (the AI hub).** Unchanged inputs — the merchant's
+  `description_raw` (stored, with `description_html` reserved as its target) and
+  the product facts already read by `@/server/services/products`. What the phase
+  still needs from the owner is the AI provider selection (**G-4** / decision 9);
+  no credential exists or is requested. The audit trail gives Phase 4/6 a place to
+  attribute an automated move to (`SYSTEM`) instead of inventing one.
+
 ---
 
 ## Phase 4: Fashion AI Engine & Copywriting Hub

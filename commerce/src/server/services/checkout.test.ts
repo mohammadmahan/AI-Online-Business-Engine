@@ -10,7 +10,12 @@ import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository } from '@/server/repository';
 import { normalizeCheckoutLines, placeCheckoutOrder } from '@/server/services/checkout';
 import { createProduct } from '@/server/services/products';
-import { getOrder, listOrders, transitionOrder } from '@/server/services/orders';
+import {
+  MERCHANT_TRANSITION,
+  getOrder,
+  listOrders,
+  transitionOrder,
+} from '@/server/services/orders';
 
 /**
  * D-172 §3.4 — the checkout service against the in-memory double.
@@ -201,10 +206,10 @@ describe('placeCheckoutOrder — the write path (§3.4)', () => {
     assert.ok(placed.ok);
     assert.equal(await stockOf(repository, blackSmall), 1);
 
-    assert.deepEqual(await transitionOrder(repository, placed.orderId, 'CANCELLED'), { ok: true });
+    assert.deepEqual(await transitionOrder(repository, placed.orderId, 'CANCELLED', MERCHANT_TRANSITION), { ok: true });
     assert.equal(await stockOf(repository, blackSmall), 4, 'the line is back on the shelf');
 
-    const again = await transitionOrder(repository, placed.orderId, 'CANCELLED');
+    const again = await transitionOrder(repository, placed.orderId, 'CANCELLED', MERCHANT_TRANSITION);
     assert.ok(!again.ok, 'CANCELLED is terminal');
     assert.equal(await stockOf(repository, blackSmall), 4, 'a refused cancellation returns nothing');
   });

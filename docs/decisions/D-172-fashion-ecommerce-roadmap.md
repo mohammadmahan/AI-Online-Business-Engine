@@ -234,8 +234,11 @@ Roadmap fidelity and the two honest limits:
   lifecycle every transition is one-way (no back-edges, no self-transitions), so
   each status change opens a confirmation carrying the target state as a Persian
   label + Latin code, with cancellation in the destructive style; cancelling the
-  dialog writes nothing. The copy claims no audit record, because none is
-  written yet (see the limitation below).
+  dialog writes nothing. The copy claimed no audit record, because none was
+  written yet (see the limitation below). **[Superseded 2026-10-13 — the Phase 4
+  transition block appended to §6 added `order_status_history`, so an audit
+  record IS written now and the copy states it; the sentence is left intact as
+  history per §2.1 and its false half is corrected at the cause.**]
 - **Display state is derived, never stored.** Low-stock badges, coupon states
   (`ACTIVE`/`INACTIVE`/`EXPIRED`/`EXHAUSTED`) and packing-slip totals are
   computed at read time, so an expired coupon or a drifted order total cannot be
@@ -399,7 +402,10 @@ badge (`robots: noindex` moved with it; the storefront is a public shop).
   from the pure `transitionConfirmation` rule (5 new tests: cancellation is
   destructive and states finality, forward moves confirm without the danger
   style, every reachable target is described, and the copy never implies an
-  audit record). Browser-verified: choosing a status opens the dialog before any
+  audit record). **[Superseded 2026-10-13: that last assertion was inverted when
+  the record began to exist — the rule now NAMES the history it writes and must
+  still promise nothing else; the sentence is left intact as history per
+  §2.1.]** Browser-verified: choosing a status opens the dialog before any
   write, انصراف closes it with **no** message and no request, and confirming
   round-trips through the real server action (refused by the fail-closed gate)
   with the dialog closing so the refusal is visible on the row.
@@ -411,7 +417,15 @@ badge (`robots: noindex` moved with it; the storefront is a public shop).
   (D-026/D-027) is a schema decision, not an inference). The confirmation copy
   says exactly that. Likewise the low-stock threshold is currently the
   `LOW_STOCK_THRESHOLD` constant plus a per-product override seam, not yet
-  merchant-configurable.
+  merchant-configurable. **[Half of this gap CLOSED 2026-10-13 by the Phase 4
+  transition block appended to §6: migration `0002` adds
+  `commerce.order_status_history` and every status change now appends its
+  record (previous status, new status, actor, time) in the same transaction, so
+  the "auditable record is not implemented" half no longer holds and the
+  confirmation copy states the record instead. The block's own text is left
+  intact as history per §2.1. Still open from it: the low-stock threshold, and
+  the engine-provenance question (D-026/D-027), which this work neither made nor
+  implied — the trail is a track-local table.]**
 - Tree hygiene: the temporary browser-verification routes were removed, the dev
   server stopped, and nothing was provisioned, connected or credentialled.
 
@@ -782,6 +796,137 @@ owner's, and no item here resolves one silently): OTP/SMS and the payment and
 shipping providers (**G-4**, decisions 10/11), storefront media storage (**G-5**),
 the missing audit record for order transitions, image zoom / swipe gestures, and
 device testing of the PDP on a phone.
+
+### Phase 4 TRANSITION — order audit trail + payment-callback ingress seam (2026-10-13, owner-authorized)
+
+Appended to §6; nothing above is rewritten (append-only, §2.1). This is the
+groundwork the Phase 4 AI engine and the §6.1 payment path both need, delivered
+BEFORE either: an auditable order state machine and a fail-closed ingress for
+asynchronous provider callbacks. It **closes one item the Phase 3 close-out
+carried forward** — "the missing audit record for order transitions" — and it
+starts NO part of the AI engine (Phase 4 remains unstarted). No provider is
+selected, and the callback endpoint therefore processes nothing today.
+
+**1. The order state machine now has an audit trail, and it is transactional.**
+New table `commerce.order_status_history` (migration `0002`) with a closed enum
+`order_status_source`:
+
+| Column | Meaning |
+| --- | --- |
+| `order_id` | the order the transition belongs to (`on delete cascade`, like its line items) |
+| `from_status` | the status it left — `NULL` **only** for the row that records the order's CREATION |
+| `to_status` | the status it reached; one row per status an order reaches |
+| `source` | WHO asked: `STOREFRONT` · `MERCHANT_PANEL` · `PAYMENT_CALLBACK` · `SYSTEM` |
+| `metadata` | optional facts with no column of their own (a gateway reference, a provider event id) — never customer PII |
+| `created_at` | the transition's instant |
+
+The row is appended by the SAME transaction that changes the order — order
+creation (`from_status` null → `PENDING`, source `STOREFRONT`) and every
+transition alike. A status change therefore cannot commit without its trail, and
+a refused change leaves no row (nor a restock). Two CHECKs defend the record's
+meaning rather than its shape: `from_status <> to_status` (nothing changed, so
+nothing may be recorded) and "an origin-less row may only be the opening
+`PENDING` row" (a later transition may not present itself as the order's
+beginning). What this table deliberately is NOT: a general activity log (order
+lines, the coupon counter and `updated_at` are not duplicated here), and
+recording a tracking code writes NO row, because `tracking_code` is an attribute
+of the parcel rather than a status.
+
+**2. The trigger source is REQUIRED and the repeat is a NO-OP.**
+`updateOrderStatus(orderId, status, trigger)` and `transitionOrder(repo, orderId,
+next, trigger)` both take a `{ source, metadata? }` argument with no default: a
+default would silently attribute a machine's transition to the merchant panel,
+which is precisely the fact an audit trail exists to get right. A transition to
+the status the order is already in writes nothing and reports success at the
+repository (the service still refuses it with a clear message for the panel), so
+a retried caller cannot restock twice or append a second row.
+
+**3. Idempotency moved to the storage layer.** `unique (order_id, to_status)`
+encodes what this lifecycle guarantees — no back-edges, and a transition to the
+current status is refused before any write — so a provider callback replayed ten
+times cannot append a second row claiming the same status even if the code above
+it were wrong. This is an ASSUMPTION ABOUT THE LIFECYCLE recorded as a
+constraint: a future phase that legitimately adds a back-edge (a refund
+returning `PAID` to `PENDING`, say) must drop the index in its own reviewed
+migration. The live suite proves the constraint bites by provoking a real
+`23505` and asserting the whole transaction — status move included — rolled back.
+
+**4. `POST /api/webhooks/payment` is the async ingress seam (fail-closed
+scaffold).** `commerce/src/app/api/webhooks/payment/route.ts` is a three-line
+shim (`runtime = 'nodejs'`) over `handlePaymentWebhook`, which is where the
+behaviour and its tests live. The pipeline refuses in a fixed order, cheapest and
+most authoritative first:
+
+| Stage | Refusal | Answer |
+| --- | --- | --- |
+| seam configured | no secret in `COMMERCE_PAYMENT_WEBHOOK_SECRET` | `503` `WEBHOOK_NOT_CONFIGURED` — there is NO unverified mode, not even locally |
+| authentic | missing / malformed / mismatched HMAC-SHA256 over the RAW body | `401`, compared in constant time |
+| bounded | body over 64 KiB | `413` (measured only AFTER authentication) |
+| well-formed | unparseable JSON, or a payload outside the contract | `400` |
+| connected | no canonical connection | `503` `DB_NOT_CONFIGURED` |
+| known + legal | unknown order / lifecycle-illegal move | `404` / `409` |
+
+The authenticated path dispatches through the SAME transition service the
+merchant panel uses, so the lifecycle map, the restock rule and the audit row are
+the already-governed ones, and the callback's own row carries the provider
+event id and reference in `metadata`. A REPLAY is answered `200 { duplicate: true }` and writes nothing: a provider that sees an error retries forever,
+and retrying forever is how an endpoint becomes an outage. A callback may assert
+only `PAID` or `CANCELLED` — `PROCESSING` and `SHIPPED` describe a parcel and are
+merchant acts, so accepting them would let a provider drive fulfilment. The
+signing scheme is provider-neutral ON PURPOSE: the provider is still **G-4** /
+decision 10, every Iranian gateway signs differently, and choosing one here would
+be inventing a credential's contract before the credential exists. Phase 6.1
+adapts this seam to the real scheme rather than replacing the seam.
+
+**5. Evidence after these changes (all re-run on the final tree).**
+
+- `npm run verify` → **exit 0** — `tsc --noEmit`, `eslint .` **0 problems**,
+  `npm test` **194/194 pass across 51 suites** (the live suites skipping by name
+  with `COMMERCE_DATABASE_URL` absent, as designed), `drizzle-kit check`.
+- `npm run build` → **exit 0**, twelve routes, `/api/webhooks/payment` present
+  and dynamic.
+- `npm run smoke:db` → **54/54 pass, exit 0, twice consecutively** — 22 Phase 2 +
+  19 Phase 3 + 13 Phase 4-transition subtests. The new file
+  (`phase4-audit-live.test.ts`) reads the trail back with SQL and proves: the
+  migration's table/enum/cascade/unique index/CHECKs; the three refusals at the
+  DATABASE (`23514` twice, `23505`); the storefront's opening row written with
+  its order; that a REFUSED checkout writes no row at all; the merchant row and
+  the cancellation row; a REAL `23505` provoked by hand that rolls the status
+  move back; the cascade with the order; the callback answering `503` with no
+  secret and writing nothing; `PAID` storing the reference and appending the
+  `PAYMENT_CALLBACK` row; a replay answering `duplicate: true` with no second row;
+  a cancelling callback returning the stock exactly once; a forged signature
+  refused; and a fulfilment status refused.
+- A refusal matrix over REAL HTTP against a running `next start`: unsigned → `503`
+  `WEBHOOK_NOT_CONFIGURED` with no secret; with a secret, unsigned →
+  `SIGNATURE_MISSING` `401`, forged → `SIGNATURE_MISMATCH` `401`; correctly
+  signed but unconnected → `503` `DB_NOT_CONFIGURED`; signed and connected against
+  the harness → `ORDER_NOT_FOUND` `404` for an unknown id, `INVALID_EVENT` `400`
+  for a forbidden status, `INVALID_JSON` `400` for a truncated body; `GET` →
+  `405`. The same running server also ACCEPTED a correctly signed `PAID` delivery
+  for a real order in the harness — `200 { duplicate: false }`, after which SQL
+  showed `orders.status = PAID` with `payment_ref_id` stored and a
+  `PAYMENT_CALLBACK` row `PENDING → PAID` carrying `{ eventId, reference }` — and
+  answered the identical delivery replayed `200 { duplicate: true }` with no third
+  row. So the success path is proven over the real interface too, not only through
+  the injected-repository tests. The server was started for this check and stopped
+  afterwards.
+- **Boundaries.** Colima was started for the live re-runs and the harness torn
+  down afterwards (`db:down`; container, network and VM returned to the stopped
+  state they were found in). No deployment, no provisioning, no migration outside
+  the disposable harness, no provider, no credential, nothing pushed.
+
+**Phase 4 status: transition scope DELIVERED and verified; the AI engine itself
+NOT started.** Open items unchanged and undecided by this block: the AI provider
+(**G-4** / decision 9), the payment provider (decision 10) and therefore the real
+callback scheme, the SMS provider, media storage (**G-5**), the audit trail's
+panel surface (it exists and is tested, but no screen shows it yet), the audit of
+anything OTHER than an order status (a product archive/publish, a stock or price
+edit and a coupon edit are still unrecorded, so the merchant-panel requirement
+"every irreversible action leaves an auditable record" is met for the ORDER
+lifecycle and not yet for the catalog surface), and its
+possible enrolment in the engine's canonical provenance — which remains an owner
+schema decision and is NOT implied by adding a track-local table.
 
 ## 7. References
 

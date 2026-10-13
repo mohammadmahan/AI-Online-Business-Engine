@@ -1476,10 +1476,31 @@ and Live Wiring programs; per-phase detail in §13 and the
     and a cancellation returns the grid to its pre-order state. Offline
     evidence on the final tree: `npm run verify` exit 0 (typecheck, lint 0
     problems, 176 tests / 46 suites), `npm run build` exit 0, live
-    `smoke:db` 41/41 exit 0. **Phases 4–6 are NOT started**, G-4 (provider
+    `smoke:db` 41/41 exit 0. **Further amended 2026-10-13 (append-only — the
+    sentences above were true when written):** the **Phase 4 TRANSITION
+    scope** is DELIVERED and VERIFIED — the order state machine now has an
+    audit trail (`commerce.order_status_history`, migration `0002`: previous
+    status, new status, a REQUIRED actor from a closed set, optional
+    metadata, appended by the SAME transaction as the move, with
+    `unique (order_id, to_status)` as the storage-level idempotency boundary)
+    and the async callback ingress seam exists as `POST
+    /api/webhooks/payment` (a three-line shim over a tested pipeline that
+    refuses, in order: unconfigured seam 503, unsigned/forged HMAC 401, body
+    over 64 KiB 413, unparseable or out-of-contract payload 400, no canonical
+    connection 503, unknown order 404, lifecycle-illegal move 409, and
+    answers a REPLAY `200 { duplicate: true }` writing nothing). That closes
+    the "missing order-transition audit record" this paragraph listed as
+    open. Evidence: `npm run verify` exit 0 (lint 0 problems, 194 tests / 51
+    suites), `npm run build` exit 0 (twelve routes), live `smoke:db` 54/54
+    exit 0 twice consecutively (including a hand-provoked real 23505 proving
+    the status move rolls back when its audit row cannot be written), plus a
+    refusal matrix over real HTTP against a running `next start`. **The
+    Phase 4 AI engine itself and Phases 5–6 are NOT started**, G-4 (provider
     selections — payment 10, shipping 11, SMS, AI 9), G-5 (storefront
     media storage) and G-6 (channel
-    reuse) remain open, as do the missing order-transition audit record,
+    reuse) remain open, as do the audit trail's absent panel surface, its
+    possible enrolment in the engine's canonical provenance (an owner schema
+    decision),
     OTP at checkout, image zoom/swipe gestures and device testing of the
     PDP; nothing is provisioned, installed,
     connected or deployed — no live credential exists or is requested

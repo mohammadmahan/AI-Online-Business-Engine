@@ -19,7 +19,7 @@ import { createPostgresRepository, type CommerceRepository } from '@/server/repo
 import { checkAvailability, placeCheckoutOrder } from '@/server/services/checkout';
 import { createCoupon } from '@/server/services/coupons';
 import { updateStock } from '@/server/services/inventory';
-import { transitionOrder } from '@/server/services/orders';
+import { MERCHANT_TRANSITION, transitionOrder } from '@/server/services/orders';
 import { createProduct } from '@/server/services/products';
 import {
   getPublishedProduct,
@@ -679,12 +679,12 @@ describe(
         // reservation taken under contention too.
         const winner = outcomes.find((outcome) => outcome.ok);
         assert.ok(winner, 'the winning order must be identifiable');
-        assert.deepEqual(await transitionOrder(repo, winner.orderId, 'CANCELLED'), { ok: true });
+        assert.deepEqual(await transitionOrder(repo, winner.orderId, 'CANCELLED', MERCHANT_TRANSITION), { ok: true });
         assert.equal(await stockOf(contested), 1, 'cancelling the winner puts the piece back');
       });
 
       it('returns the stock when an order is cancelled, exactly once', async () => {
-        const cancelled = await transitionOrder(repo, lastPieceOrderId, 'CANCELLED');
+        const cancelled = await transitionOrder(repo, lastPieceOrderId, 'CANCELLED', MERCHANT_TRANSITION);
         assert.deepEqual(cancelled, { ok: true });
 
         const status = await pool.query<{ status: string }>(
@@ -694,12 +694,12 @@ describe(
         assert.equal(status.rows[0]?.status, 'CANCELLED');
         assert.equal(await stockOfSku('P3-BLK-S'), 2, 'the cancelled order restocked its line');
 
-        const again = await transitionOrder(repo, lastPieceOrderId, 'CANCELLED');
+        const again = await transitionOrder(repo, lastPieceOrderId, 'CANCELLED', MERCHANT_TRANSITION);
         assert.ok(!again.ok, 'CANCELLED is terminal, so it cannot be cancelled twice');
         assert.equal(await stockOfSku('P3-BLK-S'), 2, 'a refused second cancellation restocks nothing');
 
         // The coupon order's stock comes back too — the reservation round-trips.
-        const cancelledCoupon = await transitionOrder(repo, couponOrderId, 'CANCELLED');
+        const cancelledCoupon = await transitionOrder(repo, couponOrderId, 'CANCELLED', MERCHANT_TRANSITION);
         assert.deepEqual(cancelledCoupon, { ok: true });
         assert.equal(await stockOfSku('P3-BLK-S'), 4, 'back to the fixture quantity exactly');
 
@@ -727,7 +727,7 @@ describe(
           }),
         );
         assert.ok(paid.ok);
-        const moved = await transitionOrder(repo, paid.orderId, 'PAID');
+        const moved = await transitionOrder(repo, paid.orderId, 'PAID', MERCHANT_TRANSITION);
         assert.deepEqual(moved, { ok: true });
 
         assert.deepEqual(

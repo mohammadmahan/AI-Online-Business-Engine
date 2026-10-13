@@ -4,7 +4,14 @@ import { describe, it } from 'node:test';
 import type { OrderStatus } from '@/db/schema';
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { MemoryRepositorySeed } from '@/server/repository-memory';
-import { getOrder, listOrders, setTrackingCode, transitionOrder } from '@/server/services/orders';
+import {
+  MERCHANT_TRANSITION,
+  getOrder,
+  listOrderStatusHistory,
+  listOrders,
+  setTrackingCode,
+  transitionOrder,
+} from '@/server/services/orders';
 
 /**
  * D-172 §2.3 — fulfillment writes. The dropdown in the panel offers only legal
@@ -64,35 +71,35 @@ describe('order service — status transitions (§2.3)', () => {
   it('walks the legal chain PENDING → PAID → PROCESSING → SHIPPED', async () => {
     const repository = createMemoryRepository(seed('PENDING'));
 
-    assert.equal((await transitionOrder(repository, ORDER_ID, 'PAID')).ok, true);
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PAID', MERCHANT_TRANSITION)).ok, true);
     assert.equal((await getOrder(repository, ORDER_ID))?.status, 'PAID');
 
-    assert.equal((await transitionOrder(repository, ORDER_ID, 'PROCESSING')).ok, true);
-    assert.equal((await transitionOrder(repository, ORDER_ID, 'SHIPPED')).ok, true);
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PROCESSING', MERCHANT_TRANSITION)).ok, true);
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION)).ok, true);
     assert.equal((await getOrder(repository, ORDER_ID))?.status, 'SHIPPED');
   });
 
   it('cancels while the parcel is still in hand', async () => {
     const repository = createMemoryRepository(seed('PROCESSING'));
 
-    assert.equal((await transitionOrder(repository, ORDER_ID, 'CANCELLED')).ok, true);
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'CANCELLED', MERCHANT_TRANSITION)).ok, true);
     assert.equal((await getOrder(repository, ORDER_ID))?.status, 'CANCELLED');
   });
 
   it('refuses a skip-forward, a repeat and an exit from a terminal state', async () => {
     const pending = createMemoryRepository(seed('PENDING'));
-    const skip = await transitionOrder(pending, ORDER_ID, 'SHIPPED');
+    const skip = await transitionOrder(pending, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION);
     assert.equal(skip.ok, false);
     assert.ok(!skip.ok && skip.code === 'ILLEGAL_TRANSITION');
     assert.equal((await getOrder(pending, ORDER_ID))?.status, 'PENDING');
 
     const paid = createMemoryRepository(seed('PAID'));
-    const repeat = await transitionOrder(paid, ORDER_ID, 'PAID');
+    const repeat = await transitionOrder(paid, ORDER_ID, 'PAID', MERCHANT_TRANSITION);
     assert.equal(repeat.ok, false);
     assert.ok(!repeat.ok && repeat.code === 'ILLEGAL_TRANSITION');
 
     const shipped = createMemoryRepository(seed('SHIPPED'));
-    const reopen = await transitionOrder(shipped, ORDER_ID, 'CANCELLED');
+    const reopen = await transitionOrder(shipped, ORDER_ID, 'CANCELLED', MERCHANT_TRANSITION);
     assert.equal(reopen.ok, false);
     assert.equal((await getOrder(shipped, ORDER_ID))?.status, 'SHIPPED');
   });
@@ -100,10 +107,77 @@ describe('order service — status transitions (§2.3)', () => {
   it('reports a missing order', async () => {
     const repository = createMemoryRepository(seed());
 
-    const result = await transitionOrder(repository, 'missing', 'PAID');
+    const result = await transitionOrder(repository, 'missing', 'PAID', MERCHANT_TRANSITION);
 
     assert.equal(result.ok, false);
     assert.ok(!result.ok && result.code === 'NOT_FOUND');
+  });
+});
+
+describe('order service — the audit trail (Phase 4 transition)', () => {
+  it('appends exactly one row per transition, naming the actor and the status it left', async () => {
+    const repository = createMemoryRepository(seed('PENDING'));
+    assert.deepEqual(
+      await listOrderStatusHistory(repository, ORDER_ID),
+      [],
+      'a fixture that was never walked through the lifecycle has no trail to invent',
+    );
+
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PAID', MERCHANT_TRANSITION)).ok, true);
+    assert.equal(
+      (await transitionOrder(repository, ORDER_ID, 'PROCESSING', MERCHANT_TRANSITION)).ok,
+      true,
+    );
+
+    const trail = await listOrderStatusHistory(repository, ORDER_ID);
+    assert.deepEqual(
+      trail.map((row) => [row.fromStatus, row.toStatus, row.source]),
+      [
+        ['PENDING', 'PAID', 'MERCHANT_PANEL'],
+        ['PAID', 'PROCESSING', 'MERCHANT_PANEL'],
+      ],
+      'the previous status is read from the order, never supplied by the caller',
+    );
+    assert.ok(
+      trail.every((row) => row.createdAt instanceof Date),
+      'every row is stamped',
+    );
+  });
+
+  it('records the metadata the caller attaches, and nothing it did not attach', async () => {
+    const repository = createMemoryRepository(seed('PENDING'));
+
+    const moved = await transitionOrder(repository, ORDER_ID, 'CANCELLED', {
+      source: 'SYSTEM',
+      metadata: { reason: 'timeout', sweep: 'nightly' },
+    });
+    assert.equal(moved.ok, true);
+
+    const [row] = await listOrderStatusHistory(repository, ORDER_ID);
+    assert.equal(row?.source, 'SYSTEM');
+    assert.deepEqual(row?.metadata, { reason: 'timeout', sweep: 'nightly' });
+  });
+
+  it('writes NO row for a refused transition, a repeat, or a refusal before any write', async () => {
+    const repository = createMemoryRepository(seed('PENDING'));
+
+    // A skip-forward is refused by the lifecycle map.
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION)).ok, false);
+    // A transition to the status the order is already in is refused too.
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PENDING', MERCHANT_TRANSITION)).ok, false);
+    assert.deepEqual(await listOrderStatusHistory(repository, ORDER_ID), []);
+
+    // A legal move writes one row; the same move asked for again writes none.
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PAID', MERCHANT_TRANSITION)).ok, true);
+    assert.equal((await transitionOrder(repository, ORDER_ID, 'PAID', MERCHANT_TRANSITION)).ok, false);
+    assert.equal((await listOrderStatusHistory(repository, ORDER_ID)).length, 1);
+  });
+
+  it('keys the trail by order and stays empty for an order that does not exist', async () => {
+    const repository = createMemoryRepository(seed('PENDING'));
+
+    assert.equal((await transitionOrder(repository, 'missing', 'PAID', MERCHANT_TRANSITION)).ok, false);
+    assert.deepEqual(await listOrderStatusHistory(repository, 'missing'), []);
   });
 });
 

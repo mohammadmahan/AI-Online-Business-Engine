@@ -81,13 +81,18 @@ describe('transition confirmations (§2.3 / irreversible actions)', () => {
     assert.match(ship.body, /یک‌طرفه/);
   });
 
-  it('never implies an audit record that does not exist', () => {
+  it('names the record the transition actually writes, and promises nothing else', () => {
     for (const status of Object.keys(ORDER_TRANSITIONS) as OrderStatus[]) {
       const copy = transitionConfirmation(status);
       assert.ok(copy.title.length > 0);
       assert.ok(copy.body.length > 0);
-      assert.match(copy.body, /تاریخ آخرین ویرایش/);
-      assert.doesNotMatch(copy.body, /دفتر رویداد|audit/i);
+      // Phase 4 transition: the status change IS recorded (previous status, new
+      // status, actor, time, in the same transaction), so the copy says so.
+      assert.match(copy.body, /تاریخچه سفارش/);
+      // ...and no longer repeats the claim this change made false.
+      assert.doesNotMatch(copy.body, /فقط تاریخ آخرین ویرایش/);
+      // ...nor implies machinery the track does not write.
+      assert.doesNotMatch(copy.body, /provenance|canonical|engine/i);
     }
   });
 

@@ -6,7 +6,7 @@ import {
   productVariants,
   products,
 } from './catalog';
-import { customers, orderItems, orders } from './ordering';
+import { customers, orderItems, orders, orderStatusHistory } from './ordering';
 
 /**
  * D-172 Phase 1 — the catalog/order graph as Drizzle relations, so the
@@ -69,6 +69,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     references: [customers.id],
   }),
   items: many(orderItems),
+  statusHistory: many(orderStatusHistory),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -79,5 +80,12 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   variant: one(productVariants, {
     fields: [orderItems.variantId],
     references: [productVariants.id],
+  }),
+}));
+
+export const orderStatusHistoryRelations = relations(orderStatusHistory, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderStatusHistory.orderId],
+    references: [orders.id],
   }),
 }));

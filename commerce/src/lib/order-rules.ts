@@ -65,22 +65,26 @@ export interface TransitionConfirmation {
  * refuses self-transitions — so every status change is confirmed, and
  * cancellation is additionally styled as destructive.
  *
- * The copy states only what the panel actually does: the order is not
- * recoverable to its previous status, and no audit record is written yet (only
- * the row's update timestamp moves). No machinery is implied that does not
- * exist.
+ * The copy states only what the panel actually does. As of the Phase 4
+ * transition work, a status change DOES leave a record — the previous status, the
+ * new status, the actor and the time are appended to `order_status_history` in
+ * the same transaction as the move — so the copy says exactly that and nothing
+ * stronger. It must not promise machinery the track does not write (canonical
+ * provenance, notifications) nor repeat the older claim that only the row's
+ * update timestamp moves, which this change made false (`PROJECT_RULES.md` §37).
+ * The order remains unrecoverable to its previous status.
  */
 export function transitionConfirmation(to: OrderStatus): TransitionConfirmation {
   if (to === 'CANCELLED') {
     return {
       title: 'لغو سفارش — این کار بازگشت‌پذیر نیست',
-      body: 'لغو، وضعیت پایانی سفارش است و بازگرداندن آن به وضعیت پیشین از این پنل ممکن نیست. پس از ثبت، فقط تاریخ آخرین ویرایش سفارش به‌روز می‌شود.',
+      body: 'لغو، وضعیت پایانی سفارش است و بازگرداندن آن به وضعیت پیشین از این پنل ممکن نیست. پس از ثبت، این تغییر در تاریخچه سفارش ثبت می‌شود.',
       danger: true,
     };
   }
   return {
     title: `تغییر وضعیت به «${ORDER_STATUS_LABELS[to]}»`,
-    body: 'مسیر وضعیت سفارش یک‌طرفه است؛ پس از ثبت، بازگشت به وضعیت پیشین ممکن نیست. پس از ثبت، فقط تاریخ آخرین ویرایش سفارش به‌روز می‌شود.',
+    body: 'مسیر وضعیت سفارش یک‌طرفه است؛ پس از ثبت، بازگشت به وضعیت پیشین ممکن نیست. پس از ثبت، این تغییر در تاریخچه سفارش ثبت می‌شود.',
     danger: false,
   };
 }

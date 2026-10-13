@@ -32,7 +32,8 @@ migration can never render against — or mutate — an engine schema.
 
 ```
 src/db/schema/   schema.ts (namespace) · enums.ts · catalog.ts (§1.1–§1.4)
-                 ordering.ts (§1.5) · promotions.ts (§2.4) · relations.ts · index.ts
+                 ordering.ts (§1.5, incl. the order_status_history audit table)
+                 promotions.ts (§2.4) · relations.ts · index.ts
 src/db/index.ts  inert client factory (no connection string, no import-time I/O)
 src/contracts/   typed read models, raw insert models and write payloads
                  (incl. storefront.ts — the customer surface's view of them)
@@ -42,8 +43,10 @@ src/lib/         pure rules shared by both surfaces: validation, variant matrix,
                  colour × size matrix), shipping, size chart, display copy
 src/server/      db-context (fail-closed gate) · repository.ts (Postgres impl) ·
                  repository-memory.ts (test double) · services/ (read + write
-                 paths) · actions/ (the 'use server' edge) · payments/ (gateway iface)
+                 paths) · actions/ (the 'use server' edge) · payments/ (the gateway
+                 iface + the webhook signature gate)
 src/app/         (storefront)/ — the customer surface · admin/ — the merchant panel
+                 api/webhooks/payment — the async callback endpoint (shim only)
 src/components/  ui/ (primitives) · admin/ · storefront/
 drizzle/         generated migration SQL + journal (committed, never hand-edited)
 ```
@@ -71,7 +74,10 @@ Node cannot resolve it — `next` ships extensionless files and no `exports` map
 The live suite (`npm run smoke:db`) is separate and opt-in — see below.
 
 `generate` / `check` never open a connection. Only `migrate` / `studio` read
-`DATABASE_URL`; see `.env.example` for the placeholder contract. **No credential
+`DATABASE_URL`, and the callback endpoint reads
+`COMMERCE_PAYMENT_WEBHOOK_SECRET` (unset today, and unset means the endpoint
+refuses every callback with `503` rather than accepting an unsigned one); see
+`.env.example` for the placeholder contract. **No credential
 is stored in this repository** (D-045/D-124), and applying a migration to any
 shared environment is an owner-gated act (D-139) — the local canonical
 PostgreSQL container from `local/infra/docker-compose.yml` (D-053/D-054) is the
@@ -110,8 +116,8 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run db:up` | starts the harness and waits for its healthcheck |
 | `npm run db:down` | stops it, keeping the volume |
 | `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
-| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000/0001 |
-| `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel) |
+| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000–0002 |
+| `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel, the audit trail + callback seam) |
 
 ```bash
 export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55432/commerce_smoke
@@ -120,9 +126,9 @@ npm run db:up && npm run db:migrate && npm run smoke:db
 
 The suites SKIP with a named reason when `COMMERCE_DATABASE_URL` is absent (they
 never guess a target: an absent configuration is a refusal, not a pass) and
-refuse a non-loopback target, so staging and production stay out of reach. Both
-live files share this one database and each resets the `commerce` schema and
-re-applies the committed migrations in `before()`, so `smoke:db` passes
+refuse a non-loopback target, so staging and production stay out of reach. All
+three live files share this one database and each resets the `commerce` schema
+and re-applies the committed migrations in `before()`, so `smoke:db` passes
 `--test-concurrency=1`: in parallel processes the second `drop schema` would
 truncate the first suite's fixtures mid-run.
 `db:reset` — the one destructive command — refuses anything that is not
@@ -200,15 +206,45 @@ pre-order state. Evidence on the final tree: `npm run verify` exit 0 (typecheck,
 lint 0 problems, **176 tests / 46 suites**), `npm run build` exit 0 (same eleven
 routes), `npm run smoke:db` **41/41 exit 0** against the loopback harness.
 
-**Not started:** Phases 4–6 (AI copywriting, social automation, payment/SMS/
-launch). Open items, unchanged and recorded: media storage (G-5) is still
-unselected so a submission with pending image bytes is refused with its reason;
-the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so checkout has **no OTP** — the
-phone number is validated and stored as the customer identity; payment is a
-fail-closed `MockPaymentGateway` that answers `UNAVAILABLE` and leaves the order
-`PENDING`; no audit table exists for order transitions; image zoom / swipe
-gestures and mobile gesture behaviour remain untested on a device; and stock is
-now reserved at checkout rather than at payment capture, which is the owner's
-ruling on the Phase 3 live pass (a cancelled order restocks; coupon usage is not
-refunded). Nothing is deployed; no credential exists or is requested
-(D-045/D-139).
+Phase 4 **transition** — the order audit trail and the payment-callback ingress
+seam: `commerce.order_status_history` (migration `0002`) records every status an
+order reaches — previous status, new status, WHO asked (`STOREFRONT` ·
+`MERCHANT_PANEL` · `PAYMENT_CALLBACK` · `SYSTEM`) and optional metadata — appended
+by the SAME transaction that moves the order, so a status change cannot commit
+without its row and a refused one leaves nothing. `POST /api/webhooks/payment`
+(`src/app/api/webhooks/payment/route.ts`) is the async callback endpoint, and it
+refuses in a fixed order: no secret configured → `503`; no/forged/mismatched
+HMAC-SHA256 signature over the raw body → `401`; unparseable or out-of-contract
+payload → `400`; no canonical connection → `503`; unknown order → `404`; a
+lifecycle-illegal move → `409`. A REPLAY is answered `200 { duplicate: true }` and
+writes nothing, because a provider that sees an error retries forever. The
+provider is still an open owner decision (G-4 / decision 10), so the endpoint
+processes nothing today. Evidence: `npm run verify` exit 0 (**194 tests / 51
+suites**), `npm run build` exit 0 (twelve routes, `/api/webhooks/payment` present),
+`npm run smoke:db` **54/54 exit 0, twice consecutively** (22 Phase 2 + 19 Phase 3
++ 13 Phase 4-transition subtests — including a REAL `23505` provoked by hand to
+prove the status move rolls back when its audit row cannot be written), plus a
+refusal matrix exercised over real HTTP against a running `next start`: unsigned
+`503` with no secret, `SIGNATURE_MISSING`/`SIGNATURE_MISMATCH` `401` with one,
+`DB_NOT_CONFIGURED` `503` when signed but unconnected, `ORDER_NOT_FOUND` `404`
+when connected, `INVALID_EVENT`/`INVALID_JSON` `400`, `405` on GET — and the same
+server accepting a correctly signed `PAID` delivery for a real harness order
+(`200`, `orders.status = PAID` + `payment_ref_id` + the `PAYMENT_CALLBACK` audit
+row in SQL), then answering the identical delivery `duplicate: true` with no
+third row.
+
+**Not started:** the Phase 4 AI engine itself and Phases 5–6 (copywriting, social
+automation, payment/SMS/launch). Open items, unchanged and recorded: media
+storage (G-5) is still unselected so a submission with pending image bytes is
+refused with its reason; the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so
+checkout has **no OTP** — the phone number is validated and stored as the customer
+identity; payment is a fail-closed `MockPaymentGateway` that answers `UNAVAILABLE`
+and leaves the order `PENDING`, and there is no provider-specific webhook scheme
+yet because there is no provider; the audit trail is written and read back by
+tests but has **no panel surface** yet, and it covers ORDER transitions only — a
+product status change (archive/publish), a stock/price edit and a coupon edit are
+still unrecorded; image zoom / swipe gestures and mobile
+gesture behaviour remain untested on a device; and stock is now reserved at
+checkout rather than at payment capture, which is the owner's ruling on the Phase
+3 live pass (a cancelled order restocks; coupon usage is not refunded). Nothing is
+deployed; no credential exists or is requested (D-045/D-139).

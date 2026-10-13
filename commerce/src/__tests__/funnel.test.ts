@@ -26,7 +26,11 @@ import { mockPaymentGateway } from '@/server/payments/gateway';
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository, InventoryRow } from '@/server/repository';
 import { checkAvailability, placeCheckoutOrder } from '@/server/services/checkout';
-import { getOrder, transitionOrder } from '@/server/services/orders';
+import {
+  MERCHANT_TRANSITION,
+  getOrder,
+  transitionOrder,
+} from '@/server/services/orders';
 import { createProduct } from '@/server/services/products';
 import { getPublishedProduct, listPublishedProducts } from '@/server/services/storefront';
 
@@ -388,6 +392,18 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
       'order_items carries the server-resolved price per line',
     );
 
+    // Phase 4 transition: the order's audit trail opens with THIS checkout —
+    // `fromStatus` NULL because nothing preceded it, and the STOREFRONT source
+    // because the customer, not the merchant and not a callback, created it.
+    assert.deepEqual(
+      (await repository.listOrderStatusHistory(placed.orderId)).map((row) => [
+        row.fromStatus,
+        row.toStatus,
+        row.source,
+      ]),
+      [[null, 'PENDING', 'STOREFRONT']],
+    );
+
     // The confirmation screen empties the drawer, and storage agrees.
     clearCart();
     assert.deepEqual(getCartSnapshot().lines, []);
@@ -442,7 +458,7 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
   it('stage 7 — cancellation: the stock comes back to the grid, exactly once, and the coupon stays redeemed', async () => {
     const placed = (await repository.listOrders())[0];
     assert.ok(placed, 'the order from stage 5 must be listed');
-    assert.deepEqual(await transitionOrder(repository, placed.id, 'CANCELLED'), { ok: true });
+    assert.deepEqual(await transitionOrder(repository, placed.id, 'CANCELLED', MERCHANT_TRANSITION), { ok: true });
 
     for (const [sku, quantity] of Object.entries(STARTING_STOCK)) {
       assert.equal(await stockOf(sku), quantity, `${sku} must be back to its opening quantity`);
@@ -453,7 +469,7 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
       'the grid returns to its pre-order state',
     );
 
-    const again = await transitionOrder(repository, placed.id, 'CANCELLED');
+    const again = await transitionOrder(repository, placed.id, 'CANCELLED', MERCHANT_TRANSITION);
     assert.ok(!again.ok, 'CANCELLED is terminal');
     assert.equal(await stockOf('FUN-WHT-S'), 2, 'a refused second cancellation restocks nothing');
 
@@ -464,6 +480,21 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
       'a redeemed code stays redeemed: the discount counter is never refunded',
     );
     assert.equal((await getOrder(repository, placed.id))?.status, 'CANCELLED');
+
+    // Phase 4 transition: the trail tells the whole story of this order — where
+    // it began and who ended it — and the REFUSED second cancellation above added
+    // nothing to it, which is what makes the trail trustworthy after a retry.
+    assert.deepEqual(
+      (await repository.listOrderStatusHistory(placed.id)).map((row) => [
+        row.fromStatus,
+        row.toStatus,
+        row.source,
+      ]),
+      [
+        [null, 'PENDING', 'STOREFRONT'],
+        ['PENDING', 'CANCELLED', 'MERCHANT_PANEL'],
+      ],
+    );
   });
 
   it('stage 8 — fail-closed: with no canonical connection the funnel refuses loudly instead of faking an order', async (context) => {

@@ -15,7 +15,11 @@ import { computeTotals } from '@/lib/order-rules';
 import { createPostgresRepository, type CommerceRepository } from '@/server/repository';
 import { createCoupon, listCoupons, setCouponActive } from '@/server/services/coupons';
 import { updatePrice, updateStock } from '@/server/services/inventory';
-import { setTrackingCode, transitionOrder } from '@/server/services/orders';
+import {
+  MERCHANT_TRANSITION,
+  setTrackingCode,
+  transitionOrder,
+} from '@/server/services/orders';
 import { createProduct } from '@/server/services/products';
 
 /**
@@ -173,8 +177,8 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     await pool.end();
   });
 
-  describe('migrations 0000 + 0001', () => {
-    it('applies to PostgreSQL 16.x and records both migrations in the Drizzle journal', async () => {
+  describe('migrations 0000 + 0001 + 0002', () => {
+    it('applies to PostgreSQL 16.x and records every migration in the Drizzle journal', async () => {
       const version = await pool.query<{ v: string }>('select version() as v');
       assert.match(version.rows[0]?.v ?? '', /PostgreSQL 16\./, 'expected a PostgreSQL 16 server');
 
@@ -189,12 +193,13 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
           'coupons',
           'customers',
           'order_items',
+          'order_status_history',
           'orders',
           'product_images',
           'product_variants',
           'products',
         ],
-        'the seven roadmap tables (0000) plus the §2.4 coupons table (0001) must exist',
+        'the seven roadmap tables (0000), the §2.4 coupons table (0001) and the audit table (0002) must exist',
       );
 
       const enums = await pool.query<{ n: string }>(
@@ -205,13 +210,13 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
       );
       assert.deepEqual(
         enums.rows.map((row) => row.n),
-        ['discount_type', 'order_status', 'product_status'],
+        ['discount_type', 'order_status', 'order_status_source', 'product_status'],
       );
 
       const journal = await journalTable(pool);
       assert.notEqual(journal, null, 'the Drizzle migration journal must exist after migrate()');
       const applied = await pool.query<{ n: number }>(`select count(*)::int as n from ${journal}`);
-      assert.equal(applied.rows[0]?.n, 2, 'exactly migrations 0000 and 0001 must be recorded');
+      assert.equal(applied.rows[0]?.n, 3, 'exactly migrations 0000, 0001 and 0002 must be recorded');
     });
 
     it('materialises the constraints the refusal cases rely on', async () => {
@@ -229,15 +234,20 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
         'coupons_percent_within_range',
         'coupons_used_count_non_negative',
         'order_items_quantity_positive',
+        'order_status_history_status_changes',
+        'order_status_history_creation_has_no_origin',
       ]) {
         assert.ok(names.includes(expected), `CHECK ${expected} must exist`);
       }
 
-      const indexes = await pool.query<{ n: string }>(
-        `select indexname as n from pg_indexes
-          where schemaname = 'commerce' and indexname = 'product_variants_matrix_unique'`,
-      );
-      assert.equal(indexes.rows.length, 1, 'the matrix uniqueness index must exist');
+      for (const index of ['product_variants_matrix_unique', 'order_status_history_order_to_status_unique']) {
+        const indexes = await pool.query<{ n: string }>(
+          `select indexname as n from pg_indexes
+            where schemaname = 'commerce' and indexname = $1`,
+          [index],
+        );
+        assert.equal(indexes.rows.length, 1, `the ${index} index must exist`);
+      }
     });
   });
 
@@ -679,16 +689,16 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     };
 
     it('refuses an illegal transition (PENDING → SHIPPED) and writes nothing', async () => {
-      const refused = await transitionOrder(repo, orderId, 'SHIPPED');
+      const refused = await transitionOrder(repo, orderId, 'SHIPPED', MERCHANT_TRANSITION);
       assert.ok(!refused.ok && refused.code === 'ILLEGAL_TRANSITION');
       assert.equal(await statusOf(orderId), 'PENDING', 'a refused transition must not move the row');
     });
 
     it('refuses a self-transition and an unknown order', async () => {
-      const same = await transitionOrder(repo, orderId, 'PENDING');
+      const same = await transitionOrder(repo, orderId, 'PENDING', MERCHANT_TRANSITION);
       assert.ok(!same.ok && same.code === 'ILLEGAL_TRANSITION');
 
-      const missing = await transitionOrder(repo, '00000000-0000-0000-0000-000000000000', 'PAID');
+      const missing = await transitionOrder(repo, '00000000-0000-0000-0000-000000000000', 'PAID', MERCHANT_TRANSITION);
       assert.ok(!missing.ok && missing.code === 'NOT_FOUND');
     });
 
@@ -696,14 +706,14 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
       const early = await setTrackingCode(repo, orderId, 'IR1234567890');
       assert.ok(!early.ok && early.code === 'ILLEGAL_STATE');
 
-      const paid = await transitionOrder(repo, orderId, 'PAID');
+      const paid = await transitionOrder(repo, orderId, 'PAID', MERCHANT_TRANSITION);
       assert.ok(paid.ok, `PENDING → PAID must be allowed: ${JSON.stringify(paid)}`);
       assert.equal(await statusOf(orderId), 'PAID');
 
       const stillEarly = await setTrackingCode(repo, orderId, 'IR1234567890');
       assert.ok(!stillEarly.ok && stillEarly.code === 'ILLEGAL_STATE');
 
-      const processing = await transitionOrder(repo, orderId, 'PROCESSING');
+      const processing = await transitionOrder(repo, orderId, 'PROCESSING', MERCHANT_TRANSITION);
       assert.ok(processing.ok);
       const bad = await setTrackingCode(repo, orderId, 'ab');
       assert.ok(!bad.ok && bad.code === 'VALIDATION_ERROR');
@@ -718,11 +728,11 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     });
 
     it('treats SHIPPED as terminal and leaves the packing-slip arithmetic reconcilable', async () => {
-      const shipped = await transitionOrder(repo, orderId, 'SHIPPED');
+      const shipped = await transitionOrder(repo, orderId, 'SHIPPED', MERCHANT_TRANSITION);
       assert.ok(shipped.ok);
       assert.equal(await statusOf(orderId), 'SHIPPED');
 
-      const backwards = await transitionOrder(repo, orderId, 'CANCELLED');
+      const backwards = await transitionOrder(repo, orderId, 'CANCELLED', MERCHANT_TRANSITION);
       assert.ok(!backwards.ok && backwards.code === 'ILLEGAL_TRANSITION');
       assert.equal(await statusOf(orderId), 'SHIPPED');
 
@@ -739,11 +749,11 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     });
 
     it('allows PENDING → CANCELLED and then refuses everything from a terminal state', async () => {
-      const cancelled = await transitionOrder(repo, driftOrderId, 'CANCELLED');
+      const cancelled = await transitionOrder(repo, driftOrderId, 'CANCELLED', MERCHANT_TRANSITION);
       assert.ok(cancelled.ok, `PENDING → CANCELLED must be allowed: ${JSON.stringify(cancelled)}`);
       assert.equal(await statusOf(driftOrderId), 'CANCELLED');
 
-      const revive = await transitionOrder(repo, driftOrderId, 'PAID');
+      const revive = await transitionOrder(repo, driftOrderId, 'PAID', MERCHANT_TRANSITION);
       assert.ok(!revive.ok && revive.code === 'ILLEGAL_TRANSITION');
       assert.equal(await statusOf(driftOrderId), 'CANCELLED');
     });

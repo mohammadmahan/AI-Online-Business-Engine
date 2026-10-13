@@ -4,13 +4,15 @@ import {
   check,
   index,
   integer,
+  jsonb,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import { orderStatus } from './enums';
+import { orderStatus, orderStatusSource } from './enums';
 import { commerce } from './schema';
 import { productVariants } from './catalog';
 
@@ -100,5 +102,76 @@ export const orderItems = commerce.table(
     index('order_items_variant_id_idx').on(table.variantId),
     check('order_items_quantity_positive', sql`${table.quantity} > 0`),
     check('order_items_unit_price_non_negative', sql`${table.unitPrice} >= 0`),
+  ],
+);
+
+/**
+ * D-172 Phase 4 transition — the order state machine's AUDIT TRAIL, appended to
+ * by the same transaction that moves the order.
+ *
+ * Every status an order reaches leaves exactly one row here, written from
+ * inside the write that reached it: order creation (`PENDING`, with a NULL
+ * `from_status` because nothing preceded it), a merchant transition, and a
+ * future payment callback. A transition that is refused leaves NOTHING behind,
+ * and a status change can never commit without its row — the two writes share
+ * one transaction, so the trail cannot silently disagree with the order row.
+ *
+ * What this table is: an append-only record of WHAT the lifecycle did, WHO did
+ * it (`source`, a closed set from `order_status_source`) and WHEN, with an
+ * optional `metadata` object for the facts that belong to the transition but
+ * have nowhere else to live (a gateway reference, a provider event id). It is
+ * NOT a general activity log: the order's own `updated_at`, its line items and
+ * the coupon counter are not duplicated here, and recording a postal tracking
+ * code is NOT a status transition, so it writes no row.
+ *
+ * `unique (order_id, to_status)` is deliberate and is the storage-level
+ * idempotency boundary the async callback path leans on: in this one-way
+ * lifecycle (D-172 §2.3 — no back-edges, and a transition to the CURRENT status
+ * is refused before any write) an order reaches a given status at most once, so
+ * a retried provider callback cannot append a second row claiming it, even if
+ * the code above it were wrong. A FUTURE phase that legitimately adds a
+ * back-edge (a refund returning `PAID` to `PENDING`, say) must drop this index
+ * in its own reviewed migration — it is an assumption about the lifecycle, and
+ * the lifecycle map is the thing it mirrors.
+ *
+ * Deletion: `on delete cascade`, matching `order_items` — an order's history is
+ * part of the order, and `order_items.variant_id` / `orders.customer_id` still
+ * RESTRICT deletion of anything an order refers to, so this cascade cannot be
+ * reached by deleting a customer or a variant.
+ */
+export const orderStatusHistory = commerce.table(
+  'order_status_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    /** The status the order was in; NULL only for the creation row. */
+    fromStatus: orderStatus('from_status'),
+    toStatus: orderStatus('to_status').notNull(),
+    source: orderStatusSource('source').notNull(),
+    /** Transition facts with no column of their own; never customer PII. */
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('order_status_history_order_id_idx').on(table.orderId, table.createdAt),
+    uniqueIndex('order_status_history_order_to_status_unique').on(
+      table.orderId,
+      table.toStatus,
+    ),
+    check(
+      'order_status_history_status_changes',
+      sql`${table.fromStatus} is null or ${table.fromStatus} <> ${table.toStatus}`,
+    ),
+    check(
+      'order_status_history_creation_has_no_origin',
+      // A NULL origin means "this is where the order began", which is only true
+      // of the opening PENDING row — the audit trail's own guard against a later
+      // transition being written as if it had created the order.
+      sql`${table.fromStatus} is not null or ${table.toStatus} = 'PENDING'`,
+    ),
   ],
 );

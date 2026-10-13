@@ -1,6 +1,6 @@
 import type { CheckoutTotals, CouponRuleInput, StockLevel } from '@/contracts/storefront';
 import type { CouponRow } from '@/contracts/promotions';
-import type { OrderStatus, ProductStatus } from '@/db/schema';
+import type { OrderStatus, OrderStatusSource, ProductStatus } from '@/db/schema';
 import { computeCheckoutTotals, evaluateCoupon } from '@/lib/checkout-rules';
 import { stockLevelFor } from '@/lib/inventory-rules';
 import { shippingAmountFor } from '@/lib/shipping';
@@ -17,6 +17,7 @@ import {
   type OrderDetail,
   type OrderItemView,
   type OrderListItem,
+  type OrderStatusHistoryEntry,
   type ProductListItem,
   type StorefrontHeadRow,
 } from './repository';
@@ -70,6 +71,25 @@ export interface MemoryRepositorySeed {
     }>;
   }>;
   coupons?: Array<Partial<CouponRow> & { code: string }>;
+  /**
+   * Past audit rows for a seeded order. A fixture must STATE a history it did
+   * not replay: the double records what it observes, and inventing a path for a
+   * seeded status (was it PENDING first? PAID before SHIPPED?) would be the
+   * double lying about the very trail this table exists to make honest. Omit it
+   * and the seeded order simply has no trail yet — which is the truth about a
+   * fixture that was never walked through the lifecycle.
+   */
+  history?: MemoryStatusHistorySeed[];
+}
+
+/** A seeded audit row; `id` and `createdAt` are generated when omitted. */
+export interface MemoryStatusHistorySeed {
+  orderId: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  source: OrderStatusSource;
+  metadata?: Record<string, unknown> | null;
+  createdAt?: Date;
 }
 
 let sequence = 0;
@@ -214,6 +234,45 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     updatedAt: coupon.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
   }));
 
+    /* ------------------------------------------------------- audit trail */
+
+  /** The instant the double's fixtures begin; every generated row steps past it. */
+  const HISTORY_EPOCH = new Date('2026-03-01T00:00:00.000Z');
+
+  const statusHistoryTable: OrderStatusHistoryEntry[] = (seed.history ?? []).map((row) => ({
+    id: nextId('history'),
+    orderId: row.orderId,
+    fromStatus: row.fromStatus,
+    toStatus: row.toStatus,
+    source: row.source,
+    metadata: row.metadata ?? null,
+    createdAt: row.createdAt ?? HISTORY_EPOCH,
+  }));
+
+  /**
+   * Appends one audit row, stamped one minute after the last one written. The
+   * clock is deliberately synthetic and monotonic: "oldest first" must be a
+   * property of the fixture, not of how fast the machine ran the test.
+   */
+  function appendStatusHistory(entry: {
+    orderId: string;
+    fromStatus: OrderStatus | null;
+    toStatus: OrderStatus;
+    source: OrderStatusSource;
+    metadata?: Record<string, unknown> | null;
+  }): void {
+    const last = statusHistoryTable[statusHistoryTable.length - 1];
+    statusHistoryTable.push({
+      id: nextId('history'),
+      orderId: entry.orderId,
+      fromStatus: entry.fromStatus,
+      toStatus: entry.toStatus,
+      source: entry.source,
+      metadata: entry.metadata ?? null,
+      createdAt: new Date((last?.createdAt.getTime() ?? HISTORY_EPOCH.getTime()) + 60_000),
+    });
+  }
+
   /* ---------------------------------------------- storefront read plumbing */
 
   function headOf(product: MemoryProductRow): StorefrontHeadRow {
@@ -330,15 +389,20 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       return ordersTable.find((order) => order.id === orderId) ?? null;
     },
 
-    async updateOrderStatus(orderId, status) {
+    async updateOrderStatus(orderId, status, trigger) {
       const order = ordersTable.find((entry) => entry.id === orderId);
       if (!order) {
         return false;
       }
+      // A repeat is a no-op that reports success and writes nothing — no second
+      // restock and no second audit row. Mirrors the SQL path, where the same
+      // branch is what makes a retried callback harmless.
+      if (order.status === status) {
+        return true;
+      }
       // Cancelling returns the stock the order consumed — the same rule the SQL
-      // path applies, and the `previous !== 'CANCELLED'` check makes it
-      // idempotent rather than trusting the lifecycle map alone.
-      if (status === 'CANCELLED' && order.status !== 'CANCELLED') {
+      // path applies.
+      if (status === 'CANCELLED') {
         for (const item of order.items) {
           if (item.variantId === null) {
             continue;
@@ -349,8 +413,22 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
           }
         }
       }
+      const previous = order.status;
       order.status = status;
+      appendStatusHistory({
+        orderId,
+        fromStatus: previous,
+        toStatus: status,
+        source: trigger.source,
+        metadata: trigger.metadata ?? null,
+      });
       return true;
+    },
+
+    async listOrderStatusHistory(orderId) {
+      return statusHistoryTable
+        .filter((row) => row.orderId === orderId)
+        .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
     },
 
     async updateOrderTracking(orderId, trackingCode) {
@@ -644,6 +722,16 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       if (coupon) {
         coupon.usedCount += 1;
       }
+
+      // The trail's opening row, appended with the order itself: `fromStatus`
+      // NULL because nothing preceded it, the source the caller's.
+      appendStatusHistory({
+        orderId,
+        fromStatus: null,
+        toStatus: 'PENDING',
+        source: input.source,
+        metadata: input.statusMetadata ?? null,
+      });
 
       return {
         ok: true,

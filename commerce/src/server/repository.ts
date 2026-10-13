@@ -21,12 +21,18 @@ import {
   coupons,
   customers,
   orderItems,
+  orderStatusHistory,
   orders,
   productImages,
   productVariants,
   products,
 } from '@/db/schema';
-import type { DiscountType, OrderStatus, ProductStatus } from '@/db/schema';
+import type {
+  DiscountType,
+  OrderStatus,
+  OrderStatusSource,
+  ProductStatus,
+} from '@/db/schema';
 
 /**
  * D-172 Phase 2 — the single persistence seam of the merchant admin.
@@ -99,6 +105,39 @@ export interface OrderDetail extends OrderListItem {
   postalCode: string;
   paymentRefId: string | null;
   items: OrderItemView[];
+}
+
+/**
+ * D-172 Phase 4 transition — one row of the order's audit trail, as read back.
+ *
+ * `fromStatus` is `null` only for the row that records the order's CREATION,
+ * which is why the field is nullable rather than defaulted to the first status:
+ * "there was nothing before this" and "it was PENDING before this" are different
+ * facts, and an operator reading the trail needs to tell them apart.
+ */
+export interface OrderStatusHistoryEntry {
+  id: string;
+  orderId: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  source: OrderStatusSource;
+  /** Transition facts with no column of their own; never customer PII. */
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+}
+
+/**
+ * WHO is asking for a transition, and anything else worth recording with it.
+ *
+ * Required on every write that moves an order: the alternative — defaulting the
+ * actor — would silently attribute a machine's transition to the merchant panel,
+ * which is precisely the fact an audit trail exists to get right. `metadata` is
+ * free-form because what is worth recording depends on the caller (a gateway
+ * reference, a provider event id, a merchant note) and none of it is authority.
+ */
+export interface OrderTransitionTrigger {
+  source: OrderStatusSource;
+  metadata?: Record<string, unknown> | null;
 }
 
 /**
@@ -297,6 +336,10 @@ export interface PlaceOrderInput {
   couponCode: string | null;
   /** Recorded only when a gateway actually authorised (AC-8); `null` otherwise. */
   paymentRefId: string | null;
+  /** WHO placed it — the trail's opening row states its origin, not just its status. */
+  source: OrderStatusSource;
+  /** Optional facts recorded with the opening row (never customer PII). */
+  statusMetadata?: Record<string, unknown> | null;
 }
 
 export type PlaceOrderWriteResult =
@@ -337,7 +380,41 @@ export interface CommerceRepository {
   updateVariantPrice(variantId: string, priceOverride: number | null): Promise<boolean>;
   listOrders(): Promise<OrderListItem[]>;
   getOrderDetail(orderId: string): Promise<OrderDetail | null>;
-  updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean>;
+
+  /**
+   * Moves an order's status and APPENDS its audit row in ONE transaction
+   * (D-172 Phase 4 transition).
+   *
+   * Contract, in order of precedence:
+   *   - an unknown order                   → `false`, nothing written;
+   *   - `status` equal to the current one  → `true`, and NOTHING written: no
+   *     second audit row, no second restock. A repeat is a no-op, which is what
+   *     makes a retried callback harmless;
+   *   - otherwise the previous status is read under a row lock, a cancellation
+   *     returns the stock the order consumed (exactly once, §3.4), the order row
+   *     moves, and the history row (`from` = the previous status, `source` and
+   *     `metadata` from the trigger) is appended — all in the same transaction,
+   *     so a status change can never commit without its trail.
+   *
+   * The lifecycle MAP is not re-implemented here (that is `@/lib/order-rules`,
+   * enforced by the service): this is the storage-level guard, and it is the
+   * last line of defence for the restock and the trail rather than a second
+   * authority on which edges are legal.
+   */
+  updateOrderStatus(
+    orderId: string,
+    status: OrderStatus,
+    trigger: OrderTransitionTrigger,
+  ): Promise<boolean>;
+
+  /** The order's audit trail, oldest first. Empty when the order is unknown. */
+  listOrderStatusHistory(orderId: string): Promise<OrderStatusHistoryEntry[]>;
+
+  /**
+   * Records the postal tracking code. Deliberately NOT a status transition, so
+   * it writes no audit row: `tracking_code` is an attribute of the parcel, and
+   * the roadmap's SMS is triggered by this entry (Phase 6), not by a status.
+   */
   updateOrderTracking(orderId: string, trackingCode: string): Promise<boolean>;
   listCoupons(): Promise<Array<typeof coupons.$inferSelect>>;
   findCouponByCode(code: string): Promise<typeof coupons.$inferSelect | null>;
@@ -664,20 +741,21 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
     },
 
     /**
-     * Status change, with the ONE side effect a status carries: cancelling an
-     * order returns the stock that order consumed (§3.4 reservation).
+     * Status change, with the TWO things a status change owes the record:
+     * cancelling an order returns the stock that order consumed (§3.4
+     * reservation), and EVERY transition appends its audit row (Phase 4
+     * transition).
      *
-     * Both halves run in one transaction and the order row is locked first, so a
-     * cancellation restocks exactly once even under concurrent requests; the
-     * `previous !== 'CANCELLED'` check is what makes it idempotent rather than
-     * relying on the lifecycle map alone (`transitionOrder` already refuses an
-     * exit from a terminal status, but this repository method is the last line
-     * of defence, and the panel is not its only possible caller).
+     * All of it runs in one transaction with the order row locked first, so a
+     * cancellation restocks exactly once under concurrent requests and a status
+     * change can never commit without its trail. The previous status is what the
+     * audit row's `from_status` carries — read under the lock, never re-derived
+     * from the caller.
      *
      * A variant referenced by an order line can never have been deleted
      * (`order_items.variant_id` is RESTRICT), so every line has a row to credit.
      */
-    async updateOrderStatus(orderId, status) {
+    async updateOrderStatus(orderId, status, trigger) {
       return db.transaction(async (tx) => {
         const [current] = await tx
           .select({ status: orders.status })
@@ -688,7 +766,16 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           return false;
         }
 
-        if (status === 'CANCELLED' && current.status !== 'CANCELLED') {
+        // A repeat is a NO-OP that reports success and writes NOTHING: no second
+        // restock, and no second audit row (which the unique index would refuse
+        // anyway). This is what makes a retried provider callback harmless.
+        if (current.status === status) {
+          return true;
+        }
+
+        // Only reachable on a real move now, so the `previous !== 'CANCELLED'`
+        // guard the earlier version needed is implied by the branch above.
+        if (status === 'CANCELLED') {
           const lines = await tx
             .select({ variantId: orderItems.variantId, quantity: orderItems.quantity })
             .from(orderItems)
@@ -706,8 +793,42 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           .set({ status, updatedAt: new Date() })
           .where(eq(orders.id, orderId))
           .returning({ id: orders.id });
-        return rows.length === 1;
+        if (rows.length !== 1) {
+          return false;
+        }
+
+        // The trail is appended LAST and in the same transaction: an order row
+        // that moved without its history row would roll back together with it.
+        await tx.insert(orderStatusHistory).values({
+          orderId,
+          fromStatus: current.status,
+          toStatus: status,
+          source: trigger.source,
+          metadata: trigger.metadata ?? null,
+        });
+        return true;
       });
+    },
+
+    /**
+     * The audit trail, oldest first. `created_at` is the transaction's own
+     * timestamp (`now()`, stable across a transaction), and an order acquires at
+     * most one row per transaction, so the order is total without a tiebreaker.
+     */
+    async listOrderStatusHistory(orderId) {
+      return db
+        .select({
+          id: orderStatusHistory.id,
+          orderId: orderStatusHistory.orderId,
+          fromStatus: orderStatusHistory.fromStatus,
+          toStatus: orderStatusHistory.toStatus,
+          source: orderStatusHistory.source,
+          metadata: orderStatusHistory.metadata,
+          createdAt: orderStatusHistory.createdAt,
+        })
+        .from(orderStatusHistory)
+        .where(eq(orderStatusHistory.orderId, orderId))
+        .orderBy(asc(orderStatusHistory.createdAt));
     },
 
     async updateOrderTracking(orderId, trackingCode) {
@@ -1090,6 +1211,17 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
               unitPrice: unitPriceByVariant.get(item.variantId) as number,
             })),
           );
+
+          // The trail's opening row, written in the SAME transaction as the
+          // order it describes: `from_status` is NULL because nothing preceded
+          // it, and the source is the caller's (the storefront checkout today).
+          await tx.insert(orderStatusHistory).values({
+            orderId: order.id,
+            fromStatus: null,
+            toStatus: 'PENDING',
+            source: input.source,
+            metadata: input.statusMetadata ?? null,
+          });
 
           if (couponId !== null) {
             await tx

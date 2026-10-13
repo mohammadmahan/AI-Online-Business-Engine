@@ -154,6 +154,9 @@ export async function placeCheckoutOrder(
       items: normalized.items,
       couponCode,
       paymentRefId: null,
+      // The trail's opening row records that the CUSTOMER created this order, as
+      // opposed to the merchant or a callback moving it later.
+      source: 'STOREFRONT',
     });
   } catch (error) {
     // The driver's message can echo a connection string (D-114/D-124), so it is
