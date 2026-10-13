@@ -1,0 +1,25 @@
+# AI-Online-Business-Engine: Autonomous Agent Rules
+
+## 1. Documentation Authority & Architecture
+- Primary SSOT: Strictly adhere to `MASTER_PLAN.md`, `TODO.md`, `DECISIONS.md`, and `docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`. Always locate and cite the active task within these docs prior to execution.
+- Auxiliary Role of Graph: Use graph representations (`GRAPH_REPORT.md` / Graphify) strictly as an architectural map and diagnostic aid, not to override core documentation.
+- Data Sovereignty Rulings:
+  - G-1: PostgreSQL / Supabase in the `commerce` namespace is the Single Source of Truth.
+  - G-2: Unified database architecture.
+  - G-3: Schema ownership and migrations belong exclusively to Drizzle ORM.
+
+## 2. Autonomous Execution & Capabilities
+- Autonomy: Do not restrict necessary tool capabilities. Execute read-only checks, diagnostics, code edits, and test suites autonomously.
+- Token Efficiency: Rely on local CLI commands (`git`, `grep`, `find`, `wc`, `diff`) rather than ingesting large raw files into the prompt context.
+- Test Runner: The local environment uses `python3 -m unittest`. Run tests using this command exclusively.
+- Vendored Isolation: Treat `.claude/skills/**` as immutable vendored packages.
+
+## 3. End-of-Phase Synchronization: Documentation, Graph & Delivery
+- Mandatory Sync Upon Completion: Once any milestone, phase, or discrete task is completed and verified:
+  1. Documentation Update: Automatically update `TODO.md` (check off completed items) and record progress/architectural notes in relevant docs.
+  2. Graph Maintenance: Update the graph artifacts/reports (`graphify-out` / graph status) to accurately reflect current repository state.
+  3. Regression Verification: Ensure all related test suites pass via `python3 -m unittest`.
+  4. Automated Git Commit & Push: Autonomously commit all changes (code, documentation updates, and graph records) with a clear conventional commit message and execute `git push` to the remote branch without waiting for manual confirmation.
+
+## 4. Communication Standard
+- Direct, precise, technical, and zero-fluff. Deliver results, status, and blockers immediately.
