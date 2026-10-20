@@ -116,7 +116,8 @@ def _is_near_miss(candidate: str, approved: str) -> bool:
 
 
 def check_hashtag_vocabulary(tags, *, channel: str = "caption",
-                             noun: str = "hashtag") -> List[str]:
+                             noun: str = "hashtag",
+                             allow=None) -> List[str]:
     """Shared deterministic vocabulary guard (D-029/D-031/D-032).
 
     A tag naming an APPROVED term must match it exactly (fa or code);
@@ -125,13 +126,26 @@ def check_hashtag_vocabulary(tags, *, channel: str = "caption",
     ONE rule for every channel that emits tags: the Phase 7
     `CaptionTask`, the Phase 4 fashion Telegram channel and the SEO
     keyword check all call THIS function (never a copy of it).
+
+    `allow` is the merchant's OWN stated token(s) (e.g. the fabric the
+    seller wrote in the brief). They are canonical FACTS, not
+    model-authored vocabulary — the same principle as
+    `check_invented_facts` (quoting what the seller said is allowed,
+    inventing is not) — so they pass even when they sit one letter
+    away from an approved term (D-172 §4.2: the fabric «کرپ» is not a
+    misspelling of the colour «کرم»). `allow` is EXACT-match only and
+    defaults to empty, so every existing caller is unchanged.
     """
+    allowed = {str(a).strip().lstrip("#").strip()
+               for a in (allow or ()) if str(a).strip()}
     div: List[str] = []
     for tag in tags or []:
         token = str(tag).lstrip("#").strip()
         if not token:
             div.append(f"{channel}: empty {noun} {tag!r}")
             continue
+        if token in allowed:
+            continue  # the merchant's own stated fact — not invented
         if token in _APPROVED_COLORS_FA \
                 or token in _APPROVED_COLOR_CODES \
                 or token in _APPROVED_SIZES \

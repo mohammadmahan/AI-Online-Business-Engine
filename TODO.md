@@ -1707,8 +1707,9 @@ repository hygiene, not deployment authorization.
       must be selected before payment-capture and shipping-purchase
       go-live
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
-      pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phases 4–6
-      NOT STARTED**:
+      pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
+      §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
+      Phases 5–6 NOT STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
@@ -2181,11 +2182,117 @@ repository hygiene, not deployment authorization.
           trend/hashtag intelligence, a merchant-panel/storefront caller,
           and any live model path. No deployment, provisioning or
           credential
-    - [ ] **Phase 4 §4.2 — Trend & Hashtag Intelligence** (roadmap
-          §4.2) — NOT started
-    - [ ] **Phase 4 provider gate** — the copy engine runs on mocks
-          only; selecting the AI provider (decision 9 / G-4) is the
-          owner's, and no credential exists or is requested (D-045)
+    - [x] **Phase 4 §4.2 — Trend & Hashtag Intelligence (2026-10-20,
+          owner-authorized)** — IMPLEMENTED & VERIFIED offline; the AI
+          provider stays OPEN (decision 9 / G-4), so nothing live runs.
+          `local/canonical/fashion_trends.py` turns a structured
+          `TrendBrief` (garment_category, season, optional fabric_type,
+          raw seller notes, optional product_id) into ONE strict
+          `trend_hashtag_set.v1` proposal whose 5–30 tags are split into
+          `category_tags` / `season_tags` / `niche_tags`, on the new
+          `fashion_trend_hashtags` routing key (mock) and rendered from
+          `fashion_trend_hashtags@v1.0.0` with template_id + hash.
+          §4.2's “based on garment category and season” is CHECKED, not
+          merely prompted: the three groups must PARTITION `hashtags`
+          (disjoint, same union, same count), `category_tags` must
+          contain the merchant's OWN category and `season_tags` the
+          merchant's OWN season after deterministic normalisation
+          (`#`, ZWNJ, whitespace and `-` collapse; the comparison is
+          equality, so «مانتوپاییزی» does not satisfy «مانتو»), every
+          tag passes the ONE shared `check_hashtag_vocabulary` (whose
+          new optional `allow` accepts only the merchant's own stated
+          category/season/fabric — a fact, not model vocabulary: «کرپ»
+          is the seller's fabric, not a misspelling of the colour
+          «کرم»), and the reused `check_invented_facts` guard refuses an
+          invented price/link/discount. Tags are stored unhashed and
+          may not contain whitespace or an inner `#`.
+          Divergence is Class B with nothing persisted; persist mode
+          lands a PROPOSED item through the M2 lifecycle, repeats are
+          idempotent on
+          `fashion-trend/<product_id|brief>/<season>/<category>[/<fabric>]`,
+          `generate_batch` runs one brief per category/season on the
+          shared D-063 budget-disciplined batch, dry-run is the default
+          and side-effect free, and the module exposes no publication
+          surface (AST-asserted: no network import, no
+          credential/environment access, no publish/approve verb).
+          Evidence: `python3 -m unittest
+          local.tests.test_phase4_fashion_trends` → 52 tests OK;
+          targeted §4.1 + phase7 m1–m4/m4_stdlib + phase8 observability
+          → 190 tests OK (15 pre-existing live-DB skips); full sweep →
+          2539 tests with the SAME three known live-PostgreSQL failures
+          as HEAD (phase23 transport ceiling, phase26 decision-ledger
+          drill, phase26 DR closeout). The first sweep additionally hit
+          `test_phase10_telegram`'s concurrent-publisher race once — a
+          module this change shares no code with, 0/20 failures in
+          isolation and absent from the second sweep. One pinned
+          expectation was amended deliberately: m4's
+          `test_default_policy_has_no_real_provider` now lists the new
+          routing key (mock). Not built, not implied: any
+          merchant-panel/storefront caller, publishing (Phase 5), and
+          any live model path. No deployment, provisioning or
+          credential
+    - [x] **Phase 4 provider gate — fail-closed runtime wiring
+          (2026-10-20, owner-authorized)** — the gate and the fashion
+          wiring are IMPLEMENTED & VERIFIED offline; **no provider was
+          selected, named, constructed or contacted**, and the AI
+          provider decision (9 / G-4) remains the owner's. NOTE ON THE
+          ANCHOR: this repository's roadmap has **no Phase 4 §4.3**
+          (only §4.1 copywriting and §4.2 trend intelligence; D-172
+          §4.3 is the G-3 schema-authority ruling and is unrelated), so
+          the executed item is the open TODO "Phase 4 provider gate"
+          and nothing was invented to fill a section number.
+          `local/canonical/ai_provider_gate.py` answers one question in
+          one place: WHICH provider may serve a fashion task, on whose
+          authority, and with what remaining budget. It never selects a
+          provider and never reaches a network.
+          **Deny by default** — a provider must be DECLARED in the
+          catalogue (only `mock` is declared unless the caller declares
+          more) AND registered on the router; anything else is refused
+          by name. **Mock is the only ungated class.** A `live` class
+          additionally needs (a) a recorded `OwnerDecision` covering
+          BOTH the task and the provider, unexpired, carrying a decision
+          reference and approver — a boolean env flag is configuration,
+          not consent; (b) an injected credential-PRESENCE predicate for
+          the declared variable name (the gate never reads the process
+          environment and never receives a value); (c) a positive
+          declared budget; and (d) a non-production environment, because
+          live AI is production-blocked (D-045 / runtime preflight). The
+          routed schema must be a registered contract. Stable refusal
+          codes: `TASK_NOT_ROUTED`, `PROVIDER_UNDECLARED`,
+          `PROVIDER_NOT_REGISTERED`, `SCHEMA_UNREGISTERED`,
+          `OWNER_DECISION_MISSING`/`_EXPIRED`,
+          `TASK_OUTSIDE_OWNER_SCOPE`, `PROVIDER_OUTSIDE_OWNER_SCOPE`,
+          `CREDENTIAL_UNAVAILABLE`, `BUDGET_NOT_DECLARED`,
+          `BUDGET_EXHAUSTED`, `RATE_LIMITED` (Class A),
+          `LIVE_BLOCKED_IN_PRODUCTION`.
+          **Budget/rate are the router's own numbers, not a copy** —
+          `ai_runtime` gained read-only views (`TokenBucket.available()`,
+          `ModelRouter.budget_state()` / `rate_limit_available` /
+          `rate_limit_capacity`); enforcement stays in
+          `ModelRouter._guardrails` (D-063), and `preflight()` consumes
+          no token and dispatches nothing.
+          **Wiring** — `ProviderGate.guarded_router()` returns a NEW
+          router whose policy holds only gate-approved tasks;
+          `wire_fashion_engines()` binds `FashionCopywritingEngine` and
+          `FashionTrendEngine` to it unchanged; `strict=True` (default)
+          refuses a partially wired surface instead of silently
+          shrinking it. Every decision is a frozen, timestamp-free,
+          value-free record (`ai.provider_gate.v1`) that can be fed to
+          an audit sink.
+          Evidence: `python3 -m unittest
+          local.tests.test_phase4_provider_gate` → 57 tests OK;
+          targeted §4.1/§4.2 + phase7 m1–m4/m4_stdlib + phase8
+          observability → 298 tests OK (15 pre-existing live-DB skips);
+          full sweep → 2596 tests with the SAME three known
+          live-PostgreSQL failures as HEAD. Not built, not implied: any
+          live adapter wiring, any provider selection, a
+          merchant-panel/storefront caller, publishing (Phase 5). No
+          deployment, provisioning, credential or network call
+    - [ ] **Phase 4 provider SELECTION (owner decision 9 / G-4)** — the
+          gate above is ready but deliberately grants nothing beyond
+          `mock`; choosing the provider (and creating any credential) is
+          the owner's decision, and no credential exists or is requested
+          (D-045)
     - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap
           §5.1–§5.2; publishing must reuse the canonical
           Telegram/Instagram seams — G-6)

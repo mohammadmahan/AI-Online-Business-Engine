@@ -1,0 +1,67 @@
+{
+  "template_id": "fashion_trend_hashtags",
+  "version": "v1.0.0",
+  "schema_id": "trend_hashtag_set.v1",
+  "description": "هشتگ هدفمند برای یک دستهٔ لباس در یک فصل؛ سه گروه دسته/فصل/تخصصی که فهرست نهایی را می‌سازند — D-172 §4.2.",
+  "prompt_text": "تو متخصص هشتگ و ترند یک فروشگاه پوشاک ایرانی هستی و برای یک دستهٔ لباس در یک فصل مشخص، هشتگ‌های هدفمند پیشنهاد می‌دهی.\nدستهٔ لباس: {garment_category}\nفصل: {season}\nجنس پارچه: {fabric_type}\nیادداشت خام فروشنده: {notes}\nقواعد سخت: بین ۵ تا ۳۰ هشتگ بده؛ هر هشتگ یک واژه یا عبارت کوتاه و بدون فاصله باشد (به‌جای فاصله زیرخط بگذار) و بدون علامت هشتگ؛ هشتگ‌ها را در سه گروه category_tags، season_tags و niche_tags بچین، هر هشتگ فقط در یک گروه بیاید و مجموع سه گروه دقیقاً همان فهرست hashtags باشد؛ در category_tags عیناً خودِ دسته و در season_tags عیناً خودِ فصل را بیاور؛ فقط از اطلاعات زمینه استفاده کن و هیچ قیمت، لینک، کد تخفیف، رنگ یا سایز اختراع نکن؛ خروجی فقط و فقط JSON معتبر مطابق قرارداد trend_hashtag_set.v1 (بدون متن اضافه).\nزمینه (JSON): {context}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "trend_hashtag_set.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "hashtags",
+      "category_tags",
+      "season_tags",
+      "niche_tags",
+      "rationale"
+    ],
+    "properties": {
+      "hashtags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "minItems": 5,
+        "maxItems": 30
+      },
+      "category_tags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "season_tags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "niche_tags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "minItems": 0,
+        "maxItems": 20
+      },
+      "rationale": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 1000
+      }
+    }
+  }
+}

@@ -423,6 +423,99 @@ Appended; the section text above is the specification and is **not** rewritten
   (verified by stashing the change). No deployment, provisioning, provider or
   credential.
 
+#### Phase 4 §4.2 completion record (2026-10-20) — §4.2 IMPLEMENTED & VERIFIED (offline)
+
+Appended; the section text above stays as written and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full record in `D-172` §5.5 and §6.
+
+- **The pipeline exists** — `local/canonical/fashion_trends.py`: a structured
+  `TrendBrief` (`garment_category`, `season`, optional `fabric_type`, raw seller
+  notes, optional `product_id`) becomes ONE `trend_hashtag_set.v1` proposal of
+  5–30 tags on the new `fashion_trend_hashtags` routing key, rendered from
+  `fashion_trend_hashtags@v1.0.0` (template_id + hash on the request, D-067) and
+  dispatched through the existing runtime — never a direct provider call.
+- **“Based on garment category and season” is CHECKED, not prompted.** The tags
+  must be partitioned into `category_tags` / `season_tags` / `niche_tags`; the
+  groups must be disjoint, share their union with `hashtags` and account for
+  every tag exactly once. `category_tags` must contain the merchant's own
+  category and `season_tags` the merchant's own season after deterministic
+  normalisation — and the comparison is equality, so «مانتوپاییزی» does not
+  satisfy «مانتو», nor «پاییزی» satisfy «پاییز».
+- **One vocabulary rule, no fork.** Every tag passes the shared
+  `check_hashtag_vocabulary` (D-029/D-031/D-032). Its new optional `allow`
+  parameter carries the merchant's own stated category/season/fabric: a fact the
+  seller wrote is not model-authored vocabulary, so the fabric «کرپ» is not
+  treated as a misspelling of the colour «کرم» — while the same token, for a
+  brief that never stated it, is still refused. `allow` is exact-match only and
+  defaults to empty, so every pre-existing caller is unchanged.
+- **Invented facts stay refused (AC-4/AC-5)** — `check_invented_facts` is
+  REUSED (never copied); a price, link or discount token absent from the brief
+  is Class B. Tags are stored unhashed; whitespace and an inner `#` are refused,
+  because a hashtag is one unbroken token that the composer renders once.
+- **HITL boundary** — `dry-run` is the default and persists nothing; `persist`
+  lands a `PROPOSED` item through the M2 lifecycle (event + provenance + queue),
+  repeats are idempotent on
+  `fashion-trend/<product_id|brief>/<season>/<category>[/<fabric>]`, and the
+  module has **no** publication surface (AST-asserted).
+- **Still open, stated rather than implied done** — no merchant-panel or
+  storefront caller; no publishing (Phase 5); no live model was called, so
+  hashtag quality across real providers is unproven; the AI provider (G-4 /
+  decision 9) remains the owner's open decision.
+- **Evidence** — `python3 -m unittest
+  local.tests.test_phase4_fashion_trends` → **52 tests, OK**; targeted §4.1 +
+  phase7 `m1..m4`/`m4_stdlib` + phase8 observability → **190 tests, OK** (15
+  pre-existing live-DB skips); full sweep → **2539 tests**, the same three known
+  live-PostgreSQL failures as HEAD. No deployment, provisioning, provider or
+  credential.
+
+#### Phase 4 provider gate — fail-closed runtime wiring (2026-10-20) — VERIFIED offline
+
+Appended; the section text above is the specification and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full record in `D-172` §5.6 and §6.
+
+- **Anchor, stated rather than assumed.** This roadmap has **no Phase 4 §4.3**: it
+  defines §4.1 (copywriting) and §4.2 (trend/hashtag intelligence) only, and the
+  `§4.3` in `D-172` is the **G-3 schema-authority ruling**, not a Phase 4
+  section. The work recorded here is the open `TODO.md` item **“Phase 4 provider
+  gate”** — filling a section number that does not exist would have been an
+  invented task.
+- **What the gate is.** `local/canonical/ai_provider_gate.py` is the single
+  answer to *which provider may serve a fashion task, on whose authority, and
+  with what remaining budget*. It does **not** select a provider (decision 9 /
+  G-4 stays OPEN), constructs no adapter, names no vendor, opens no socket and
+  reads no environment variable.
+- **Deny by default.** A provider must be DECLARED in the catalogue (only the
+  local `mock` is declared by default) and REGISTERED on the router; otherwise it
+  is refused by name. `mock` is the only ungated class. A `live` class needs a
+  recorded `OwnerDecision` covering both the task and the provider (unexpired,
+  with a reference and an approver), an injected credential-**presence**
+  predicate for a declared variable name, a positive declared budget, and a
+  non-production environment (live AI is production-blocked, D-045). The routed
+  schema must be a registered contract.
+- **Consent is a record, not a flag.** An env flag plus a key can still be
+  required by the D-066 adapter construction gate; it is **not sufficient** to
+  serve a fashion task. The gate's default presence predicate answers `False`
+  for everything.
+- **Budget/rate stay the router's.** `ai_runtime` gained read-only views
+  (`TokenBucket.available()`, `ModelRouter.budget_state()`,
+  `rate_limit_available`, `rate_limit_capacity`); enforcement remains in
+  `ModelRouter._guardrails` (D-063). `preflight()` dispatches nothing and
+  consumes no token. Refusals are stable codes, with `RATE_LIMITED` Class A and
+  the rest Class B.
+- **Wiring, not replacement.** `guarded_router()` returns a NEW router whose
+  policy contains only gate-approved tasks; `wire_fashion_engines()` binds the
+  §4.1 and §4.2 engines to it unchanged; `strict` (default) refuses a partially
+  wired surface. Decisions are frozen, timestamp-free, value-free records
+  (`ai.provider_gate.v1`) suitable for an audit sink.
+- **Still open, stated rather than implied done** — no provider is selected and no
+  live adapter is wired; nothing was contacted. Phase 5 publishing and any
+  merchant/storefront caller remain unbuilt.
+- **Evidence** — `python3 -m unittest local.tests.test_phase4_provider_gate` →
+  **57 tests, OK**; targeted §4.1/§4.2 + phase7 `m1..m4`/`m4_stdlib` + phase8
+  observability → **298 tests, OK** (15 pre-existing live-DB skips); full sweep →
+  **2596 tests** with the same three known live-PostgreSQL failures as HEAD. No
+  deployment, provisioning, credential or network call.
+
 ---
 
 ## Phase 5: Multi-Channel Social Automation

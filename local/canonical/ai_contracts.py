@@ -270,6 +270,37 @@ SEO_COPY_V1 = {
     },
 }
 
+# --- fashion trend/hashtag intelligence (D-172 §4.2, roadmap §4.2) ------------
+
+# A TARGETED hashtag set for one garment category in one season.
+# The three groups are not decoration: the deterministic guard requires
+# them to PARTITION `hashtags` (disjoint, same union) and to anchor the
+# merchant's own category and season, so "based on garment category and
+# season" is enforced rather than merely prompted. Tags carry no '#':
+# the publisher/composer renders them (D-073 parity — one rendering).
+_TREND_TAG = {"type": "string", "minLength": 2, "maxLength": 60}
+
+TREND_HASHTAG_SET_V1 = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "trend_hashtag_set.v1",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["hashtags", "category_tags", "season_tags",
+                 "niche_tags", "rationale"],
+    "properties": {
+        "hashtags": {"type": "array", "items": _TREND_TAG,
+                     "minItems": 5, "maxItems": 30},
+        "category_tags": {"type": "array", "items": _TREND_TAG,
+                          "minItems": 1, "maxItems": 10},
+        "season_tags": {"type": "array", "items": _TREND_TAG,
+                        "minItems": 1, "maxItems": 10},
+        "niche_tags": {"type": "array", "items": _TREND_TAG,
+                       "minItems": 0, "maxItems": 20},
+        "rationale": {"type": "string", "minLength": 10,
+                      "maxLength": 1000},
+    },
+}
+
 # versioned registry (contract evolution = new version id + amendment)
 AI_OUTPUT_SCHEMAS: Dict[str, dict] = {
     "content_idea_proposal.v1": CONTENT_IDEA_PROPOSAL_V1,
@@ -277,6 +308,7 @@ AI_OUTPUT_SCHEMAS: Dict[str, dict] = {
     "product_description_enrichment.v1": PRODUCT_DESCRIPTION_ENRICHMENT_V1,
     "telegram_announcement.v1": TELEGRAM_ANNOUNCEMENT_V1,
     "seo_copy.v1": SEO_COPY_V1,
+    "trend_hashtag_set.v1": TREND_HASHTAG_SET_V1,
 }
 
 

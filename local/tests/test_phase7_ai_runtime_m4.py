@@ -465,13 +465,15 @@ class ProviderBoundaryAuditTests(unittest.TestCase):
         self.assertEqual(cm.exception.failure_class, "B")
 
     def test_default_policy_has_no_real_provider(self):
-        # D-172 §4.1 added the two fashion copy channels; the Instagram
-        # channel intentionally reuses `generate_caption` (G-6), so the
-        # policy surface grows by exactly two keys.
+        # D-172 §4.1 added the two fashion copy channels (the Instagram
+        # channel intentionally reuses `generate_caption`, G-6) and
+        # D-172 §4.2 adds the trend/hashtag channel: the policy surface
+        # grows by exactly one key per new artifact, and every key is
+        # still mock.
         self.assertEqual(set(DEFAULT_ROUTING_POLICY), {
             "propose_content_idea", "generate_caption",
             "enrich_description", "fashion_telegram_announcement",
-            "fashion_seo_copy"})
+            "fashion_seo_copy", "fashion_trend_hashtags"})
         for target in DEFAULT_ROUTING_POLICY.values():
             self.assertEqual(target.provider, "mock")
 

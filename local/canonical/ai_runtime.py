@@ -153,6 +153,22 @@ class MockAiProvider(AiProvider):
             "rationale": "توضیح متا با کلیدواژه‌های فصل و جنس پارچه نوشته شد "
                          "تا در نتایج جست‌وجو دیده شود",
         },
+        # D-172 §4.2 — a deterministic TREND tag set for the default
+        # brief (مانتو / پاییز / کرپ). The three groups partition
+        # `hashtags`, and the brief's own category and season are
+        # anchored literally, so the grounding guard can verify the
+        # output instead of trusting the prompt.
+        "trend_hashtag_set.v1": {
+            "hashtags": ["مانتو", "مانتو_پاییزی", "پاییز",
+                         "پوشاک_پاییزی", "کرپ", "استایل_پاییزی",
+                         "مانتو_کرپ"],
+            "category_tags": ["مانتو", "مانتو_پاییزی"],
+            "season_tags": ["پاییز", "پوشاک_پاییزی"],
+            "niche_tags": ["کرپ", "استایل_پاییزی", "مانتو_کرپ"],
+            "rationale": "دستهٔ مانتو با هشتگ فصل پاییز و جنس پارچهٔ کرپ "
+                         "ترکیب شد تا هر سه گروه دسته، فصل و تخصصی پوشش "
+                         "داده شود",
+        },
     }
 
     def _fail(self):
@@ -239,6 +255,11 @@ DEFAULT_ROUTING_POLICY: Dict[str, RouteTarget] = {
         "mock", "mock-1", "telegram_announcement.v1", budget_usd=0.25),
     "fashion_seo_copy": RouteTarget(
         "mock", "mock-1", "seo_copy.v1", budget_usd=0.50),
+    # D-172 §4.2 — trend/hashtag intelligence. One key, one contract:
+    # the tag set is its own artifact (it is consumed by the caption /
+    # Telegram channels, not merged into one of them).
+    "fashion_trend_hashtags": RouteTarget(
+        "mock", "mock-1", "trend_hashtag_set.v1", budget_usd=0.25),
 }
 
 # static tariff table (USD per 1K tokens); mock is free
@@ -275,6 +296,16 @@ class TokenBucket:
             self.tokens -= 1
             return True
         return False
+
+    def available(self) -> float:
+        """Projected tokens WITHOUT consuming or mutating state.
+
+        Read-only preflight view (same refill formula as acquire), so a
+        caller can refuse a dispatch before the bucket is touched.
+        """
+        now = time.monotonic()
+        return min(self.capacity,
+                   self.tokens + (now - self._last) * self.refill_per_sec)
 
 
 class UsageLedger:
@@ -384,6 +415,42 @@ class ModelRouter:
             raise AiProviderError(
                 f"routing policy references unknown provider "
                 f"{provider_name!r}", failure_class="B")
+
+    # -- read-only guardrail views (wiring/preflight; never dispatch) ---------
+
+    def budget_state(self, task_type: str) -> Dict:
+        """Public snapshot of one task's D-063 budget position.
+
+        Read-only: the router's own hard refusal in `_guardrails` stays
+        the enforcement point; this exists so a wiring/preflight layer
+        can report the same numbers WITHOUT reaching into private
+        state, and without spending anything.
+        """
+        target = self.policy.get(task_type)
+        if target is None:
+            raise AiProviderError(
+                f"no routing policy for task {task_type!r}",
+                failure_class="B")
+        budget = float(self.budgets.get(task_type, target.budget_usd))
+        spent = float(self._spend.get(task_type, 0.0))
+        return {
+            "task_type": task_type,
+            "budget_usd": budget,
+            "spent_usd": spent,
+            "remaining_usd": round(budget - spent, 6),
+            "exhausted": spent >= budget,
+            "soft_limit": budget > 0
+            and spent >= SOFT_BUDGET_RATIO * budget,
+        }
+
+    def rate_limit_available(self) -> float:
+        """Projected local token-bucket capacity (read-only)."""
+        return self._bucket.available()
+
+    @property
+    def rate_limit_capacity(self) -> int:
+        """Configured bucket size — plain configuration, no key material."""
+        return int(self._bucket.capacity)
 
     def run(self, request: AiRequest,
             provenance=None, queue=None,

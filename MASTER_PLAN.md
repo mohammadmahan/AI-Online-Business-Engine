@@ -1545,6 +1545,73 @@ and Live Wiring programs; per-phase detail in §13 and the
     path — the AI provider (G-4 / decision 9) is unselected, so nothing
     live was called; no deployment, provisioning, connection, credential
     or push.
+    **Further amended 2026-10-20 (append-only — the sentences above were
+    true when written):** **Phase 4 §4.2 (Trend & Hashtag Intelligence,
+    roadmap §4.2) is IMPLEMENTED and VERIFIED offline**, so the clause
+    “§4.2 … NOT started” is superseded for §4.2 only (the AI provider
+    gate and Phases 5–6 remain open).
+    `local/canonical/fashion_trends.py` turns a structured `TrendBrief`
+    (garment category, season, optional fabric and raw notes, optional
+    product id) into ONE strict `trend_hashtag_set.v1` proposal of 5–30
+    tags on the new `fashion_trend_hashtags` routing key (mock),
+    rendered from `fashion_trend_hashtags@v1.0.0`. §4.2's “based on
+    garment category and season” is CHECKED rather than hoped for: the
+    tags are partitioned into category / season / niche groups that must
+    be disjoint and share one union with the published list, and the
+    category and season groups must contain the merchant's OWN category
+    and season after deterministic normalisation (equality, not
+    substring). Every tag passes the ONE shared
+    `check_hashtag_vocabulary` (extended with an exact-match `allow` for
+    the merchant's own stated facts — the fabric «کرپ» is not a
+    misspelling of the colour «کرم»), and the reused invented-facts
+    guard still refuses a price, link or discount the brief never
+    stated (AC-4/AC-5). Tags are stored unhashed and may carry neither
+    whitespace nor an inner `#`; divergence is Class B with nothing
+    persisted. Persist mode lands a `PROPOSED` item through the M2
+    lifecycle, repeats are idempotent, `generate_batch` covers one brief
+    per category/season on the shared budget-disciplined batch, dry-run
+    is the default and side-effect free, and the module exposes no
+    publication surface (AST-asserted). Evidence: `python3 -m unittest
+    local.tests.test_phase4_fashion_trends` → 52 tests OK; targeted §4.1
+    + phase7 `m1..m4`/`m4_stdlib` + phase8 observability → 190 tests OK;
+    full sweep → 2539 tests with the same three known live-PostgreSQL
+    failures as HEAD. **Still open and NOT implied:** any
+    merchant-panel/storefront caller, publishing (Phase 5), and any live
+    model path — the AI provider (G-4 / decision 9) is unselected, so
+    nothing live was called; no deployment, provisioning, connection,
+    credential or push.
+    **Further amended 2026-10-20 (append-only — the sentences above were
+    true when written):** the Phase 4 **provider gate** (the open TODO
+    item; this roadmap has no §4.3 — its only Phase 4 sections are §4.1
+    and §4.2, and D-172 §4.3 is the G-3 schema ruling) is **IMPLEMENTED
+    and VERIFIED offline**, and it **grants nothing**: no provider was
+    selected, named, constructed or contacted, and decision 9 / G-4 stays
+    OPEN. `local/canonical/ai_provider_gate.py` makes one fail-closed
+    decision per fashion task: a provider must be DECLARED and REGISTERED,
+    the routed schema must be a registered contract, `mock` is the only
+    ungated class, and a `live` class additionally needs a recorded
+    `OwnerDecision` covering BOTH the task and the provider (unexpired,
+    with a reference and an approver), an injected credential-PRESENCE
+    predicate for a declared variable name (the gate never reads the
+    process environment and never receives a value), a positive declared
+    budget, and a non-production environment (live AI is
+    production-blocked, D-045). An env flag is configuration, not consent:
+    the D-066 construction gate is necessary for an adapter to exist and
+    explicitly not sufficient to serve a task. Budget and rate are the
+    router's own numbers through four new read-only views
+    (`TokenBucket.available()`, `ModelRouter.budget_state()`,
+    `rate_limit_available`, `rate_limit_capacity`) — enforcement stays in
+    `_guardrails` (D-063), `preflight()` dispatches nothing and consumes
+    no token, and every refusal is a stable code (`RATE_LIMITED` Class A,
+    the rest Class B). Wiring is additive: `guarded_router()` returns a new
+    router restricted to approved tasks and `wire_fashion_engines()` binds
+    the §4.1/§4.2 engines unchanged, with strict wiring refusing a partial
+    surface. Evidence: 57 gate tests OK; targeted 298 tests OK (15
+    pre-existing live-DB skips); full sweep 2596 tests with the same three
+    known live-PostgreSQL failures as HEAD. **Still open and NOT implied:**
+    provider selection and any live path (decision 9 / G-4), Phase 5
+    publishing, and any merchant/storefront caller; no deployment,
+    provisioning, credential, network call or push.
 -   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
     graph-tooling audit returned **zero real defects**. Phase 1 (baseline
     drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked

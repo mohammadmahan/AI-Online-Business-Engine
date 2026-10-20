@@ -353,6 +353,96 @@ Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
   storefront caller for this engine, and any live provider path (G-4 / decision 9
   is still OPEN).
 
+### 5.5 Phase 4 §4.2 implementation — trend & hashtag intelligence (2026-10-20, owner-authorized)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
+
+- **Module.** `local/canonical/fashion_trends.py` (new): `TrendBrief`
+  (`garment_category`, `season`, optional `fabric_type`, raw `notes`, optional
+  `product_id`), `normalize_tag`, the guard `check_hashtag_set`, the task
+  `FashionTrendHashtagTask` and `FashionTrendEngine` (`preview_prompt`,
+  `generate`, `generate_batch`). `dry-run` is the default and persists nothing.
+- **Contract.** `trend_hashtag_set.v1` — 5..30 tags, three groups
+  (`category_tags` 1..10, `season_tags` 1..10, `niche_tags` 0..20) and a
+  rationale — registered strict and versioned in `AI_OUTPUT_SCHEMAS` and
+  mirrored byte-for-byte into the frozen fixture. The three groups are the
+  contract's load-bearing part: they are what the guard can verify.
+- **Routing + template.** One new `RouteTarget` (`fashion_trend_hashtags` →
+  `trend_hashtag_set.v1`, `mock`, budget $0.25) with a scripted mock output that
+  is grounded for the default brief (مانتو / پاییز / کرپ) and carries no price
+  and no URL; `fashion_trend_hashtags@v1.0.0` pins the same contract and feeds
+  the request `template_id` + `template_hash` (D-067).
+- **Grounding is deterministic (§4.2 core).** The groups must partition
+  `hashtags` (disjoint, same union, same count); `category_tags` must contain
+  the merchant's own `garment_category` and `season_tags` the merchant's own
+  `season`, compared after `normalize_tag` (`#` stripped; ZWNJ, RTL marks,
+  whitespace and `-` collapsed to `_`; lowercased). Equality, not substring —
+  «مانتوپاییزی» does not satisfy «مانتو». Tag format is checked too: no inner
+  `#`, no whitespace, 2..60 characters after normalisation.
+- **One vocabulary rule, extended additively.** `check_hashtag_vocabulary`
+  gained an optional `allow` (exact match, default empty). §4.2 passes the
+  merchant's own stated category/season/fabric, because those are canonical
+  FACTS rather than model-authored vocabulary — the same principle the
+  invented-facts guard already applies to a quoted price. Without that, the
+  fabric «کرپ» would be reported as a near-miss of the approved colour «کرم»
+  for every crepe garment (a false positive), while the identical token for a
+  brief that never stated it is still refused. Every pre-existing caller is
+  unchanged (the parameter is optional and empty by default).
+- **AC-4/AC-5.** `check_invented_facts` is reused from §4.1, never copied: an
+  invented price, link or discount token in any string (including the rationale)
+  is Class B.
+- **Determinism.** Entity key
+  `fashion-trend/<product_id or brief>/<season>/<category>[/<fabric>]` — the
+  idempotency tag is `<task_type>|<key>`, so a repeat is `skipped_duplicate` and
+  a different fabric is a different artifact rather than a conflicting duplicate.
+- **Not built, not implied.** A merchant-panel/storefront caller, any publication
+  edge (Phase 5) and any live provider path (G-4 / decision 9 still OPEN).
+
+### 5.6 Phase 4 provider gate — fail-closed runtime wiring (2026-10-20, owner-authorized)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
+
+- **Anchor.** The roadmap defines Phase 4 §4.1 and §4.2 only; **there is no
+  §4.3 in it** (this decision's §4.3 is the G-3 schema-authority ruling). The
+  executed item is the open `TODO.md` entry “Phase 4 provider gate”. Recording
+  the correct anchor rather than accepting a wrong section number is the same
+  discipline `PROJECT_RULES.md` §2 requires elsewhere.
+- **Module.** `local/canonical/ai_provider_gate.py` (new): `ProviderDeclaration`
+  (name, class `mock`/`live`, variable NAME, model ids), `OwnerDecision`
+  (reference, approver, provider scope, task scope, optional ISO expiry, stable
+  fingerprint), frozen `GateDecision` records (`ai.provider_gate.v1`),
+  `ProviderGate` (`decide`, `preflight`, `plan`, `refusals`,
+  `guarded_router`), `wire_fashion_engines` and `offline_gate`.
+- **Deny by default.** A route is allowed only when the provider is DECLARED in
+  the catalogue and REGISTERED on the router, and the routed schema is a
+  registered contract. The default catalogue declares **only** the local
+  `mock`; the mock class is pinned to that single name at construction, so a
+  provider cannot be re-labelled into the local exemption.
+- **Live requires a recorded owner decision.** `OwnerDecision` coverage of BOTH
+  the task and the provider, unexpired, plus an injected
+  credential-*presence* predicate, a positive declared budget and a
+  non-production environment. An environment flag (the D-066 adapter
+  construction gate) remains necessary for an adapter to EXIST and is
+  explicitly not sufficient to SERVE a fashion task; a boolean is
+  configuration, not consent. The gate never reads the process environment,
+  never receives a value, and its default presence predicate answers `False`.
+- **Production refuses live unconditionally**, mirroring
+  `runtime_preflight.py`'s prohibition (D-045) instead of relying on a second,
+  independently drifting check.
+- **Budget and rate are read, never re-implemented.** `ai_runtime` gained four
+  read-only views (`TokenBucket.available()`, `ModelRouter.budget_state()`,
+  `rate_limit_available`, `rate_limit_capacity`); `_guardrails` stays the
+  enforcement point (D-063), `preflight()` dispatches nothing and consumes no
+  token, and `RATE_LIMITED` is classified A while the rest are B.
+- **Wiring.** `guarded_router()` returns a NEW `ModelRouter` restricted to
+  gate-approved tasks (inheriting ledger, budgets and bucket capacity), so the
+  §4.1/§4.2 engines run unchanged on a router that cannot route a refused task;
+  `wire_fashion_engines()` binds both; `strict=True` (default) refuses a
+  partial surface instead of silently shrinking it.
+- **Not done, not implied.** No provider selected or named, no adapter
+  constructed, no live path, no credential, no network, no deployment; decision
+  9 / G-4 remains OPEN, as do Phase 5 publishing and any UI caller.
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**
@@ -1011,6 +1101,96 @@ and Phases 5–6 are still not started).
   deployment and no migration; the frozen schema fixture was amended in the SAME
   change as the registry (drift there fails `m1`/`m4` by design, which is exactly
   how this amendment was caught and made explicit rather than silent).
+
+### Phase 4 §4.2 verification — trend & hashtag intelligence (2026-10-20, owner-authorized)
+
+Appended; the status paragraphs above stay as written, and their clause *“§4.2
+hashtag/trend intelligence is not started”* is **superseded for §4.2 only** by
+this block (Phases 5–6 are still not started).
+
+- `python3 -m unittest local.tests.test_phase4_fashion_trends` → **52 tests,
+  OK**. Coverage: strict/versioned contract + frozen-fixture parity + a
+  contract-valid, grounded mock script; template↔contract parity and the brief
+  facts embedded in the rendered prompt (preview dispatches nothing, and the
+  rendering is byte-identical across engines); brief identity (deterministic
+  key, product scoping, Class-B refusals **before** any dispatch); grounding —
+  missing category anchor, missing season anchor, a near token that does not
+  equal the anchor, an ungrouped tag, a dropped tag, a tag in two groups, a
+  duplicate, whitespace, an inner `#`, a one-character tag, a near-miss of
+  approved vocabulary, an invented price and an invented link are all Class B
+  with **zero** queue / provenance / event writes, while a price quoted from
+  the brief and the seller's own fabric are allowed; contract bounds (4 and 31
+  tags) raise `OutputValidationError` and are never repaired; persist → one
+  `PROPOSED` item with queue + provenance, an idempotent repeat, per-season
+  keys and a fail-closed persist without a lifecycle; batch reporting with a
+  per-item failure; authority hygiene by AST (no network import, no
+  credential/environment access, no publish/approve verb, approved imports
+  only); provider neutrality end-to-end with an injected stub `AiProvider`
+  across three category/season pairs.
+- **Targeted regressions:** `test_phase4_fashion_copy`, `test_phase7_ai_runtime_m1`,
+  `m2`, `m3`, `m4`, `test_phase7_ai_runtime_m4_stdlib` and
+  `test_phase8_ai_observability` → **190 tests OK** (15 pre-existing
+  live-PostgreSQL skips). One pinned expectation was **amended deliberately**:
+  `test_default_policy_has_no_real_provider` now lists the new routing key (both
+  it and the §4.1 keys are `mock`).
+- **Full sweep:** `python3 -m unittest discover -s local/tests -p "test_*.py"` →
+  **2539 tests, 3 failures** — the known live-PostgreSQL-dependent tests
+  (`test_phase23_resilience` transport ceiling, `test_phase26_decision_ledger_drill`,
+  `test_phase26_dr_closeout`), identical to the untouched HEAD baseline recorded
+  for §4.1. A **transient extra failure** appeared in the first sweep:
+  `test_phase10_telegram.PublisherOfflineTests.test_concurrent_publishers_single_winner`
+  (`8 != 9`). It is a concurrency race in a module this change does not import
+  or touch; it passed in the second full sweep and in **20/20** isolated runs,
+  so it is reported as an environment-sensitive flake, not as a pass and not as
+  a regression of this change.
+- **Boundaries.** No live model or provider call, no network, no credential, no
+  deployment and no migration; the fixture, the template, the contract and the
+  routing key were amended in the SAME change (drift fails the parity tests by
+  design).
+
+### Phase 4 provider gate verification — fail-closed wiring (2026-10-20, owner-authorized)
+
+Appended; the status paragraphs above stay as written. Their clause *“any live
+provider path remains open”* is **unchanged in substance** by this block: a gate
+that can refuse is not a provider selection.
+
+- `python3 -m unittest local.tests.test_phase4_provider_gate` → **57 tests, OK**.
+  Coverage: construction validation (mock name reservation, live requires a
+  variable name and a model, unknown class, catalogue-key mismatch, non-router
+  input, unknown environment, frozen declarations); owner decisions (required
+  fields, ISO expiry, expiry boundary, no-expiry, stable/scoped/16-hex
+  fingerprint with no credential surface); offline gate (all four Phase 4 tasks
+  allowed on `mock`, unknown task refused, appended audit records with no
+  timestamps, determinism, guarded router content, both engines running offline,
+  preflight consuming no token); deny-by-default (undeclared provider,
+  declared-but-unregistered, unregistered schema, live class masquerading as
+  `mock`); owner-decision rules (missing, credential-only, task/provider outside
+  scope, expired, valid-after-expired, missing variable, zero budget, production
+  refusal with full consent, mock still allowed in production, and an authorized
+  live-class route running end to end on an injected stub provider); budget and
+  rate (zero resolved budget, exhausted budget, soft-limit warning, Class-A rate
+  refusal with zero consumption, public state views); wiring (strict refusal with
+  attached decisions, explicit partial wiring, inherited budgets/ledger/capacity,
+  frozen decisions, `refusals`); and hygiene by AST (no network/process imports,
+  no environment read, no credential-adjacent string constants, no publication
+  verb, approved imports only, and a test that the presence predicate is asked
+  for a NAME while no value can reach a record).
+- **Targeted regressions:** `test_phase4_fashion_copy`,
+  `test_phase4_fashion_trends`, `test_phase7_ai_runtime_m1..m4`,
+  `test_phase7_ai_runtime_m4_stdlib` and `test_phase8_ai_observability` → **298
+  tests OK** (15 pre-existing live-PostgreSQL skips). No pinned expectation was
+  changed for this work; the m4 boundary audit caught two docstring words
+  (“secret”, and an `os.environ` mention) in the new code and in the new
+  `ai_runtime` docstring, both reworded — the audit was right, and the fix was
+  the wording, not the audit.
+- **Full sweep:** `python3 -m unittest discover -s local/tests -p "test_*.py"` →
+  **2596 tests, 3 failures** — the known live-PostgreSQL-dependent tests
+  (`test_phase23_resilience` transport ceiling, `test_phase26_decision_ledger_drill`,
+  `test_phase26_dr_closeout`), identical to the HEAD baseline recorded for §4.1
+  and §4.2. Nothing was skipped, weakened or suppressed to reach this state.
+- **Boundaries.** No live model or provider call, no network, no credential, no
+  environment read, no deployment and no migration; decision 9 / G-4 remains the
+  owner's.
 
 ## 7. References
 

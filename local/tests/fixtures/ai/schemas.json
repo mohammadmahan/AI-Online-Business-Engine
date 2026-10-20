@@ -64,5 +64,19 @@
       "seo_keywords": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 40}, "minItems": 1, "maxItems": 15},
       "rationale": {"type": "string", "minLength": 10, "maxLength": 1000}
     }
+  },
+  "trend_hashtag_set.v1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "trend_hashtag_set.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["hashtags", "category_tags", "season_tags", "niche_tags", "rationale"],
+    "properties": {
+      "hashtags": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 60}, "minItems": 5, "maxItems": 30},
+      "category_tags": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 60}, "minItems": 1, "maxItems": 10},
+      "season_tags": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 60}, "minItems": 1, "maxItems": 10},
+      "niche_tags": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 60}, "minItems": 0, "maxItems": 20},
+      "rationale": {"type": "string", "minLength": 10, "maxLength": 1000}
+    }
   }
 }
