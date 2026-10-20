@@ -379,6 +379,50 @@ Objective: Transform raw product attributes into marketing assets.
 ### 4.2 Trend & Hashtag Intelligence
 - Auto-generation of targeted niche fashion hashtags based on garment category and season.
 
+#### Phase 4 §4.1 completion record (2026-10-20) — §4.1 IMPLEMENTED & VERIFIED (offline); §4.2 NOT started
+
+Appended; the section text above is the specification and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full record in `D-172` §5.4 and §6.
+
+- **The pipeline exists** — `local/canonical/fashion_copy.py`: a structured brief
+  (`fabric_type`, `season`, `title`, raw seller `notes`, optional `product_id` and
+  a tone preset) is rendered through versioned templates into ONE request per
+  channel and dispatched through the existing AI runtime (`ModelRouter` →
+  `AiProvider`), never a direct provider call. `dry-run` is the default and
+  persists nothing; `persist` lands every output as `PROPOSED` through the M2
+  proposal lifecycle (queue + provenance), and the module has **no** publication
+  surface at all.
+- **Instagram caption + tone presets (Luxury/Casual/Trendy)** — the channel
+  **reuses** the approved `generate_caption` task and `caption_proposal.v1`
+  contract (G-6, one dispatch path per channel); the preset is request-side input
+  rendered from `fashion_instagram_caption@v1.0.0`, so no new caption contract and
+  no forked vocabulary rule were introduced.
+- **Telegram announcement** — `telegram_announcement.v1` / task
+  `fashion_telegram_announcement`: plain text + CTA + hashtags, validated against
+  the **channel's own 4096-character cap** with the CTA and hashtag suffix counted,
+  so a length refusal cannot surface for the first time at publish (D-073).
+- **SEO copy** — `seo_copy.v1` / task `fashion_seo_copy`: meta description
+  (50–160 characters), web copy and 1–15 keywords.
+- **Contract-first, never repaired (D-062/D-052)** — both contracts are strict
+  (`additionalProperties: false`), versioned, pinned to the frozen fixture, and
+  each template's `response_contract` must stay byte-equal to the registry; an
+  out-of-contract model output raises `OutputValidationError` (Class B).
+- **Deterministic guards (AC-4/AC-5, D-029/D-031/D-032)** — hashtags and SEO
+  keywords pass the ONE shared `check_hashtag_vocabulary` guard; a price, link or
+  discount token that does **not** appear in the brief is a divergence (quoting a
+  price the seller stated is allowed, inventing one is not); the composed Telegram
+  text is checked against the cap. Divergence → Class B, nothing persisted.
+- **Still open, stated rather than implied done** — §4.2 hashtag/trend intelligence
+  is not started; no merchant-panel or storefront caller of this engine exists yet;
+  no live model was called, so copy quality across real providers is unproven; the
+  output is a proposal, and publishing remains Phase 5.
+- **Evidence** — `python3 -m unittest local.tests.test_phase4_fashion_copy` →
+  **48 tests, OK**; full sweep `python3 -m unittest discover -s local/tests -p
+  "test_*.py"` → **2487 tests, 3 failures**, all three the known
+  live-PostgreSQL-dependent tests that fail identically on the untouched HEAD
+  (verified by stashing the change). No deployment, provisioning, provider or
+  credential.
+
 ---
 
 ## Phase 5: Multi-Channel Social Automation

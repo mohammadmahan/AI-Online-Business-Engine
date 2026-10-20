@@ -1,0 +1,38 @@
+{
+  "template_id": "fashion_telegram_announcement",
+  "version": "v1.0.0",
+  "schema_id": "telegram_announcement.v1",
+  "description": "متن اعلام کانال تلگرام از روی پارچه، فصل و یادداشت خام فروشنده؛ متن ساده و کوتاه‌تر از سقف کانال؛ D-172 §4.1 / AC-3.",
+  "prompt_text": "تو کوپی‌رایتر یک فروشگاه پوشاک ایرانی هستی و برای کانال تلگرام متن اعلام می‌نویسی.\nکد لحن: {tone} — {tone_label}\nراهنمای لحن: {tone_guidance}\nقواعد سخت: متن ساده و بدون Markdown بنویس؛ حداکثر ۳۵۰۰ نویسه بمان تا با فراخوان و هشتگ‌ها از سقف ۴۰۹۶ نویسه کانال عبور نکنیم؛ فقط از اطلاعات زمینه استفاده کن؛ هیچ قیمت، لینک، کد تخفیف یا شناسه اختراع نکن؛ هشتگ‌ها فقط از واژگان تأییدشده رنگ/سایز/دسته یا واژه‌های عمومی موضوعی؛ خروجی فقط و فقط JSON معتبر مطابق قرارداد telegram_announcement.v1 (بدون متن اضافه).\nیادداشت خام فروشنده: {notes}\nزمینه (JSON): {context}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "telegram_announcement.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "announcement_fa",
+      "hashtags"
+    ],
+    "properties": {
+      "announcement_fa": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 4096
+      },
+      "hashtags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "minItems": 0,
+        "maxItems": 30
+      },
+      "cta_fa": {
+        "type": "string",
+        "maxLength": 200
+      }
+    }
+  }
+}

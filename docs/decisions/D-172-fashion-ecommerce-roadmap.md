@@ -306,6 +306,53 @@ badge (`robots: noindex` moved with it; the storefront is a public shop).
   zoom / swipe gestures and live payment capture remain Phase 6 work, and mobile
   gesture behaviour was not device-tested.
 
+### 5.4 Phase 4 §4.1 implementation — fashion copywriting engine (2026-10-20, owner-authorized)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
+
+- **Module.** `local/canonical/fashion_copy.py` (new) holds the whole §4.1
+  pipeline: `FashionBrief` (`title`, `fabric_type`, `season`, raw `notes`,
+  `tone`, optional `product_id`), `TONE_PRESETS` (`luxury` / `casual` /
+  `trendy` — Persian label + hard guidance, deterministic configuration, never
+  model-chosen), the three channel tasks (`FashionInstagramCaptionTask`,
+  `FashionTelegramTask`, `FashionSeoTask`) and `FashionCopywritingEngine`
+  (`generate(channel, brief)`, `generate_pack(brief)`, `preview_prompts(brief)`)
+  returning a `CopyPack`. `dry-run` is the default and persists nothing.
+- **Instagram channel reuses the approved path (G-6).** The caption task
+  subclasses the Phase 7 `CaptionTask`: same `generate_caption` task type and the
+  same `caption_proposal.v1` contract; the tone preset is a REQUEST-side input, so
+  no second caption contract, no second routing key and no forked vocabulary rule
+  were introduced.
+- **Contracts.** `telegram_announcement.v1` (announcement ≤ 4096, hashtags, CTA)
+  and `seo_copy.v1` (meta 50..160, web copy, 1..15 keywords, rationale) are
+  registered strict and versioned in `AI_OUTPUT_SCHEMAS` and mirrored
+  byte-for-byte into the frozen fixture `local/tests/fixtures/ai/schemas.json`.
+  The Telegram ceiling is pinned as a literal in `ai_contracts.py` (no
+  cross-module dependency) and re-asserted against
+  `telegram_contracts.MAX_TEXT_CHARS` by the Phase 4 suite.
+- **Routing.** Two new `RouteTarget`s in `DEFAULT_ROUTING_POLICY`
+  (`fashion_telegram_announcement` → `telegram_announcement.v1`,
+  `fashion_seo_copy` → `seo_copy.v1`), both `mock`, plus scripted mock outputs for
+  both schemas that deliberately contain **no price and no URL** — the model never
+  invents canonical data.
+- **Templates (D-067).** `fashion_instagram_caption`,
+  `fashion_telegram_announcement` and `fashion_seo_copy` at `v1.0.0`, each pinned
+  to its contract; every request carries `template_id` + `template_hash`, so a
+  copy is reproducible from (brief, template).
+- **Guards.** The hashtag/keyword rule is the ONE shared
+  `check_hashtag_vocabulary` (extracted from `CaptionTask` in `ai_tasks.py` and now
+  called by all three channels); `check_invented_facts` flags price, link and
+  discount tokens that do not appear in the brief (quoting what the seller stated
+  is allowed); `telegram_render` composes the exact publisher text so the 4096
+  cap is checked including the CTA and hashtag suffix.
+- **Determinism.** Entity key
+  `fashion/<product_id or brief>/<season>/<fabric>/<title>`, idempotency tag adds the
+  tone (`<task_type>|<key>|<tone>`) — the same brief cannot silently create a
+  second PROPOSED record, and two tones never collide.
+- **Not built, not implied.** §4.2 hashtag/trend intelligence, a merchant-panel or
+  storefront caller for this engine, and any live provider path (G-4 / decision 9
+  is still OPEN).
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**
@@ -927,6 +974,43 @@ edit and a coupon edit are still unrecorded, so the merchant-panel requirement
 lifecycle and not yet for the catalog surface), and its
 possible enrolment in the engine's canonical provenance — which remains an owner
 schema decision and is NOT implied by adding a track-local table.
+
+### Phase 4 §4.1 verification — fashion copywriting engine (2026-10-20, owner-authorized)
+
+Appended; the status paragraph above stays as written, and its clause *“the AI
+engine itself NOT started”* is **superseded for §4.1 only** by this block (§4.2
+and Phases 5–6 are still not started).
+
+- `python3 -m unittest local.tests.test_phase4_fashion_copy` → **48 tests, OK**.
+  Coverage: strict/versioned contracts + frozen-fixture parity + Telegram cap
+  parity with `telegram_contracts.MAX_TEXT_CHARS`; template↔contract parity and
+  brief facts embedded in every rendered prompt; tone presets (normalization,
+  refusal before any dispatch, tone reaching the provider on all three channels
+  and returning in the copy); all three channels contract-valid on the mock; the
+  Telegram render (CTA + hashtags) inside the cap; over-cap text, invented price,
+  invented link and near-miss hashtag/keyword all Class B with **zero** queue /
+  provenance / event writes; SEO meta out of bounds → `OutputValidationError`
+  (never repaired); persist → three `PROPOSED` items with queue + provenance and
+  an idempotent repeat; dry-run side-effect free; authority hygiene by AST (no
+  network import, no credential/environment access, no publish/approve verb); and
+  provider neutrality proved end-to-end with an injected stub `AiProvider`.
+- **Targeted regressions:** `test_phase7_ai_runtime_m1`, `m2`, `m3`, `m4`,
+  `test_phase7_ai_runtime_m4_stdlib` and `test_phase8_ai_observability` → OK (the
+  12 + 3 skips are the pre-existing live-PostgreSQL skips). One pinned
+  expectation was **amended deliberately**: `test_default_policy_has_no_real_provider`
+  now lists the two new routing keys (both `mock`) — the alternative would have
+  been a policy that lies about itself.
+- **Full sweep:** `python3 -m unittest discover -s local/tests -p "test_*.py"` →
+  **2487 tests, 3 failures**. All three are the known live-PostgreSQL-dependent
+  tests (`test_phase23_resilience` transport ceiling, `test_phase26_decision_ledger_drill`,
+  `test_phase26_dr_closeout`) and they fail **identically on the untouched HEAD**
+  (verified by stashing this change and re-running them: `connection to server at
+  "127.0.0.1", port 55432 failed`), so no regression was introduced and no failure
+  was waived.
+- **Boundaries.** No live model or provider call, no network, no credential, no
+  deployment and no migration; the frozen schema fixture was amended in the SAME
+  change as the registry (drift there fails `m1`/`m4` by design, which is exactly
+  how this amendment was caught and made explicit rather than silent).
 
 ## 7. References
 

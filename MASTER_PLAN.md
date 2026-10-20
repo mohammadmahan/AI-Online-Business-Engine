@@ -1504,7 +1504,47 @@ and Live Wiring programs; per-phase detail in §13 and the
     OTP at checkout, image zoom/swipe gestures and device testing of the
     PDP; nothing is provisioned, installed,
     connected or deployed — no live credential exists or is requested
-    (D-045/D-139)
+    (D-045/D-139).
+    **Further amended 2026-10-20 (append-only — the sentences above were
+    true when written):** **Phase 4 §4.1 (Fashion Copywriting Engine,
+    roadmap §4.1 / AC-3) is IMPLEMENTED and VERIFIED offline**, so the
+    clause “the Phase 4 AI engine itself … NOT started” is superseded for
+    §4.1 only (§4.2 and Phases 5–6 remain not started).
+    `local/canonical/fashion_copy.py` turns a structured brief
+    (fabric_type, season, title, raw seller notes, optional product_id,
+    tone preset) into the three §4.1 outputs — Instagram caption with
+    Luxury/Casual/Trendy presets, Telegram announcement, SEO meta
+    description and web copy — as ONE request per channel through the
+    existing AI runtime (`ModelRouter` → `AiProvider`), never a direct
+    provider call. The Instagram channel REUSES the approved
+    `generate_caption` task and `caption_proposal.v1` contract (G-6: one
+    dispatch path per channel; the tone preset is request-side input),
+    while Telegram and SEO get two new strict, versioned contracts
+    (`telegram_announcement.v1` — capped at the channel's own 4096 chars
+    INCLUDING the CTA and hashtags (D-073) — and `seo_copy.v1` — meta
+    50–160 chars, 1–15 keywords) registered with their routing keys and
+    mirrored byte-for-byte into the frozen schema fixture. Divergence is
+    Class B with nothing persisted: the ONE shared
+    `check_hashtag_vocabulary` guard covers hashtags AND keywords, a new
+    deterministic invented-facts check flags any price/link/discount token
+    absent from the brief (quoting the seller's own price is allowed;
+    AC-4/AC-5), and the composed Telegram text is length-checked before it
+    could ever reach a publisher. Persist mode lands every output as
+    `PROPOSED` through the M2 proposal lifecycle (event + provenance +
+    HITL queue), repeats are idempotent on a deterministic request key
+    (AC-3), dry-run is the default and side-effect free, and the module
+    exposes no publication surface at all (AST-asserted: no network
+    import, no credential access, no publish/approve verb). Evidence:
+    `python3 -m unittest local.tests.test_phase4_fashion_copy` → 48 tests
+    OK; targeted `test_phase7_ai_runtime_m1..m4`, `m4_stdlib` and
+    `test_phase8_ai_observability` OK; full sweep → 2487 tests, 3
+    failures, all three the known live-PostgreSQL-dependent tests that
+    fail identically on the untouched HEAD (proved by stashing this
+    change). **Still open and NOT implied:** §4.2 trend/hashtag
+    intelligence, a merchant-panel/storefront caller, and any live model
+    path — the AI provider (G-4 / decision 9) is unselected, so nothing
+    live was called; no deployment, provisioning, connection, credential
+    or push.
 -   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
     graph-tooling audit returned **zero real defects**. Phase 1 (baseline
     drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked

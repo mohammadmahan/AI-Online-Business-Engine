@@ -115,6 +115,40 @@ def _is_near_miss(candidate: str, approved: str) -> bool:
         extra >= 1 or overlap < max(len(candidate), len(approved)))
 
 
+def check_hashtag_vocabulary(tags, *, channel: str = "caption",
+                             noun: str = "hashtag") -> List[str]:
+    """Shared deterministic vocabulary guard (D-029/D-031/D-032).
+
+    A tag naming an APPROVED term must match it exactly (fa or code);
+    a near-miss of an approved term (prefix/suffix variant) is a
+    divergence — new vocabulary is human-owned, never model-authored.
+    ONE rule for every channel that emits tags: the Phase 7
+    `CaptionTask`, the Phase 4 fashion Telegram channel and the SEO
+    keyword check all call THIS function (never a copy of it).
+    """
+    div: List[str] = []
+    for tag in tags or []:
+        token = str(tag).lstrip("#").strip()
+        if not token:
+            div.append(f"{channel}: empty {noun} {tag!r}")
+            continue
+        if token in _APPROVED_COLORS_FA \
+                or token in _APPROVED_COLOR_CODES \
+                or token in _APPROVED_SIZES \
+                or token in _APPROVED_FAMILY_LABELS:
+            continue  # exact approved vocabulary term — fine
+        # near-miss of an approved term = invented variant (Class B)
+        pools = [tuple(_APPROVED_COLORS_FA), tuple(_APPROVED_SIZES)]
+        for approved in pools:
+            if any(_is_near_miss(token, a) for a in approved):
+                div.append(
+                    f"{channel}: {noun} {token!r} is a near-miss of "
+                    "approved vocabulary — new vocabulary is "
+                    "human-owned (D-029/D-031)")
+                break
+    return div
+
+
 # --- task base ----------------------------------------------------------------
 
 
@@ -358,28 +392,10 @@ class CaptionTask(AiTask):
 
     def _check_divergence(self, proposal: AiProposal,
                           entity: TaskEntity) -> List[str]:
-        div: List[str] = []
+        # ONE shared vocabulary rule (D-029/D-031/D-032) — also used by
+        # the Phase 4 fashion channels, so the guard can never fork.
         payload = proposal.payload or {}
-        for tag in payload.get("hashtags") or []:
-            token = tag.lstrip("#").strip()
-            if not token:
-                div.append(f"caption: empty hashtag {tag!r}")
-                continue
-            if token in _APPROVED_COLORS_FA \
-                    or token in _APPROVED_COLOR_CODES \
-                    or token in _APPROVED_SIZES \
-                    or token in _APPROVED_FAMILY_LABELS:
-                continue  # exact approved vocabulary term — fine
-            # near-miss of an approved term = invented variant (Class B)
-            pools = [tuple(_APPROVED_COLORS_FA), tuple(_APPROVED_SIZES)]
-            for approved in pools:
-                if any(_is_near_miss(token, a) for a in approved):
-                    div.append(
-                        f"caption: hashtag {token!r} is a near-miss of "
-                        "approved vocabulary — new vocabulary is "
-                        "human-owned (D-029/D-031)")
-                    break
-        return div
+        return check_hashtag_vocabulary(payload.get("hashtags") or [])
 
 
 class DescriptionTask(AiTask):
@@ -427,9 +443,9 @@ class DescriptionTask(AiTask):
 
 
 __all__ = [
-    "AiTask", "ContentIdeaTask", "CaptionTask", "DescriptionTask",
+    "AiTask", "CaptionTask", "ContentIdeaTask", "DescriptionTask",
     "TaskDivergenceError", "TaskEntity", "TaskReport",
-    "run_divergence_check",
+    "check_hashtag_vocabulary", "run_divergence_check",
 ]
 
 

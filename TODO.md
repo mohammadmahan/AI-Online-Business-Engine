@@ -2136,8 +2136,56 @@ repository hygiene, not deployment authorization.
           canonical provenance is still an owner schema decision. Harness torn down and
           the local VM returned to its as-found stopped state; nothing
           deployed, nothing provisioned, no credential, nothing pushed
-    - [ ] **Phase 4 — Fashion AI Engine & Copywriting Hub** (roadmap
-          §4.1–§4.2; AI provider selection still open — decision 9)
+    - [x] **Phase 4 §4.1 — Fashion Copywriting Engine (2026-10-20,
+          owner-authorized)** — IMPLEMENTED & VERIFIED offline; the AI
+          provider stays OPEN (decision 9 / G-4), so nothing live runs.
+          `local/canonical/fashion_copy.py` takes a structured brief
+          (fabric_type, season, title, raw seller notes, optional
+          product_id, tone preset) and produces all three §4.1 outputs in
+          ONE request per channel through the existing runtime
+          (`ModelRouter` → `AiProvider`), never a direct provider call.
+          The Instagram channel REUSES the approved `generate_caption`
+          task and `caption_proposal.v1` contract (G-6) with the tone
+          preset (Luxury/Casual/Trendy) as request-side input rendered
+          from a v1.0.0 template — no second caption contract and no
+          forked vocabulary rule. Telegram gets a new strict
+          `telegram_announcement.v1` (plain text + CTA + hashtags)
+          validated against the channel's own 4096-char cap with the CTA
+          and hashtags counted (D-073); SEO gets `seo_copy.v1` (meta
+          50–160 chars, web copy, 1–15 keywords). Both new contracts are
+          registered strict/versioned AND mirrored into the frozen
+          fixture, and each template's `response_contract` must stay
+          byte-equal to the registry; an out-of-contract output raises
+          `OutputValidationError` (Class B) — never repaired. Divergence
+          guards: the ONE shared `check_hashtag_vocabulary` (extracted
+          from `CaptionTask`) for hashtags AND keywords, a deterministic
+          invented-facts check that flags any price/link/discount token
+          absent from the brief (quoting what the seller stated is
+          allowed; AC-4/AC-5), and the Telegram render cap — all Class B,
+          nothing persisted. Persist mode lands three PROPOSED items
+          through the M2 lifecycle (D-027 event + D-026 provenance + HITL
+          queue), repeats are idempotent, dry-run is the default and
+          side-effect free, and the module exposes no publication surface
+          (AST-asserted: no network import, no credential/environment
+          access, no publish/approve verb). Entity key
+          `fashion/<product_id|brief>/<season>/<fabric>/<title>` with the
+          tone in the idempotency tag (AC-3 deterministic request key).
+          Evidence: `python3 -m unittest local.tests.test_phase4_fashion_copy`
+          → 48 tests OK; full sweep → 2487 tests, 3 failures, all three
+          the known live-PostgreSQL-dependent tests (phase23 transport
+          ceiling, phase26 decision-ledger drill, phase26 DR closeout)
+          that fail identically on the untouched HEAD (proved by stashing
+          this change). One pinned expectation was amended deliberately:
+          m4's `test_default_policy_has_no_real_provider` now lists the
+          two new routing keys (both mock). Not built, not implied: §4.2
+          trend/hashtag intelligence, a merchant-panel/storefront caller,
+          and any live model path. No deployment, provisioning or
+          credential
+    - [ ] **Phase 4 §4.2 — Trend & Hashtag Intelligence** (roadmap
+          §4.2) — NOT started
+    - [ ] **Phase 4 provider gate** — the copy engine runs on mocks
+          only; selecting the AI provider (decision 9 / G-4) is the
+          owner's, and no credential exists or is requested (D-045)
     - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap
           §5.1–§5.2; publishing must reuse the canonical
           Telegram/Instagram seams — G-6)

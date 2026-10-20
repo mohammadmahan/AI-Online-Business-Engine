@@ -39,5 +39,30 @@
       "seo_keywords": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 40}, "minItems": 1, "maxItems": 15},
       "rationale": {"type": "string", "minLength": 10, "maxLength": 1000}
     }
+  },
+  "telegram_announcement.v1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "telegram_announcement.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["announcement_fa", "hashtags"],
+    "properties": {
+      "announcement_fa": {"type": "string", "minLength": 5, "maxLength": 4096},
+      "hashtags": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 60}, "minItems": 0, "maxItems": 30},
+      "cta_fa": {"type": "string", "maxLength": 200}
+    }
+  },
+  "seo_copy.v1": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "seo_copy.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["meta_description_fa", "web_copy_fa", "seo_keywords", "rationale"],
+    "properties": {
+      "meta_description_fa": {"type": "string", "minLength": 50, "maxLength": 160},
+      "web_copy_fa": {"type": "string", "minLength": 40, "maxLength": 3000},
+      "seo_keywords": {"type": "array", "items": {"type": "string", "minLength": 2, "maxLength": 40}, "minItems": 1, "maxItems": 15},
+      "rationale": {"type": "string", "minLength": 10, "maxLength": 1000}
+    }
   }
 }

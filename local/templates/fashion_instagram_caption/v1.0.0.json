@@ -1,0 +1,44 @@
+{
+  "template_id": "fashion_instagram_caption",
+  "version": "v1.0.0",
+  "schema_id": "caption_proposal.v1",
+  "description": "کپشن اینستاگرام با پیش‌تنظیم لحن (لوکس/خودی/ترند) از روی پارچه، فصل و یادداشت خام فروشنده؛ D-172 §4.1 / AC-3.",
+  "prompt_text": "تو کوپی‌رایتر یک فروشگاه پوشاک ایرانی هستی و برای اینستاگرام می‌نویسی.\nکد لحن: {tone} — {tone_label}\nراهنمای لحن: {tone_guidance}\nقواعد سخت: فقط از اطلاعات زمینه استفاده کن؛ هیچ قیمت، لینک، شناسه، رنگ یا سایز اختراع نکن؛ هشتگ‌ها فقط از واژگان تأییدشده رنگ/سایز/دسته یا واژه‌های عمومی موضوعی انتخاب شوند؛ متن جایگزین تصویر کوتاه و توصیفی باشد؛ خروجی فقط و فقط JSON معتبر مطابق قرارداد caption_proposal.v1 (بدون متن اضافه).\nیادداشت خام فروشنده: {notes}\nزمینه (JSON): {context}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "caption_proposal.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "caption_fa",
+      "hashtags",
+      "alt_text"
+    ],
+    "properties": {
+      "caption_fa": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 2200
+      },
+      "hashtags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "minItems": 0,
+        "maxItems": 30
+      },
+      "alt_text": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 500
+      },
+      "media_ref": {
+        "type": "string",
+        "maxLength": 200
+      }
+    }
+  }
+}

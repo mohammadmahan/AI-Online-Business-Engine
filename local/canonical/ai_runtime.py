@@ -132,6 +132,27 @@ class MockAiProvider(AiProvider):
             "seo_keywords": ["مانتو پاییزی", "مانتو زنانه", "خرید مانتو"],
             "rationale": "توضیحات فعلی کوتاه است؛ با جزئیات جنس و کاربرد غنی‌تر شد",
         },
+        # D-172 §4.1 — deterministic scripts for the fashion copy
+        # channels (no price, no URL: the model never invents canonical
+        # data, and the Phase 4 divergence guards prove it).
+        "telegram_announcement.v1": {
+            "announcement_fa": "مانتو پاییزی جدید رسید؛ پارچه کرپ نرم با فرم "
+                               "ایستاده. برای دیدن رنگ‌ها و سایزها همین "
+                               "حالا پیام دهید.",
+            "hashtags": ["#پوشاک", "#پاییز", "#مانتو"],
+            "cta_fa": "برای سفارش و مشاوره سایز پیام دهید",
+        },
+        "seo_copy.v1": {
+            "meta_description_fa": "مانتو پاییزی زنانه با پارچه کرپ نرم و دوخت "
+                                   "تمیز؛ مناسب محیط کار و دورهمی. خرید "
+                                   "آنلاین با ارسال سریع.",
+            "web_copy_fa": "مانتو پاییزی با پارچه کرپ نرم، فرم ایستاده و دوخت "
+                           "تمیز؛ ترکیبی آراسته برای روزهای کاری و دورهمی‌های "
+                           "پاییزی که با شال و بوت به‌راحتی ست می‌شود.",
+            "seo_keywords": ["مانتو پاییزی", "مانتو کرپ", "پوشاک پاییزی"],
+            "rationale": "توضیح متا با کلیدواژه‌های فصل و جنس پارچه نوشته شد "
+                         "تا در نتایج جست‌وجو دیده شود",
+        },
     }
 
     def _fail(self):
@@ -209,6 +230,15 @@ DEFAULT_ROUTING_POLICY: Dict[str, RouteTarget] = {
     "enrich_description": RouteTarget(
         "mock", "mock-1", "product_description_enrichment.v1",
         budget_usd=1.00),
+    # D-172 §4.1 — the two NEW fashion copy channels. The Instagram
+    # caption channel deliberately reuses the approved
+    # `generate_caption` task/contract above: the tone preset is
+    # request-side input, so no second caption contract is introduced
+    # (G-6: one dispatch path per channel).
+    "fashion_telegram_announcement": RouteTarget(
+        "mock", "mock-1", "telegram_announcement.v1", budget_usd=0.25),
+    "fashion_seo_copy": RouteTarget(
+        "mock", "mock-1", "seo_copy.v1", budget_usd=0.50),
 }
 
 # static tariff table (USD per 1K tokens); mock is free

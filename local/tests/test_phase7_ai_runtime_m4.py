@@ -465,9 +465,13 @@ class ProviderBoundaryAuditTests(unittest.TestCase):
         self.assertEqual(cm.exception.failure_class, "B")
 
     def test_default_policy_has_no_real_provider(self):
+        # D-172 §4.1 added the two fashion copy channels; the Instagram
+        # channel intentionally reuses `generate_caption` (G-6), so the
+        # policy surface grows by exactly two keys.
         self.assertEqual(set(DEFAULT_ROUTING_POLICY), {
             "propose_content_idea", "generate_caption",
-            "enrich_description"})
+            "enrich_description", "fashion_telegram_announcement",
+            "fashion_seo_copy"})
         for target in DEFAULT_ROUTING_POLICY.values():
             self.assertEqual(target.provider, "mock")
 

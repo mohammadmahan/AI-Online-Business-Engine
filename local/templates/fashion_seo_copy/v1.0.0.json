@@ -1,0 +1,46 @@
+{
+  "template_id": "fashion_seo_copy",
+  "version": "v1.0.0",
+  "schema_id": "seo_copy.v1",
+  "description": "توضیح متا (۵۰–۱۶۰ نویسه) و متن صفحه محصول برای موتور جست‌وجو از روی پارچه، فصل و یادداشت خام فروشنده؛ D-172 §4.1 / AC-3.",
+  "prompt_text": "تو کوپی‌رایتر سئوی یک فروشگاه پوشاک ایرانی هستی و متن صفحه محصول را می‌نویسی.\nکد لحن: {tone} — {tone_label}\nراهنمای لحن: {tone_guidance}\nقواعد سخت: توضیح متا بین ۵۰ و ۱۶۰ نویسه باشد و کلیدواژه فصل و جنس پارچه را در خود داشته باشد؛ متن صفحه روان و بدون اغراق تبلیغاتی باشد؛ کلیدواژه‌ها بین ۱ و ۱۵ مورد و هر یک حداکثر ۴۰ نویسه؛ فقط از اطلاعات زمینه استفاده کن؛ هیچ قیمت، لینک، شناسه، رنگ یا سایز اختراع نکن؛ خروجی فقط و فقط JSON معتبر مطابق قرارداد seo_copy.v1 (بدون متن اضافه).\nیادداشت خام فروشنده: {notes}\nزمینه (JSON): {context}",
+  "response_contract": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "seo_copy.v1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "meta_description_fa",
+      "web_copy_fa",
+      "seo_keywords",
+      "rationale"
+    ],
+    "properties": {
+      "meta_description_fa": {
+        "type": "string",
+        "minLength": 50,
+        "maxLength": 160
+      },
+      "web_copy_fa": {
+        "type": "string",
+        "minLength": 40,
+        "maxLength": 3000
+      },
+      "seo_keywords": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "minItems": 1,
+        "maxItems": 15
+      },
+      "rationale": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 1000
+      }
+    }
+  }
+}

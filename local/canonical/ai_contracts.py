@@ -214,11 +214,69 @@ PRODUCT_DESCRIPTION_ENRICHMENT_V1 = {
     },
 }
 
+# --- fashion copywriting contracts (D-172 §4.1, roadmap §4.1/AC-3) ------------
+
+# Parity with the D-073 Telegram publisher cap
+# (`telegram_contracts.MAX_TEXT_CHARS` = 4096): pinned as a literal so
+# this module stays dependency-free, and re-asserted by the Phase 4
+# battery — drift between the AI contract and the channel validator
+# must fail loudly, never silently.
+_TELEGRAM_TEXT_MAX = 4096
+
+TELEGRAM_ANNOUNCEMENT_V1 = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "telegram_announcement.v1",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["announcement_fa", "hashtags"],
+    "properties": {
+        "announcement_fa": {"type": "string", "minLength": 5,
+                            "maxLength": _TELEGRAM_TEXT_MAX},
+        "hashtags": {"type": "array",
+                     "items": {"type": "string", "minLength": 1,
+                               "maxLength": 60},
+                     "minItems": 0, "maxItems": 30},
+        # optional call-to-action, appended by the caller — the model
+        # never invents a link or a discount code (AC-4/AC-5)
+        "cta_fa": {"type": "string", "maxLength": 200},
+    },
+}
+
+# SEO copy for the storefront/web surface. Deliberately distinct from
+# PRODUCT_DESCRIPTION_ENRICHMENT_V1 (the Phase 7 product-record task,
+# which anchors a canonical product_id and owns seo_title_fa): this is
+# the Phase 4 §4.1 copywriting output — a SERP-length meta description
+# (50–160 chars) plus long-form web copy for the merchant's product
+# page. No product reference is carried: anchoring happens at human
+# acceptance, never in model output.
+SEO_COPY_V1 = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "seo_copy.v1",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["meta_description_fa", "web_copy_fa", "seo_keywords",
+                 "rationale"],
+    "properties": {
+        "meta_description_fa": {"type": "string", "minLength": 50,
+                                "maxLength": 160},
+        "web_copy_fa": {"type": "string", "minLength": 40,
+                        "maxLength": 3000},
+        "seo_keywords": {"type": "array",
+                         "items": {"type": "string", "minLength": 2,
+                                   "maxLength": 40},
+                         "minItems": 1, "maxItems": 15},
+        "rationale": {"type": "string", "minLength": 10,
+                      "maxLength": 1000},
+    },
+}
+
 # versioned registry (contract evolution = new version id + amendment)
 AI_OUTPUT_SCHEMAS: Dict[str, dict] = {
     "content_idea_proposal.v1": CONTENT_IDEA_PROPOSAL_V1,
     "caption_proposal.v1": CAPTION_PROPOSAL_V1,
     "product_description_enrichment.v1": PRODUCT_DESCRIPTION_ENRICHMENT_V1,
+    "telegram_announcement.v1": TELEGRAM_ANNOUNCEMENT_V1,
+    "seo_copy.v1": SEO_COPY_V1,
 }
 
 
