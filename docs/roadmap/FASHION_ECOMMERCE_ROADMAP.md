@@ -525,6 +525,56 @@ Objective: One-click publishing across key Iranian e-commerce social channels.
 - Automated post assembly: Image group + formatted caption + inline keyboard with direct purchase link.
 - Webhook trigger via n8n pipeline or direct Telegram Bot API.
 
+#### Phase 5 §5.1 completion record (2026-10-20) — post assembly + HITL pipeline IMPLEMENTED & VERIFIED (offline); §5.2 NOT started
+
+Appended; the section text above is the specification and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full record in `D-172` §5.7 and §6.
+
+- **The join exists** — `local/canonical/fashion_social_bundler.py`: a structured
+  brief (§4.1 `FashionBrief` + §4.2 `TrendBrief` + the merchant's own media list,
+  both channel slots, optional `purchase_url`) is dispatched through the SAME
+  runtime for both engines and composed into ONE strict, versioned
+  `social_bundle_proposal.v1` — Telegram (single photo **or** 2–10-item album,
+  caption, slot), Instagram (media ref + content hash, caption with the CTA line,
+  aspect ratio, slot), the tag set, the SEO block, both engines' provenance, and an
+  `approval` block **schema-pinned to `required: true` / `state: PROPOSED`**. An
+  auto-publishing bundle is therefore not representable, let alone reachable.
+- **“Image group + formatted caption + purchase link”** — one merchant media list
+  decides `photo` vs `mediagroup` (the channel's own 2..10 album rule), the caption
+  is composed as copy + CTA line + the §4.2 tags, and the purchase URL may appear
+  ONLY if it is the merchant's own `purchase_url`. The caption's own §4.1 hashtags
+  are deliberately dropped: one post carries ONE tag set, and a tag outside the
+  §4.2 set is a Class-B refusal.
+- **Channel contracts, not conventions** — every composed string is re-validated by
+  `telegram_contracts` / `instagram_contracts` BEFORE a proposal exists, so a
+  caption/album/size problem can never surface for the first time at publish.
+- **HITL is the existing M2 lifecycle** — `persist` lands `PROPOSED` (D-027 event +
+  D-026 provenance + verification-queue item), repeats are idempotent on a
+  deterministic `bundle_key`, `dry-run` persists nothing, and
+  `hand_off_to_outbox()` is the ONLY escape: `ACCEPTED` state, bundle schema,
+  unmodified `payload_hash`, `approval.required: true` and at least one outbox are
+  ALL required, after which it enqueues through the canonical
+  `TelegramOutboxPublisher` / `InstagramOutboxPublisher` seams and never calls
+  their send path. `pending_bundles()` is the durable merchant review list.
+- **No publication surface (AST-asserted)** — no network import, no
+  adapter/publisher import, no credential/environment read, no
+  `publish`/`send`/`dispatch` verb, no `os` import; channel identity comes from the
+  ONE D-077 registry (`orchestration_contracts.KNOWN_TARGETS`) so the D-131
+  channel-isolation sweep stays clean.
+- **Still open, stated rather than implied done** — the canonical Telegram
+  publisher has **no inline-keyboard field**, so the inline buy button of §5.1 is
+  carried as a validated CTA **line** and the keyboard is a named gap of the
+  publisher seam; the §5.1 webhook trigger remains the existing n8n/direct-publisher
+  seam (the outbox queue is what it consumes) and nothing is triggered here; §5.2
+  is NOT started — the bundle only produces the per-channel `scheduled_slot` that
+  the peak-hours queue will consume; no live channel was called and no credential
+  exists (D-045).
+- **Evidence** — `python3 -m unittest local.tests.test_phase5_social_bundler` →
+  **85 tests, OK**; targeted §4.1/§4.2/provider-gate + §5.1 → **240 tests, OK**;
+  `full_security_sweep` → `clean: true` (AST 185 files / 0 findings; entropy
+  0 flagged; bounds 11 modules; channel isolation 0 findings). No deployment,
+  provisioning, network call or credential.
+
 ### 5.2 Instagram Business Publisher
 - Image preparation and container publishing via Meta Graph API.
 - Scheduled publishing queue for peak customer engagement hours.

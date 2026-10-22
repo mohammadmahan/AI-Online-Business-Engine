@@ -443,6 +443,69 @@ Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
   constructed, no live path, no credential, no network, no deployment; decision
   9 / G-4 remains OPEN, as do Phase 5 publishing and any UI caller.
 
+### 5.7 Phase 5 §5.1 implementation — social publishing bundler & HITL pipeline (2026-10-20, owner-authorized)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
+
+- **Anchor.** The roadmap's Phase 5 §5.1 is *Telegram Channel Publisher* (“Image
+  group + formatted caption + inline keyboard with direct purchase link” plus a
+  webhook trigger) and §5.2 is *Instagram Business Publisher*. This block records
+  the **post-assembly half of §5.1** plus the review pipeline it must pass
+  through; §5.2 is untouched.
+- **Module.** `local/canonical/fashion_social_bundler.py` (new): `MediaItem`,
+  `SocialBundleBrief` (a §4.1 `FashionBrief`, a §4.2 `TrendBrief`, the merchant's
+  media list, both channel slots, optional `purchase_url`, optional
+  `include_link_in_text`), `SOCIAL_BUNDLE_V1` (strict, versioned
+  `social_bundle_proposal.v1`), `FashionSocialBundler` (`bundle`,
+  `hand_off_to_outbox`, `pending_bundles`), `BundleReport`, `BundleNotApproved`
+  and `SocialBundleError` (Class B).
+- **The join.** Both Phase 4 engines are invoked through the SAME
+  `ModelRouter` → `AiProvider` seam this module is handed — never a direct
+  provider call, no provider name in code, no credential. Copy pack (§4.1
+  Instagram caption, Telegram announcement, SEO block) + tag set (§4.2) become
+  ONE artifact; the copy's own hashtags are dropped so a post carries ONE tag set.
+- **Assembly decisions, all validated locally.** `kind` is `mediagroup` for 2–10
+  items and `photo` for one (the channel's own album rule); the caption is copy +
+  optional CTA line + the §4.2 tags; the Telegram text is announcement + CTA +
+  optional URL + the §4.2 tags; the aspect ratio is restricted to the channel's
+  three labels; every composed string is re-validated by `telegram_contracts` /
+  `instagram_contracts` BEFORE the proposal exists, so a length/shape problem is
+  Class B here and never at send time.
+- **Fail-closed guards.** (a) a hashtag outside the §4.2 set is a refusal, on both
+  channels; (b) every URL must equal the merchant's `purchase_url`; (c) the
+  REUSED `check_invented_facts` guard refuses an invented price, link or discount
+  (AC-4/AC-5); (d) brief-level mismatch (season, fabric, product id) is refused
+  before any dispatch.
+- **Approval is structural.** The `approval` block is schema-pinned to
+  `required: true` / `state: PROPOSED`, so no bundle can declare itself
+  auto-publishable; `hand_off_to_outbox()` re-checks the SAME invariant on the
+  stored payload instead of trusting the schema alone.
+- **HITL reuses M2, never a second queue.** `persist` lands `PROPOSED` through
+  `ProposalLifecycle` (D-027 event + D-026 provenance + verification-queue item);
+  the idempotency identity is a deterministic 32-hex `bundle_key` over (content
+  id, copy hash, trend hash, media hashes, chat id, both slots, URL), so a repeat
+  opens no second review; `dry-run` is the default and side-effect free;
+  `pending_bundles()` rebuilds the durable review list from the event store and
+  orders it by scheduled slot.
+- **The only escape.** `hand_off_to_outbox()` refuses unless the proposal is
+  `ACCEPTED` (so `PROPOSED`, `IN_REVIEW` and `REJECTED` are refused by state),
+  carries `social_bundle_proposal.v1`, still hashes to its recorded
+  `payload_hash`, declares `approval.required: true`, and at least one outbox is
+  supplied (a silent no-op is not a release). Accepted bundles are enqueued into
+  the canonical `TelegramOutboxPublisher` / `InstagramOutboxPublisher` outboxes
+  (D-073/D-069) as contract-validated payloads; this module never calls their
+  send path and holds no adapter.
+- **D-131 channel isolation preserved.** Channel identity is imported from the ONE
+  declared target vocabulary (`orchestration_contracts.KNOWN_TARGETS`, D-077)
+  rather than re-typed, so a module that legitimately spans both channels still
+  keeps the channel-isolation sweep clean.
+- **Not done, not implied.** No live Telegram/Instagram call, adapter, token or
+  credential; no provider selection (decision 9 / G-4 stays OPEN); no merchant or
+  storefront caller; the inline keyboard is a named gap of the canonical Telegram
+  publisher (the CTA is a caption line); the webhook trigger remains the existing
+  n8n/direct-publisher seam; §5.2 is NOT started; no deployment, provisioning or
+  production activation (D-045/D-139).
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**

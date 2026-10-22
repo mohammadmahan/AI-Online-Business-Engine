@@ -2293,9 +2293,87 @@ repository hygiene, not deployment authorization.
           `mock`; choosing the provider (and creating any credential) is
           the owner's decision, and no credential exists or is requested
           (D-045)
-    - [ ] **Phase 5 — Multi-Channel Social Automation** (roadmap
-          §5.1–§5.2; publishing must reuse the canonical
-          Telegram/Instagram seams — G-6)
+    - [x] **Phase 5 §5.1 — Social Publishing Bundler & HITL pipeline
+          (2026-10-20, owner-authorized)** — the bundler and the review
+          pipeline are IMPLEMENTED & VERIFIED offline; **no live
+          Telegram/Instagram call was made, no adapter was constructed
+          and no credential exists or is requested** (D-045).
+          ANCHOR, stated rather than silently substituted: the roadmap's
+          §5.1 is the **Telegram Channel Publisher** and §5.2 is the
+          **Instagram Business Publisher**; this item executes §5.1's
+          *post assembly* half — “Image group + formatted caption +
+          purchase link, one reviewable artifact” — on the canonical
+          seams, and leaves §5.2 untouched.
+          `local/canonical/fashion_social_bundler.py` is the JOIN the
+          two Phase 4 engines were missing: a structured brief (a §4.1
+          `FashionBrief`, a §4.2 `TrendBrief`, the merchant's own media
+          list, both channel slots and an optional `purchase_url`) is
+          dispatched through the SAME `ModelRouter` → `AiProvider` seam
+          for BOTH engines and composed into ONE strict, versioned
+          `social_bundle_proposal.v1` artifact: the Telegram post
+          (single photo or 2–10-item album, caption, slot), the
+          Instagram post (media ref + content hash, caption with the
+          CTA line, aspect ratio, slot), the §4.2 tag set, the §4.1 SEO
+          block, both engines' source provenance, and an `approval`
+          block that is **schema-pinned to `required: true` /
+          `state: PROPOSED`** — an auto-publishing bundle is not
+          representable at all, which is the fail-closed guarantee the
+          request demanded rather than a documented intention.
+          **Refused at assembly, never at send time (Class B):** every
+          composed string is re-validated by the CHANNEL'S OWN contract
+          (`telegram_contracts` / `instagram_contracts`); a hashtag
+          outside the §4.2 set is refused (the §4.1 caption's own tags
+          are deliberately NOT carried — one post, one tag set); every
+          URL must be the merchant's own `purchase_url`; the REUSED
+          `check_invented_facts` guard refuses an invented price, link
+          or discount (AC-4/AC-5). **No publication surface:** no
+          network import, no adapter/publisher import, no
+          credential/environment read, no `publish`/`send`/`dispatch`
+          verb, no `os` import (AST-asserted). Channel identity is taken
+          from the ONE declared target vocabulary
+          (`orchestration_contracts.KNOWN_TARGETS`, D-077) instead of
+          re-typed, so the D-131 channel-isolation sweep stays clean for
+          a module that legitimately spans both channels.
+          **HITL pipeline (reuses the M2 lifecycle, no new queue):**
+          `persist` lands `PROPOSED` (D-027 event + D-026 provenance +
+          verification-queue item) and repeats are idempotent on a
+          deterministic 32-hex `bundle_key` (content id, copy hash, trend
+          hash, media hashes, chat id, both slots, URL), so a double
+          click cannot open two reviews. `hand_off_to_outbox()` is the
+          ONLY escape and refuses unless the proposal is `ACCEPTED` by a
+          human (`PROPOSED`/`IN_REVIEW`/`REJECTED` are refused by
+          state), carries the bundle schema, still hashes to its
+          recorded `payload_hash` (tamper-evident), declares
+          `approval.required: true`, AND at least one outbox is supplied
+          (a silent no-op is not a release); it then enqueues through the
+          canonical `TelegramOutboxPublisher`/`InstagramOutboxPublisher`
+          seams and never calls their send path.
+          `pending_bundles()` is the merchant's durable review list
+          (ordered by scheduled slot, rebuilt from the event store after
+          a restart).
+          **Scope honesty:** the canonical Telegram publisher has no
+          inline-keyboard field yet, so §5.1's inline buy button is
+          carried as a validated CTA LINE in the caption and the
+          keyboard remains a named gap of the publisher seam; the
+          §5.1 webhook trigger stays the existing n8n/direct-publisher
+          seam (the outbox queue is what it consumes) and nothing is
+          triggered here; §5.2 (Instagram container publishing +
+          peak-hours queue) is NOT started — the bundle only produces
+          the per-channel `scheduled_slot` that queue will consume.
+          Evidence: `python3 -m unittest
+          local.tests.test_phase5_social_bundler` → 85 tests OK;
+          targeted §4.1/§4.2/provider-gate + §5.1 → 240 tests OK;
+          `full_security_sweep` → `clean: true` (AST 185 files, 0
+          findings; entropy 0 flagged; bounds 11 modules; channel
+          isolation 0 findings). Nothing was skipped, weakened or
+          suppressed. Not built, not implied: any live publish path, any
+          provider selection (decision 9 / G-4 OPEN), a
+          merchant-panel/storefront caller of the bundler, §5.2, any
+          deployment, provisioning, credential or network call
+    - [ ] **Phase 5 §5.2 — Instagram Business Publisher** (roadmap
+          §5.2; container publishing via Meta Graph API + the
+          peak-hours scheduling queue must reuse the canonical
+          Instagram seam — G-6)
     - [ ] **Phase 6 — Payment, Notification & Production Launch**
           (roadmap §6.1–§6.3; the payment (decision 10), shipping
           (decision 11) and SMS providers must be selected first)
