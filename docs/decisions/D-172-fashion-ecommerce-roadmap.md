@@ -555,7 +555,66 @@ and none is requested — D-045; the live adapter stays construction-gated), any
 merchant-panel or storefront caller, §5.1's inline-keyboard gap, Phase 6, and any
 deployment or production activation (D-139).
 
+### 5.9 Phase 5 §5.1 named gap closed — Telegram inline keyboard (2026-10-22, owner-authorized)
+
+Appended; §5.7 and the roadmap's §5.1 record are **not** rewritten (append-only,
+`PROJECT_RULES.md` §2.1). This closes the ONE gap §5.7 left open by name: the
+canonical Telegram payload had no keyboard field, so §5.1's “inline keyboard with
+direct purchase link” was carried as a caption line only. Phase 5 is now complete
+against the roadmap's own two bullets — no source phase was skipped.
+
+- **The seam is in the contract, not in the bundler.** `telegram_contracts`
+gained a first-class `inline_keyboard` field (rows of URL buttons) that
+`validate_publish_payload`, `key_from_payload` and the publisher all carry
+through the validated ref. It is **URL-only by construction**: a button is
+exactly `{text, url}` and any other key (`callback_data`, `web_app`,
+`login_url`) is refused, so a keyboard cannot smuggle an interactive action into
+a publish payload. Bounds are explicit (8 rows, 3 buttons/row, 8 buttons, 64-char
+label, 2048-char URL) and every refusal is Class B before any dispatch.
+- **URL hygiene, fail-closed** (`validate_button_url`): absolute `http(s)` only,
+a real public domain (no userinfo, no IP literal, no `localhost`/single-label
+host), validated 1..65535 port, no control characters or interior whitespace,
+no bot-token material (`bot<id>:<secret>`), and no credential-shaped query
+parameter (token/secret/signature/session/password/…). An optional
+`allowed_urls` set pins a button to the merchant's OWN URL — the bundler always
+passes `{purchase_url}`, so a foreign domain is refused even if it would be
+otherwise well-formed.
+- **The bundler generates both halves.** When the brief carries a
+`purchase_url`, `fashion_social_bundler` emits the fallback CTA caption line
+**and** a single-button keyboard whose label is the §4.1 copy pack's own
+`cta_fa` (trimmed, falling back to the action label `خرید` only if the copy has
+none) and whose URL is the merchant's `purchase_url`, verbatim. With no
+`purchase_url` there is no keyboard at all, so plain photo/album captions keep
+their exact previous artifact. The keyboard is part of the
+`social_bundle_proposal.v1` artifact (schema-pinned rows/`{text,url}`), so it is
+inside the `payload_hash` — and therefore inside the M2 HITL acceptance the
+hand-off and the §5.2 queue already enforce.
+- **Idempotency stays compatible.** The D-074 key EXTENDS with a keyboard
+digest **only when a keyboard exists** (`…|<keyboard digest>`). Every payload
+that predates keyboards keeps its exact historical key, so durable outbox rows
+survive the upgrade; a keyboard change is a different post, and re-rounding the
+same bundle remains one `PROPOSED` item.
+- **Dispatch honours the Bot API's own shape.** `reply_markup` is passed for
+text/photo/video/document. `sendMediaGroup` accepts NO keyboard, so an album
+carrying a keyboard is dispatched as the album **plus one** follow-up
+`sendMessage` whose text is the first button's own label and whose
+`reply_markup` is the keyboard — never an invented string. Empty keyboards pass
+no argument at all, so a pre-keyboard or third-party adapter still serves every
+button-less payload (backwards compatibility is asserted by a legacy adapter
+test, not assumed).
+- **Evidence** — `python3 -m unittest
+local.tests.test_phase5_telegram_keyboard` → **23 tests OK**;
+`test_phase10_telegram` + `test_phase5_social_bundler` +
+`test_phase5_instagram_queue` + both §5.1 live-wiring suites → **240 tests OK**
+(2 pre-existing environment skips); `test_phase20_security` → 38 OK (5 skips);
+`compileall` exit 0; `full_security_sweep` → `clean: true`.
+- **Not built / not implied:** no live Telegram call, token or credential exists
+or is requested (D-045); the §5.1 webhook trigger remains the existing
+n8n/direct-publisher seam; Phase 6 stays owner-gated behind the payment (10),shipping (11) and SMS provider selections.
+
 ## 6. Verification performed
+
+
 
 **Adoption change (2026-10-10):**
 
@@ -1337,6 +1396,51 @@ that can refuse is not a provider selection.
   then claim in the shared `local/volumes` ledger, which a test must never do.
   The first draft did exactly that and its stray claims were removed from the
   working tree before commit.
+
+### Phase 5 §5.1 inline keyboard verification (2026-10-22, owner-authorized)
+
+- **New suite:** `python3 -m unittest local.tests.test_phase5_telegram_keyboard`
+  → **23 tests OK**, in three layers:
+  1. *Contract* — normalization (trimmed label/URL), absent/empty legality, the
+     structural refusal matrix (non-list, empty row, 9 rows, 4 buttons in a
+     row, non-dict button, `callback_data`, blank/65-char/control-char label),
+     the URL refusal matrix (`javascript:`/`tg://`/`mailto:`/relative,
+     userinfo, `127.0.0.1`, `localhost`, single-label host, interior space,
+     interior newline, port 99999, >2048 chars, empty), token/credential
+     material (`?token=`, `?access_token=`, `?api_key=`, `?api_secret=`,
+     `?session_id=`, `?signature=`, a literal `bot<id>:<secret>` path), the
+     allowed ordinary query parameters, outer-whitespace trimming, the
+     `allowed_urls` foreign-domain refusal at both the URL and payload level,
+     deterministic keyboard hashing, and idempotency-key compatibility (the
+     pre-keyboard key is recomputed by hand and must match exactly; a keyboard
+     digest changes it).
+  2. *Bundler* — purchase URL yields BOTH the caption CTA line and the
+     structured button (`text` = the copy pack's `cta_fa`, `url` =
+     `purchase_url`); the artifact still passes
+     `social_bundle_proposal.v1`; no URL ⇒ no keyboard and no CTA line; two dry
+     runs are byte-identical and two persists stay ONE `PROPOSED` item; the
+     hand-off still refuses a non-ACCEPTED bundle and, once ACCEPTED, carries
+     the keyboard into the outbox payload; single-photo and album bundles both
+     carry exactly one row.
+  3. *Dispatch* — photo carries `reply_markup.inline_keyboard`; an album emits
+     `sendMediaGroup` then exactly one `sendMessage` (no `reply_markup` on the
+     album call, keyboard on the follow-up, follow-up text = the button label);
+     an album without a keyboard is a single call; a legacy adapter (no
+     `reply_markup` parameter) still publishes a button-less payload; a keyboard
+     changes the publisher's own key.
+- **Targeted regressions:** `test_phase10_telegram`, `test_phase5_social_bundler`,
+  `test_phase5_instagram_queue`, `test_phase5_live_wiring`,
+  `test_live_wiring_phase5` → **240 tests OK** (2 pre-existing environment
+  skips); `test_phase20_security` → 38 OK (5 skips).
+- **Full sweep:** `python3 -m unittest discover -s local/tests -t .` → **2752
+  tests, 3 failures, 111 skips** — the same known live-PostgreSQL-dependent
+  tests as the untouched HEAD baseline (`test_phase23_resilience` transport
+  ceiling, `test_phase26_decision_ledger_drill`, `test_phase26_dr_closeout`),
+  identical to the baselines recorded for §4.1, §4.2, §5.1 and §5.2. Nothing was
+  skipped, weakened or suppressed.
+- **Security sweep:** `full_security_sweep` → `clean: true` (AST 189 files /
+  0 findings; entropy 0 flagged; channel isolation 0 findings — `telegram_*`
+  remains a declared Telegram home under D-131).
 
 ## 7. References
 

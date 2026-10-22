@@ -70,6 +70,7 @@ from canonical.instagram_contracts import (
     InstagramContractError, validate_publish_payload as validate_instagram)
 from canonical.orchestration_contracts import KNOWN_TARGETS
 from canonical.telegram_contracts import (
+    MAX_BUTTON_TEXT_CHARS as TG_BUTTON_TEXT_MAX,
     MAX_MEDIA_CAPTION_CHARS as TG_CAPTION_MAX, TelegramContractError,
     validate_publish_payload as validate_telegram)
 
@@ -87,6 +88,11 @@ INSTAGRAM, TELEGRAM = KNOWN_TARGETS
 CHANNELS = (TELEGRAM, INSTAGRAM)
 ASPECT_RATIOS = ("1:1", "4:5", "16:9")
 MAX_IMAGES = 10
+
+# UI chrome for the buy button when the §4.1 copy pack carries no CTA.
+# This is an action label, never a business fact (price/link/discount
+# stay canonical — AC-4/AC-5).
+PURCHASE_CTA_LABEL = "خرید"
 
 
 class SocialBundleError(ValueError):
@@ -283,6 +289,27 @@ SOCIAL_BUNDLE_V1 = {
                                    "maxLength": 64},
                 "text": {"type": "string", "minLength": 1,
                          "maxLength": TG_CAPTION_MAX},
+                # optional buy button: rows of URL buttons, URL-only
+                "inline_keyboard": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 3,
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["text", "url"],
+                            "properties": {
+                                "text": {"type": "string", "minLength": 1,
+                                         "maxLength": TG_BUTTON_TEXT_MAX},
+                                "url": {"type": "string", "minLength": 1,
+                                        "maxLength": 2048},
+                            },
+                        },
+                    },
+                },
                 "media": {"type": "array", "items": _media_schema(),
                           "minItems": 1, "maxItems": MAX_IMAGES},
             },
@@ -568,6 +595,15 @@ class FashionSocialBundler:
 
         # (a) channel contracts — the same validators the publishers use
         first = clean.images[0]
+        # The buy button is generated from the MERCHANT'S OWN purchase URL
+        # (never model-authored) and pinned to that exact URL at
+        # validation, so no foreign domain can ride along.
+        keyboard = []
+        if clean.purchase_url:
+            label = str(copy_tg.get("cta_fa") or "").strip()
+            if not 1 <= len(label) <= TG_BUTTON_TEXT_MAX:
+                label = PURCHASE_CTA_LABEL
+            keyboard = [[{"text": label, "url": clean.purchase_url}]]
         try:
             tg_norm = validate_telegram({
                 "chat_id": self._chat_id_canonical(
@@ -577,6 +613,7 @@ class FashionSocialBundler:
                 "parse_mode": "",
                 "scheduled_slot": clean.telegram_slot,
                 "caption": text,
+                "inline_keyboard": keyboard,
                 "items": [{"type": m.type, "media_ref": m.media_ref,
                            "media_hash": m.media_hash,
                            "file_size_bytes": m.file_size_bytes}
@@ -584,7 +621,7 @@ class FashionSocialBundler:
                 "media_ref": first.media_ref,
                 "media_hash": first.media_hash,
                 "file_size_bytes": first.file_size_bytes,
-            })
+            }, allowed_urls={clean.purchase_url} if clean.purchase_url else None)
         except TelegramContractError as exc:
             errors.append(f"telegram: {exc}")
             tg_norm = {}
@@ -648,6 +685,7 @@ class FashionSocialBundler:
                 "kind": tg_norm["kind"],
                 "scheduled_slot": clean.telegram_slot,
                 "text": text,
+                "inline_keyboard": tg_norm.get("inline_keyboard", []),
                 "media": [{"type": m.type, "media_ref": m.media_ref,
                            "media_hash": m.media_hash,
                            "file_size_bytes": m.file_size_bytes}
@@ -797,6 +835,8 @@ class FashionSocialBundler:
                 "media_ref": media["media_ref"],
                 "media_hash": media["media_hash"],
                 "file_size_bytes": media["file_size_bytes"]})
+        if tg.get("inline_keyboard"):
+            channel_payload["inline_keyboard"] = tg["inline_keyboard"]
         return validate_telegram(channel_payload)
 
     @staticmethod

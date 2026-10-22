@@ -133,20 +133,23 @@ def parse_bot_api_error(status_code: int, body: str) -> Exception:
 class TelegramAdapter:
     """Provider-neutral Bot API boundary (RULES §35)."""
 
-    def send_text(self, chat_id, text: str,
-                  parse_mode: str = "") -> Dict:
+    def send_text(self, chat_id, text: str, parse_mode: str = "",
+                  reply_markup: Optional[List] = None) -> Dict:
         raise NotImplementedError
 
     def send_photo(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         raise NotImplementedError
 
     def send_video(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         raise NotImplementedError
 
     def send_document(self, chat_id, media_ref: str, caption: str = "",
-                      parse_mode: str = "") -> Dict:
+                      parse_mode: str = "",
+                      reply_markup: Optional[List] = None) -> Dict:
         raise NotImplementedError
 
     def send_media_group(self, chat_id, items: List[Dict],
@@ -213,31 +216,43 @@ class MockTelegramAdapter(TelegramAdapter):
                 "chat_id": chat_id,
                 "method": method}
 
-    def send_text(self, chat_id, text: str, parse_mode: str = "") -> Dict:
+    @staticmethod
+    def _markup(payload: Dict, reply_markup) -> Dict:
+        """Record a keyboard ONLY when present, so every legacy call
+        keeps its exact recorded payload (backwards compatibility)."""
+        if reply_markup:
+            payload["reply_markup"] = {"inline_keyboard": reply_markup}
+        return payload
+
+    def send_text(self, chat_id, text: str, parse_mode: str = "",
+                  reply_markup: Optional[List] = None) -> Dict:
         self._maybe_fail("sendMessage")
-        return self._finish("sendMessage", chat_id,
-                            {"text": text, "parse_mode": parse_mode})
+        return self._finish("sendMessage", chat_id, self._markup(
+            {"text": text, "parse_mode": parse_mode}, reply_markup))
 
     def send_photo(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         self._maybe_fail("sendPhoto")
-        return self._finish("sendPhoto", chat_id,
-                            {"photo": media_ref, "caption": caption,
-                             "parse_mode": parse_mode})
+        return self._finish("sendPhoto", chat_id, self._markup(
+            {"photo": media_ref, "caption": caption,
+             "parse_mode": parse_mode}, reply_markup))
 
     def send_video(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         self._maybe_fail("sendVideo")
-        return self._finish("sendVideo", chat_id,
-                            {"video": media_ref, "caption": caption,
-                             "parse_mode": parse_mode})
+        return self._finish("sendVideo", chat_id, self._markup(
+            {"video": media_ref, "caption": caption,
+             "parse_mode": parse_mode}, reply_markup))
 
     def send_document(self, chat_id, media_ref: str, caption: str = "",
-                      parse_mode: str = "") -> Dict:
+                      parse_mode: str = "",
+                      reply_markup: Optional[List] = None) -> Dict:
         self._maybe_fail("sendDocument")
-        return self._finish("sendDocument", chat_id,
-                            {"document": media_ref, "caption": caption,
-                             "parse_mode": parse_mode})
+        return self._finish("sendDocument", chat_id, self._markup(
+            {"document": media_ref, "caption": caption,
+             "parse_mode": parse_mode}, reply_markup))
 
     def send_media_group(self, chat_id, items: List[Dict],
                          caption: str = "",
@@ -298,38 +313,49 @@ class LiveTelegramAdapter(TelegramAdapter):
             carrier.args = (redacted,) + tuple(carrier.args[1:])
         raise carrier
 
-    def send_text(self, chat_id, text: str, parse_mode: str = "") -> Dict:
+    @staticmethod
+    def _markup(body: Dict, reply_markup) -> Dict:
+        if reply_markup:
+            body["reply_markup"] = {"inline_keyboard": reply_markup}
+        return body
+
+    def send_text(self, chat_id, text: str, parse_mode: str = "",
+                  reply_markup: Optional[List] = None) -> Dict:
         body = {"chat_id": chat_id, "text": text}
         if parse_mode:
             body["parse_mode"] = parse_mode
-        return self._call("sendMessage", body)
+        return self._call("sendMessage",
+                          self._markup(body, reply_markup))
 
     def send_photo(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         body: Dict = {"chat_id": chat_id, "photo": media_ref}
         if caption:
             body["caption"] = caption
         if parse_mode:
             body["parse_mode"] = parse_mode
-        return self._call("sendPhoto", body)
+        return self._call("sendPhoto", self._markup(body, reply_markup))
 
     def send_video(self, chat_id, media_ref: str, caption: str = "",
-                   parse_mode: str = "") -> Dict:
+                   parse_mode: str = "",
+                   reply_markup: Optional[List] = None) -> Dict:
         body: Dict = {"chat_id": chat_id, "video": media_ref}
         if caption:
             body["caption"] = caption
         if parse_mode:
             body["parse_mode"] = parse_mode
-        return self._call("sendVideo", body)
+        return self._call("sendVideo", self._markup(body, reply_markup))
 
     def send_document(self, chat_id, media_ref: str, caption: str = "",
-                      parse_mode: str = "") -> Dict:
+                      parse_mode: str = "",
+                      reply_markup: Optional[List] = None) -> Dict:
         body: Dict = {"chat_id": chat_id, "document": media_ref}
         if caption:
             body["caption"] = caption
         if parse_mode:
             body["parse_mode"] = parse_mode
-        return self._call("sendDocument", body)
+        return self._call("sendDocument", self._markup(body, reply_markup))
 
     def send_media_group(self, chat_id, items: List[Dict],
                          caption: str = "",

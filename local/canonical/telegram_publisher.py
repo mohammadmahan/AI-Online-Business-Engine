@@ -35,6 +35,7 @@ from canonical.telegram_contracts import (
     PENDING,
     PUBLISHED,
     TelegramContractError,
+    keyboard_hash,
     publish_idempotency_key,
     validate_publish_payload,
     validate_transition,
@@ -226,7 +227,8 @@ class TelegramOutboxPublisher:
         norm = validate_publish_payload(payload)  # raises Class-B locally
         key = publish_idempotency_key(
             norm["chat_id"], norm["content_id"], norm["media_hash"],
-            norm["text_hash"], norm["scheduled_slot"])
+            norm["text_hash"], norm["scheduled_slot"],
+            keyboard_hash(norm.get("inline_keyboard")))
         eid = f"telegram|publish|{key}"
         ref = dict(norm, publish_key=key, state=PENDING, event_id=eid)
         rec = self.store.receive(SOURCE_SYSTEM, eid, OP_QUEUE, ref)
@@ -422,22 +424,40 @@ class TelegramOutboxPublisher:
     # -- dispatch ------------------------------------------------------------
 
     def _dispatch(self, ref: Dict, adapter: TelegramAdapter) -> Dict:
-        """Single Bot API call for the payload kind (adapter is ALWAYS
-        one of ours — mock locally, live only after the owner gate)."""
+        """Bot API call(s) for the payload kind (adapter is ALWAYS one of
+        ours — mock locally, live only after the owner gate).
+
+        `reply_markup` is supported by sendMessage/sendPhoto/sendVideo/
+        sendDocument; the Bot API's sendMediaGroup accepts NO keyboard,
+        so an album carrying a keyboard is dispatched as album + ONE
+        follow-up message whose text is the first button's own label
+        (merchant copy, never invented here).
+        """
         pm = ref.get("parse_mode", "")
+        keyboard = ref.get("inline_keyboard") or []
+        # Empty keyboards pass NO argument at all: a pre-keyboard adapter
+        # (or a third-party implementation) keeps working for every
+        # button-less payload, so the upgrade is strictly additive.
+        markup = {"reply_markup": keyboard} if keyboard else {}
         if ref["kind"] == "text":
-            return adapter.send_text(ref["chat_id"], ref["text"], pm)
+            return adapter.send_text(ref["chat_id"], ref["text"], pm,
+                                     **markup)
         if ref["kind"] == "photo":
             return adapter.send_photo(ref["chat_id"], ref["media_ref"],
-                                      ref["caption"], pm)
+                                      ref["caption"], pm, **markup)
         if ref["kind"] == "video":
             return adapter.send_video(ref["chat_id"], ref["media_ref"],
-                                      ref["caption"], pm)
+                                      ref["caption"], pm, **markup)
         if ref["kind"] == "document":
             return adapter.send_document(ref["chat_id"], ref["media_ref"],
-                                         ref["caption"], pm)
-        return adapter.send_media_group(ref["chat_id"], ref["items"],
-                                        ref["caption"], pm)
+                                         ref["caption"], pm, **markup)
+        result = adapter.send_media_group(ref["chat_id"], ref["items"],
+                                          ref["caption"], pm)
+        if not keyboard:
+            return result
+        follow = adapter.send_text(ref["chat_id"], keyboard[0][0]["text"],
+                                   "", reply_markup=keyboard)
+        return dict(result, cta_follow_up=follow)
 
     def publish(self, ref: Dict, adapter: TelegramAdapter, *,
                 actor: str = "telegram-ops",
@@ -568,4 +588,5 @@ def _key_from_ref(ref: Dict) -> str:
     norm = validate_publish_payload(ref)
     return publish_idempotency_key(
         norm["chat_id"], norm["content_id"], norm["media_hash"],
-        norm["text_hash"], norm["scheduled_slot"])
+        norm["text_hash"], norm["scheduled_slot"],
+        keyboard_hash(norm.get("inline_keyboard")))

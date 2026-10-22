@@ -619,6 +619,49 @@ Appended; the section text above is the specification and is **not** rewritten
   baseline failures as untouched HEAD; `full_security_sweep` → `clean: true`
   (AST 188 files / 0 findings; entropy 0 flagged; channel isolation 0 findings).
 
+#### Phase 5 closure record (2026-10-22) — §5.1 inline keyboard gap CLOSED; Phase 5 100% complete
+
+Appended; the specification above and the two completion records are **not**
+rewritten (append-only, `PROJECT_RULES.md` §2.1). The sentences that call the
+inline keyboard an open gap (§5.1's “Still open” bullet and §5.2's “§5.1's
+inline-keyboard gap is unchanged”) are superseded for that gap ONLY by this
+record. Full record in `D-172` §5.9 and §6.
+
+- **The last named gap is closed.** §5.1's first bullet requires “image group +
+  formatted caption + **inline keyboard with direct purchase link**”; §5.1 shipped
+  the first two and carried the third as a caption line because the canonical
+  Telegram payload had no keyboard field. `telegram_contracts` now has a
+  first-class, strictly validated `inline_keyboard` (rows of URL buttons; 8 rows
+  / 3 per row / 64-char label / 2048-char URL; `callback_data`, `web_app` and
+  `login_url` are not representable), and the bundler emits it from the
+  merchant's own `purchase_url` while KEEPING the caption CTA line as the
+  fallback.
+- **URL hygiene is fail-closed before any dispatch** — public `http(s)` domain
+  only (no userinfo, IP literal, `localhost` or single-label host), no
+  control/interior whitespace, no bot-token material, no credential-shaped query
+  parameter, and the bundler pins every button to the exact `purchase_url`, so a
+  foreign domain is refused.
+- **Backwards compatible at both seams** — the D-074 idempotency key extends with
+  a keyboard digest only when a keyboard exists (pre-keyboard payloads keep their
+  exact historical key), and empty keyboards pass no argument to the adapter, so
+  pre-keyboard adapters still serve every button-less payload. `sendMediaGroup`
+  takes no keyboard in the Bot API, so an album is followed by exactly ONE
+  `sendMessage` with the first button's own label and the keyboard.
+- **HITL unchanged** — the keyboard is inside the bundle artifact and its
+  `payload_hash`, so the M2 acceptance gate and §5.2's release-time re-check
+  already cover it; nothing auto-publishes.
+- **Still open, stated rather than implied done** — no live Telegram or Instagram
+  call, token or credential exists or is requested (D-045); the §5.1 webhook
+  trigger remains the existing n8n/direct-publisher seam; Phase 6 is NOT started
+  and stays owner-gated behind the payment (open decision 10), shipping (open
+  decision 11) and SMS provider selections.
+- **Evidence** — `python3 -m unittest local.tests.test_phase5_telegram_keyboard`
+  → **23 tests OK**; targeted §5.1/§5.2 + `test_phase10_telegram` → **240 tests
+  OK** (2 pre-existing env skips) and `test_phase20_security` → 38 OK (5 skips);
+  `compileall` exit 0; `full_security_sweep` → `clean: true` (AST 189 files /
+  0 findings; entropy 0 flagged; channel isolation 0 findings); full sweep →
+  **2752 tests** with the same three known live-PostgreSQL failures as HEAD.
+
 ---
 
 ## Phase 6: Payment, Notification & Production Launch

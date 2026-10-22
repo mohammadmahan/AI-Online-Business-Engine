@@ -18,6 +18,7 @@ from the media abstraction (D-051/D-049) — never embedded.
 """
 
 import hashlib
+import json
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -46,6 +47,38 @@ ALLOWED_PARSE_MODES = ("", "MarkdownV2", "HTML")
 MEDIA_TYPES = ("photo", "video", "document")
 
 PAYLOAD_KINDS = ("text", "photo", "video", "document", "mediagroup")
+
+# --- inline keyboard (D-073 §5.1 extension, D-172) ------------------------------
+#
+# Bot API `reply_markup.inline_keyboard` is a list of ROWS, each a list of
+# URL buttons. Only URL buttons exist here: callback_data/web_app/login_url
+# are deliberately NOT representable, so a keyboard cannot smuggle an
+# interactive action into a publish payload.
+
+MAX_KEYBOARD_ROWS = 8
+MAX_BUTTONS_PER_ROW = 3
+MAX_KEYBOARD_BUTTONS = 8
+MAX_BUTTON_TEXT_CHARS = 64
+MAX_BUTTON_URL_CHARS = 2048
+
+_URL_RE = re.compile(
+    r"^(https?)://([^/?#]+)([^?#]*)(\?[^#]*)?(#.*)?\Z", re.IGNORECASE)
+_HOST_RE = re.compile(
+    r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
+    r"[a-z]{2,63}$")
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+_BOT_TOKEN_RE = re.compile(r"bot\d+:[A-Za-z0-9_-]{20,}")
+
+# Canonical-fact hygiene: credential-shaped query parameters are refused
+# outright — a purchase URL never needs one, and a leaked token in a
+# button is worse than a broken button.
+_SECRET_PARAMS = frozenset({
+    "token", "access_token", "refresh_token", "api_key", "apikey",
+    "api_secret", "apisecret", "secret", "password", "passwd", "pwd",
+    "auth", "authorization", "signature", "sig", "session",
+    "session_id", "sessionid", "credential", "credentials",
+    "client_secret", "private_key",
+})
 
 
 class TelegramContractError(ValueError):
@@ -141,7 +174,136 @@ def validate_html(text: str) -> None:
                 "required (D-073 local parse)")
 
 
-# --- payload validation (D-073) ---------------------------------------------------
+# --- inline keyboard validation (D-073 / D-172 §5.1) -------------------------------
+
+def validate_button_url(url: str, *, allowed_urls=None) -> str:
+    """Validate ONE keyboard URL and return it trimmed.
+
+    Fail-closed shape: absolute http(s) only, a real public domain (no
+    userinfo, no IP literal, no localhost), no control characters or
+    whitespace, no bot-token material, and no credential-shaped query
+    parameter. When `allowed_urls` is supplied, the URL must be an
+    EXACT member — that is how the bundler pins every button to the
+    merchant's own `purchase_url` (no foreign domains).
+    """
+    if not isinstance(url, str):
+        raise TelegramContractError(
+            "button url must be a string (D-073 inline keyboard)")
+    clean = url.strip()
+    if not clean:
+        raise TelegramContractError("button url must be non-empty")
+    if len(clean) > MAX_BUTTON_URL_CHARS:
+        raise TelegramContractError(
+            f"button url exceeds {MAX_BUTTON_URL_CHARS} chars "
+            f"({len(clean)})")
+    if _CONTROL_RE.search(clean) or any(ch.isspace() for ch in clean):
+        raise TelegramContractError(
+            "button url carries whitespace or control characters")
+    if _BOT_TOKEN_RE.search(clean):
+        raise TelegramContractError(
+            "button url carries bot-token material — refused (D-124)")
+    match = _URL_RE.match(clean)
+    if not match:
+        raise TelegramContractError(
+            f"button url {clean!r} must be an absolute http(s) URL")
+    authority = match.group(2)
+    if "@" in authority:
+        raise TelegramContractError(
+            "button url must not carry userinfo (user:pass@host)")
+    if authority.count(":") > 1:
+        raise TelegramContractError(
+            "button url host must be a domain name, not an IP literal")
+    host = authority
+    if ":" in authority:
+        host, port = authority.rsplit(":", 1)
+        if not port.isdigit() or not 1 <= int(port) <= 65535:
+            raise TelegramContractError(
+                f"button url port {port!r} is invalid")
+    if not _HOST_RE.match(host.lower()):
+        raise TelegramContractError(
+            f"button url host {host!r} is not a public domain name "
+            "(IPs and localhost are refused)")
+    query = (match.group(4) or "")[1:]
+    for part in query.split("&") if query else ():
+        name = part.split("=", 1)[0].strip().lower()
+        if name in _SECRET_PARAMS:
+            raise TelegramContractError(
+                f"button url carries credential-shaped parameter "
+                f"{name!r} — refused (D-124 token leakage)")
+    if allowed_urls is not None:
+        allowed = {str(u).strip() for u in allowed_urls}
+        if clean not in allowed:
+            raise TelegramContractError(
+                f"button url {clean!r} is not the merchant's approved "
+                "purchase URL — foreign domains are refused")
+    return clean
+
+
+def validate_inline_keyboard(keyboard, *, allowed_urls=None
+                             ) -> List[List[Dict[str, str]]]:
+    """Validate `inline_keyboard` (list of rows of URL buttons).
+
+    Absent/empty is valid and returns `[]` (plain captions stay legal).
+    Every button is exactly `{text, url}` — extra keys (callback_data,
+    web_app, login_url) are refused so the publish surface stays
+    declarative and URL-only.
+    """
+    if keyboard in (None, [], ()):
+        return []
+    if not isinstance(keyboard, (list, tuple)):
+        raise TelegramContractError(
+            "inline_keyboard must be a list of rows (D-073)")
+    if len(keyboard) > MAX_KEYBOARD_ROWS:
+        raise TelegramContractError(
+            f"inline_keyboard exceeds {MAX_KEYBOARD_ROWS} rows "
+            f"({len(keyboard)})")
+    rows: List[List[Dict[str, str]]] = []
+    total = 0
+    for r, row in enumerate(keyboard):
+        if not isinstance(row, (list, tuple)) or not row:
+            raise TelegramContractError(
+                f"inline_keyboard row {r} must be a non-empty list")
+        if len(row) > MAX_BUTTONS_PER_ROW:
+            raise TelegramContractError(
+                f"inline_keyboard row {r} exceeds "
+                f"{MAX_BUTTONS_PER_ROW} buttons ({len(row)})")
+        out_row: List[Dict[str, str]] = []
+        for b, button in enumerate(row):
+            if not isinstance(button, dict):
+                raise TelegramContractError(
+                    f"inline_keyboard button {r},{b} must be a dict")
+            extra = set(button) - {"text", "url"}
+            if extra:
+                raise TelegramContractError(
+                    f"inline_keyboard button {r},{b} carries unsupported "
+                    f"keys {sorted(extra)} — URL buttons only (D-073)")
+            text = str(button.get("text", "")).strip()
+            if not 1 <= len(text) <= MAX_BUTTON_TEXT_CHARS:
+                raise TelegramContractError(
+                    f"inline_keyboard button {r},{b} text must be "
+                    f"1..{MAX_BUTTON_TEXT_CHARS} chars")
+            if _CONTROL_RE.search(text):
+                raise TelegramContractError(
+                    f"inline_keyboard button {r},{b} text carries "
+                    "control characters")
+            url = validate_button_url(str(button.get("url", "")),
+                                      allowed_urls=allowed_urls)
+            out_row.append({"text": text, "url": url})
+            total += 1
+        rows.append(out_row)
+    if total > MAX_KEYBOARD_BUTTONS:
+        raise TelegramContractError(
+            f"inline_keyboard exceeds {MAX_KEYBOARD_BUTTONS} buttons "
+            f"({total})")
+    return rows
+
+
+def keyboard_hash(keyboard) -> str:
+    """Deterministic digest of a keyboard (idempotency-key material)."""
+    return hashlib.sha256(json.dumps(
+        keyboard or [], sort_keys=True, ensure_ascii=False,
+        separators=(",", ":")).encode("utf-8")).hexdigest()
+
 
 def _clean_str(payload: Dict, key: str) -> str:
     return str(payload[key]).strip()
@@ -169,7 +331,7 @@ def _validate_media_item(item: Dict, index: int) -> Dict:
             "file_size_bytes": None if size is None else int(size)}
 
 
-def validate_publish_payload(payload: Dict) -> Dict:
+def validate_publish_payload(payload: Dict, *, allowed_urls=None) -> Dict:
     """Validate a publish payload LOCALLY (Class-B prevention).
 
     Required for every kind: chat_id (int or @channel), content_id,
@@ -179,6 +341,12 @@ def validate_publish_payload(payload: Dict) -> Dict:
     need media_ref + media_hash + file_size_bytes (≤ 50 MB) and
     caption ≤ 1024 when present; mediagroup needs items (2..10).
     MarkdownV2/HTML payloads are parsed STRICTLY locally.
+
+    `inline_keyboard` is optional; when present it is validated as rows
+    of URL buttons and normalized into the returned ref. `allowed_urls`
+    pins every button to the merchant's own URL set (foreign domains are
+    refused); callers without a merchant context still get the full URL
+    hygiene (public http(s) domain, no userinfo, no token material).
     """
     if not isinstance(payload, dict):
         raise TelegramContractError(
@@ -220,12 +388,15 @@ def validate_publish_payload(payload: Dict) -> Dict:
         raise TelegramContractError("content_id must be non-empty")
     slot = str(payload["scheduled_slot"]).strip()
 
+    keyboard = validate_inline_keyboard(payload.get("inline_keyboard"),
+                                        allowed_urls=allowed_urls)
     norm: Dict = {
         "chat_id": chat_id,
         "content_id": content_id,
         "kind": kind,
         "parse_mode": parse_mode,
         "scheduled_slot": slot,
+        "inline_keyboard": keyboard,
         "items": [],
         "caption": "",
         "media_ref": "",
@@ -304,21 +475,30 @@ def text_hash(text: str) -> str:
 
 
 def publish_idempotency_key(chat_id, content_id: str, media_hash: str,
-                            text_hash_v: str, scheduled_slot: str) -> str:
+                            text_hash_v: str, scheduled_slot: str,
+                            keyboard_hash_v: str = "") -> str:
     """D-074 deterministic key: sha256(chat_id, content_id, media_hash,
-    text_hash, scheduled_slot)."""
+    text_hash, scheduled_slot) plus the keyboard digest WHEN present.
+
+    The keyboard is appended only for a non-empty keyboard, so every
+    payload that existed before inline keyboards keeps its exact key
+    (durable idempotency survives the upgrade).
+    """
     material = "|".join((str(chat_id), str(content_id),
                          str(media_hash or ""), str(text_hash_v),
                          str(scheduled_slot)))
+    if keyboard_hash_v:
+        material += "|keyboard:" + str(keyboard_hash_v)
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
-def key_from_payload(payload: Dict) -> str:
+def key_from_payload(payload: Dict, *, allowed_urls=None) -> str:
     """Derive the D-074 key from a validated payload (or raise)."""
-    norm = validate_publish_payload(payload)
+    norm = validate_publish_payload(payload, allowed_urls=allowed_urls)
     return publish_idempotency_key(
         norm["chat_id"], norm["content_id"], norm["media_hash"],
-        norm["text_hash"], norm["scheduled_slot"])
+        norm["text_hash"], norm["scheduled_slot"],
+        keyboard_hash(norm.get("inline_keyboard")))
 
 
 def media_group_hash(items: List[Dict]) -> str:

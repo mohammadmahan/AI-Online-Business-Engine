@@ -1737,8 +1737,10 @@ repository hygiene, not deployment authorization.
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
       pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
-      Phase 5 §5.1–§5.2 COMPLETE & VERIFIED (offline); Phase 6 NOT
-      STARTED**:
+      **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
+      keyboard closed 2026-10-22)**; Phase 6 NOT STARTED, owner-gated
+      behind the payment (10), shipping (11) and SMS provider
+      selections**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
@@ -2394,11 +2396,62 @@ repository hygiene, not deployment authorization.
           targeted §4.1/§4.2/provider-gate + §5.1 → 240 tests OK;
           `full_security_sweep` → `clean: true` (AST 185 files, 0
           findings; entropy 0 flagged; bounds 11 modules; channel
-          isolation 0 findings). Nothing was skipped, weakened or
+          isolation 0 findings).          Nothing was skipped, weakened or
           suppressed. Not built, not implied: any live publish path, any
           provider selection (decision 9 / G-4 OPEN), a
           merchant-panel/storefront caller of the bundler, §5.2, any
           deployment, provisioning, credential or network call
+          **GAP CLOSED 2026-10-22 — the inline buy button is now a
+          first-class keyboard, not a caption line.** The paragraph
+          above is left intact as history (`PROJECT_RULES` §2.1); the
+          canonical `telegram_contracts` payload gained a validated
+          `inline_keyboard` field (rows of `{text, url}` buttons,
+          URL-only by construction — `callback_data`/`web_app`/
+          `login_url` are refused, 8 rows / 3 per row / 64-char label /
+          2048-char URL), so §5.1's “inline keyboard with direct
+          purchase link” is representable at last. URL hygiene is
+          fail-closed before any dispatch: absolute `http(s)` only, a
+          real public domain (no userinfo, no IP literal, no
+          `localhost`, valid port), no control/interior whitespace, no
+          bot-token material and no credential-shaped query parameter;
+          an `allowed_urls` pin makes the bundler accept ONLY the
+          merchant's own `purchase_url`, so a foreign domain cannot
+          ride along. The bundler now emits BOTH halves when a
+          `purchase_url` is present — the fallback CTA caption line
+          AND the structured single-button keyboard whose label is the
+          §4.1 copy pack's own `cta_fa` (action fallback `خرید` only
+          when the copy has none), URL verbatim — and emits NO keyboard
+          when it is absent, so plain photo/album bundles keep their
+          exact previous artifact. The keyboard lives inside the
+          `social_bundle_proposal.v1` artifact and therefore inside the
+          `payload_hash`, so the M2 HITL acceptance (and §5.2's
+          release-time re-check) already cover it. Idempotency stays
+          compatible: the D-074 key EXTENDS with the keyboard digest
+          only when a keyboard exists, so every pre-keyboard payload
+          keeps its exact historical key. Dispatch respects the Bot
+          API's own shape — `reply_markup` on text/photo/video/
+          document, and an album (sendMediaGroup takes no keyboard) is
+          followed by exactly ONE `sendMessage` carrying the first
+          button's own label + the keyboard, never an invented string;
+          empty keyboards pass no argument at all, so pre-keyboard
+          adapters still serve button-less payloads. Evidence:
+          `test_phase5_telegram_keyboard.py` → 23 tests OK (contract
+          normalization + full structural/URL/token refusal matrices,
+          key compatibility, bundler generation/absence/determinism/
+          idempotent persist, hand-off refusal then keyboard-bearing
+          release, photo + album dispatch incl. the legacy adapter);
+          targeted §5.1/§5.2 + `test_phase10_telegram` +
+          `test_phase20_security` → 240 tests OK (2 pre-existing env
+          skips) and 38 OK (5 skips); `compileall` exit 0;
+          `full_security_sweep` → `clean: true`; full sweep → 2752
+          tests with the same three known live-PostgreSQL baseline
+          failures as untouched HEAD. Nothing was skipped, weakened or
+          suppressed. **Phase 5 is now 100% complete against the
+          roadmap's §5.1–§5.2 bullets**; the next gate is the owner's
+          review of the Phase 5 completion records and the provider
+          selections that unlock Phase 6 — payment (decision 10),
+          shipping (decision 11) and SMS — with no live call, token or
+          credential created (D-045)
     - [x] **Phase 5 §5.2 — Instagram Business Publisher — DONE
           (2026-10-22, offline): container publishing REUSED, the
           peak-hours queue is new** — both roadmap §5.2 bullets are met
