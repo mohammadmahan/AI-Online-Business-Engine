@@ -680,11 +680,39 @@ owner-reviewed (D-170, 2026-09-29).
 - [ ] Owner review of the D-163 + D-164 completion record
       (attestation digest `29b3c5df…`, commit `f46d8b6`) — closes
       the phase
-- [ ] Probe-safe locking in the canonical layer (fold the ephemeral
-      D-079 fan-out lock AND an ephemeral slot-lock mode into
-      `FanOutEngine` / `SchedulingEngine` as probe modes) — prevents
-      future probe authors repeating the default-lock-claims-PG
-      incident (carried over from Phases 10/11/12)
+- [x] **Probe-safe locking in the canonical layer — DONE (2026-10-22),
+      implementation-level hardening under D-079/D-093/D-094** (amended
+      in the D-079 row; no new owner decision, no owner gate crossed).
+      The ephemeral D-079 fan-out lock and the D-094 slot-lock variant
+      are now **probe modes of the engines themselves**, not private
+      classes an author had to remember to import:
+      `orchestration_engine.EphemeralFanOutLock` with
+      `FanOutEngine(..., probe=True)` and
+      `scheduling_engine.EphemeralSlotLocks` with
+      `SchedulingEngine(..., probe=True)`. Probe mode is explicit,
+      bool-only, and REFUSES an injected backend (a call cannot ask for
+      a durable claim and a zero-footprint run at once); it constructs
+      its backend without calling the default factory, so it never even
+      probes live PostgreSQL. Semantics are unchanged (INSERT-once;
+      claim/supersede/history) but claims live and die with the engine
+      instance — a probe is repeatable instead of freezing the key, and
+      the D-027 events stay durable because the lock is transport, never
+      the record. All four igniters (Phases 10, 11, 12, 14) now alias
+      the canonical classes and build `probe=True`; Phase 14 refuses a
+      non-ephemeral slot backend BEFORE the cycle (the VERIFY check
+      remains as defense in depth). Evidence:
+      `test_probe_lock_modes.py` → 23 tests OK (construction guards,
+      default-factory-never-called proof, INSERT-once/conflict/holder/
+      supersede parity, zero `local/volumes/**` footprint for a full
+      fan-out and calendar cycle, JSON backends still writing their
+      files, alias identity, no private class copy remains); targeted
+      `test_phase11_orchestration*` + `test_phase15_scheduling` +
+      `test_live_wiring_phase10..14` + the new suite → 302 tests OK (8
+      pre-existing env skips); full sweep → 2704 tests with the same
+      three known live-PostgreSQL baseline failures as untouched HEAD;
+      `full_security_sweep` → `clean: true` (AST 186 files / 0 findings,
+      entropy 0 flagged, channel isolation 0 findings). No deployment,
+      provisioning, connection or credential (D-045/D-139).
 
 ## Phase 27 — Admin Dashboard Scaffolding & Control Plane (D-171)
 
@@ -1709,7 +1737,8 @@ repository hygiene, not deployment authorization.
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
       pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
-      Phases 5–6 NOT STARTED**:
+      Phase 5 §5.1 COMPLETE & VERIFIED (offline); Phase 5 §5.2 and
+      Phase 6 NOT STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and

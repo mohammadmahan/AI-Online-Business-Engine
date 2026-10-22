@@ -80,6 +80,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from canonical.orchestration_engine import (
+    EphemeralFanOutLock as _EphemeralFanOutLock,
+)
+from canonical.scheduling_engine import (
+    EphemeralSlotLocks as _EphemeralSlotLocks,
+)
+
 try:  # battery package path or script cwd path
     from ..src.memory.vector_store import deep_redact  # type: ignore
 except ImportError:  # pragma: no cover - script invocation paths
@@ -170,68 +177,11 @@ def canonical_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
-class _EphemeralSlotLocks:
-    """Process-local parity backend for the (platform, slot_bucket)
-    PK-as-lock (D-094) — the scheduling analog of the D-160/D-161/D-162
-    ephemeral fan-out lock: claim/supersede/history semantics identical
-    to `_JsonSlotLocks`, ZERO durable footprint. Never live PostgreSQL
-    (`scheduling.slot_lock`) and never the shared
-    `local/volumes/scheduling/slot_locks.json`."""
-
-    def __init__(self) -> None:
-        import threading
-        self._rows: Dict[str, Dict[str, Any]] = {}
-        self._lock = threading.Lock()
-
-    def claim(self, key: str, row: Dict[str, Any]) -> Dict[str, Any]:
-        with self._lock:
-            existing = self._rows.get(key)
-            if existing and existing.get("active", True):
-                return {"acquired": False,
-                        "holder": {"post_id":
-                                       existing.get("post_id", ""),
-                                   "scheduled_for":
-                                       existing.get("scheduled_for", "")}}
-            # a released (superseded) slot is re-claimable — the row
-            # stays as ledger history (D-096)
-            rec = json.loads(json.dumps(row))
-            rec["active"] = True
-            self._rows[key] = rec
-            return {"acquired": True, "holder": rec}
-
-    def supersede(self, key: str, post_id: str,
-                  replacement: Tuple[str, str]) -> None:
-        """D-096: the old slot row is NEVER deleted — it is marked
-        inactive (superseded) and stays in the ledger."""
-        with self._lock:
-            if key in self._rows and \
-                    self._rows[key].get("post_id") == post_id:
-                self._rows[key]["active"] = False
-                self._rows[key]["superseded_by"] = \
-                    "\x1f".join(replacement)
-
-    def history(self) -> Dict[str, Dict[str, Any]]:
-        with self._lock:
-            return json.loads(json.dumps(self._rows))
-
-
-class _EphemeralFanOutLock:
-    """Process-local D-079 parity lock for PROBES (D-160/D-161/D-162
-    precedent): INSERT-once claim semantics, ZERO durable footprint —
-    never live PostgreSQL (`orchestration.fanout_lock`) and never the
-    shared `local/volumes/orchestration/fanout_lock.json`."""
-
-    def __init__(self) -> None:
-        import threading
-        self._claims: Dict[str, str] = {}
-        self._lock = threading.Lock()
-
-    def claim(self, key: str, claimant: str) -> bool:
-        with self._lock:
-            if key in self._claims:
-                return False
-            self._claims[key] = claimant
-            return True
+# The two probe backends are the CANONICAL engine classes, aliased here
+# for the igniter's existing private names: `EphemeralSlotLocks` (D-094)
+# and `EphemeralFanOutLock` (D-079). Probe authors get the mode from the
+# engine itself (`probe=True`) — there is no local copy to drift and no
+# way to silently fall through to a durable lock.
 
 
 @dataclass(frozen=True)
@@ -667,13 +617,22 @@ class Phase14Igniter:
                            f"event store construction failed "
                            f"({type(exc).__name__})"))
             return False, summary, checks
-        engine = SchedulingEngine(store, locks=self._slot_locks)
+        # Refuse BEFORE the cycle: a backend that is not the canonical
+        # process-local lock could write the durable slot ledger.
+        if not isinstance(self._slot_locks, _EphemeralSlotLocks):
+            checks.append(("SCH-04", False,
+                           "probe slot backend is not the ephemeral "
+                           "process-local lock — durable lock claims"))
+            return False, summary, checks
+        # probe=True: the engine owns its process-local slot backend, so
+        # a durable ledger can never be written by this cycle.
+        engine = SchedulingEngine(store, probe=True)
+        self._slot_locks = engine._locks
 
         def _build_fanout(store):
             from canonical.orchestration_engine import FanOutEngine
             return FanOutEngine(
-                store, publish_binds={"telegram": None},
-                lock=_EphemeralFanOutLock())
+                store, publish_binds={"telegram": None}, probe=True)
 
         try:
             from services.sync_engine import IntegrityError
@@ -853,13 +812,13 @@ class Phase14Igniter:
                 if marker in blob:
                     _fail(f"publish-boundary violation: {marker!r} "
                           "found in the scheduling event stream")
-            from live_wiring_phase14_igniter import (
-                _EphemeralSlotLocks as _EphemeralSlotLocksSelf,
-            )
-            if not isinstance(getattr(engine, "_locks", None),
-                              _EphemeralSlotLocksSelf):
-                _fail("probe slot backend is not the ephemeral "
-                      "process-local lock — durable lock claims")
+            from canonical.scheduling_engine import EphemeralSlotLocks
+            if not getattr(engine, "probe", False) or \
+                    getattr(engine, "lock_backend", "") != "ephemeral" \
+                    or not isinstance(getattr(engine, "_locks", None),
+                                      EphemeralSlotLocks):
+                _fail("probe slot backend is not the engine's probe "
+                      "mode — durable lock claims possible")
             summary["slot_backend"] = "ephemeral"
             summary["steps"].append([
                 "VERIFY", True, {"markers": "clean",

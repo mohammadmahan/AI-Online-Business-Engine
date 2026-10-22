@@ -6162,6 +6162,44 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 - **Consequences:** no cross-worker duplicate fan-out; staggered
   windows are deterministic; platform-level idempotency remains
   independently enforced beneath the campaign lock.
+- **AMENDMENT 2026-10-22 — probe mode is now canonical (implementation-level
+  hardening under D-079/D-093/D-094, not a new owner decision; append-only,
+  `PROJECT_RULES.md` §2.1).** The D-079 hazard had been contained by private
+  copies of an ephemeral process-local lock inside four live-wiring igniters
+  (Phases 10, 11, 12, 14) and a fifth copy of the D-094 slot-lock variant in
+  Phase 14 — every new probe author had to remember to import the right
+  private class, and the default lock's fallback (`_default_lock()` /
+  `default_slot_locks()`) claims keys PERMANENTLY in live PostgreSQL or the
+  shared JSON volume. The two surfaces now own one canonical mode each:
+  `canonical.orchestration_engine.EphemeralFanOutLock` with
+  `FanOutEngine(..., probe=True)` and
+  `canonical.scheduling_engine.EphemeralSlotLocks` with
+  `SchedulingEngine(..., probe=True)`. Probe mode is **explicit, bool-only,
+  and mutually exclusive with an injected backend** — passing both is a
+  construction refusal (Class B), because a call cannot ask for a durable
+  claim and a zero-footprint run at the same time. A probe engine reports
+  `probe` + `lock_backend == "ephemeral"` for attestations, and constructs
+  its backend WITHOUT calling the default factory at all, so it cannot even
+  probe live PostgreSQL. Claim semantics are unchanged (`INSERT`-once for
+  fan-out; claim/supersede/history for slots), but the claims live and die
+  with the engine instance: a probe is repeatable instead of freezing the
+  key forever, and the D-027 orchestration/scheduling events stay durable
+  (the lock is a transport concern, never the record). The four igniters now
+  alias the canonical classes and build `probe=True`; Phase 14 additionally
+  refuses a non-ephemeral slot backend BEFORE the cycle begins (the VERIFY
+  step's post-hoc check remains as defense in depth). Evidence:
+  `local/tests/test_probe_lock_modes.py` 23 tests OK (construction guards,
+  no-default-factory proof, INSERT-once/conflict/holder/supersede parity,
+  zero `local/volumes/**` footprint for a full fan-out and a full calendar
+  cycle, opt-in JSON backends still writing their files, alias identity and
+  the absence of any private class copy); the targeted batteries
+  (`test_phase11_orchestration*`, `test_phase15_scheduling`,
+  `test_live_wiring_phase10..14`, `test_probe_lock_modes`) → 302 tests OK
+  (8 pre-existing env skips); full sweep → 2704 tests with the same three
+  known live-PostgreSQL baseline failures as the untouched HEAD; security
+  sweep `clean: true` (AST 186 files / 0 findings, entropy 0, channel
+  isolation 0). Nothing deployed, provisioned, connected or given a
+  credential (D-045/D-139).
 
 ## D-080 — Fan-out resiliency, HITL cancellation and reconciliation worker
 

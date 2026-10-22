@@ -147,7 +147,7 @@ def build_fanout(store: EventStore) -> FanOutEngine:
     lock claims keys PERMANENTLY in live PG or the shared fan-out
     lock file — never acceptable for probes)."""
     return FanOutEngine(store, publish_binds={"telegram": None},
-                        lock=_EphemeralFanOutLock())
+                        probe=True)
 
 
 def real_engine_factory(stock: int = 10):
@@ -591,6 +591,8 @@ class TestOrd04Lifecycle(unittest.TestCase):
         from canonical.orchestration_engine import (_JsonFanOutLock,
                                                     _PgFanOutLock)
         lock = h.fanout.lock
+        self.assertTrue(h.fanout.probe)
+        self.assertEqual(h.fanout.lock_backend, "ephemeral")
         self.assertIsInstance(lock, _EphemeralFanOutLock)
         self.assertNotIsInstance(lock, (_PgFanOutLock, _JsonFanOutLock))
         # the probe's claim lives ONLY in the ephemeral dict (purged

@@ -16,6 +16,11 @@ keyed deterministically per lifecycle stage.
 
 Sources of truth (restart-safety): sub-task outcomes are read back
 from the DURABLE event store (publisher history), never from memory.
+
+Probe mode (D-079, D-160/D-161): `FanOutEngine(..., probe=True)` takes
+the process-local `EphemeralFanOutLock` and REFUSES an explicit lock —
+a probe must never claim a key in live PG or the shared JSON lock file,
+because those claims are permanent and would freeze the key forever.
 """
 
 import json
@@ -118,6 +123,47 @@ class _JsonFanOutLock:
             return True
 
 
+class EphemeralFanOutLock:
+    """Process-local D-079 parity lock for PROBE runs (D-160/D-161).
+
+    Identical INSERT-once claim semantics (the anti-race guarantee) but
+    ZERO durable footprint: it never touches live PostgreSQL
+    (`orchestration.fanout_lock`) and never the shared
+    `local/volumes/orchestration/fanout_lock.json`. The durable
+    backends claim keys PERMANENTLY, which would freeze every future
+    routing of the same probe key.
+
+    Separation of worlds (D-154/D-155) applied to D-079: a probe must
+    be repeatable, so its claims live and die with the object.
+    """
+
+    backend = "ephemeral"
+
+    def __init__(self):
+        import threading
+        self._claims: Dict[str, str] = {}
+        self._lock = threading.Lock()
+
+    def claim(self, key: str, claimant: str) -> bool:
+        with self._lock:
+            if key in self._claims:
+                return False
+            self._claims[key] = claimant
+            return True
+
+
+def _lock_backend(lock) -> str:
+    """Declared backend name for attestations (never inferred later)."""
+    declared = getattr(lock, "backend", None)
+    if isinstance(declared, str) and declared:
+        return declared
+    if isinstance(lock, _PgFanOutLock):
+        return "pg"
+    if isinstance(lock, _JsonFanOutLock):
+        return "json"
+    return f"custom:{type(lock).__name__}"
+
+
 def _default_lock():
     """PG lock when the live stack answers, JSON parity otherwise."""
     try:
@@ -139,12 +185,22 @@ class FanOutEngine:
     """
 
     def __init__(self, store, publish_binds: Dict[str, object],
-                 lock=None, provenance=None):
+                 lock=None, provenance=None, *, probe: bool = False):
         self.store = store
         if not publish_binds:
             raise OrchestrationError("publish_binds must not be empty")
+        if not isinstance(probe, bool):
+            raise OrchestrationError(
+                f"probe must be a bool, got {type(probe).__name__}")
+        if probe and lock is not None:
+            raise OrchestrationError(
+                "probe mode owns its lock: pass probe=True OR an explicit "
+                "lock, never both — a probe must not claim a durable lock")
         self.publish_binds = dict(publish_binds)
-        self.lock = lock or _default_lock()
+        self.probe = probe
+        self.lock = EphemeralFanOutLock() if probe else (lock or
+                                                         _default_lock())
+        self.lock_backend = _lock_backend(self.lock)
         self.provenance = provenance
 
     # -- lifecycle events (atomic per transition, D-079) -----------------

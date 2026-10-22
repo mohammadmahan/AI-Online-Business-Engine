@@ -7,6 +7,10 @@ locks are provider-neutral: PG PK-as-lock (`scheduling.slot_lock`) or
 JSON parity backend — injected (RULES §35). No wall clock anywhere
 (D-093): due decisions take the injected clock in the worker, and
 every recorded instant is supplied by the producer.
+
+Probe mode: `SchedulingEngine(store, probe=True)` takes the
+process-local `EphemeralSlotLocks` and REFUSES an explicit backend —
+a probe must never write the durable slot ledger it is only reading.
 """
 
 import json
@@ -40,6 +44,8 @@ from canonical.scheduling_contracts import (
 
 class _JsonSlotLocks:
     """Offline parity: (platform, bucket) → claim row, file-backed."""
+
+    backend = "json"
 
     def __init__(self, path: str):
         import pathlib
@@ -100,6 +106,8 @@ class _JsonSlotLocks:
 
 class _PgSlotLocks:
     """Live PG: PRIMARY KEY (platform, slot_bucket) IS the lock."""
+
+    backend = "pg"
 
     def __init__(self):
         import sys as _sys
@@ -162,6 +170,55 @@ class _PgSlotLocks:
         return out
 
 
+class EphemeralSlotLocks:
+    """Process-local parity backend for PROBE runs (D-093/D-094/D-096).
+
+    Claim/supersede/history semantics are identical to `_JsonSlotLocks`
+    but there is ZERO durable footprint: never live PostgreSQL
+    (`scheduling.slot_lock`) and never the shared
+    `local/volumes/scheduling/slot_locks.json`. The durable backends
+    claim slots permanently, so a probe reusing them would poison the
+    calendar it is only supposed to read.
+    """
+
+    backend = "ephemeral"
+
+    def __init__(self) -> None:
+        import threading
+        self._rows: Dict[str, Dict] = {}
+        self._lock = threading.Lock()
+
+    def claim(self, key: str, row: Dict) -> Dict:
+        with self._lock:
+            existing = self._rows.get(key)
+            if existing and existing.get("active", True):
+                return {"acquired": False,
+                        "holder": {"post_id": existing.get("post_id", ""),
+                                   "scheduled_for":
+                                       existing.get("scheduled_for", "")}}
+            # a released (superseded) slot is re-claimable — the row
+            # stays as ledger history (D-096)
+            rec = json.loads(json.dumps(row))
+            rec["active"] = True
+            self._rows[key] = rec
+            return {"acquired": True, "holder": rec}
+
+    def supersede(self, key: str, post_id: str,
+                  replacement: Tuple[str, str]) -> None:
+        """D-096: the old slot row is NEVER deleted — it is marked
+        inactive (superseded) and stays in the ledger."""
+        with self._lock:
+            if key in self._rows and \
+                    self._rows[key].get("post_id") == post_id:
+                self._rows[key]["active"] = False
+                self._rows[key]["superseded_by"] = \
+                    "\x1f".join(replacement)
+
+    def history(self) -> Dict[str, Dict]:
+        with self._lock:
+            return json.loads(json.dumps(self._rows))
+
+
 def default_slot_locks():
     try:
         backend = _PgSlotLocks()
@@ -179,9 +236,21 @@ class SchedulingEngine:
     """D-093/D-094/D-096 calendar core. store: D-027 store
     (PgEventStore or EventStore parity); locks: slot backend."""
 
-    def __init__(self, store, locks=None):
+    def __init__(self, store, locks=None, *, probe: bool = False):
         self._store = store
-        self._locks = locks or default_slot_locks()
+        if not isinstance(probe, bool):
+            raise SchedulingContractError(
+                f"probe must be a bool, got {type(probe).__name__}")
+        if probe and locks is not None:
+            raise SchedulingContractError(
+                "probe mode owns its slot backend: pass probe=True OR an "
+                "explicit backend, never both — a probe must not write "
+                "the durable slot ledger")
+        self.probe = probe
+        self._locks = EphemeralSlotLocks() if probe else (locks or
+                                                          default_slot_locks())
+        self.lock_backend = getattr(
+            self._locks, "backend", f"custom:{type(self._locks).__name__}")
 
     # -- durable helpers ------------------------------------------------------
 

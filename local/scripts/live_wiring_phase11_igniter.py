@@ -69,6 +69,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from canonical.orchestration_engine import (
+    EphemeralFanOutLock as _EphemeralFanOutLock,
+)
+
 try:  # battery package path or script cwd path
     from ..src.memory.vector_store import deep_redact  # type: ignore
 except ImportError:  # pragma: no cover - script invocation paths
@@ -208,23 +212,9 @@ class SettlementScratch:
                       if k.startswith("phase11-scratch:"))
 
 
-class _EphemeralFanOutLock:
-    """Process-local D-079 parity lock for PROBES (D-160 precedent):
-    INSERT-once claim semantics, ZERO durable footprint — never live
-    PostgreSQL (`orchestration.fanout_lock`) and never the shared
-    `local/volumes/orchestration/fanout_lock.json`."""
-
-    def __init__(self) -> None:
-        import threading
-        self._claims: Dict[str, str] = {}
-        self._lock = threading.Lock()
-
-    def claim(self, key: str, claimant: str) -> bool:
-        with self._lock:
-            if key in self._claims:
-                return False
-            self._claims[key] = claimant
-            return True
+# `_EphemeralFanOutLock` is the canonical `EphemeralFanOutLock` from
+# `canonical.orchestration_engine` (aliased at import time) — one probe
+# lock implementation for every igniter, with no local copy to drift.
 
 
 class SandboxGateway:
@@ -667,8 +657,7 @@ class Phase11Igniter:
         def _build_fanout(store):
             from canonical.orchestration_engine import FanOutEngine
             return FanOutEngine(
-                store, publish_binds={"telegram": None},
-                lock=_EphemeralFanOutLock())
+                store, publish_binds={"telegram": None}, probe=True)
 
         try:
             # START — channel-tagged synthetic order (the D-160 order)

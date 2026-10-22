@@ -77,6 +77,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from canonical.orchestration_engine import (
+    EphemeralFanOutLock as _EphemeralFanOutLock,
+)
+
 try:  # battery package path or script cwd path
     from ..src.memory.vector_store import deep_redact  # type: ignore
 except ImportError:  # pragma: no cover - script invocation paths
@@ -216,27 +220,9 @@ class OrderScratch:
             "phase10-scratch:"))
 
 
-class _EphemeralFanOutLock:
-    """Process-local D-079 parity lock for PROBES: identical
-    INSERT-once claim semantics (the anti-race guarantee), but ZERO
-    durable footprint — it never touches live PostgreSQL
-    (`orchestration.fanout_lock`) or the shared
-    `local/volumes/orchestration/fanout_lock.json`. The default lock
-    claims keys PERMANENTLY in those stores, which would freeze every
-    future routing of the same probe key — unacceptable for probes.
-    (The D-154/D-155 separation-of-worlds rule, applied to D-079.)"""
-
-    def __init__(self) -> None:
-        import threading
-        self._claims: Dict[str, str] = {}
-        self._lock = threading.Lock()
-
-    def claim(self, key: str, claimant: str) -> bool:
-        with self._lock:
-            if key in self._claims:
-                return False
-            self._claims[key] = claimant
-            return True
+# `_EphemeralFanOutLock` is the canonical `EphemeralFanOutLock` from
+# `canonical.orchestration_engine` (aliased at import time): probe authors
+# get the D-079 parity semantics WITHOUT a local copy that can drift.
 
 
 @dataclass(frozen=True)
