@@ -374,6 +374,51 @@ def proposal_id_for(bundle_key: str) -> str:
     return f"{PROPOSAL_PREFIX}|{bundle_key}"
 
 
+def approved_bundle_payload(lifecycle, bundle_id: str):
+    """The ONE human-acceptance gate for a bundle (D-026/D-172).
+
+    Returns `(state, payload)` only when the lifecycle says ACCEPTED,
+    the artifact is this bundle schema, its stored payload still hashes
+    to the recorded commitment, and the payload itself declares
+    `approval.required: true`. Every refusal is `BundleNotApproved`.
+
+    Used by `hand_off_to_outbox()` and by the §5.2 publishing queue, so
+    the two release paths cannot drift into different guarantees.
+    """
+    try:
+        state = lifecycle.state_of(bundle_id)
+    except KeyError as exc:
+        raise BundleNotApproved(
+            f"unknown bundle {bundle_id!r} — nothing was accepted") \
+            from exc
+    if state != ACCEPTED:
+        raise BundleNotApproved(
+            f"bundle {bundle_id!r} is {state}; only an ACCEPTED bundle "
+            "may be released (human approval is mandatory)",
+            state=state)
+    ref = lifecycle.proposal_ref(bundle_id)
+    if not ref:
+        raise BundleNotApproved(
+            "the accepted bundle has no original proposal reference",
+            state=state)
+    if ref.get("schema_id") != BUNDLE_SCHEMA:
+        raise BundleNotApproved(
+            f"proposal {bundle_id!r} is {ref.get('schema_id')!r}, not "
+            f"{BUNDLE_SCHEMA} — only a social bundle may be released",
+            state=state)
+    payload = ref.get("payload") or {}
+    if payload_hash(payload) != ref.get("payload_hash"):
+        raise BundleNotApproved(
+            "the stored bundle payload no longer matches its recorded "
+            "hash — tampered or corrupted artifact", state=state)
+    approval = payload.get("approval") or {}
+    if approval.get("required") is not True:
+        raise BundleNotApproved(
+            "the payload does not declare approval.required=true",
+            state=state)
+    return state, payload
+
+
 # --- report -------------------------------------------------------------------
 
 
@@ -676,38 +721,7 @@ class FashionSocialBundler:
         Refuses unless a human accepted THIS payload. The outboxes are
         the D-073/D-069 seams; this method never calls their send path.
         """
-        try:
-            state = lifecycle.state_of(bundle_id)
-        except KeyError as exc:
-            raise BundleNotApproved(
-                f"unknown bundle {bundle_id!r} — nothing was accepted") \
-                from exc
-        if state != ACCEPTED:
-            raise BundleNotApproved(
-                f"bundle {bundle_id!r} is {state}; only an ACCEPTED bundle "
-                "may be handed to an outbox (human approval is mandatory)",
-                state=state)
-
-        ref = lifecycle.proposal_ref(bundle_id)
-        if not ref:
-            raise BundleNotApproved(
-                "the accepted bundle has no original proposal reference",
-                state=state)
-        if ref.get("schema_id") != BUNDLE_SCHEMA:
-            raise BundleNotApproved(
-                f"proposal {bundle_id!r} is {ref.get('schema_id')!r}, not "
-                f"{BUNDLE_SCHEMA} — only a social bundle may reach a "
-                "social outbox", state=state)
-        payload = ref.get("payload") or {}
-        if payload_hash(payload) != ref.get("payload_hash"):
-            raise BundleNotApproved(
-                "the stored bundle payload no longer matches its recorded "
-                "hash — tampered or corrupted artifact", state=state)
-        approval = payload.get("approval") or {}
-        if approval.get("required") is not True:
-            raise BundleNotApproved(
-                "the payload does not declare approval.required=true",
-                state=state)
+        state, payload = approved_bundle_payload(lifecycle, bundle_id)
         if telegram_outbox is None and instagram_outbox is None:
             raise BundleNotApproved(
                 "no outbox supplied — a silent no-op is not a release",

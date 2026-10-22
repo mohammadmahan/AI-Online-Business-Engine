@@ -506,6 +506,55 @@ Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
   n8n/direct-publisher seam; §5.2 is NOT started; no deployment, provisioning or
   production activation (D-045/D-139).
 
+### 5.8 Phase 5 §5.2 implementation — Instagram peak-hours publishing queue (2026-10-22, owner-authorized)
+
+Roadmap §5.2 has two bullets. The first — image preparation and container
+publishing through the Meta Graph API — was already delivered by the canonical
+Phase 9 Instagram seam (D-069/D-070/D-072): `InstagramOutboxPublisher.publish()`
+drives `create_media_container` → `container_status` → `publish_container`
+through the injected adapter under the idempotency vault and failure classifier,
+with `GraphApiAdapter` behind its D-045 construction gate and
+`MockInstagramAdapter` for offline runs. G-6 requires publishing to reuse that
+seam, so §5.2 **reuses** it rather than building a second workflow.
+
+This change adds the second bullet — the peak-hours scheduling queue — in a new
+`local/canonical/instagram_publish_queue.py`:
+
+- **`PeakHoursPolicy`** is the merchant's own engagement policy: an explicit
+  fixed UTC offset plus `HH:MM` windows that must be 15-minute aligned (the D-094
+  slot granularity), ordered, non-overlapping, at most eight, and non-empty.
+  There is deliberately **no default window** — inventing “peak hours” would be
+  fabricating a business fact — and the unavailability of a timezone database is
+  handled by the explicit offset rather than an implicit guess.
+- **`next_slot()`** is pure: a requested instant inside a window is kept (only
+  re-expressed in policy-local time), otherwise the next window start is chosen
+  (same day or later). No wall clock, no randomness, stable across calls.
+- **Scheduling** goes through the REAL `SchedulingEngine` (D-093/D-094/D-096):
+  the queue maps a bundle key to a deterministic post id
+  (`instagram-<bundle_key>`), claims the slot, and reports a `SLOT_CONFLICT` as a
+  decision rather than a success. The D-094 conflict row is retained by the
+  calendar as the record and is explicitly EXCLUDED from release.
+- **Release** is caller-clocked (`now_iso`): due, non-terminal, non-conflicted
+  queue posts are re-verified against the acceptance gate, enqueued into the
+  durable Instagram outbox (D-072), and marked DISPATCHED through the engine.
+  A repeated pass is a no-op; an outbox refusal leaves the post DUE; foreign
+  calendar entries are never touched; cancellation is scoped to queue posts and
+  refused after DISPATCHED.
+- **HITL is shared:** §5.1's acceptance checks were extracted into
+  `approved_bundle_payload()` (ACCEPTED, bundle schema, intact `payload_hash`,
+  `approval.required: true`) and both `hand_off_to_outbox()` and the queue call
+  it. The queue re-checks at release time.
+- **`SchedulingEngine.mark_dispatched()`** was added as the public
+  DUE→DISPATCHED transition (terminal posts refused, duplicate events never
+  appended), so the queue does not reach into private helpers.
+- **No publication surface:** the module imports no adapter, calls no
+  `publish()`, opens no socket, reads no environment or credential (AST-asserted).
+
+**Not built / not implied:** any live Meta Graph API call or token (none exists
+and none is requested — D-045; the live adapter stays construction-gated), any
+merchant-panel or storefront caller, §5.1's inline-keyboard gap, Phase 6, and any
+deployment or production activation (D-139).
+
 ## 6. Verification performed
 
 **Adoption change (2026-10-10):**
@@ -1254,6 +1303,40 @@ that can refuse is not a provider selection.
 - **Boundaries.** No live model or provider call, no network, no credential, no
   environment read, no deployment and no migration; decision 9 / G-4 remains the
   owner's.
+
+### Phase 5 §5.2 verification — peak-hours Instagram queue (2026-10-22, owner-authorized)
+
+- **New suite:** `python3 -m unittest local.tests.test_phase5_instagram_queue` →
+  **25 tests OK**. It covers policy validation (empty/unaligned/overlapping/
+  reversed/bad-offset/too-many windows), start-inclusive/end-exclusive
+  boundaries, offset conversion, the pure next-slot math (inside, before,
+  between, after, same instant in another offset), scheduling an ACCEPTED bundle
+  onto a peak slot (shifted and unshifted), refusal of a PROPOSED bundle with
+  nothing written, replay idempotency, a double-booked window reported as
+  `SLOT_CONFLICT` with the winner holding the only claim, release before the
+  slot (nothing), at the slot (exactly one outbox item + DISPATCHED ledger row),
+  a repeated pass (no-op), a not-approved post left SCHEDULED and unsent, a
+  conflicted post never released, an outbox refusal leaving the post DUE, cancel
+  scoping/immutability, and AST hygiene (no network/adapter/publish/credential
+  surface; the shared acceptance gate is the function §5.1's hand-off calls).
+- **Targeted regressions:** `test_phase5_social_bundler` (still 85 OK after the
+  gate extraction), `test_phase9_instagram`, `test_phase11_orchestration`,
+  `test_phase15_scheduling` and `test_live_wiring_phase14` → **252 tests OK**
+  (10 pre-existing environment skips).
+- **Full sweep:** `python3 -m unittest discover -s local/tests -t . -p
+  "test_*.py"` → **2729 tests, 3 failures** — the same known
+  live-PostgreSQL-dependent tests as the untouched HEAD baseline
+  (`test_phase23_resilience` transport ceiling,
+  `test_phase26_decision_ledger_drill`, `test_phase26_dr_closeout`). Nothing was
+  skipped, weakened or suppressed.
+- **Security sweep:** `full_security_sweep` → `clean: true` (AST 188 files /
+  0 findings; entropy 0 flagged; channel isolation 0 findings — the new module
+  is a declared Instagram home under D-131).
+- **Hermeticity note:** the test harness injects a per-test `_JsonSlotLocks`
+  ledger; using the engine's default backend would probe live PostgreSQL and
+  then claim in the shared `local/volumes` ledger, which a test must never do.
+  The first draft did exactly that and its stray claims were removed from the
+  working tree before commit.
 
 ## 7. References
 

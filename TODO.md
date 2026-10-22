@@ -1737,8 +1737,8 @@ repository hygiene, not deployment authorization.
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
       pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
-      Phase 5 §5.1 COMPLETE & VERIFIED (offline); Phase 5 §5.2 and
-      Phase 6 NOT STARTED**:
+      Phase 5 §5.1–§5.2 COMPLETE & VERIFIED (offline); Phase 6 NOT
+      STARTED**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
@@ -2399,10 +2399,51 @@ repository hygiene, not deployment authorization.
           provider selection (decision 9 / G-4 OPEN), a
           merchant-panel/storefront caller of the bundler, §5.2, any
           deployment, provisioning, credential or network call
-    - [ ] **Phase 5 §5.2 — Instagram Business Publisher** (roadmap
-          §5.2; container publishing via Meta Graph API + the
-          peak-hours scheduling queue must reuse the canonical
-          Instagram seam — G-6)
+    - [x] **Phase 5 §5.2 — Instagram Business Publisher — DONE
+          (2026-10-22, offline): container publishing REUSED, the
+          peak-hours queue is new** — both roadmap §5.2 bullets are met
+          on the canonical seams (G-6). Container publishing was NOT
+          rebuilt: `InstagramOutboxPublisher.publish()` already drives
+          `create_media_container` → `container_status` →
+          `publish_container` through the injected adapter (D-069/
+          D-072), with `GraphApiAdapter` behind its D-045 construction
+          gate and `MockInstagramAdapter` for offline runs. New
+          `local/canonical/instagram_publish_queue.py` adds the missing
+          half — WHEN an accepted post goes out: `PeakHoursPolicy`
+          (merchant-supplied windows; fixed explicit UTC offset;
+          15-minute aligned, ordered, non-overlapping; NO invented
+          default and NO wall clock) → `SchedulingEngine` slot claim
+          (D-093/D-094) → at release `outbox.enqueue()` (D-072) → the
+          publisher's own worker sends. **HITL reused, not
+          re-implemented:** the queue calls the same
+          `approved_bundle_payload()` gate §5.1's hand-off uses
+          (ACCEPTED state, bundle schema, intact `payload_hash`,
+          `approval.required: true`) and RE-CHECKS it at release time.
+          **Fail-closed:** a conflicted (D-094) post is never released
+          even though the calendar keeps its conflict row; foreign
+          calendar entries are untouched; an outbox refusal leaves the
+          post DUE, never falsely DISPATCHED; a repeated pass is a
+          no-op (terminal posts skipped + idempotent outbox key);
+          `cancel()` is scoped to queue posts and refuses after
+          DISPATCHED. `SchedulingEngine.mark_dispatched()` was added as
+          the public transition instead of poking private methods.
+          Evidence: `test_phase5_instagram_queue.py` → 25 tests OK
+          (policy validation incl. overlap/alignment, boundary + offset
+          + pure slot math, scheduling an ACCEPTED bundle, refusal of a
+          PROPOSED one, replay idempotency, slot conflict, release at
+          the injected instant with exactly one outbox item, repeat
+          pass no-op, ledger DISPATCHED record, not-approved refusal,
+          conflicted-post exclusion, outbox-refusal leaves DUE, cancel
+          scoping/immutability, AST hygiene, shared-gate identity);
+          targeted §5.1/§5.2 + phase9 Instagram + phase11 orchestration
+          + phase15 scheduling + phase14 wiring → 252 tests OK (10
+          pre-existing env skips); full sweep → 2729 tests with the
+          same three known live-PostgreSQL baseline failures as
+          untouched HEAD; `full_security_sweep` → `clean: true` (AST
+          188 files / 0 findings; entropy 0 flagged; channel isolation
+          0 findings — the module is a declared Instagram home).
+          Nothing deployed, connected or sent, and no credential
+          exists; no live Graph API call is on this path (D-045).
     - [ ] **Phase 6 — Payment, Notification & Production Launch**
           (roadmap §6.1–§6.3; the payment (decision 10), shipping
           (decision 11) and SMS providers must be selected first)

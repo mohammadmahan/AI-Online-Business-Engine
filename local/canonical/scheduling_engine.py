@@ -373,6 +373,20 @@ class SchedulingEngine:
         return self._transition(post_id, TR_DUE, ST_DUE,
                                 {"now": now_iso}, 0)
 
+    def mark_dispatched(self, post_id: str, actor: str,
+                        receipt: Optional[Dict] = None) -> Dict:
+        """DUE → DISPATCHED once the hand-off succeeded (D-095/D-096).
+
+        Terminal posts are refused; a repeated call is a
+        `duplicate_transition` (never a second dispatch record)."""
+        current, _ = self._current_status(post_id)
+        if current in (ST_DISPATCHED, ST_CANCELLED):
+            return {"ok": False, "reason": f"immutable_{current}",
+                    "current": current}
+        return self._transition(post_id, TR_DISPATCH, ST_DISPATCHED,
+                                {"actor": actor,
+                                 "receipt": dict(receipt or {})}, 0)
+
     def cancel(self, post_id: str, actor: str) -> Dict:
         current, _ = self._current_status(post_id)
         if not is_mutable(current):

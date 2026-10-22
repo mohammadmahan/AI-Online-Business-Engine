@@ -579,6 +579,46 @@ Appended; the section text above is the specification and is **not** rewritten
 - Image preparation and container publishing via Meta Graph API.
 - Scheduled publishing queue for peak customer engagement hours.
 
+#### Phase 5 §5.2 completion record (2026-10-22) — peak-hours queue IMPLEMENTED & VERIFIED (offline); container publishing REUSED
+
+Appended; the section text above is the specification and is **not** rewritten
+(append-only, `PROJECT_RULES.md` §2.1). Full record in `D-172` §5.8 and §6.
+
+- **Container publishing was not rebuilt.** `InstagramOutboxPublisher.publish()`
+  already drives the D-069 two-step workflow (`create_media_container` →
+  `container_status` → `publish_container`) through the injected adapter under
+  the D-070 vault and D-072 classifier, with `GraphApiAdapter` behind its D-045
+  construction gate and `MockInstagramAdapter` for offline runs. §5.2's first
+  bullet is therefore met by reuse (G-6), not by a second implementation.
+- **The missing half is the queue** — `local/canonical/instagram_publish_queue.py`
+  decides WHEN an already-accepted post goes out: a merchant-owned
+  `PeakHoursPolicy` (explicit UTC offset, 15-minute aligned windows, ordered and
+  non-overlapping, **no invented default**) selects the next peak slot with pure
+  deterministic arithmetic (no wall clock, no timezone database), the slot is
+  claimed through the REAL `SchedulingEngine` (D-093/D-094), and at the caller's
+  `now_iso` the post is enqueued into the REAL durable Instagram outbox (D-072)
+  and marked DISPATCHED. The queue never calls `publish()`, imports no adapter
+  and opens no socket.
+- **HITL is shared, not duplicated** — `approved_bundle_payload()` (extracted
+  from §5.1's hand-off) is the single acceptance gate: ACCEPTED state, bundle
+  schema, intact `payload_hash`, `approval.required: true`. The queue re-checks
+  it at release time, so a stale acceptance cannot publish.
+- **Fail-closed** — a D-094 conflicted post is never released (the calendar keeps
+  its conflict row as the record); foreign calendar entries are untouched; an
+  outbox refusal leaves the post DUE rather than falsely DISPATCHED; repeats are
+  no-ops; cancellation is refused after DISPATCHED.
+- **Still open, stated rather than implied done** — no live Meta Graph API call
+  was made and none exists on this path (D-045): the live adapter remains behind
+  its construction gate; the peak windows themselves are the merchant's business
+  input, not a value this repository assumes; §5.1's inline-keyboard gap is
+  unchanged; Phase 6 is NOT started.
+- **Evidence** — `python3 -m unittest local.tests.test_phase5_instagram_queue` →
+  **25 tests OK**; targeted §5.1/§5.2 + phase9 Instagram + phase11 orchestration
+  + phase15 scheduling + phase14 wiring → **252 tests OK** (10 pre-existing env
+  skips); full sweep → 2729 tests with the same three known live-PostgreSQL
+  baseline failures as untouched HEAD; `full_security_sweep` → `clean: true`
+  (AST 188 files / 0 findings; entropy 0 flagged; channel isolation 0 findings).
+
 ---
 
 ## Phase 6: Payment, Notification & Production Launch
