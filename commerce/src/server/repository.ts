@@ -371,6 +371,29 @@ export interface StorefrontCategory {
   productCount: number;
 }
 
+/**
+ * §6.1 — a provider authorisation as it is PERSISTED, read back by the callback.
+ *
+ * `amount` is integer Toman (D-010): the amount the provider was asked to
+ * collect at `authorize()` time, which is exactly what its verify call needs.
+ * The record carries the ORDER id because that is the only correlation a
+ * redirect callback can be resolved through — there is no client-supplied order
+ * id to trust and no in-process map to consult.
+ */
+export interface PaymentAuthorizationRecord {
+  orderId: string;
+  provider: string;
+  authority: string;
+  amount: number;
+}
+
+export interface RecordPaymentAuthorizationInput {
+  orderId: string;
+  provider: string;
+  authority: string;
+  amount: number;
+}
+
 export interface CommerceRepository {
   listCategories(): Promise<Array<{ id: string; name: string; slug: string }>>;
   createProductGraph(graph: NewProductGraph): Promise<{ productId: string; variantIds: string[] }>;
@@ -465,6 +488,43 @@ export interface CommerceRepository {
    * changed here (a paid transition is Phase 6.1's, not a mock's).
    */
   setOrderPaymentRef(orderId: string, paymentRefId: string): Promise<boolean>;
+
+  /**
+   * §6.1 — persists what a redirect-based provider AUTHORISED, against the order
+   * it authorised.
+   *
+   * This is the durable half of the payment seam. A provider's callback carries
+   * only its authority, while its verify call requires the amount that was
+   * requested — so the pair must survive the process. Storing it on the order
+   * (not in a cache) is what makes a callback verifiable after a restart or on
+   * another instance (G-1: PostgreSQL is the SSOT).
+   *
+   * Contract:
+   *   - unknown order, or an order that is no longer `PENDING` → `false`, and
+   *     NOTHING is written: an authorisation belongs to an order that can still
+   *     be paid;
+   *   - an authority already recorded for a DIFFERENT order → the unique index
+   *     refuses the write (throws), because resolving a callback to two orders
+   *     is not a state this table may represent;
+   *   - otherwise the provider, authority and amount are written together and
+   *     `true` is returned. A repeated authorisation for the same order
+   *     SUPERSEDES the previous one (the customer retried with a new authority;
+   *     the newest is the one whose callback can still be honoured).
+   *
+   * Deliberately does NOT touch `status` or `payment_ref_id`: requesting a
+   * payment moves no money (AC-8).
+   */
+  recordPaymentAuthorization(input: RecordPaymentAuthorizationInput): Promise<boolean>;
+
+  /**
+   * §6.1 — the callback lookup, by provider + authority. `null` when no order
+   * holds that authorisation, which the adapter answers with a refusal rather
+   * than a verify call made up with a guessed amount.
+   */
+  findPaymentAuthorization(
+    provider: string,
+    authority: string,
+  ): Promise<PaymentAuthorizationRecord | null>;
 }
 
 /** Postgres implementation — the only file that speaks SQL/schema. */
@@ -1262,6 +1322,48 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         .where(eq(orders.id, orderId))
         .returning({ id: orders.id });
       return rows.length === 1;
+    },
+
+    async recordPaymentAuthorization(input) {
+      // The `PENDING` guard is part of the contract, not a convenience: an order
+      // that has already been cancelled or paid must not acquire a fresh
+      // authorisation, and the adapter treats `false` as "do not redirect".
+      const rows = await db
+        .update(orders)
+        .set({
+          paymentProvider: input.provider,
+          paymentAuthority: input.authority,
+          paymentAmount: input.amount,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(orders.id, input.orderId), eq(orders.status, 'PENDING')))
+        .returning({ id: orders.id });
+      return rows.length === 1;
+    },
+
+    async findPaymentAuthorization(provider, authority) {
+      const [row] = await db
+        .select({
+          orderId: orders.id,
+          provider: orders.paymentProvider,
+          authority: orders.paymentAuthority,
+          amount: orders.paymentAmount,
+        })
+        .from(orders)
+        .where(and(eq(orders.paymentProvider, provider), eq(orders.paymentAuthority, authority)));
+
+      // The check constraint makes a half-written authorisation impossible, but
+      // the read is narrowed field by field anyway: a NULL amount is "nothing to
+      // verify", never a zero.
+      if (!row || row.provider === null || row.authority === null || row.amount === null) {
+        return null;
+      }
+      return {
+        orderId: row.orderId,
+        provider: row.provider,
+        authority: row.authority,
+        amount: row.amount,
+      };
     },
   };
 }

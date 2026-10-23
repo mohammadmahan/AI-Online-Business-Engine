@@ -1,5 +1,6 @@
 import type { PaymentAttempt } from '@/contracts/storefront';
 
+import type { PaymentAuthorizationStore } from './authority-store';
 import type {
   PaymentAuthorizationRequest,
   PaymentCallbackPayload,
@@ -33,12 +34,27 @@ import type {
  * Nothing here reads the clock, logs, stores a card number or prints a
  * credential. The merchant id arrives from the environment at CALL time
  * (D-045) and never appears in a returned message (D-114/D-124).
+ *
+ * Stateless by construction: what the provider authorised (order, authority,
+ * amount) is written to the injected `PaymentAuthorizationStore` — the order row
+ * in PostgreSQL (G-1) — not remembered here. A callback therefore verifies in a
+ * process that never issued it, which a process-local cache could not do. See
+ * `authority-store.ts`.
  */
 
 /** The merchant id ZarinPal issues. Owner-supplied; absent today (D-045). */
 export const ZARINPAL_MERCHANT_ID_ENV = 'ZARINPAL_MERCHANT_ID';
 
-/** The absolute URL of this deployment's `POST /api/webhooks/payment`. */
+/**
+ * The absolute URL the CUSTOMER'S BROWSER is sent back to after paying.
+ *
+ * It is NOT the signed webhook: ZarinPal appends `?Authority=...&Status=OK|NOK`
+ * and issues a plain `GET`, which the HMAC-guarded `POST /api/webhooks/payment`
+ * cannot accept. The route behind this URL is the one that calls
+ * `verifyCallback()` — and it therefore owns the same order transition the
+ * webhook owns, rather than a second write path. See TODO §G2 for the wiring
+ * that is still open.
+ */
 export const ZARINPAL_CALLBACK_URL_ENV = 'ZARINPAL_CALLBACK_URL';
 
 /** `true` (default) talks to the sandbox host; `false` is production. */
@@ -55,13 +71,11 @@ export const ZARINPAL_TIMEOUT_MS = 15_000;
 export const RIAL_PER_TOMAN = 10;
 
 /**
- * How many authorities this instance remembers. `verifyCallback` needs the
- * amount the request authorised, and ZarinPal's verify API requires it, but
- * `PaymentCallbackPayload` carries only the reference — so the adapter keeps a
- * bounded record of what it authorised. An authority it does not remember is
- * REFUSED rather than verified with a guessed amount.
+ * The `payment_provider` value this adapter writes. It is the correlation key a
+ * callback is resolved with, so it is a stable, provider-owned identifier and
+ * never a deployment label (`zarinpal-sandbox` is a GATEWAY id, not this).
  */
-export const MAX_TRACKED_AUTHORITIES = 256;
+export const ZARINPAL_PROVIDER = 'zarinpal';
 
 export type ZarinPalRefusalCode =
   | 'ZARINPAL_NOT_CONFIGURED'
@@ -72,6 +86,7 @@ export type ZarinPalRefusalCode =
   | 'ZARINPAL_REQUEST_REFUSED'
   | 'ZARINPAL_INVALID_AUTHORITY'
   | 'ZARINPAL_UNKNOWN_AUTHORITY'
+  | 'ZARINPAL_STORE_ERROR'
   | 'ZARINPAL_VERIFY_REFUSED';
 
 export interface ZarinPalConfig {
@@ -222,43 +237,33 @@ function notConfigured(): PaymentAttempt {
   );
 }
 
-interface TrackedAuthority {
-  orderId: string;
-  amountRial: number;
-  /** Set once verification SUCCEEDS, so a replay cannot re-verify. */
-  verified: PaymentAttempt | null;
-}
-
 export interface ZarinPalGatewayOptions {
   config?: ZarinPalConfig;
   transport?: ZarinPalTransport;
-  /** Overridable so a test can prove the bound without allocating 256 entries. */
-  maxTrackedAuthorities?: number;
+  /**
+   * Where an issued authority is persisted, REQUIRED.
+   *
+   * Not optional and never defaulted to an in-memory map: a process-local cache
+   * survives neither a restart nor a second instance, and its failure mode is
+   * silent — an order paid at the provider whose callback can never be verified
+   * here. Compiling without a store is the guard.
+   */
+  store: PaymentAuthorizationStore;
 }
 
 /**
  * Build the adapter. No default export and no module-level environment read:
  * importing this file must never depend on a deployment's configuration.
+ *
+ * The adapter itself holds NO payment state. Every fact it needs at verify time
+ * (which order, which amount) comes back from the injected store, which is what
+ * makes a fresh process able to verify a callback it never issued.
  */
-export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): PaymentGateway {
+export function createZarinPalGateway(options: ZarinPalGatewayOptions): PaymentGateway {
   const config = options.config ?? zarinpalConfigFromEnv();
   const transport = options.transport ?? fetchTransport;
-  const capacity = Math.max(1, options.maxTrackedAuthorities ?? MAX_TRACKED_AUTHORITIES);
+  const store = options.store;
   const endpoints = zarinpalEndpoints(config.sandbox);
-  const tracked = new Map<string, TrackedAuthority>();
-
-  /** Insertion-ordered eviction: the oldest authority is the first to go. */
-  function remember(authority: string, record: TrackedAuthority): void {
-    tracked.delete(authority);
-    tracked.set(authority, record);
-    while (tracked.size > capacity) {
-      const oldest = tracked.keys().next();
-      if (oldest.done === true) {
-        break;
-      }
-      tracked.delete(oldest.value);
-    }
-  }
 
   return {
     id: config.sandbox ? 'zarinpal-sandbox' : 'zarinpal',
@@ -323,7 +328,27 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
       }
 
       const authority = envelope.authority;
-      remember(authority, { orderId: request.orderId, amountRial, verified: null });
+
+      // PERSIST BEFORE REDIRECT. The customer is about to leave this site and
+      // pay at the provider; the only way this side can later learn WHICH ORDER
+      // and WHICH AMOUNT that authority stands for is the record written here.
+      // A store that cannot write is a refusal, not a warning: redirecting
+      // anyway would let money arrive for a payment this deployment can never
+      // verify.
+      try {
+        await store.save({
+          orderId: request.orderId,
+          provider: ZARINPAL_PROVIDER,
+          authority,
+          amount: request.amount,
+        });
+      } catch {
+        return refuse(
+          'UNAVAILABLE',
+          'ZARINPAL_STORE_ERROR',
+          'ثبت اطلاعات پرداخت در پایگاهِ دادهٔ مرجع انجام نشد؛ به صفحهٔ پرداخت هدایت نمی‌شوید و سفارش تغییر نکرد.',
+        );
+      }
 
       // Deliberately NOT `AUTHORIZED`: no money has moved, and the order path
       // persists a payment reference for an authorized attempt (see the module
@@ -349,24 +374,43 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
         );
       }
 
-      const record = tracked.get(authority);
-      if (record === undefined) {
-        // No remembered amount means no safe way to call verify: ZarinPal
+      // THE DURABLE LOOKUP. A fresh process (or another instance) has no memory
+      // of issuing this authority, so the order and its amount come from the
+      // store — PostgreSQL, through the repository. A read that FAILS is
+      // `UNAVAILABLE` (the provider may retry); only a read that SUCCEEDS and
+      // finds nothing is a refusal.
+      let record: { orderId: string; provider: string; authority: string; amount: number } | null;
+      try {
+        record = await store.find(ZARINPAL_PROVIDER, authority);
+      } catch {
+        return refuse(
+          'UNAVAILABLE',
+          'ZARINPAL_STORE_ERROR',
+          'خواندن اطلاعات پرداخت از پایگاهِ دادهٔ مرجع انجام نشد؛ سفارش تغییر نکرد و تأیید دوباره ممکن است.',
+        );
+      }
+
+      if (record === null) {
+        // No persisted amount means no safe way to call verify: ZarinPal
         // requires the amount, and guessing one would be a fabricated fact.
         return refuse(
           'DECLINED',
           'ZARINPAL_UNKNOWN_AUTHORITY',
-          'این شناسهٔ پرداخت برای این نمونه از درگاه شناخته‌شده نیست؛ تأیید انجام نشد و سفارش تغییر نکرد.',
+          'این شناسهٔ پرداخت برای هیچ سفارشی در این فروشگاه ثبت نشده است؛ تأیید انجام نشد و سفارش تغییر نکرد.',
         );
-      }
-      if (record.verified !== null) {
-        // THE IDEMPOTENCY BOUNDARY of this adapter: a replayed callback returns
-        // the same verdict without a second verification call. The order-level
-        // replay guard lives in the webhook pipeline, unchanged.
-        return record.verified;
       }
       if (config.merchantId === null) {
         return notConfigured();
+      }
+
+      // The stored amount is the one the request was made with, in Toman; the
+      // provider is called in Rial through the same single conversion.
+      if (!Number.isSafeInteger(record.amount) || record.amount <= 0) {
+        return refuse(
+          'DECLINED',
+          'ZARINPAL_UNKNOWN_AUTHORITY',
+          'مبلغ ثبت‌شده برای این شناسهٔ پرداخت معتبر نیست؛ تأیید انجام نشد و سفارش تغییر نکرد.',
+        );
       }
 
       let response: ZarinPalHttpResponse;
@@ -375,7 +419,7 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
           url: endpoints.verify,
           body: {
             merchant_id: config.merchantId,
-            amount: record.amountRial,
+            amount: tomanToRial(record.amount),
             authority,
           },
         });
@@ -399,8 +443,14 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
       // 100 = verified now, 101 = already verified by an earlier call. Both mean
       // the money arrived; treating 101 as a failure would make a client retry
       // forever, so it is recorded as the same successful outcome.
+      //
+      // No in-process verdict cache exists any more, and none is needed: the
+      // provider itself answers 101 for a replay, so this adapter stays
+      // stateless across restarts and instances. The order-level replay guard
+      // (the unique `(order_id, to_status)` in `order_status_history`) is what
+      // makes the downstream transition idempotent.
       if (envelope.code === 100 || envelope.code === 101) {
-        const attempt: PaymentAttempt = {
+        return {
           status: 'AUTHORIZED',
           code: envelope.code === 100 ? 'ZARINPAL_VERIFIED' : 'ZARINPAL_ALREADY_VERIFIED',
           message:
@@ -411,9 +461,6 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
           // without a ref_id the authority identifies the same payment.
           reference: envelope.refId ?? authority,
         };
-        record.verified = attempt;
-        tracked.set(authority, record);
-        return attempt;
       }
 
       return refuse(
@@ -430,9 +477,12 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions = {}): Pay
  * and callback URL. Deliberately NOT exported as a ready-made singleton: this
  * module must stay importable without a configured environment, and the default
  * wiring in `checkout.ts` still points at the fail-closed mock.
+ *
+ * The store is passed through unchanged and is REQUIRED — see
+ * `ZarinPalGatewayOptions.store`.
  */
 export function createZarinPalGatewayFromEnv(
-  options: Omit<ZarinPalGatewayOptions, 'config'> = {},
+  options: Omit<ZarinPalGatewayOptions, 'config'>,
 ): PaymentGateway {
   return createZarinPalGateway({ ...options, config: zarinpalConfigFromEnv() });
 }

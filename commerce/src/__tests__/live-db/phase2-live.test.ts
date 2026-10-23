@@ -45,7 +45,7 @@ import { createProduct } from '@/server/services/products';
  *
  * Re-runnability: `before()` resets the `commerce` namespace and re-applies the
  * committed migrations, so every run starts from the same empty schema and
- * re-proves that 0000 + 0001 apply cleanly. That is also why the fixtures below
+ * re-proves that 0000–0003 apply cleanly. That is also why the fixtures below
  * may use fixed slugs/SKUs — there is no state to collide with.
  *
  * Scope honesty: two fixtures have no Phase 2 admin write path and are inserted
@@ -177,7 +177,7 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     await pool.end();
   });
 
-  describe('migrations 0000 + 0001 + 0002', () => {
+  describe('migrations 0000 + 0001 + 0002 + 0003', () => {
     it('applies to PostgreSQL 16.x and records every migration in the Drizzle journal', async () => {
       const version = await pool.query<{ v: string }>('select version() as v');
       assert.match(version.rows[0]?.v ?? '', /PostgreSQL 16\./, 'expected a PostgreSQL 16 server');
@@ -202,6 +202,22 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
         'the seven roadmap tables (0000), the §2.4 coupons table (0001) and the audit table (0002) must exist',
       );
 
+      // 0003 qualifies the payment columns: the adapter records WHAT it asked
+      // the provider for (`provider`/`authority`/`amount`) before anything can be
+      // verified, next to the 0000 `payment_ref_id` that only a verified
+      // transition may write. Asserted by name so "every committed migration is
+      // recorded" rests on a schema fact, not only on a journal count.
+      const paymentColumns = await pool.query<{ n: string }>(
+        `select column_name as n from information_schema.columns
+          where table_schema = 'commerce' and table_name = 'orders'
+            and column_name like 'payment%' order by column_name`,
+      );
+      assert.deepEqual(
+        paymentColumns.rows.map((row) => row.n),
+        ['payment_amount', 'payment_authority', 'payment_provider', 'payment_ref_id'],
+        'the 0000 payment_ref_id column and the 0003 authorization triple must exist on orders',
+      );
+
       const enums = await pool.query<{ n: string }>(
         `select t.typname as n from pg_type t
            join pg_namespace ns on ns.oid = t.typnamespace
@@ -216,7 +232,7 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
       const journal = await journalTable(pool);
       assert.notEqual(journal, null, 'the Drizzle migration journal must exist after migrate()');
       const applied = await pool.query<{ n: number }>(`select count(*)::int as n from ${journal}`);
-      assert.equal(applied.rows[0]?.n, 3, 'exactly migrations 0000, 0001 and 0002 must be recorded');
+      assert.equal(applied.rows[0]?.n, 4, 'exactly migrations 0000, 0001, 0002 and 0003 must be recorded');
     });
 
     it('materialises the constraints the refusal cases rely on', async () => {
@@ -236,11 +252,17 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
         'order_items_quantity_positive',
         'order_status_history_status_changes',
         'order_status_history_creation_has_no_origin',
+        'orders_payment_amount_positive',
+        'orders_payment_authorization_complete',
       ]) {
         assert.ok(names.includes(expected), `CHECK ${expected} must exist`);
       }
 
-      for (const index of ['product_variants_matrix_unique', 'order_status_history_order_to_status_unique']) {
+      for (const index of [
+        'product_variants_matrix_unique',
+        'order_status_history_order_to_status_unique',
+        'orders_payment_authority_unique',
+      ]) {
         const indexes = await pool.query<{ n: string }>(
           `select indexname as n from pg_indexes
             where schemaname = 'commerce' and indexname = $1`,

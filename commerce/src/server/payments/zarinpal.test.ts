@@ -9,6 +9,7 @@ import {
   type ZarinPalHttpRequest,
   type ZarinPalHttpResponse,
 } from '@/server/payments/zarinpal';
+import type { PaymentAuthorizationStore } from '@/server/payments/authority-store';
 
 /**
  * D-172 §6.1 — the ZarinPal adapter, exercised entirely offline.
@@ -48,6 +49,55 @@ function envelope(data: Record<string, unknown>): ZarinPalHttpResponse {
   return { status: 200, body: { data, errors: [] } };
 }
 
+interface StoredAuthorization {
+  orderId: string;
+  provider: string;
+  authority: string;
+  amount: number;
+}
+
+interface StoreDouble extends PaymentAuthorizationStore {
+  /** When true, `save` throws — the "database is down" branch. */
+  failSave: boolean;
+  /** When true, `find` throws — the "cannot read the SSOT" branch. */
+  failFind: boolean;
+}
+
+/**
+ * The store double, standing in for the `payment_*` columns on
+ * `commerce.orders`.
+ *
+ * It is a Map, NOT the adapter's memory: a test that hands the same double to a
+ * SECOND adapter is proving what the old LRU cache could not do — a fresh
+ * process verifying a callback it never issued. `failSave`/`failFind` let a test
+ * drive the store-error path without a database.
+ */
+function memoryStore(seed: StoredAuthorization[] = []) {
+  const rows = new Map<string, StoredAuthorization>(seed.map((row) => [row.orderId, row]));
+  const store: StoreDouble = {
+    failSave: false,
+    failFind: false,
+    async save(record) {
+      if (store.failSave) {
+        throw new Error('store unavailable');
+      }
+      rows.set(record.orderId, { ...record });
+    },
+    async find(provider, authority) {
+      if (store.failFind) {
+        throw new Error('store unavailable');
+      }
+      for (const row of rows.values()) {
+        if (row.provider === provider && row.authority === authority) {
+          return { ...row };
+        }
+      }
+      return null;
+    },
+  };
+  return { store, rows };
+}
+
 const ORDER = {
   orderId: '11111111-1111-1111-1111-111111111111',
   amount: 2_345_000,
@@ -60,6 +110,7 @@ describe('ZarinPal adapter (§6.1)', () => {
     const gateway = createZarinPalGateway({
       config: { ...CONFIG, merchantId: null },
       transport,
+      store: memoryStore().store,
     });
 
     const attempt = await gateway.authorize(ORDER);
@@ -76,6 +127,7 @@ describe('ZarinPal adapter (§6.1)', () => {
     const gateway = createZarinPalGateway({
       config: { ...CONFIG, callbackUrl: null },
       transport,
+      store: memoryStore().store,
     });
 
     const attempt = await gateway.authorize(ORDER);
@@ -86,7 +138,7 @@ describe('ZarinPal adapter (§6.1)', () => {
 
   it('requests a sandbox payment and returns the authority plus a redirect URL', async () => {
     const { transport, calls } = scripted([envelope({ code: 100, authority: 'A000000000000000000000000000001' })]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     const attempt = await gateway.authorize(ORDER);
 
@@ -126,14 +178,22 @@ describe('ZarinPal adapter (§6.1)', () => {
     const gateway = createZarinPalGateway({
       config: { ...CONFIG, sandbox: false },
       transport: scripted([]).transport,
+      store: memoryStore().store,
     });
     assert.equal(gateway.id, 'zarinpal');
-    assert.equal(createZarinPalGateway({ config: CONFIG, transport: scripted([]).transport }).id, 'zarinpal-sandbox');
+    assert.equal(
+      createZarinPalGateway({
+        config: CONFIG,
+        transport: scripted([]).transport,
+        store: memoryStore().store,
+      }).id,
+      'zarinpal-sandbox',
+    );
   });
 
   it('refuses malformed authorisation input before it reaches the gateway', async () => {
     const { transport, calls } = scripted([]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     for (const amount of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       const attempt = await gateway.authorize({ ...ORDER, amount });
@@ -148,7 +208,7 @@ describe('ZarinPal adapter (§6.1)', () => {
 
   it('maps a provider refusal to a decline and never echoes the merchant id', async () => {
     const { transport } = scripted([envelope({ code: -9, message: 'validation error' })]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     const attempt = await gateway.authorize(ORDER);
 
@@ -163,6 +223,7 @@ describe('ZarinPal adapter (§6.1)', () => {
     const gateway = createZarinPalGateway({
       config: CONFIG,
       transport: scripted([new Error('ECONNREFUSED')]).transport,
+      store: memoryStore().store,
     });
 
     const attempt = await gateway.authorize(ORDER);
@@ -176,6 +237,7 @@ describe('ZarinPal adapter (§6.1)', () => {
     const gateway = createZarinPalGateway({
       config: CONFIG,
       transport: scripted([{ status: 200, body: 'not json' }]).transport,
+      store: memoryStore().store,
     });
 
     const attempt = await gateway.authorize(ORDER);
@@ -189,7 +251,7 @@ describe('ZarinPal adapter (§6.1)', () => {
       envelope({ code: 100, authority: 'A-1' }),
       envelope({ code: 100, ref_id: 123_456 }),
     ]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     const started = await gateway.authorize(ORDER);
     assert.equal(started.authority, 'A-1');
@@ -212,7 +274,7 @@ describe('ZarinPal adapter (§6.1)', () => {
       envelope({ code: 100, authority: 'A-2' }),
       envelope({ code: 101, ref_id: 777 }),
     ]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     await gateway.authorize(ORDER);
     const verified = await gateway.verifyCallback({ reference: 'A-2' });
@@ -222,25 +284,32 @@ describe('ZarinPal adapter (§6.1)', () => {
     assert.equal(verified.reference, '777');
   });
 
-  it('is idempotent: a replayed callback returns the same verdict without a second call', async () => {
+  it('re-asks the provider on a replay instead of keeping a verdict in memory', async () => {
     const { transport, calls } = scripted([
       envelope({ code: 100, authority: 'A-3' }),
       envelope({ code: 100, ref_id: 42 }),
+      envelope({ code: 101, ref_id: 42 }),
     ]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     await gateway.authorize(ORDER);
     const first = await gateway.verifyCallback({ reference: 'A-3' });
     const second = await gateway.verifyCallback({ reference: 'A-3' });
 
-    assert.equal(calls.length, 2, 'authorise + exactly one verify');
-    assert.equal(first, second, 'the same verdict object is returned, not a new verification');
+    assert.equal(first.code, 'ZARINPAL_VERIFIED');
+    assert.equal(
+      second.code,
+      'ZARINPAL_ALREADY_VERIFIED',
+      'the provider is the replay oracle, not this process',
+    );
+    assert.equal(second.status, 'AUTHORIZED');
     assert.equal(second.reference, '42');
+    assert.equal(calls.length, 3, 'authorise + two verifies: no verdict is cached in the adapter');
   });
 
   it('refuses an authority it never issued, without contacting the gateway', async () => {
     const { transport, calls } = scripted([]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     const attempt = await gateway.verifyCallback({ reference: 'A-forged' });
 
@@ -251,7 +320,7 @@ describe('ZarinPal adapter (§6.1)', () => {
 
   it('refuses a blank or missing authority', async () => {
     const { transport, calls } = scripted([]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     for (const reference of [null, '', '   ']) {
       const attempt = await gateway.verifyCallback({ reference });
@@ -267,7 +336,7 @@ describe('ZarinPal adapter (§6.1)', () => {
       envelope({ code: -51, message: 'failed' }),
       envelope({ code: 100, ref_id: 9 }),
     ]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport });
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store: memoryStore().store });
 
     await gateway.authorize(ORDER);
     const declined = await gateway.verifyCallback({ reference: 'A-4' });
@@ -280,22 +349,104 @@ describe('ZarinPal adapter (§6.1)', () => {
     assert.equal(calls.length, 3, 'the retry really did call the gateway again');
   });
 
-  it('bounds how many authorities it remembers', async () => {
-    const { transport } = scripted([
-      envelope({ code: 100, authority: 'A-old' }),
-      envelope({ code: 100, authority: 'A-new' }),
-      envelope({ code: 100, ref_id: 5 }),
+  it('persists the authority against its order before redirecting — never into its own memory', async () => {
+    const { transport } = scripted([envelope({ code: 100, authority: 'A-5' })]);
+    const { store, rows } = memoryStore();
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store });
+
+    const attempt = await gateway.authorize(ORDER);
+    assert.equal(attempt.code, 'ZARINPAL_REDIRECT_REQUIRED');
+
+    const persisted = rows.get(ORDER.orderId);
+    assert.deepEqual(
+      persisted,
+      {
+        orderId: ORDER.orderId,
+        provider: 'zarinpal',
+        authority: 'A-5',
+        amount: ORDER.amount,
+      },
+      'Toman, the amount requested — not Rial, not the order total by another route',
+    );
+  });
+
+  it('verifies a callback in an instance that never issued the authority', async () => {
+    // ONE store, TWO adapters: the second one is a different process (or a
+    // different replica) that only has the database. The old LRU cache could not
+    // answer this callback at all.
+    const { store } = memoryStore();
+    const issuer = createZarinPalGateway({
+      config: CONFIG,
+      transport: scripted([envelope({ code: 100, authority: 'A-6' })]).transport,
+      store,
+    });
+    await issuer.authorize(ORDER);
+
+    const { transport, calls } = scripted([envelope({ code: 100, ref_id: 5_001 })]);
+    const verifier = createZarinPalGateway({ config: CONFIG, transport, store });
+
+    const verified = await verifier.verifyCallback({ reference: 'A-6' });
+
+    assert.equal(verified.status, 'AUTHORIZED');
+    assert.equal(verified.reference, '5001');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.body.amount, 23_450_000, 'the persisted Toman amount, converted once');
+    assert.equal(calls[0]?.body.authority, 'A-6');
+  });
+
+  it('refuses to redirect when the authorisation could not be persisted', async () => {
+    const { transport, calls } = scripted([envelope({ code: 100, authority: 'A-7' })]);
+    const { store } = memoryStore();
+    store.failSave = true;
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store });
+
+    const attempt = await gateway.authorize(ORDER);
+
+    assert.equal(attempt.status, 'UNAVAILABLE', 'nothing was charged, so this is a retryable outage');
+    assert.equal(attempt.code, 'ZARINPAL_STORE_ERROR');
+    assert.equal(attempt.redirectUrl, undefined, 'the customer must not pay for an unrecorded authority');
+    assert.equal(attempt.authority, undefined);
+    assert.equal(calls.length, 1);
+  });
+
+  it('distinguishes "cannot read the store" (retryable) from "no such authority" (refused)', async () => {
+    const { store } = memoryStore([
+      { orderId: ORDER.orderId, provider: 'zarinpal', authority: 'A-8', amount: ORDER.amount },
     ]);
-    const gateway = createZarinPalGateway({ config: CONFIG, transport, maxTrackedAuthorities: 1 });
+    store.failFind = true;
+    const outOfOrder = createZarinPalGateway({
+      config: CONFIG,
+      transport: scripted([]).transport,
+      store,
+    });
 
-    await gateway.authorize(ORDER);
-    await gateway.authorize({ ...ORDER, orderId: 'second-order' });
+    const unavailable = await outOfOrder.verifyCallback({ reference: 'A-8' });
+    assert.equal(unavailable.status, 'UNAVAILABLE');
+    assert.equal(unavailable.code, 'ZARINPAL_STORE_ERROR');
 
-    const evicted = await gateway.verifyCallback({ reference: 'A-old' });
-    assert.equal(evicted.code, 'ZARINPAL_UNKNOWN_AUTHORITY');
+    store.failFind = false;
+    const readable = createZarinPalGateway({
+      config: CONFIG,
+      transport: scripted([]).transport,
+      store,
+    });
+    const unknown = await readable.verifyCallback({ reference: 'A-never-issued' });
+    assert.equal(unknown.status, 'DECLINED');
+    assert.equal(unknown.code, 'ZARINPAL_UNKNOWN_AUTHORITY');
+  });
 
-    const remembered = await gateway.verifyCallback({ reference: 'A-new' });
-    assert.equal(remembered.status, 'AUTHORIZED');
+  it('refuses a persisted amount that is not a positive integer, without calling the provider', async () => {
+    const { store } = memoryStore([
+      { orderId: ORDER.orderId, provider: 'zarinpal', authority: 'A-9', amount: 0 },
+    ]);
+    const { transport, calls } = scripted([]);
+    const gateway = createZarinPalGateway({ config: CONFIG, transport, store });
+
+    const attempt = await gateway.verifyCallback({ reference: 'A-9' });
+
+    assert.equal(attempt.status, 'DECLINED');
+    assert.equal(attempt.code, 'ZARINPAL_UNKNOWN_AUTHORITY');
+    assert.equal(calls.length, 0, 'a zero amount would be a fabricated verification request');
   });
 
   it('reads configuration from the environment, defaulting to sandbox and refusing empty values', () => {

@@ -18,6 +18,7 @@ import {
   type OrderItemView,
   type OrderListItem,
   type OrderStatusHistoryEntry,
+  type PaymentAuthorizationRecord,
   type ProductListItem,
   type StorefrontHeadRow,
 } from './repository';
@@ -248,6 +249,17 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     metadata: row.metadata ?? null,
     createdAt: row.createdAt ?? HISTORY_EPOCH,
   }));
+
+  /**
+   * §6.1 — the provider authorisation held against an order, keyed by ORDER id.
+   *
+   * One record per order is what the real table models (three columns on
+   * `commerce.orders`), so a second authorisation for the same order supersedes
+   * the first here too. It is deliberately NOT a process-wide cache keyed by
+   * authority alone: this double is a storage stand-in, and its shape must not
+   * teach a caller something the database cannot do.
+   */
+  const paymentAuthorizationsTable = new Map<string, PaymentAuthorizationRecord>();
 
   /**
    * Appends one audit row, stamped one minute after the last one written. The
@@ -750,6 +762,39 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       }
       order.paymentRefId = paymentRefId;
       return true;
+    },
+
+    async recordPaymentAuthorization(input) {
+      const order = ordersTable.find((entry) => entry.id === input.orderId);
+      if (!order || order.status !== 'PENDING') {
+        return false;
+      }
+      // Mirrors `orders_payment_authority_unique`: one authority, one order.
+      for (const [orderId, record] of paymentAuthorizationsTable) {
+        if (
+          orderId !== input.orderId &&
+          record.provider === input.provider &&
+          record.authority === input.authority
+        ) {
+          throw new Error('payment authority already recorded for another order');
+        }
+      }
+      paymentAuthorizationsTable.set(input.orderId, {
+        orderId: input.orderId,
+        provider: input.provider,
+        authority: input.authority,
+        amount: input.amount,
+      });
+      return true;
+    },
+
+    async findPaymentAuthorization(provider, authority) {
+      for (const record of paymentAuthorizationsTable.values()) {
+        if (record.provider === provider && record.authority === authority) {
+          return { ...record };
+        }
+      }
+      return null;
     },
   };
 }

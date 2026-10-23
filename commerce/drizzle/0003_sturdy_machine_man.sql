@@ -1,0 +1,6 @@
+ALTER TABLE "commerce"."orders" ADD COLUMN "payment_provider" varchar(32);--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD COLUMN "payment_authority" varchar(255);--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD COLUMN "payment_amount" bigint;--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_payment_authority_unique" ON "commerce"."orders" USING btree ("payment_authority");--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD CONSTRAINT "orders_payment_amount_positive" CHECK ("commerce"."orders"."payment_amount" is null or "commerce"."orders"."payment_amount" > 0);--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD CONSTRAINT "orders_payment_authorization_complete" CHECK (("commerce"."orders"."payment_provider" is null and "commerce"."orders"."payment_authority" is null and "commerce"."orders"."payment_amount" is null) or ("commerce"."orders"."payment_provider" is not null and "commerce"."orders"."payment_authority" is not null and "commerce"."orders"."payment_amount" is not null));

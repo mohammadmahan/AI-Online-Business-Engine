@@ -65,6 +65,28 @@ export const orders = commerce.table(
       .default(0),
     status: orderStatus('status').notNull().default('PENDING'),
     paymentRefId: varchar('payment_ref_id', { length: 255 }),
+    /**
+     * §6.1 — the redirect-based provider's AUTHORISATION, persisted at the moment
+     * the payment is requested.
+     *
+     * A ZarinPal payment request answers an `authority` and a redirect URL, and
+     * its VERIFY call requires the amount that was requested — but the callback
+     * carries only the authority. Holding that pair in process memory would make
+     * every callback fail after a restart and refuse every callback that lands on
+     * another instance, so the mapping lives HERE, on the order it belongs to,
+     * where the verify path can read it from the SSOT (G-1).
+     *
+     * All three are NULL until a provider has actually issued an authority, and
+     * the pair-wise check below keeps them that way: a half-written authorisation
+     * is not a fact this table may hold. `payment_amount` is integer Toman
+     * (D-010) — the amount the provider was ASKED for, recorded next to (not
+     * instead of) `total_amount` so a later order edit cannot change what a
+     * pending authorisation must be verified for. No secret is stored: an
+     * authority is a provider-issued payment token, never a credential.
+     */
+    paymentProvider: varchar('payment_provider', { length: 32 }),
+    paymentAuthority: varchar('payment_authority', { length: 255 }),
+    paymentAmount: bigint('payment_amount', { mode: 'number' }),
     shippingAddress: text('shipping_address').notNull(),
     trackingCode: varchar('tracking_code', { length: 120 }),
     createdAt: timestamp('created_at', { withTimezone: true })
@@ -77,9 +99,22 @@ export const orders = commerce.table(
   (table) => [
     index('orders_customer_id_idx').on(table.customerId),
     index('orders_status_idx').on(table.status),
+    // The callback's ONLY lookup key: an authority identifies exactly one order,
+    // so a callback can never resolve to two of them. PostgreSQL allows many
+    // NULLs here, which is what keeps every order without an authorisation valid.
+    uniqueIndex('orders_payment_authority_unique').on(table.paymentAuthority),
     check('orders_total_amount_non_negative', sql`${table.totalAmount} >= 0`),
     check('orders_discount_amount_non_negative', sql`${table.discountAmount} >= 0`),
     check('orders_shipping_amount_non_negative', sql`${table.shippingAmount} >= 0`),
+    check(
+      'orders_payment_amount_positive',
+      sql`${table.paymentAmount} is null or ${table.paymentAmount} > 0`,
+    ),
+    check(
+      'orders_payment_authorization_complete',
+      // Either no provider has issued anything, or all three fields are present.
+      sql`(${table.paymentProvider} is null and ${table.paymentAuthority} is null and ${table.paymentAmount} is null) or (${table.paymentProvider} is not null and ${table.paymentAuthority} is not null and ${table.paymentAmount} is not null)`,
+    ),
   ],
 );
 
