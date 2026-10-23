@@ -216,7 +216,20 @@ export interface PaymentCallbackVerdict {
 }
 
 export type PaymentCallbackResult =
-  | { ok: true; orderId: string; status: OrderStatus; duplicate: boolean }
+  | {
+      ok: true;
+      orderId: string;
+      status: OrderStatus;
+      /**
+       * `true` when this delivery found the move already applied.
+       *
+       * Best-effort by nature: under a same-instant race the storage layer's own
+       * no-op commits inside `updateOrderStatus` and is indistinguishable from a
+       * write, so a loser may report `false`. Exactly-once is enforced by the
+       * unique `(order_id, to_status)` index and the row lock — not by this flag.
+       */
+      duplicate: boolean;
+    }
   | {
       ok: false;
       code:
@@ -262,6 +275,27 @@ export async function applyPaymentCallback(
     });
 
     if (!outcome.ok) {
+      // THE CONCURRENT-DUPLICATE WINDOW. The guard above compares against a read
+      // taken BEFORE the provider call (which can take seconds), so two deliveries
+      // of the same verdict can both pass it: the loser's transition then finds
+      // the order already moved and reports the same-status refusal,
+      // `ILLEGAL_TRANSITION`. That is not an illegal edge — it is this delivery
+      // arriving second — and answering 409 makes a browser retry, or a webhook
+      // provider re-deliver, a payment that already succeeded.
+      //
+      // Convergence is deliberately narrow: the order is re-read and the answer is
+      // only "duplicate" when it is ALREADY exactly where this verdict asked for.
+      // A genuinely forbidden move (a late `PAID` on a `SHIPPED` or `CANCELLED`
+      // order) still re-reads to a different status and is refused unchanged.
+      if (outcome.code === 'ILLEGAL_TRANSITION') {
+        const current = await repository.getOrderDetail(orderId);
+        if (current?.status === status) {
+          if (status === 'PAID' && reference !== null && current.paymentRefId === null) {
+            await repository.setOrderPaymentRef(orderId, reference);
+          }
+          return { ok: true, orderId, status: current.status, duplicate: true };
+        }
+      }
       return {
         ok: false,
         code: outcome.code === 'NOT_FOUND' ? 'ORDER_NOT_FOUND' : outcome.code,

@@ -11,6 +11,11 @@ import { createCommerceDb, type CommerceDb } from '@/db';
 import { categories } from '@/db/schema';
 import { DEFAULT_SHIPPING_METHOD_ID } from '@/lib/shipping';
 import { mockPaymentGateway } from '@/server/payments/gateway';
+import { createRepositoryPaymentAuthorizationStore } from '@/server/payments/authority-store';
+import {
+  ZARINPAL_PROVIDER,
+  createZarinPalGateway,
+} from '@/server/payments/zarinpal';
 import {
   WEBHOOK_SECRET_ENV,
   WEBHOOK_SIGNATURE_HEADER,
@@ -20,6 +25,7 @@ import { createPostgresRepository, type CommerceRepository } from '@/server/repo
 import { placeCheckoutOrder } from '@/server/services/checkout';
 import { updateStock } from '@/server/services/inventory';
 import { MERCHANT_TRANSITION, transitionOrder } from '@/server/services/orders';
+import { handleZarinPalCallback } from '@/server/services/payment-callback';
 import { handlePaymentWebhook } from '@/server/services/payment-webhook';
 import { createProduct } from '@/server/services/products';
 
@@ -621,6 +627,121 @@ describe(
         assert.equal(fulfilment.status, 400);
         assert.equal(((await fulfilment.json()) as { code: string }).code, 'INVALID_EVENT');
         assert.deepEqual(await historyOf(orderId), before);
+      });
+
+      it('converges CONCURRENT duplicate deliveries against real PostgreSQL: one row, one reference', async () => {
+        await setStock('P4-BLK-S', 20);
+        const orderId = await placeOrder('P4-BLK-S', 1);
+        const deps = { secret: SECRET, getRepository: () => repo };
+
+        // Four deliveries in flight together, each with its own event id: the
+        // pre-read guard cannot separate them, so the arbiters have to be the row
+        // lock in `updateOrderStatus` and the unique `(order_id, to_status)`
+        // index. A loser must converge on success, not on a 409 the provider would
+        // retry forever.
+        const responses = await Promise.all(
+          Array.from({ length: 4 }, (_, index) =>
+            handlePaymentWebhook(
+              callbackRequest({
+                eventId: `evt-live-race-${index}`,
+                orderId,
+                status: 'PAID',
+                reference: 'GW-LIVE-RACE',
+              }),
+              deps,
+            ),
+          ),
+        );
+
+        assert.deepEqual(
+          responses.map((response) => response.status),
+          [200, 200, 200, 200],
+          'a converged duplicate must not be reported as a conflict',
+        );
+        await Promise.all(responses.map((response) => response.json()));
+
+        const paid = (await historyOf(orderId)).filter((row) => row.to_status === 'PAID');
+        assert.equal(paid.length, 1, 'the trail records one PAID transition, not four');
+        assert.equal(paid[0]?.source, 'PAYMENT_CALLBACK');
+        assert.equal(await statusOf(orderId), 'PAID');
+        assert.equal((await repo.getOrderDetail(orderId))?.paymentRefId, 'GW-LIVE-RACE');
+      });
+
+      it('completes an order through the ZarinPal BROWSER RETURN against real PostgreSQL', async () => {
+        await setStock('P4-BLK-S', 20);
+        const orderId = await placeOrder('P4-BLK-S', 1);
+        const order = await repo.getOrderDetail(orderId);
+        assert.ok(order, 'the live order must exist');
+        const authority = 'A000000000000000000000000000live1';
+
+        // The durable half of the REQUEST step, exactly as the adapter writes it.
+        assert.equal(
+          await repo.recordPaymentAuthorization({
+            orderId,
+            provider: ZARINPAL_PROVIDER,
+            authority,
+            amount: order.totalAmount,
+          }),
+          true,
+        );
+
+        const calls: Array<{ url: string; amount: unknown }> = [];
+        const gateway = createZarinPalGateway({
+          config: {
+            merchantId: 'live-merchant-test',
+            callbackUrl: 'https://shop.example.test/api/payments/zarinpal/callback',
+            sandbox: true,
+          },
+          transport: async (request) => {
+            calls.push({ url: request.url, amount: request.body.amount });
+            return { status: 200, body: { data: { code: 100, ref_id: 'ZP-LIVE-1' } } };
+          },
+          store: createRepositoryPaymentAuthorizationStore(() => repo),
+        });
+        const deps = { getRepository: () => repo, gateway };
+        const returnUrl = (status: string) =>
+          new Request(
+            `http://localhost/api/payments/zarinpal/callback?Authority=${authority}&Status=${status}`,
+          );
+
+        const first = await handleZarinPalCallback(returnUrl('OK'), deps);
+        assert.equal(first.status, 200, await first.clone().text());
+        assert.deepEqual(await first.json(), {
+          ok: true,
+          orderId,
+          status: 'PAID',
+          duplicate: false,
+          message: 'پرداخت با موفقیت تأیید شد.',
+        });
+
+        // The amount came from the ORDER ROW (Toman -> Rial once), never from the
+        // query string the customer could edit.
+        assert.equal(calls.length, 1);
+        assert.match(calls[0]?.url ?? '', /\/pg\/v4\/payment\/verify\.json$/);
+        assert.equal(calls[0]?.amount, order.totalAmount * 10);
+
+        const history = await historyOf(orderId);
+        assert.deepEqual(
+          history.map((row) => [row.from_status, row.to_status, row.source]),
+          [
+            [null, 'PENDING', 'STOREFRONT'],
+            ['PENDING', 'PAID', 'PAYMENT_CALLBACK'],
+          ],
+        );
+        assert.deepEqual(history[1]?.metadata, {
+          provider: ZARINPAL_PROVIDER,
+          authority,
+          verification: 'ZARINPAL_VERIFIED',
+          reference: 'ZP-LIVE-1',
+        });
+        assert.equal((await repo.getOrderDetail(orderId))?.paymentRefId, 'ZP-LIVE-1');
+
+        // A refresh of the SAME return is a duplicate: no second row, no second
+        // status write, no second reference.
+        const replay = await handleZarinPalCallback(returnUrl('OK'), deps);
+        assert.equal(replay.status, 200, 'a provider that sees an error would retry forever');
+        assert.equal(((await replay.json()) as { duplicate: boolean }).duplicate, true);
+        assert.deepEqual(await historyOf(orderId), history);
       });
     });
   },

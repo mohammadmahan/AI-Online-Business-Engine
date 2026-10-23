@@ -2605,17 +2605,39 @@ repository hygiene, not deployment authorization.
                   `createRepositoryPaymentAuthorizationStore(getRepository)`),
                   the form follows `redirectUrl`, and `payment_ref_id` is still
                   written only by the verified `PAID` transition. Evidence:
-                  `src/server/services/payment-callback.test.ts` (9 cases — NOK
-                  and missing-`Status` never verify, `OK` transitions once, a
-                  refresh is a duplicate, unknown authority and provider mismatch
-                  are 404 without a verify, missing authority is 400, a declined
-                  verify stays `PENDING`, an unconfigured DB is 503); `npm test`
-                  **230 tests / 55 suites, 0 fail**; `typecheck` exit 0; `lint` 0
+                  `src/server/services/payment-callback.test.ts` (18 cases: `NOK`,
+                  a missing or unrecognised `Status` never verify; `OK` transitions
+                  once; a refresh AND a CONCURRENT duplicate both converge as
+                  duplicates; unknown authority and provider mismatch are 404
+                  without a verify; a missing authority is 400; a declined verify
+                  stays `PENDING`; an unreachable provider, a throwing adapter and
+                  an unreadable store are retryable 503s; a late `PAID` on a
+                  `SHIPPED` order is 409 with no write; a dangling authority is
+                  404; every response is `no-store`; the real route shim is driven
+                  directly; and one case walks checkout → redirect → verify →
+                  `PAID` end to end). `src/__tests__/live-db/
+                  phase4-audit-live.test.ts` adds two **real-PostgreSQL** cases —
+                  four CONCURRENT signed deliveries converge to one `PAID` row and
+                  one reference, and the ZarinPal browser return verifies its
+                  amount from the ORDER ROW and replays as a duplicate —
+                  `npm run smoke:db` **56 tests / 0 fail** (loopback disposable
+                  harness, schema reset + committed migrations). `npm test`
+                  **247 tests / 56 suites, 0 fail**; `typecheck` exit 0; `lint` 0
                   problems; `db:check` "Everything's fine".
+                  **Race hardening (same session):** `applyPaymentCallback` used
+                  to answer `ILLEGAL_TRANSITION` (409) to a genuinely concurrent
+                  duplicate, because its idempotency guard is a read taken BEFORE
+                  the provider call. It now re-reads on that code and converges
+                  ONLY when the order is already exactly where the verdict asked
+                  for; a forbidden edge (late `PAID` on `SHIPPED`) still refuses
+                  unchanged. Proven by reverting the block: the concurrent case
+                  fails (17/18), restoring it passes 18/18.
                   **Still open, and why the box is NOT ticked:** (c) no
                   credential exists (D-045) and no sandbox round-trip has been
-                  run — nothing was sent, and nothing was migrated against a live
-                  database.
+                  run — nothing was sent to ZarinPal. The live evidence above is
+                  the DISPOSABLE loopback harness (`commerce-db-harness`, port
+                  55432), which the suite resets and migrates itself; no staging or
+                  production instance was touched.
                   Ordering note: **G0** (owner review of the fashion Phase 5
                   closure records) is still OUTSTANDING. The adapter work above
                   was carried out on DIRECT owner instruction in-session and is

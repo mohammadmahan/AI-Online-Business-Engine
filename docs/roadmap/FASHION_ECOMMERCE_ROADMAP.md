@@ -726,17 +726,52 @@ live database was migrated, nothing was connected, and no credential exists
   replay). `npm run typecheck` exit 0; `npm run lint` 0 problems;
   `npm run db:check` → "Everything's fine". No live-database run: the new columns
   are exercised by the migration only when an operator migrates (not done here).
-- **Open — why §6.1 is not closed.** (a) ZarinPal returns the CUSTOMER'S BROWSER
-  with a plain `GET ?Authority=…&Status=OK|NOK`, which carries no HMAC and so
-  cannot be received by the signed `POST /api/webhooks/payment`; the route behind
-  `ZARINPAL_CALLBACK_URL` must still be written, resolving the order through
-  `findPaymentAuthorization` and then driving the SAME transition service. (b)
-  `createZarinPalGatewayFromEnv` is bound in no route yet — the mock still
-  answers — so `ZARINPAL_MERCHANT_ID` / `ZARINPAL_CALLBACK_URL` /
-  `ZARINPAL_SANDBOX` are read by nothing in production. (c) No sandbox
-  round-trip has been run and no credential exists (D-045); activation remains
-  owner-gated (D-139), and **G0** (owner review of the fashion Phase 5 closure
-  records) is still outstanding.
+- **Browser return, verification and idempotent order updates — verification
+  record (2026-10-23, roadmap §6.3 step 3).** The redirect flow is closed end to
+  end and re-verified against BOTH doubles and real PostgreSQL.
+  `GET /api/payments/zarinpal/callback` (a three-line shim over
+  `@/server/services/payment-callback`, `runtime = 'nodejs'`,
+  `dynamic = 'force-dynamic'`) answers `cache-control: no-store` on every path and
+  refuses in this order: no `Authority` → 400, nothing read; `Status !== OK` → 200
+  `PAYMENT_NOT_COMPLETED` with no verify and no write; no durable record for
+  (provider, authority) → 404 `UNKNOWN_AUTHORITY` with no verify; the provider's
+  `verify` not `AUTHORIZED` → 402 `VERIFICATION_FAILED` (or 503
+  `VERIFY_UNAVAILABLE` when the adapter or the store cannot be reached) with the
+  order still `PENDING`; a `PAID` the lifecycle forbids (a late return on a
+  `SHIPPED` order) → 409 with no audit row. The success path asks ZarinPal for the
+  amount PERSISTED at request time (Toman → Rial once, never the query string) and
+  then applies the move through `applyPaymentCallback` — the SAME single pipeline
+  the signed webhook uses, so there is no second write path, no second audit
+  vocabulary and no second idempotency boundary.
+- **Concurrent-duplicate hardening (same session).** The idempotency guard in
+  `applyPaymentCallback` is a READ taken before the provider call, so two
+  deliveries can both pass it; the loser used to be told `ILLEGAL_TRANSITION`
+  (409) for a payment that had in fact succeeded — a false failure that makes a
+  browser retry, or a provider re-deliver, a completed payment. The function now
+  re-reads on that code and converges ONLY when the order already sits exactly
+  where the verdict asked for (completing a missing reference into a NULL field,
+  never a second audit row); a genuinely forbidden edge still refuses unchanged.
+  Reverting the block makes the new concurrency case fail (17/18); restoring it
+  passes 18/18. Exactly-once is enforced by the row lock in `updateOrderStatus`
+  and the unique `(order_id, to_status)` index — the `duplicate` flag is now
+  documented as best-effort under a same-instant race, not as the guarantee.
+- **Evidence (2026-10-23).** `commerce/src/server/services/payment-callback.test.ts`
+  → 18 cases (checkout → redirect → verify → `PAID` walked end to end,
+  simultaneous duplicate deliveries, a dangling authority, a shipped-order
+  refusal, retryable 503s, `no-store`, and the real route shim driven directly);
+  `commerce/src/__tests__/live-db/phase4-audit-live.test.ts` → 2 new
+  real-PostgreSQL cases (four concurrent signed deliveries converge to one `PAID`
+  row and one reference; the browser return verifies from the order row and
+  replays as a duplicate). Gates: `npm test` → **247 tests / 56 suites, 0 fail**;
+  `npm run smoke:db` → **56 tests, 0 fail** against the DISPOSABLE loopback
+  harness (schema reset + committed migrations); `npm run typecheck` exit 0;
+  `npm run lint` 0 problems; `npm run db:check` → "Everything's fine". Nothing was
+  sent to ZarinPal, and no staging or production database was touched.
+- **Open — why §6.1 is not closed.** (a) No sandbox round-trip has been run and
+  no credential exists (D-045) — `ZARINPAL_MERCHANT_ID` / `ZARINPAL_CALLBACK_URL`
+  are unset, so the production adapter refuses every payment and the order stays
+  `PENDING`; activation remains owner-gated (D-139). (b) **G0** (owner review of
+  the fashion Phase 5 closure records) is still outstanding.
 
 ### 6.2 SMS Notification System
 - SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.

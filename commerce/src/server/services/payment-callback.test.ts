@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { ProductCreatePayload } from '@/contracts/catalog';
 import type { CheckoutDraft } from '@/contracts/storefront';
+import { GET as zarinPalCallbackRoute } from '@/app/api/payments/zarinpal/callback/route';
 import { DEFAULT_SHIPPING_METHOD_ID } from '@/lib/shipping';
 import { createRepositoryPaymentAuthorizationStore } from '@/server/payments/authority-store';
 import { mockPaymentGateway } from '@/server/payments/gateway';
@@ -15,6 +16,7 @@ import {
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository } from '@/server/repository';
 import { placeCheckoutOrder } from '@/server/services/checkout';
+import { MERCHANT_TRANSITION, transitionOrder } from '@/server/services/orders';
 import { handleZarinPalCallback } from '@/server/services/payment-callback';
 import { createProduct } from '@/server/services/products';
 
@@ -83,17 +85,8 @@ interface Harness {
  * `recordProvider` lets a test store the authority under another provider, which
  * is the mismatch the route must refuse.
  */
-async function harness(options?: {
-  verifyCode?: number;
-  recordProvider?: string;
-  record?: boolean;
-}): Promise<Harness> {
-  const repository = createMemoryRepository();
-  fixtureSequence += 1;
-  const created = await createProduct(repository, productPayload(`zarinpal-cb-${fixtureSequence}`));
-  assert.ok(created.ok, `the fixture product must be written: ${JSON.stringify(created)}`);
-
-  const draft: CheckoutDraft = {
+function checkoutDraft(variantId: string): CheckoutDraft {
+  return {
     customer: {
       fullName: 'زهرا محمدی',
       phoneNumber: '09123456789',
@@ -102,12 +95,33 @@ async function harness(options?: {
     },
     couponCode: null,
     shippingMethodId: DEFAULT_SHIPPING_METHOD_ID,
-    lines: [{ variantId: created.variantIds[0] as string, quantity: 1 }],
+    lines: [{ variantId, quantity: 1 }],
   };
-  const placed = await placeCheckoutOrder(repository, mockPaymentGateway, draft);
+}
+
+/** The order a fixture works on, placed through the real storefront path. */
+async function placeFixtureOrder(repository: CommerceRepository): Promise<string> {
+  fixtureSequence += 1;
+  const created = await createProduct(repository, productPayload(`zarinpal-cb-${fixtureSequence}`));
+  assert.ok(created.ok, `the fixture product must be written: ${JSON.stringify(created)}`);
+
+  const placed = await placeCheckoutOrder(
+    repository,
+    mockPaymentGateway,
+    checkoutDraft(created.variantIds[0] as string),
+  );
   assert.ok(placed.ok, `the fixture order must be written: ${JSON.stringify(placed)}`);
 
-  const orderId = placed.orderId;
+  return placed.orderId;
+}
+
+async function harness(options?: {
+  verifyCode?: number;
+  recordProvider?: string;
+  record?: boolean;
+}): Promise<Harness> {
+  const repository = createMemoryRepository();
+  const orderId = await placeFixtureOrder(repository);
   const calls: VerifyCall[] = [];
   const transport: ZarinPalTransport = async (request) => {
     calls.push({ url: request.url, body: request.body });
@@ -330,6 +344,278 @@ describe('GET /api/payments/zarinpal/callback — the browser return', () => {
     const body = (await response.json()) as Record<string, unknown>;
     assert.equal(body.code, 'DB_NOT_CONFIGURED');
     assert.equal(h.calls.length, 0);
+  });
+
+  it('a store read that FAILS is a retryable 503 — never a refusal, never a verify', async () => {
+    const h = await harness();
+    const leaking = new Error('connect failed for postgres://commerce:secret@db:5432/app');
+    const broken: CommerceRepository = {
+      ...h.repository,
+      findPaymentAuthorization: async () => {
+        throw leaking;
+      },
+    };
+
+    const response = await handleZarinPalCallback(h.callback({ Authority: AUTHORITY, Status: 'OK' }), {
+      getRepository: () => broken,
+      gateway: h.gateway,
+    });
+
+    assert.equal(response.status, 503);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'STORE_UNAVAILABLE');
+    // The driver's message can echo a connection string (D-114/D-124).
+    assert.doesNotMatch(JSON.stringify(body), /postgres:\/\/|secret/);
+    assert.equal(h.calls.length, 0, 'an unreadable store must not become a provider call');
+    assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
+    assert.equal((await h.trail()).length, 1);
+  });
+
+  it('an unreachable provider is a retryable 503: the money may still arrive, so nothing is written', async () => {
+    const h = await harness();
+    const unreachable = createZarinPalGateway({
+      config: {
+        merchantId: 'merchant-test-only',
+        callbackUrl: 'https://shop.example.test/api/payments/zarinpal/callback',
+        sandbox: true,
+      },
+      transport: async () => {
+        throw new Error('ETIMEDOUT');
+      },
+      store: createRepositoryPaymentAuthorizationStore(() => h.repository),
+    });
+
+    const response = await handleZarinPalCallback(h.callback({ Authority: AUTHORITY, Status: 'OK' }), {
+      getRepository: () => h.repository,
+      gateway: unreachable,
+    });
+
+    assert.equal(response.status, 503);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'VERIFY_UNAVAILABLE');
+    assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
+    assert.equal((await h.trail()).length, 1);
+  });
+
+  it('an adapter that THROWS is still a 503, never an unhandled 500', async () => {
+    const h = await harness();
+    const exploding = {
+      ...mockPaymentGateway,
+      verifyCallback: async () => {
+        throw new Error('adapter bug');
+      },
+    };
+
+    const response = await handleZarinPalCallback(h.callback({ Authority: AUTHORITY, Status: 'OK' }), {
+      getRepository: () => h.repository,
+      gateway: exploding,
+    });
+
+    assert.equal(response.status, 503);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'VERIFY_UNAVAILABLE');
+    assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
+  });
+
+  it('a duplicate return arriving CONCURRENTLY moves the order exactly once and never reports a conflict', async () => {
+    const h = await harness();
+    const deps = { getRepository: () => h.repository, gateway: h.gateway };
+    const request = () => h.callback({ Authority: AUTHORITY, Status: 'OK' });
+
+    // Three deliveries in flight at once: the guard in `applyPaymentCallback` is
+    // a read, so all three can pass it before any write lands. The losers must
+    // converge on "already done" (200, duplicate) rather than 409 — a conflict
+    // would make the browser retry a payment that already succeeded.
+    const responses = await Promise.all(
+      [request(), request(), request()].map((delivery) => handleZarinPalCallback(delivery, deps)),
+    );
+    const bodies = (await Promise.all(responses.map((response) => response.json()))) as Array<
+      Record<string, unknown>
+    >;
+
+    assert.deepEqual(
+      responses.map((response) => response.status),
+      [200, 200, 200],
+      'a converged duplicate is not a conflict',
+    );
+    assert.equal(
+      bodies.filter((body) => body.duplicate === false).length,
+      1,
+      'exactly one delivery performed the move',
+    );
+    assert.equal(
+      (await h.trail()).filter((row) => row.toStatus === 'PAID').length,
+      1,
+      'one audit row for one transition',
+    );
+    assert.deepEqual(await h.order(), { status: 'PAID', paymentRefId: REF_ID });
+  });
+
+  it('refuses a late PAID on a SHIPPED order (409) and writes neither status nor reference', async () => {
+    const h = await harness();
+    for (const next of ['PAID', 'PROCESSING', 'SHIPPED'] as const) {
+      const moved = await transitionOrder(h.repository, h.orderId, next, MERCHANT_TRANSITION);
+      assert.ok(moved.ok, `the fixture must reach ${next}`);
+    }
+    const before = await h.trail();
+
+    const response = await handleZarinPalCallback(h.callback({ Authority: AUTHORITY, Status: 'OK' }), {
+      getRepository: () => h.repository,
+      gateway: h.gateway,
+    });
+
+    assert.equal(response.status, 409);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'ILLEGAL_TRANSITION');
+    assert.deepEqual(await h.trail(), before, 'a refused return writes no audit row');
+    assert.deepEqual(await h.order(), { status: 'SHIPPED', paymentRefId: null });
+  });
+
+  it('an authority whose order has disappeared is a 404, and the return writes nothing', async () => {
+    const h = await harness();
+    const orphaned: CommerceRepository = {
+      ...h.repository,
+      findPaymentAuthorization: async () => ({
+        orderId: 'order-that-no-longer-exists',
+        provider: ZARINPAL_PROVIDER,
+        authority: AUTHORITY,
+        amount: AMOUNT,
+      }),
+    };
+
+    const response = await handleZarinPalCallback(h.callback({ Authority: AUTHORITY, Status: 'OK' }), {
+      getRepository: () => orphaned,
+      gateway: h.gateway,
+    });
+
+    assert.equal(response.status, 404);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'ORDER_NOT_FOUND');
+    // The provider WAS asked — the record named an amount, which is the only
+    // question the adapter can answer — but no order exists to move.
+    assert.equal(h.calls.length, 1);
+    assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
+  });
+
+  it('accepts a lower-cased Status and a padded Authority, and lets no cache keep a payment return', async () => {
+    const h = await harness();
+    const deps = { getRepository: () => h.repository, gateway: h.gateway };
+
+    const response = await handleZarinPalCallback(
+      h.callback({ Authority: ` ${AUTHORITY} `, Status: 'ok' }),
+      deps,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.status, 'PAID');
+
+    const refused = await handleZarinPalCallback(h.callback({ Status: 'OK' }), deps);
+    assert.equal(refused.status, 400);
+    assert.equal(refused.headers.get('cache-control'), 'no-store', 'a refusal is never cached either');
+  });
+
+  it('the checkout request charges nothing; the verified return alone completes THAT order', async () => {
+    const repository = createMemoryRepository();
+    fixtureSequence += 1;
+    const created = await createProduct(repository, productPayload(`zarinpal-chain-${fixtureSequence}`));
+    assert.ok(created.ok, `the fixture product must be written: ${JSON.stringify(created)}`);
+
+    const calls: VerifyCall[] = [];
+    const transport: ZarinPalTransport = async (request) => {
+      calls.push({ url: request.url, body: request.body });
+      return request.url.endsWith('/request.json')
+        ? { status: 200, body: { data: { code: 100, authority: AUTHORITY } } }
+        : { status: 200, body: { data: { code: 100, ref_id: REF_ID } } };
+    };
+    const gateway = createZarinPalGateway({
+      config: {
+        merchantId: 'merchant-test-only',
+        callbackUrl: 'https://shop.example.test/api/payments/zarinpal/callback',
+        sandbox: true,
+      },
+      transport,
+      store: createRepositoryPaymentAuthorizationStore(() => repository),
+    });
+
+    const placed = await placeCheckoutOrder(
+      repository,
+      gateway,
+      checkoutDraft(created.variantIds[0] as string),
+    );
+    assert.ok(placed.ok, `the order must be written: ${JSON.stringify(placed)}`);
+    const orderId = placed.orderId;
+
+    // Request ≠ paid (AC-8): an authority and a redirect, no reference, no
+    // status change — the order row is exactly where the customer left it.
+    assert.equal(placed.status, 'PENDING');
+    assert.deepEqual(
+      {
+        status: placed.payment.status,
+        code: placed.payment.code,
+        authority: placed.payment.authority,
+        redirectUrl: placed.payment.redirectUrl,
+        reference: placed.payment.reference,
+      },
+      {
+        status: 'UNAVAILABLE',
+        code: 'ZARINPAL_REDIRECT_REQUIRED',
+        authority: AUTHORITY,
+        redirectUrl: `https://sandbox.zarinpal.com/pg/StartPay/${AUTHORITY}`,
+        reference: null,
+      },
+    );
+    const beforePayment = await repository.getOrderDetail(orderId);
+    assert.deepEqual(
+      { status: beforePayment?.status, paymentRefId: beforePayment?.paymentRefId },
+      { status: 'PENDING', paymentRefId: null },
+    );
+    assert.equal(
+      calls[0]?.body.amount,
+      tomanToRial(placed.totals.total),
+      'the provider is asked in Rial, converted once',
+    );
+
+    // What the return resolves is the row written at request time — read from the
+    // repository, not remembered by the adapter.
+    assert.deepEqual(await repository.findPaymentAuthorization(ZARINPAL_PROVIDER, AUTHORITY), {
+      orderId,
+      provider: ZARINPAL_PROVIDER,
+      authority: AUTHORITY,
+      amount: placed.totals.total,
+    });
+
+    const response = await handleZarinPalCallback(
+      new Request(`http://localhost/api/payments/zarinpal/callback?Authority=${AUTHORITY}&Status=OK`),
+      { getRepository: () => repository, gateway },
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.deepEqual(
+      { ok: body.ok, orderId: body.orderId, status: body.status, duplicate: body.duplicate },
+      { ok: true, orderId, status: 'PAID', duplicate: false },
+    );
+
+    const paid = await repository.getOrderDetail(orderId);
+    assert.deepEqual(
+      { status: paid?.status, paymentRefId: paid?.paymentRefId },
+      { status: 'PAID', paymentRefId: REF_ID },
+    );
+    assert.equal(calls.length, 2, 'one request, one verify — no extra provider call');
+  });
+
+  it('the route file is a shim: GET delegates to the pipeline with no dependency of its own', async () => {
+    // The real route handler, with NO injected dependencies and no database: a
+    // return that carries no Authority is refused before either is touched, so
+    // this proves the wiring without pretending a connection exists.
+    const response = await zarinPalCallbackRoute(
+      new Request('http://localhost/api/payments/zarinpal/callback?Status=OK'),
+    );
+
+    assert.equal(response.status, 400);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'AUTHORITY_MISSING');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
   });
 });
 
