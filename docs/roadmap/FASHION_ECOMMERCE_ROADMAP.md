@@ -740,6 +740,39 @@ live database was migrated, nothing was connected, and no credential exists
 
 ### 6.2 SMS Notification System
 - SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.
+- **Build record (2026-10-23 — adapter only; nothing sent, no credential).**
+  `local/canonical/sms_adapter.py` implements the SMS channel BEHIND the
+  existing seam: `SmsAdapter` is the canonical `ChannelAdapter` narrowed to
+  `CH_SMS`, bound into the unchanged `NotificationWorker` through
+  `sms_channel_binding()` — no new queue, no second dispatch path, no change to
+  the order write path (decision row 74; D-089–D-092). `MockSmsAdapter` is the
+  DEFAULT (records, sends nothing); `KavenegarSmsAdapter` is live only behind
+  `SMS_LIVE_ENABLED=true` + `KAVENEGAR_API_KEY` + an INJECTED transport
+  (canonical code opens no socket, D-116). OTP rides Kavenegar's
+  `verify/lookup` with the code as a provider-side template token (never
+  free text); order confirmation and tracking ride `sms/send` with a locally
+  rendered Persian body. A missing template registration, missing sender line,
+  unusable `phone_ref` or unmapped template is a permanent Class-B refusal that
+  lands in the DLQ — never a guessed body, never a silent drop. **The sealed
+  contract registry was not touched:** `checkout.otp.v1`, `order.confirmed.v1`
+  and `order.tracking.v1` are declared in `PENDING_REGISTRY_ADMISSION` but NOT
+  added to `TEMPLATES`, because the Phase-17 attestation hashes the template
+  count and admitting them moves the sealed **D-168** phase-18 chain digest
+  (checked in a pristine worktree: the module alone leaves it byte-identical,
+  the registry change breaks `test_007`). `order.shipped.v1` is already
+  SMS-capable and the adapter appends the tracking code to that body when the
+  producer supplies it, so postal tracking is deliverable today. Verified
+  offline: `local/tests/test_fashion_phase6_sms_adapter.py` (35 tests) plus the
+  full `local/tests` sweep.
+- **Open — why §6.2 is not closed.** (a) No credential, sender line or
+  registered provider template exists (D-045), so no sandbox round-trip has
+  been run and the delivery-report contract remains owner-supplied and
+  unimplemented. (b) Owner re-attestation of the D-168 chain digest is required
+  to admit the three §6.2 templates; until then OTP and order-confirmation
+  events are rejected as unknown templates before queueing. (c) No producer
+  emits these events yet: the storefront OTP step (§3.4) and the §2.3 buyer SMS
+  trigger are still unbuilt, and the phone is stored as the customer identity
+  only.
 
 ### 6.3 Deployment & Staging Hardening
 - Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.

@@ -46,9 +46,11 @@ import { useCart } from './cart-provider';
  * order exists as `PENDING` for the boutique to handle (AC-8: never a faked
  * status).
  *
- * Phone-number OTP (roadmap §3.4) is deliberately absent: it needs an SMS
- * provider, which is an open owner decision, and a fake code entry would be worse
- * than none. The number is validated here and stored as the customer identity.
+ * Phone-number OTP (roadmap §3.4) is deliberately absent: the SMS provider is
+ * now selected (decision row 74, Kavenegar) and its channel adapter exists in
+ * `local/canonical/sms_adapter.py`, but no OTP issue/verify endpoint is built
+ * yet, and a fake code entry would be worse than none. The number is validated
+ * here and stored as the customer identity.
  */
 
 type FieldErrors = Partial<Record<'fullName' | 'phoneNumber' | 'address' | 'postalCode', string>>;
