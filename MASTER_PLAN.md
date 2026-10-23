@@ -1178,6 +1178,15 @@ Phase 4** (Fashion AI Engine).
 > Phase 2–5 completion and closure records, `TODO.md` §Forward previews,
 > and §16 of this file.
 >
+> **Provider status update 2026-10-23 (append-only).** Two of the three
+> selections named above are now CLOSED: **ZarinPal** is the SELECTED primary
+> payment provider (decision-register row 10) and **Kavenegar** the SELECTED
+> primary SMS provider (row 74), each behind the seam it already had — adapter
+> pattern, provider swappable, no new or second dispatch path. **Only shipping
+> (row 11) remains unselected** and stays mock-only with no carrier
+> integration, so fashion Phase 6 §6.1/§6.2 are unblocked for BUILD while
+> Phase 6 itself remains NOT started.
+>
 
 ### Phase 0 --- Foundation
 
@@ -1708,6 +1717,12 @@ and Live Wiring programs; per-phase detail in §13 and the
     selections, together with owner review of the Phase 5 completion
     records; G-4, G-5 and G-6 remain open; nothing deployed or provisioned
     (D-139).
+    **Provider status update (2026-10-23):** two of the three selections named
+    here are CLOSED — payment = **ZarinPal** (register row 10) and SMS =
+    **Kavenegar** (row 74), both behind their existing seams (adapter pattern,
+    provider swappable, no new dispatch path). Only shipping (row 11) remains
+    unselected and mock-only; fashion Phase 6 §6.1/§6.2 are unblocked for
+    build while Phase 6 itself remains not started.
 -   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
     graph-tooling audit returned **zero real defects**. Phase 1 (baseline
     drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked

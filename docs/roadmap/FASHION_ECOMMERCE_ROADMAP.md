@@ -760,10 +760,21 @@ never as rewrites of the decisions they touch (§2.1).
 
 **Footnote (recorded 2026-10-23), additive — the table cells above are not
 rewritten.** G-4's **SMS provider** now has a decision identity:
-**`DECISIONS.md` Open decision register row 74** (Open, no `D-###` ledger id
-until the owner rules). The “(new)” wording preserved in the G-4 cell is
+**`DECISIONS.md` Open decision register row 74** (now **Selected 2026-10-23**;
+no `D-###` ledger id). The “(new)” wording preserved in the G-4 cell is
 historical. Its companions are unchanged: payment = register row 10, shipping =
 register row 11, AI provider = register row 9.
+
+**G-4 STATUS UPDATE 2026-10-23 — two of the four selections are CLOSED; the
+table cells above are not rewritten.** The owner ruled **payment = ZarinPal
+(primary)** and **SMS = Kavenegar (primary)**, each adapted behind the seam it
+already had — `commerce/src/server/payments/gateway.ts` (`PaymentGateway`) for
+payment, `local/canonical/notification_worker.py` (`ChannelAdapter`) for SMS —
+so this is an adapter selection: provider swappable, no new or second dispatch
+path, order write path unchanged. **G-4 therefore remains OPEN only for the
+shipping provider (register row 11) and the AI provider (register row 9)**;
+shipping stays mock-only with no carrier integration. Roadmap §6.1/§6.2 are
+unblocked for build.
 
 ---
 

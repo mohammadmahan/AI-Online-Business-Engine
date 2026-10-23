@@ -2504,9 +2504,10 @@ repository hygiene, not deployment authorization.
           Nothing deployed, connected or sent, and no credential
           exists; no live Graph API call is on this path (D-045).
     - [ ] **Phase 6 — Payment, Notification & Production Launch**
-          (roadmap §6.1–§6.3; the payment (decision 10), shipping
-          (decision 11) and SMS (decision-register row 74) providers
-          must be selected first)
+          (roadmap §6.1–§6.3; payment (decision 10) and SMS
+          (decision-register row 74) were SELECTED 2026-10-23, so §6.1/§6.2
+          are unblocked for build; only the shipping provider
+          (decision 11) is still unselected and stays mock-only)
           **Next Launch Checklist — fashion Phase 6 only (recorded
           2026-10-23).** Ordered; a **B** item starts only after the **O**
           item it sits under. **O** marks what the docs call an owner act
@@ -2522,11 +2523,15 @@ repository hygiene, not deployment authorization.
             - [ ] **O** Owner review/acceptance of the fashion Phase 5
                   completion and closure records (D-172 §5.9 and §6; roadmap
                   §5.1/§5.2 records plus the closure record)
-      - [ ] **G1 — the three selections that open Phase 6**
-            - [ ] **O** Payment provider — decision-register row 10
-                  (`DECISIONS.md`; candidates named only)
-            - [ ] **O** Shipping provider — decision-register row 11
-            - [ ] **O** SMS provider — decision-register row 74
+      - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
+            - [x] **O** Payment provider — decision-register row 10 —
+                  **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable
+                  behind the same `PaymentGateway` seam, no new dispatch path
+            - [ ] **O** Shipping provider — decision-register row 11 —
+                  **still OPEN**; stays mock-only, no carrier integration
+            - [x] **O** SMS provider — decision-register row 74 —
+                  **SELECTED 2026-10-23: Kavenegar (primary)**; stays swappable
+                  behind the same `ChannelAdapter` seam, no second dispatch path
       - [ ] **G2 — roadmap §6.1 payment (starts after row 10)**
             - [ ] **B** Iranian payment gateway adapter (ZarinPal / Shaparak
                   IPG) with callback verification and idempotent order updating
