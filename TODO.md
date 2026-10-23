@@ -1730,17 +1730,17 @@ repository hygiene, not deployment authorization.
       records (D-164–D-168)
 - [ ] Owner-authorized controlled activation (D-139 preflight →
       dry run → canary → observation → promotion) — a separate,
-      explicit, one-time owner decision; Iranian payment provider
-      (open decision 10) and shipping provider (open decision 11)
-      must be selected before payment-capture and shipping-purchase
-      go-live
+      explicit, one-time owner decision; the payment provider
+      (decision 10) is SELECTED (ZarinPal, 2026-10-23) though no live
+      credential exists, and the shipping provider (open decision 11)
+      must still be selected before shipping-purchase go-live
 - [ ] E-Commerce & Social Publishing track — **D-172 ADOPTED;
       pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
       **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
-      keyboard closed 2026-10-22)**; Phase 6 NOT STARTED, owner-gated
-      behind the payment (10), shipping (11) and SMS (register row 74)
-      provider selections**:
+      keyboard closed 2026-10-22)**; Phase 6 NOT STARTED — payment (10)
+      and SMS (register row 74) SELECTED 2026-10-23, leaving only the
+      shipping provider (11) selection**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
