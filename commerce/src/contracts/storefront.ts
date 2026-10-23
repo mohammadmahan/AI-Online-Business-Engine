@@ -187,6 +187,14 @@ export interface PaymentAttempt {
   message: string;
   /** Present only for an AUTHORIZED attempt. */
   reference: string | null;
+  /**
+   * Redirect-based providers (§6.1 only): the token the gateway issued for this
+   * payment, and where to send the customer to pay. Both are absent for an
+   * adapter that charges directly, and both are absent on any failure. An
+   * `authority` is NOT a payment reference — nothing has been charged yet.
+   */
+  authority?: string | null;
+  redirectUrl?: string | null;
 }
 
 export interface OrderPlaced {
