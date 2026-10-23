@@ -2507,6 +2507,38 @@ repository hygiene, not deployment authorization.
           (roadmap §6.1–§6.3; the payment (decision 10), shipping
           (decision 11) and SMS (decision-register row 74) providers
           must be selected first)
+          **Next Launch Checklist — fashion Phase 6 only (recorded
+          2026-10-23).** Ordered; a **B** item starts only after the **O**
+          item it sits under. **O** marks what the docs call an owner act
+          (an `Open` register row, or “owner-gated”), **B** what the roadmap
+          assigns as implementation work — no document uses these letters, so
+          they are a reading of its own language. Nothing here is new: every
+          line restates an existing record and cites it. **Scope is the
+          fashion track only** — the engine-track controlled activation
+          (D-139, above) stays its own separate owner decision and is NOT part
+          of this list, and the AI provider (row 9), media storage (G-5) and
+          G-6 are not Phase 6 gates and are deliberately absent.
+      - [ ] **G0 — owner sign-off of Phase 5 (blocks everything below)**
+            - [ ] **O** Owner review/acceptance of the fashion Phase 5
+                  completion and closure records (D-172 §5.9 and §6; roadmap
+                  §5.1/§5.2 records plus the closure record)
+      - [ ] **G1 — the three selections that open Phase 6**
+            - [ ] **O** Payment provider — decision-register row 10
+                  (`DECISIONS.md`; candidates named only)
+            - [ ] **O** Shipping provider — decision-register row 11
+            - [ ] **O** SMS provider — decision-register row 74
+      - [ ] **G2 — roadmap §6.1 payment (starts after row 10)**
+            - [ ] **B** Iranian payment gateway adapter (ZarinPal / Shaparak
+                  IPG) with callback verification and idempotent order updating
+      - [ ] **G3 — roadmap §6.2 SMS (starts after row 74)**
+            - [ ] **B** SMS provider adapter (Kavenegar / MelliSMS) for OTP
+                  login, order confirmation and postal tracking notifications
+                  — the OTP step and the §2.3 buyer SMS are explicitly **not
+                  built today** (phone is stored as the identity only)
+      - [ ] **G4 — roadmap §6.3 hardening**
+            - [ ] **B** Containerized build verification on the local stack
+            - [ ] **B** Staging deployment readiness and the production cutover
+                  checklist
     - [x] **Phase 2 audit-record gap — CLOSED 2026-10-13 by the Phase 4
           transition work (above):** the merchant-panel requirement that
           an irreversible action be auditable is now met — every order
