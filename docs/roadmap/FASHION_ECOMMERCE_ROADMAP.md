@@ -758,6 +758,13 @@ never as rewrites of the decisions they touch (§2.1).
 | G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | **OPEN, not blocking** — the Phase 1 contract stays provider-agnostic (paths and URLs only, no storage SDK bound), keeping the swappability of D-129–D-132 intact until the owner selects a provider |
 | G-6 | Channel publishing: reuse the canonical Instagram/Telegram publishers | D-069–D-072, D-073–D-076, D-077–D-080 | **OPEN as a build-time constraint** — the roadmap adds copy generation and scheduling; publishing must stay on the existing seams so there is exactly one dispatch path per channel |
 
+**Footnote (recorded 2026-10-23), additive — the table cells above are not
+rewritten.** G-4's **SMS provider** now has a decision identity:
+**`DECISIONS.md` Open decision register row 74** (Open, no `D-###` ledger id
+until the owner rules). The “(new)” wording preserved in the G-4 cell is
+historical. Its companions are unchanged: payment = register row 10, shipping =
+register row 11, AI provider = register row 9.
+
 ---
 
 ## Execution Protocol

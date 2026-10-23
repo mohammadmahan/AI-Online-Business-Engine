@@ -377,7 +377,30 @@ TODO.md
 docs/
 ```
 
+**Status of record (recorded 2026-10-23).** The canonical governance set is
+this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
+documents link (the read-before-work order is `PROJECT_RULES.md` §2).
+**`AI_PROJECT_CONTEXT_TRANSFER.md` does not exist in this repository** — it is
+not tracked and has never been committed — so it is **not** a source of project
+status or constraints, and nothing may be inferred from it. It has been cited
+as though it were authoritative, which is why this note exists; per
+`PROJECT_RULES.md` §2, a document that does not exist is REPORTED, never
+invented or reconstructed.
+
 ## 13. Project Phases
+
+**Phase numbering — two schemes share the same numbers (recorded 2026-10-23 to
+end a recurring confusion).** The numbered phases in this section are the
+**engine track**: here “Phase 5” means **Phase 5 — n8n Foundation**. The fashion
+track adopted by **D-172** numbers its own six phases in
+`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`, where “Phase 5” means **Phase 5 —
+Multi-Channel Social Automation**. In any new text write **“engine Phase 5”** or
+**“fashion Phase 5 (D-172)”** — never bare “Phase 5”. Existing records keep
+their wording (`PROJECT_RULES.md` §2.1), and every D-172 document already
+qualifies its citations as “roadmap §N.N”. The same rule separates **engine
+Phase 6** (Notion Business OS) from **fashion Phase 6** (Payment, Notification
+& Production Launch), and **engine Phase 4** (Infrastructure) from **fashion
+Phase 4** (Fashion AI Engine).
 
 > **Progress (2026-09-16):** Phases 0–2 closed; Phase 3 closed at
 > foundation level (local-first architecture + executable local stack,
@@ -1138,6 +1161,23 @@ docs/
 > started**, G-4/G-5/G-6 remain open, nothing is deployed or connected,
 > and production activation is still the sole owner-gated act (D-139).
 >
+> **STATUS AMENDMENT 2026-10-23 (append-only — the “Phases 2–6 are NOT
+> started” sentence above was true on 2026-10-10 and is left intact as
+> history, `PROJECT_RULES.md` §2.1).** Fashion Phases **1–5** of this track
+> are now **COMPLETE and VERIFIED offline**: Phase 2 (merchant admin) and
+> Phase 3 (storefront) closed 2026-10-12; the Phase 4 transition audit trail
+> 2026-10-13; fashion Phase 4 §4.1 and §4.2 plus the provider gate
+> 2026-10-20; fashion Phase 5 §5.1 (bundler + HITL, its named
+> inline-keyboard gap closed 2026-10-22 at `bc6cd4a`) and §5.2 (peak-hours
+> queue). **Fashion Phase 6 is NOT started** and stays owner-gated behind
+> the payment (register row 10), shipping (register row 11) and SMS
+> (register row 74) selections, plus owner review of the Phase 5 records.
+> G-5 (media storage) and G-6 (channel-seam reuse) remain open; nothing is
+> deployed, connected or credentialed (D-045/D-139). Full records:
+> `DECISIONS.md` ledger row 73, D-172 §5.2–§5.9 and §6, the roadmap's
+> Phase 2–5 completion and closure records, `TODO.md` §Forward previews,
+> and §16 of this file.
+>
 
 ### Phase 0 --- Foundation
 
@@ -1358,13 +1398,24 @@ OFFICIALLY CLOSED and the verified Launch Candidate hands off to
 Infrastructure Deployment & Staging orchestration (Dokploy Stage C
 rollout — every step still owner-gated)**
 
+**Active work package (recorded 2026-10-23).** The engine track above is
+CLOSED and dormant: no engine phase is running, and production activation
+remains owner-gated (D-139). The **active** track is the D-172 Fashion
+E-Commerce & Social Publishing work package — fashion Phases 1–5 are COMPLETE
+and VERIFIED offline, and **fashion Phase 6 (Payment, Notification &
+Production Launch) is NOT started**. Its entry condition is an owner act, not
+engineering: selection of the payment provider (decision-register row 10), the
+shipping provider (row 11) and the SMS provider (row 74), plus owner review of
+the fashion Phase 5 completion records. Read “CLOSED” in the headline above as
+the ENGINE track only — it does not mean this project is finished or idle.
+
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
 `docs/phases/` specifications):
 
 -   Business concept, architecture foundation, and planning documents
     (Phases 0--1)
--   Canonical governance: decision ledger D-001--D-169, authority
+-   Canonical governance: decision ledger D-001--D-172, authority
     tiers (D-050), local-first isolation (D-053), error taxonomy
     (D-052), provenance (D-026), idempotent event store (D-027)
 -   Local stack: PostgreSQL canonical store, n8n foundation, mock

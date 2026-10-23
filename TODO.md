@@ -1739,12 +1739,18 @@ repository hygiene, not deployment authorization.
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
       **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
       keyboard closed 2026-10-22)**; Phase 6 NOT STARTED, owner-gated
-      behind the payment (10), shipping (11) and SMS provider
-      selections**:
+      behind the payment (10), shipping (11) and SMS (register row 74)
+      provider selections**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
       Section.
+      **Naming (recorded 2026-10-23):** the “Phase N” numbers used under
+      this bullet are the ROADMAP's phases (fashion track, D-172). They
+      are **not** the engine phases of `MASTER_PLAN.md` §13 — engine
+      Phase 5 is n8n Foundation and engine Phase 6 is Notion Business
+      OS. Write **“fashion Phase N (D-172)”** in new text and never
+      bare “Phase N”.
     - [x] **Pre-start owner rulings (2026-10-10, D-172 §4):** **G-1**
           — the roadmap's native PostgreSQL/Supabase schema is the
           **sole SSOT** for this track and D-003 (WooCommerce SSOT)
@@ -2499,7 +2505,8 @@ repository hygiene, not deployment authorization.
           exists; no live Graph API call is on this path (D-045).
     - [ ] **Phase 6 — Payment, Notification & Production Launch**
           (roadmap §6.1–§6.3; the payment (decision 10), shipping
-          (decision 11) and SMS providers must be selected first)
+          (decision 11) and SMS (decision-register row 74) providers
+          must be selected first)
     - [x] **Phase 2 audit-record gap — CLOSED 2026-10-13 by the Phase 4
           transition work (above):** the merchant-panel requirement that
           an irreversible action be auditable is now met — every order
