@@ -773,6 +773,28 @@ live database was migrated, nothing was connected, and no credential exists
   emits these events yet: the storefront OTP step (§3.4) and the §2.3 buyer SMS
   trigger are still unbuilt, and the phone is stored as the customer identity
   only.
+- **Owner decision package — appended 2026-10-23 (audit-only: nothing admitted,
+  no sealed value changed, nothing sent).** The three templates are proposed for
+  admission with these EXACT contracts: `checkout.otp.v1` — `(CH_SMS,)`,
+  `PR_HIGH`, `required_vars ("phone_ref", "otp_code")`; `order.confirmed.v1` —
+  `(CH_SMS,)`, `PR_NORMAL`, `("phone_ref", "order_ref")`; `order.tracking.v1` —
+  `(CH_SMS,)`, `PR_NORMAL`, `("phone_ref", "order_ref", "tracking_code")`. The
+  digest movement the bullet above asserts was **re-measured**, not quoted: in a
+  discarded pristine worktree at `f1ebc4e`, adding exactly those three entries
+  moves the phase-17 digest `048952dc…` →
+  `f23a69807b79f7a8739671d3d3f4dd00823124f8394f67d2f8b3781b230c1e03` and the
+  phase-18 digest `0026f4c9…` →
+  `643b68799b5edde3a432ac54f34e326c8b1902cefd0e74050617c929a284b3dd`
+  (`test_007` fails as designed), while the unmodified tree keeps both
+  byte-identical (`test_live_wiring_completion` + `test_live_wiring_phase18` →
+  94/94 OK). Admission also makes two properties of the SEALED D-089/D-092
+  surface reachable, so they are inseparable from the ruling and are recorded
+  rather than changed here: `NotificationEngine.enqueue` persists `variables`
+  verbatim, so a live OTP code would be durable in `events.event_record`; and
+  the live SMS route accepts only a literal Iranian MSISDN, so `phone_ref` is
+  durable customer PII in the same store. The complete package — delta, affected
+  artifacts, verification commands, historical-evidence preservation, rollback
+  and the exact authorization wording — is recorded in `TODO.md` G3.
 
 ### 6.3 Deployment & Staging Hardening
 - Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.

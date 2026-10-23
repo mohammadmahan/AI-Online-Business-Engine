@@ -2778,15 +2778,23 @@ repository hygiene, not deployment authorization.
                   count or a loosened pin is not an alternative
                   (`sms_adapter.py:42-52` states the same boundary).
       - [ ] **G4 — roadmap §6.3 hardening**
-            - [ ] **B** Containerized build verification on the local stack
+            - [x] **B** Containerized build verification on the local stack
+                  *(2026-10-23: DONE — the image was built from the pinned
+                  base, the compose stack came up `healthy`, the probe and
+                  the runtime constraint inspection all PASSED; see the
+                  container verification record appended below)*
             - **[§6.3 hardening — implementation record 2026-10-23
               (append-only; artifacts only, nothing deployed)]** The
               container artifacts and the readiness contract now EXIST
               under `commerce/`. No stage, registry, digest, credential
               or deployment manifest was touched, no image was built and
-              nothing was staged/committed. Gap states (numbering from
+              nothing was staged/committed *(both superseded by the
+              container verification record appended at the end of this
+              block: commit `e5515dc`, image built, stack verified)*. Gap
+              states (numbering from
               the 2026-10-23 §6.3 inventory draft):
-              - **G-1 — container artifacts: IMPLEMENTED.**
+              - **G-1 — container artifacts: IMPLEMENTED → VERIFIED
+                (2026-10-23 build + run evidence below).**
                 `commerce/Dockerfile` (multi-stage, digest-pinned
                 `node:20-alpine@sha256:fb4cd12c…`, `standalone` runner,
                 `USER node`, `node -e` probe) and
@@ -2794,9 +2802,12 @@ repository hygiene, not deployment authorization.
                 excluded, `.env.example` kept), both materialized from
                 the ratified `docs/deployment/control-plane-container-
                 spec.md` §3/§4 so the repository has ONE Next image
-                shape instead of two dialects. **The image itself was
-                NOT built** (this task made no external request), so the
-                claim is IMPLEMENTED, never VERIFIED.
+                shape instead of two dialects. The image was **not** built
+                while this record was written (no external request was
+                made then), so the status was IMPLEMENTED; it was
+                subsequently built and run under explicit owner
+                authorization — the container verification record appended
+                at the end of this block is that evidence.
               - **G-2 — readiness endpoint: IMPLEMENTED + VERIFIED
                 live.** `GET /healthz` (`commerce/src/app/healthz/
                 route.ts`, a three-line shim) → `src/server/services/
@@ -2819,7 +2830,7 @@ repository hygiene, not deployment authorization.
                 credential, so a dependency-free ping would report
                 healthy while serving nothing — the false pass D-171
                 §2.2 forbids.
-              - **G-3 — compose wiring: IMPLEMENTED for LOCAL
+              - **G-3 — compose wiring: IMPLEMENTED → VERIFIED for LOCAL
                 verification only.** `commerce/docker-compose.local.yml`
                 adds `commerce-web` (loopback `127.0.0.1:13000`→3000,
                 `read_only`, `tmpfs` for `/tmp` + `/app/.next/cache`,
@@ -2849,6 +2860,86 @@ repository hygiene, not deployment authorization.
                 carries the `@sha256:aaaa…`/`bbbb…` placeholders and is
                 still rendered by `stage_d_compose_generator.py`.
                 Registering a real image remains C-8.
+              - **§6.3 hardening — container verification record 2026-10-23
+                (append-only; run under explicit owner authorization to
+                pull the pinned base and execute the stack; local only,
+                nothing pushed to any registry, stack torn down after).**
+                Artifacts under test are commit `e5515dc`. Sequence:
+                `docker build -f commerce/Dockerfile -t commerce:local
+                commerce` → `docker compose -f
+                commerce/docker-compose.local.yml up --wait` → host probe
+                → `docker inspect` + `docker exec` constraint checks → two
+                in-container negative probes → `down`. The DB was the
+                pre-existing local harness, reached from inside the
+                container as `host.docker.internal:55432` with the
+                documented harness credential (no new credential minted).
+                - **Build: PASS (rc=0).** The first attempt failed for a
+                  PATH reason, not a manifest defect: `#2 ERROR: error
+                  getting credentials - exec: "docker-credential-desktop":
+                  executable file not found in $PATH` while resolving the
+                  `docker/dockerfile:1.7` frontend. Re-run with
+                  `$HOME/.docker/bin` on PATH → rc=0. **No repository file
+                  was edited to make the build pass.**
+                - **Image:** `commerce:local`, 291 MB,
+                  `sha256:c9ddfb9b1dd4…`; the `deps` stage resolved
+                  `FROM docker.io/library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293`
+                  — the pinned digest, not a floating tag.
+                - **Runner payload:** `/app` contains exactly `.next`,
+                  `node_modules`, `package.json`, `server.js`. No `src/`,
+                  no `.env*`, no `tsconfig`, no test or build context
+                  reached the runner stage; the process runs as uid 1000
+                  with no user override.
+                - **Route compiled into the artifact:** the in-image
+                  builder printed `ƒ /healthz` in the route table
+                  alongside `ƒ /api/webhooks/payment` — the readiness route
+                  exists in the shipped build, not only under `next start`
+                  on the host.
+                - **Compose up: PASS** — `up --wait --wait-timeout 180`
+                  exited 0 with `Container aobe-commerce-local Healthy`,
+                  `health=healthy`, `failingstreak=0`, last healthcheck
+                  `rc=0`. Port mapping is `3000/tcp ->
+                  127.0.0.1:13000` (loopback only).
+                - **Host probe:** `GET http://127.0.0.1:13000/healthz` →
+                  **200**, `cache-control: no-store`, body
+                  `{"status":"ok"}`.
+                - **Structural constraints (`docker inspect`):**
+                  `ReadonlyRootfs=true`, `CapDrop=[ALL]`,
+                  `SecurityOpt=[no-new-privileges:true]`,
+                  `Tmpfs={/app/.next/cache, /tmp}`,
+                  `Memory=536870912` (512 MiB), `NanoCpus=1000000000`
+                  (1.0 CPU), `User=node`, `Privileged=false`.
+                - **Runtime constraints (inside the container):** `id` →
+                  `uid=1000(node) gid=1000(node) groups=1000(node)`;
+                  `CapPrm`/`CapEff`/`CapBnd` all
+                  `0000000000000000` (every capability dropped, bounding
+                  set included); `touch /probe-write` → `Read-only file
+                  system`; `touch /app/.next/cache/probe` → `TMPFS_OK`, so
+                  the single writable path is the mounted tmpfs.
+                - **Fail-closed matrix reproduced INSIDE the image** (same
+                  artifact, one-off containers): harness URL → **200**;
+                  no `DATABASE_URL` → **503**
+                  `{"status":"unavailable","reason":"db_unconfigured"}`;
+                  `host.docker.internal:55999` → **503**
+                  `{"reason":"db_unreachable"}`. This is what proves the
+                  200 is caused by a resolving DB probe rather than a
+                  static answer (D-171 §2.2).
+                - **No credential leak:** the container log holds
+                  `▲ Next.js 16.3.8` and `✓ Ready in 0ms` only — no
+                  connection string, no driver error text.
+                - **Teardown: clean** — `docker compose … down` rc=0,
+                  container and the `commerce_default` network removed,
+                  port 13000 free, zero `aobe-commerce-local`/`aobe-neg-*`
+                  residue, no volume created; the pre-existing harness
+                  container was left running and untouched. `git status`
+                  before and after the run is identical.
+                - **States after verification:** G-1 **VERIFIED** (local
+                  image build), G-2 **VERIFIED** (host and in-container),
+                  G-3 **VERIFIED for LOCAL mode only**. G-5 and every
+                  staging/production/Dokploy entry stay **unchanged and
+                  owner-gated** (C-1/C-2/C-8); no image was pushed and no
+                  digest placeholder was replaced. Containerization of the
+                  D-171 control plane is a different surface (already
+                  Route-A verified) and was not touched here.
               - [ ] **B** Staging deployment readiness and the production cutover
                     checklist
                     *(state 2026-10-23: the checklist itself is drafted —
