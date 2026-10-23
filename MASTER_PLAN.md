@@ -1612,6 +1612,51 @@ and Live Wiring programs; per-phase detail in §13 and the
     provider selection and any live path (decision 9 / G-4), Phase 5
     publishing, and any merchant/storefront caller; no deployment,
     provisioning, credential, network call or push.
+    **Further amended 2026-10-22 (append-only — the sentences above were
+    true when written):** **Phase 5 (roadmap §5.1–§5.2, multi-channel
+    social automation) is COMPLETE and VERIFIED offline**, so the clauses
+    “publishing (Phase 5)” and “Phase 5 publishing” above are superseded
+    (full records: D-172 §5.7/§5.8/§5.9 and §6, the roadmap's Phase 5
+    §5.1/§5.2 completion records plus its closure record, and TODO
+    §Forward previews; commit `bc6cd4a`). §5.1's post assembly and HITL
+    pipeline (`local/canonical/fashion_social_bundler.py`) compose ONE
+    `social_bundle_proposal.v1` from both Phase 4 engines plus the
+    merchant's own media list, and the last named gap — “inline keyboard
+    with direct purchase link” — is **CLOSED**: `telegram_contracts` now
+    carries a first-class, strictly validated `inline_keyboard` (URL-only
+    rows, 8 rows / 3 per row / 8 buttons / 64-char label / 2048-char URL;
+    `callback_data`, `web_app` and `login_url` are not representable), URL
+    hygiene fails closed before any dispatch (absolute public `http(s)`
+    domain only — no userinfo, IP literal, `localhost` or single-label
+    host, no control characters or interior whitespace, no bot-token
+    material, no credential-shaped query parameter), and the bundler pins
+    every button to the merchant's own `purchase_url` while KEEPING the
+    caption CTA line as the fallback. Backwards compatibility holds at both
+    seams: the D-074 idempotency key extends with a keyboard digest only
+    when a keyboard exists (pre-keyboard payloads keep their exact
+    historical key), and an empty keyboard passes no adapter argument;
+    because `sendMediaGroup` takes no keyboard, an album is followed by
+    exactly ONE `sendMessage` carrying the first button's own label. §5.2's
+    peak-hours queue (`local/canonical/instagram_publish_queue.py`) adds
+    WHEN an accepted post goes out on the REAL scheduling engine and the
+    durable Instagram outbox, and RE-CHECKS the same shared acceptance gate
+    at release time, so a stale acceptance cannot publish. Nothing
+    auto-publishes: the keyboard lives inside the artifact and its
+    `payload_hash`, and therefore inside the M2 human acceptance. Evidence:
+    `test_phase5_telegram_keyboard` → 23 tests OK; targeted §5.1/§5.2 +
+    `test_phase10_telegram` → 240 tests OK (2 pre-existing env skips);
+    `test_phase20_security` → 38 OK (5 skips); `compileall` exit 0;
+    `full_security_sweep` → `clean: true` (AST 189 files / 0 findings;
+    entropy 0 flagged; channel isolation 0 findings); full sweep → 2752
+    tests with the same three known live-PostgreSQL failures as untouched
+    HEAD. **Still open and NOT implied:** no live Telegram or Instagram
+    call, token or credential exists or is requested (D-045); the §5.1
+    webhook trigger remains the existing n8n/direct-publisher seam;
+    **Phase 6 is NOT started** and stays owner-gated behind the payment
+    (open decision 10), shipping (open decision 11) and SMS provider
+    selections, together with owner review of the Phase 5 completion
+    records; G-4, G-5 and G-6 remain open; nothing deployed or provisioned
+    (D-139).
 -   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
     graph-tooling audit returned **zero real defects**. Phase 1 (baseline
     drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked
