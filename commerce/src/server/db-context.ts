@@ -37,7 +37,11 @@ export interface CommerceActionFailure {
 
 export type CommerceActionResult<T> = { ok: true; data: T } | CommerceActionFailure;
 
-let cached: { key: string; repository: CommerceRepository } | null = null;
+let cached: {
+  key: string;
+  pool: ReturnType<typeof createCommerceDb>['pool'];
+  repository: CommerceRepository;
+} | null = null;
 
 export function isDatabaseConfigured(): boolean {
   return Boolean(process.env.DATABASE_URL?.trim());
@@ -50,11 +54,58 @@ export function getRepository(): CommerceRepository | null {
     return null;
   }
   if (cached === null || cached.key !== url) {
-    const { db } = createCommerceDb(url);
-    cached = { key: url, repository: createPostgresRepository(db) };
+    const { db, pool } = createCommerceDb(url);
+    cached = { key: url, pool, repository: createPostgresRepository(db) };
   }
   return cached.repository;
 }
+
+/** Budget for the readiness probe (`/healthz`): a health answer is not a query. */
+export const DB_PROBE_TIMEOUT_MS = 2_000;
+
+/**
+ * §6.3 G-2 — the readiness probe behind `GET /healthz`.
+ *
+ * Three properties, each deliberate:
+ *
+ *  - it reuses the SAME cached pool as the request path, so health cannot report
+ *    a connection the app does not have (and cannot open a second one);
+ *  - it resolves with no value; the caller maps ANY failure to a coarse,
+ *    non-disclosing verdict. The driver's message can echo a connection string
+ *    (D-114/D-124), so it never escapes this function as text;
+ *  - an absent or blank `DATABASE_URL` is a REFUSAL, not a pass — the caller
+ *    never gets here without checking `isDatabaseConfigured()` first, and this
+ *    guard exists so a future caller cannot skip that check by accident.
+ */
+export async function probeCanonicalDatabase(
+  options: { timeoutMs?: number } = {},
+): Promise<void> {
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error('DB_NOT_CONFIGURED');
+  }
+
+  const pool = getRepository() === null ? undefined : cached?.pool;
+  if (pool === undefined) {
+    throw new Error('DB_POOL_UNAVAILABLE');
+  }
+
+  const timeoutMs = options.timeoutMs ?? DB_PROBE_TIMEOUT_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      pool.query('SELECT 1'),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('DB_PROBE_TIMEOUT')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 
 /**
  * Runs `fn` against the repository with the environment gate applied first.

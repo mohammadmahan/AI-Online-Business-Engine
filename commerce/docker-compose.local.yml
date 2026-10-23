@@ -1,0 +1,104 @@
+# D-172 / fashion §6.3 — LOCAL verification service for the commerce surface.
+#
+# NOT A DEPLOYMENT MANIFEST. Nothing in staging, production or the Dokploy
+# template references this file; it exists so the image built from
+# `commerce/Dockerfile` can be started, probed and read on a developer machine
+# under the same hardened posture a deployed slot would use (§6.3 G-3/G-4/G-6).
+#
+# THE THREE PROPERTIES THIS FILE GUARANTEES
+#
+#   1. LOOPBACK ONLY, NO COLLISION (G-6). Published as `127.0.0.1:13000`.
+#      3000 is avoided because a local `next dev` / control-plane run owns it;
+#      55432 is PostgreSQL's (the smoke harness AND the engine stack both bind
+#      it — they cannot run simultaneously, so this service never publishes a
+#      database port at all). Containers on the default bridge reach the host
+#      as `host.docker.internal`, which `extra_hosts` also provides on Linux.
+#
+#   2. EXPLICIT, OPTIONAL, FAIL-CLOSED ENV (G-4). Every value is a reference
+#      with an empty default (`${VAR:-}`): a variable that is not exported on
+#      the host reaches the container as an EMPTY STRING, which the app reads as
+#      unconfigured and refuses (D-171 §2.2) — it never degrades into a guessed
+#      target, a sample mode or a fake success. `env_file` is deliberately NOT
+#      used: it requires the file to exist and would inject whatever keys it
+#      happens to hold, so the wiring could not be audited from this file.
+#
+#   3. NO CREDENTIAL LITERAL (D-045/D-124). There is no default secret here to
+#      leak, and the image bakes none.
+#
+# The host variable `COMMERCE_DATABASE_URL` (the name the smoke harness already
+# uses) is mapped onto the container's `DATABASE_URL`, the single variable the
+# app reads. Inside a container `127.0.0.1` is the container itself, so a
+# harness or engine database is addressed as
+# `postgresql://…@host.docker.internal:55432/…`.
+services:
+  commerce-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aobe-commerce-local:verify
+    container_name: aobe-commerce-local
+
+    ports:
+      - "127.0.0.1:13000:3000"
+
+    environment:
+      # Canonical connection (host-provided, optional).
+      DATABASE_URL: ${COMMERCE_DATABASE_URL:-}
+
+      # Payment seam — mapped because the code reads them at call time:
+      #   COMMERCE_PAYMENT_WEBHOOK_SECRET -> /api/webhooks/payment (503 when empty)
+      #   ZARINPAL_*                      -> checkout + /api/payments/zarinpal/callback
+      #                                    (every payment UNAVAILABLE when empty,
+      #                                     the order stays PENDING, nothing faked)
+      COMMERCE_PAYMENT_WEBHOOK_SECRET: ${COMMERCE_PAYMENT_WEBHOOK_SECRET:-}
+      ZARINPAL_MERCHANT_ID: ${ZARINPAL_MERCHANT_ID:-}
+      ZARINPAL_CALLBACK_URL: ${ZARINPAL_CALLBACK_URL:-}
+      # Non-secret switch; empty means "not sandbox" and the adapter refuses
+      # without a merchant id anyway, so the default cannot enable a live charge.
+      ZARINPAL_SANDBOX: ${ZARINPAL_SANDBOX:-true}
+
+      # SMS is deliberately NOT mapped. Not one line of `commerce/src` reads a
+      # `KAVENEGAR_*` or `SMS_LIVE_ENABLED` variable — the SMS channel lives
+      # behind the Python notification seam and is configured by the engine's
+      # own env contract (repo-root `.env.example`). Adding it here would be a
+      # dead switch that looks like wiring, which is worse than its absence.
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Local verification only: a crash should stay visible instead of being
+    # papered over by a restart loop.
+    restart: "no"
+
+    # The hardened posture the image is built for, exercised on every run.
+    read_only: true
+    tmpfs:
+      - /tmp
+      # Next writes its image/ISR cache here; a tmpfs keeps the rootfs immutable.
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # Stage D resource floors, mirrored so the local run is representative.
+    mem_limit: 512m
+    cpus: 1.0
+
+    # Same probe as the image's HEALTHCHECK, restated so `docker compose up
+    # --wait` fails loudly instead of trusting an unverified container. `/healthz`
+    # answers 503 when the canonical connection is absent or unreachable, so a
+    # container started without `COMMERCE_DATABASE_URL` is UNHEALTHY on purpose:
+    # it is serving nothing, and saying so is the point (D-171 §2.2).
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 6

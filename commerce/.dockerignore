@@ -1,0 +1,35 @@
+# Commerce surface — build context exclusions (fashion §6.3 G-1, spec §4).
+#
+# Two jobs: keep the context small, and keep local values out of every layer
+# (D-124). Anything that could carry an environment file, a build log or a test
+# artifact is excluded here AND absent from the runtime stage by construction.
+.git
+.gitignore
+
+# dependencies and build output are recreated inside the image
+node_modules
+.next
+.test-build
+*.tsbuildinfo
+next-env.d.ts
+
+# local environment — a credential must never reach a layer (D-045/D-124)
+.env
+.env.*
+!.env.example
+
+# diagnostics / local state
+*.log
+coverage
+
+# build-irrelevant for the production server
+test
+scripts
+drizzle
+eslint.config.mjs
+tsconfig.test.json
+docker-compose*.yml
+
+# Deliberately NOT ignored: package.json, package-lock.json, next.config.mjs,
+# postcss.config.mjs (Tailwind v4 runs through @tailwindcss/postcss),
+# tsconfig.json and src/ — all required by `npm run build`.

@@ -2695,10 +2695,171 @@ repository hygiene, not deployment authorization.
                   Ordering note: **G0** (owner review of the fashion Phase 5
                   closure records) remains OUTSTANDING; this work is
                   build-only and crossed no gate.
+            - [ ] **O — registry admission of the three §6.2 buyer
+                  templates (owner decision package, recorded 2026-10-23;
+                  audit-only — nothing was admitted and no sealed value
+                  was touched).** `checkout.otp.v1`, `order.confirmed.v1`
+                  and `order.tracking.v1` remain OUT of
+                  `notification_contracts.TEMPLATES`; the adapter that
+                  serves them exists and is offline-verified
+                  (`PENDING_REGISTRY_ADMISSION`). The gate is mechanical,
+                  and it was MEASURED this session, not quoted:
+                  (1) **What moves.** `live_wiring_phase17_igniter.py:521`
+                  puts `len(TEMPLATES)` in NTF-03's summary; `run()`
+                  (`:997`) feeds it to `_emit` as `contracts=`
+                  (`:320`, `:1021`), and `Phase17Attestation.to_dict()`
+                  (`:237`) is the hashed payload — so the phase-17 digest
+                  moves. The phase-18 attestation carries that value as
+                  `phase17_digest` (`live_wiring_phase18_igniter.py:258`,
+                  `:274`), so its digest moves too, and
+                  `test_007_real_chain_final_digest_matches_d168`
+                  (`test_live_wiring_completion.py:212-213`) pins the
+                  phase-18 digest to `0026f4c94a11872a…` — the value in
+                  `DECISIONS.md` row 71 (D-169),
+                  `docs/deployment/phase-18-live-wiring-report.md:107`
+                  and `phase-19-reconciliation-report.md:54`.
+                  (2) **Measured in a discarded pristine worktree at
+                  `f1ebc4e`** (templates added exactly as proposed in (3),
+                  then removed): phase-17 `048952dc580d9add…` →
+                  `f23a69807b79f7a8739671d3d3f4dd00823124f8394f67d2f8b3781b230c1e03`,
+                  phase-18 `0026f4c94a11872a…` →
+                  `643b68799b5edde3a432ac54f34e326c8b1902cefd0e74050617c929a284b3dd`,
+                  and `test_007` FAILS as designed. Unmodified `f1ebc4e`
+                  keeps both digests byte-identical (94/94 OK across
+                  `test_live_wiring_completion` + `test_live_wiring_phase18`).
+                  (3) **The exact admission delta the owner is asked to
+                  approve:** `checkout.otp.v1` — channels `(CH_SMS,)`,
+                  `min_priority PR_HIGH`, `required_vars ("phone_ref",
+                  "otp_code")`; `order.confirmed.v1` — `(CH_SMS,)`,
+                  `PR_NORMAL`, `("phone_ref", "order_ref")`;
+                  `order.tracking.v1` — `(CH_SMS,)`, `PR_NORMAL`,
+                  `("phone_ref", "order_ref", "tracking_code")`.
+                  (4) **Two findings the same ruling has to cover, because
+                  admission makes them REACHABLE** (both live on the
+                  SEALED D-089/D-092 surface, so they are recorded for the
+                  owner, not changed here): (a) `NotificationEngine.enqueue`
+                  persists `event["variables"]` verbatim in the durable
+                  outbox ref (`notification_engine.py:281-295`) and the
+                  default redactor is the identity function (`:187`), so
+                  an admitted `checkout.otp.v1` would store a LIVE
+                  one-time code in `events.event_record` for as long as
+                  the retry ladder can read it — the adapter's OTP route
+                  needs that value at dispatch; (b) `normalize_recipient`
+                  accepts only a literal Iranian MSISDN, so every admitted
+                  SMS template makes `variables.phone_ref` durable
+                  customer PII in that same store — a symbolic `phone_ref`
+                  can never be sent.
+                  (5) **Affected artifacts on approval:**
+                  `notification_contracts.TEMPLATES` (3 entries),
+                  `sms_adapter.PENDING_REGISTRY_ADMISSION` (emptied), the
+                  roadmap §6.2 record, this entry, `docs/phases/
+                  phase-14-notifications.md` (row 30's SMS template note),
+                  and a NEW dated re-attestation — the historical
+                  `0026f4c94a11872a…` record is preserved, never edited
+                  (§2.1).
+                  (6) **Verification an approval must re-run, in order:**
+                  `python3 -m unittest local.tests.test_live_wiring_phase17
+                  local.tests.test_live_wiring_phase18
+                  local.tests.test_live_wiring_completion` (the phase-18
+                  pin is RE-BASED deliberately, never loosened);
+                  `python3 -m unittest
+                  local.tests.test_fashion_phase6_sms_adapter` (its
+                  `PENDING_REGISTRY_ADMISSION` assertion flips);
+                  `python3 -m unittest discover -s local/tests -p
+                  "test_*.py"`.
+                  (7) **Rollback:** revert the registry delta and the
+                  re-based pin; the adapter, the Persian bodies and the OTP
+                  route are untouched by either state.
+                  (8) **Authorization required, exactly:** an owner ruling
+                  that admits these three ids with the contracts in (3),
+                  rules on (4)(a)/(b), and accepts a NEW phase-17/18
+                  re-attestation as the SUCCESSOR to the sealed digest.
+                  Nothing less admits them; a side-registry, a renamed
+                  count or a loosened pin is not an alternative
+                  (`sms_adapter.py:42-52` states the same boundary).
       - [ ] **G4 — roadmap §6.3 hardening**
             - [ ] **B** Containerized build verification on the local stack
-            - [ ] **B** Staging deployment readiness and the production cutover
-                  checklist
+            - **[§6.3 hardening — implementation record 2026-10-23
+              (append-only; artifacts only, nothing deployed)]** The
+              container artifacts and the readiness contract now EXIST
+              under `commerce/`. No stage, registry, digest, credential
+              or deployment manifest was touched, no image was built and
+              nothing was staged/committed. Gap states (numbering from
+              the 2026-10-23 §6.3 inventory draft):
+              - **G-1 — container artifacts: IMPLEMENTED.**
+                `commerce/Dockerfile` (multi-stage, digest-pinned
+                `node:20-alpine@sha256:fb4cd12c…`, `standalone` runner,
+                `USER node`, `node -e` probe) and
+                `commerce/.dockerignore` (env/build/test context
+                excluded, `.env.example` kept), both materialized from
+                the ratified `docs/deployment/control-plane-container-
+                spec.md` §3/§4 so the repository has ONE Next image
+                shape instead of two dialects. **The image itself was
+                NOT built** (this task made no external request), so the
+                claim is IMPLEMENTED, never VERIFIED.
+              - **G-2 — readiness endpoint: IMPLEMENTED + VERIFIED
+                live.** `GET /healthz` (`commerce/src/app/healthz/
+                route.ts`, a three-line shim) → `src/server/services/
+                health.ts` → `probeCanonicalDatabase()` in
+                `src/server/db-context.ts` (same cached pool, `SELECT 1`
+                with a 2 s budget). Fail-closed matrix: absent/blank
+                `DATABASE_URL` → `503 db_unconfigured` with no probe;
+                configured but failing/timing out → `503 db_unreachable`
+                with the driver message swallowed (it can carry a
+                connection string, D-114/D-124); only a resolving probe
+                yields `200 {"status":"ok"}`. Every answer carries
+                `cache-control: no-store`, and `force-dynamic` keeps a
+                build-time `503` from being baked into the image. Proven
+                against `next start` on loopback: **200** with the
+                harness, **503 db_unconfigured** without the variable,
+                **503 db_unreachable** against a closed port; 8 offline
+                unit tests (`health.test.ts`) pin the refusal matrix.
+                Deliberate divergence from spec §5's "dependency-free"
+                option, recorded here: this surface owns a DB
+                credential, so a dependency-free ping would report
+                healthy while serving nothing — the false pass D-171
+                §2.2 forbids.
+              - **G-3 — compose wiring: IMPLEMENTED for LOCAL
+                verification only.** `commerce/docker-compose.local.yml`
+                adds `commerce-web` (loopback `127.0.0.1:13000`→3000,
+                `read_only`, `tmpfs` for `/tmp` + `/app/.next/cache`,
+                `cap_drop: [ALL]`, `no-new-privileges`, 512 m / 1.0 cpu,
+                explicit healthcheck, `restart: "no"`). **Staging,
+                production and the Dokploy template still declare no
+                commerce service** — that stays owner-gated (the `B`
+                bullet below; C-1/C-2/C-8).
+              - **G-4 — payment variables: IMPLEMENTED at the local
+                boundary only.** The compose file maps
+                `COMMERCE_PAYMENT_WEBHOOK_SECRET`, `ZARINPAL_MERCHANT_ID`,
+                `ZARINPAL_CALLBACK_URL` and `ZARINPAL_SANDBOX` from the
+                host with empty defaults (`${VAR:-}`), so an unset
+                variable reaches the container as an EMPTY STRING and
+                the app refuses (webhook `503`, payments `UNAVAILABLE`,
+                order stays `PENDING`) rather than degrading. **SMS
+                variables are deliberately NOT mapped:** no module under
+                `commerce/src` reads `KAVENEGAR_*` or `SMS_LIVE_ENABLED`
+                (grep-verified), the channel lives behind the Python
+                notification seam, and a dead switch there would
+                misrepresent the wiring as real. The deployment
+                envelopes (`local/infra/.env.staging`, `compose.staging
+                .yml`, `compose.prod.yml`, Dokploy `REQUIRED_SECRETS`)
+                are unchanged and still carry none of these keys.
+              - **G-5 — Dokploy placeholder digests: UNCHANGED
+                (owner-gated).** `docker-compose.dokploy.yaml` still
+                carries the `@sha256:aaaa…`/`bbbb…` placeholders and is
+                still rendered by `stage_d_compose_generator.py`.
+                Registering a real image remains C-8.
+              - [ ] **B** Staging deployment readiness and the production cutover
+                    checklist
+                    *(state 2026-10-23: the checklist itself is drafted —
+                    env contract, the eight gaps above, 17 clauses tagged
+                    auto/owner/blocked — and deliberately lives OUTSIDE
+                    the working tree at
+                    `/tmp/aobe_phase6_step5_cutover_checklist.md`;
+                    promoting it into `docs/deployment/` is a tracked edit
+                    reserved for the owner. The bullet therefore stays
+                    open, and no clause marked owner/blocked was
+                    actioned.)*
     - [x] **Phase 2 audit-record gap — CLOSED 2026-10-13 by the Phase 4
           transition work (above):** the merchant-panel requirement that
           an irreversible action be auditable is now met — every order
