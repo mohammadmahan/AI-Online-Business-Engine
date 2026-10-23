@@ -164,6 +164,13 @@ export function CheckoutForm() {
       setResult(placed);
       if (placed.ok) {
         clear();
+        // §6.1 — a redirect-based provider: the adapter issued an authority and
+        // persisted it on the order, and the customer pays on ZarinPal's page.
+        // The order is still `PENDING` until the browser comes back and the
+        // callback verifies; nothing here can mark it paid.
+        if (placed.payment.redirectUrl) {
+          window.location.assign(placed.payment.redirectUrl);
+        }
       }
     } finally {
       setBusy(false);
@@ -367,6 +374,11 @@ export function CheckoutForm() {
               </Badge>
             </p>
             <p className="mt-2 text-cp-label text-ink-muted">{result.payment.message}</p>
+            {result.payment.redirectUrl ? (
+              <a className={`${buttonClass.primary} mt-3`} href={result.payment.redirectUrl}>
+                ادامهٔ پرداخت در درگاه
+              </a>
+            ) : null}
             <Table
               caption="جمع نهایی سفارش"
               head={

@@ -191,6 +191,106 @@ export function parsePaymentWebhookPayload(
 }
 
 /**
+ * The ORDER-SIDE half of a payment callback, shared by every entry point that
+ * may assert one.
+ *
+ * Two routes reach this today: the signed `POST /api/webhooks/payment` and a
+ * redirect-based provider's browser return (`payment-callback.ts`). They differ
+ * only in how the claim is AUTHENTICATED — an HMAC over the body versus a
+ * `verify` call to the provider — so neither may own a copy of the transition,
+ * the idempotency boundary or the reference write. This function is that single
+ * copy: one lifecycle, one audit row, one answer for a replay.
+ *
+ * It returns a RESULT, not a `Response`: each route maps it onto its own
+ * transport, and a refusal keeps the lifecycle service's own vocabulary
+ * (`NOT_FOUND` becomes `ORDER_NOT_FOUND`, because the caller is specific about
+ * WHAT was not found — that is what a provider operator reads).
+ */
+export interface PaymentCallbackVerdict {
+  orderId: string;
+  status: 'PAID' | 'CANCELLED';
+  /** The provider reference, or `null` when the callback carried none. */
+  reference: string | null;
+  /** Extra facts for the audit row (e.g. a provider event id). Never PII. */
+  metadata?: Record<string, unknown>;
+}
+
+export type PaymentCallbackResult =
+  | { ok: true; orderId: string; status: OrderStatus; duplicate: boolean }
+  | {
+      ok: false;
+      code:
+        | 'ORDER_NOT_FOUND'
+        | 'ILLEGAL_TRANSITION'
+        | 'ILLEGAL_STATE'
+        | 'VALIDATION_ERROR'
+        | 'UNEXPECTED';
+      message: string;
+    };
+
+export async function applyPaymentCallback(
+  repository: CommerceRepository,
+  verdict: PaymentCallbackVerdict,
+): Promise<PaymentCallbackResult> {
+  const { orderId, status, reference } = verdict;
+
+  try {
+    const order = await repository.getOrderDetail(orderId);
+    if (!order) {
+      return { ok: false, code: 'ORDER_NOT_FOUND', message: 'سفارشی با این شناسه ثبت نشده است.' };
+    }
+
+    // THE IDEMPOTENCY BOUNDARY. The order is already where this callback wants
+    // it, so the transition it asks for has already happened: answer success
+    // (a provider that sees an error will retry, and retrying forever is how a
+    // webhook endpoint becomes an outage) and write NOTHING — no second audit
+    // row, no second restock. The one exception is a reference the first attempt
+    // did not manage to store, and only into a NULL field.
+    if (order.status === status) {
+      if (status === 'PAID' && reference !== null && order.paymentRefId === null) {
+        await repository.setOrderPaymentRef(orderId, reference);
+      }
+      return { ok: true, orderId, status: order.status, duplicate: true };
+    }
+
+    const outcome = await transitionOrder(repository, orderId, status, {
+      source: 'PAYMENT_CALLBACK',
+      // The trail is the one place these ids live today: the reference is also
+      // recorded as an order attribute, but the audit row keeps it even if that
+      // write is lost, and the event id is only ever useful next to a timestamp.
+      metadata: { ...(verdict.metadata ?? {}), reference },
+    });
+
+    if (!outcome.ok) {
+      return {
+        ok: false,
+        code: outcome.code === 'NOT_FOUND' ? 'ORDER_NOT_FOUND' : outcome.code,
+        message: outcome.message,
+      };
+    }
+
+    // Recorded only for a move that actually happened: a refused callback writes
+    // nothing at all. The window between the two writes is covered by the audit
+    // metadata above, and a replay completes it.
+    if (status === 'PAID' && reference !== null) {
+      await repository.setOrderPaymentRef(orderId, reference);
+    }
+
+    return { ok: true, orderId, status, duplicate: false };
+  } catch (error) {
+    // Reported by NAME and CODE only: a driver message can echo a connection
+    // string (D-114/D-124).
+    const name = error instanceof Error ? error.name : 'UnknownError';
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code: unknown }).code)
+        : 'n/a';
+    console.error('[commerce] payment callback failed', { name, code });
+    return { ok: false, code: 'UNEXPECTED', message: 'پردازش بازگشت با خطای غیرمنتظره روبه‌رو شد.' };
+  }
+}
+
+/**
  * The pipeline. Returns a `Response` because that is what a route handler owes
  * the runtime; the route itself is a three-line shim, so this function IS the
  * endpoint as far as behaviour is concerned.
@@ -235,62 +335,22 @@ export async function handlePaymentWebhook(
     return refuse('DB_NOT_CONFIGURED', DB_NOT_CONFIGURED_MESSAGE);
   }
 
-  try {
-    const order = await repository.getOrderDetail(orderId);
-    if (!order) {
-      return refuse('ORDER_NOT_FOUND', 'سفارشی با این شناسه ثبت نشده است.');
-    }
+  const result = await applyPaymentCallback(repository, {
+    orderId,
+    status,
+    reference,
+    metadata:
+      parsed.payload.eventId === undefined ? undefined : { eventId: parsed.payload.eventId },
+  });
 
-    // THE IDEMPOTENCY BOUNDARY. The order is already where this callback wants
-    // it, so the transition it asks for has already happened: answer success
-    // (a provider that sees an error will retry, and retrying forever is how a
-    // webhook endpoint becomes an outage) and write NOTHING — no second audit
-    // row, no second restock. The one exception is a reference the first attempt
-    // did not manage to store, and only into a NULL field.
-    if (order.status === status) {
-      if (status === 'PAID' && reference !== null && order.paymentRefId === null) {
-        await repository.setOrderPaymentRef(orderId, reference);
-      }
-      return jsonResponse(200, { ok: true, orderId, status: order.status, duplicate: true });
-    }
-
-    const outcome = await transitionOrder(repository, orderId, status, {
-      source: 'PAYMENT_CALLBACK',
-      // The trail is the one place these ids live today: the reference is also
-      // recorded as an order attribute, but the audit row keeps it even if that
-      // write is lost, and the event id is only ever useful next to a timestamp.
-      metadata: {
-        ...(parsed.payload.eventId === undefined ? {} : { eventId: parsed.payload.eventId }),
-        reference,
-      },
-    });
-
-    if (!outcome.ok) {
-      // The service says `NOT_FOUND` because it also serves the panel; this
-      // endpoint is specific about WHAT was not found, which is what a provider
-      // operator reads when a callback is refused.
-      const code: PaymentWebhookRefusalCode =
-        outcome.code === 'NOT_FOUND' ? 'ORDER_NOT_FOUND' : outcome.code;
-      return refuse(code, outcome.message);
-    }
-
-    // Recorded only for a move that actually happened: a refused callback writes
-    // nothing at all. The window between the two writes is covered by the audit
-    // metadata above, and a replay completes it.
-    if (status === 'PAID' && reference !== null) {
-      await repository.setOrderPaymentRef(orderId, reference);
-    }
-
-    return jsonResponse(200, { ok: true, orderId, status, duplicate: false });
-  } catch (error) {
-    // Reported by NAME and CODE only: a driver message can echo a connection
-    // string (D-114/D-124).
-    const name = error instanceof Error ? error.name : 'UnknownError';
-    const code =
-      typeof error === 'object' && error !== null && 'code' in error
-        ? String((error as { code: unknown }).code)
-        : 'n/a';
-    console.error('[commerce] payment webhook failed', { name, code });
-    return refuse('UNEXPECTED', 'پردازش بازگشت با خطای غیرمنتظره روبه‌رو شد.');
+  if (!result.ok) {
+    return refuse(result.code, result.message);
   }
+
+  return jsonResponse(200, {
+    ok: true,
+    orderId: result.orderId,
+    status: result.status,
+    duplicate: result.duplicate,
+  });
 }

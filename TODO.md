@@ -2535,6 +2535,93 @@ repository hygiene, not deployment authorization.
       - [ ] **G2 — roadmap §6.1 payment (starts after row 10)**
             - [ ] **B** Iranian payment gateway adapter (ZarinPal / Shaparak
                   IPG) with callback verification and idempotent order updating
+                  — **IN PROGRESS (2026-10-23): the ADAPTER is built and its
+                  authority store is now DURABLE; the browser-return route and
+                  the env binding are what still stops this box closing.**
+                  (1) **The seam is unchanged.** `commerce/src/server/payments/
+                  zarinpal.ts` implements the existing `PaymentGateway`
+                  (`authorize()` = request step, `verifyCallback()` = verify
+                  step) behind the injected `ZarinPalTransport`; it adds no
+                  route and no second dispatch path, and every refusal is a
+                  static Persian message that never echoes a credential.
+                  (2) **The authority is stored, not remembered.** The previous
+                  in-process `authority → amount` LRU cache was removed. The
+                  pair now lives on the ORDER ROW (G-1): new columns
+                  `payment_provider` / `payment_authority` / `payment_amount`
+                  on `commerce.orders` (migration
+                  `commerce/drizzle/0003_sturdy_machine_man.sql`) with
+                  `orders_payment_authority_unique`,
+                  `orders_payment_authorization_complete` (all three or none)
+                  and `orders_payment_amount_positive`. New port
+                  `commerce/src/server/payments/authority-store.ts`
+                  (`PaymentAuthorizationStore`, production binding
+                  `createRepositoryPaymentAuthorizationStore(resolve)`), backed
+                  by two repository methods — `recordPaymentAuthorization`
+                  (PENDING-guarded update) and `findPaymentAuthorization`
+                  (field-narrowed read). The adapter is now stateless: a
+                  callback verifies in a process that never issued the request,
+                  which is the whole reason a cache was the wrong shape.
+                  (3) **Request ≠ paid, still.** `recordPaymentAuthorization`
+                  never touches `status` or `payment_ref_id`; an unknown or
+                  non-`PENDING` order answers `false`, and the adapter then
+                  REFUSES to redirect (no payment page for an order that cannot
+                  be paid). A save failure is `ZARINPAL_STORE_ERROR` →
+                  `UNAVAILABLE`; an authority already bound to a different
+                  order violates the unique index and throws rather than
+                  guessing which order the money belongs to. `paymentAmount` is
+                  the REQUESTED amount (kept apart from `total_amount`), stored
+                  in Toman and converted to Rial exactly once via
+                  `tomanToRial`.
+                  (4) **Verify reads the store.** A store read error is
+                  `UNAVAILABLE`; a missing/invalid record is `DECLINED`; a
+                  matching record is confirmed with the provider for its
+                  amount. A REPLAY re-asks the provider (code 101) instead of
+                  replaying a cached verdict, and idempotent order updating
+                  stays where it already was — the provider's 101 plus the
+                  `order_status_history` unique `(order_id, to_status)` guard on
+                  the webhook pipeline. There is no verdict cache to go stale.
+                  Evidence: `npm test` **221 tests / 54 suites, 0 fail**
+                  (including the new `src/server/repository-memory.test.ts`,
+                  6 tests, which drives the STORAGE contract through the real
+                  checkout path: persist-and-read-back with `status` /
+                  `payment_ref_id` untouched, wrong-provider miss, unknown
+                  order, post-`CANCELLED` refusal, retry supersede and the
+                  one-authority-two-orders refusal); `npm run typecheck` exit 0;
+                  `npm run lint`
+                  0 problems; `npm run db:check` "Everything's fine".
+                  **Wiring (same session, G2 remainder):** (a) and (b) are now
+                  CLOSED. `GET /api/payments/zarinpal/callback`
+                  (`src/app/api/payments/zarinpal/callback/route.ts`, a shim over
+                  `@/server/services/payment-callback`) reads `Authority` /
+                  `Status`, refuses `NOK` or a missing `Status` WITHOUT verifying
+                  or writing, resolves the order through the durable store (so an
+                  authority recorded for another provider is a miss, never a
+                  verify), asks `verifyCallback`, and applies the move through
+                  `applyPaymentCallback` — the pipeline extracted from
+                  `payment-webhook.ts`, so the signed webhook and the browser
+                  return share ONE transition/idempotency implementation. The
+                  checkout action binds the real adapter (`getPaymentGateway()` →
+                  `createZarinPalGatewayFromEnv` +
+                  `createRepositoryPaymentAuthorizationStore(getRepository)`),
+                  the form follows `redirectUrl`, and `payment_ref_id` is still
+                  written only by the verified `PAID` transition. Evidence:
+                  `src/server/services/payment-callback.test.ts` (9 cases — NOK
+                  and missing-`Status` never verify, `OK` transitions once, a
+                  refresh is a duplicate, unknown authority and provider mismatch
+                  are 404 without a verify, missing authority is 400, a declined
+                  verify stays `PENDING`, an unconfigured DB is 503); `npm test`
+                  **230 tests / 55 suites, 0 fail**; `typecheck` exit 0; `lint` 0
+                  problems; `db:check` "Everything's fine".
+                  **Still open, and why the box is NOT ticked:** (c) no
+                  credential exists (D-045) and no sandbox round-trip has been
+                  run — nothing was sent, and nothing was migrated against a live
+                  database.
+                  Ordering note: **G0** (owner review of the fashion Phase 5
+                  closure records) is still OUTSTANDING. The adapter work above
+                  was carried out on DIRECT owner instruction in-session and is
+                  build-only — nothing was provisioned, migrated against a live
+                  database, connected or credentialed, so no gate below G0 was
+                  silently crossed.
       - [ ] **G3 — roadmap §6.2 SMS (starts after row 74)**
             - [ ] **B** SMS provider adapter (Kavenegar / MelliSMS) for OTP
                   login, order confirmation and postal tracking notifications

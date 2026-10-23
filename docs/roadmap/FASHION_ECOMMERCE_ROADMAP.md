@@ -670,6 +670,74 @@ Objective: Financial settlement and deployment hardening.
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 
+#### §6.1 progress record (2026-10-23) — adapter + DURABLE authority store; the browser-return route is NOT built
+
+Direct owner instruction, in-session. Build-only: nothing was provisioned, no
+live database was migrated, nothing was connected, and no credential exists
+(D-045). **The §6.1 bullet is NOT complete** — see *Open* below.
+
+- **Provider (supersedes AC-8's "provider UNSELECTED" clause).** Register row 10
+  is RESOLVED: **ZarinPal is the primary provider**. AC-8's statement that the
+  provider is unselected is superseded for that clause only; its contract —
+  server-verified callback, canonical lifecycle, integer Toman, idempotent update
+  — is unchanged and is what the adapter implements.
+- **Seam reused, not duplicated.** `commerce/src/server/payments/zarinpal.ts`
+  implements the EXISTING `PaymentGateway` (`authorize()` = request step,
+  `verifyCallback()` = verify step) behind an injected `ZarinPalTransport`. No new
+  route, no second dispatch path, and the order write path is unchanged from the
+  mock it replaces.
+- **The authority lives on the order row (G-1).** A redirect provider issues an
+  `authority` at request time and requires the AMOUNT at verify time, but the
+  callback carries only the authority. The adapter previously remembered that
+  pair in an in-process LRU cache, which works only until the process restarts or
+  a second instance answers the callback — at which point a real payment exists
+  at the provider and this side has forgotten what it was for. The pair is now
+  persisted: `commerce.orders.payment_provider` / `payment_authority` /
+  `payment_amount` (migration `commerce/drizzle/0003_sturdy_machine_man.sql`,
+  Drizzle-owned per G-3), with `orders_payment_authority_unique`,
+  `orders_payment_authorization_complete` (all three or none) and
+  `orders_payment_amount_positive`. New port
+  `commerce/src/server/payments/authority-store.ts` with the production binding
+  `createRepositoryPaymentAuthorizationStore(resolve)`; the repository gained
+  `recordPaymentAuthorization` (PENDING-guarded update) and
+  `findPaymentAuthorization` (field-narrowed read). The adapter now imports no
+  database, so its tests need no connection.
+- **Request ≠ paid.** `recordPaymentAuthorization` never touches `status` or
+  `payment_ref_id`. An unknown or non-`PENDING` order answers `false` and the
+  adapter then refuses to redirect; a save failure is `ZARINPAL_STORE_ERROR` →
+  `UNAVAILABLE`; an authority already bound to another order violates the unique
+  index and throws rather than guessing which order the money belongs to.
+  `payment_amount` is the REQUESTED amount, deliberately separate from
+  `total_amount`, in integer Toman, converted to Rial exactly once (`tomanToRial`).
+- **Verify reads the store.** Read error → `UNAVAILABLE`; missing or invalid
+  record → `DECLINED`; a matching record is confirmed with the provider for that
+  amount. A replay re-asks the provider (code 101) instead of replaying a cached
+  verdict, so no verdict can outlive the payment; idempotent order updating stays
+  where it already was — provider 101 plus the `order_status_history` unique
+  `(order_id, to_status)` guard on the webhook pipeline.
+- **Verification (offline).** `npm test` → **221 tests / 54 suites, 0 fail**,
+  including the new `commerce/src/server/repository-memory.test.ts` (6 tests)
+  which drives the storage contract through the REAL checkout path — persist and
+  read back with `status` / `payment_ref_id` untouched, wrong-provider miss,
+  unknown order, post-`CANCELLED` refusal, retry supersede, one-authority-two-
+  orders refusal — and the rebuilt adapter suite (persistence across instances, a
+  verify from a gateway that never issued the request, save-failure refusal,
+  store-read-error vs unknown-authority, invalid amount, provider re-ask on
+  replay). `npm run typecheck` exit 0; `npm run lint` 0 problems;
+  `npm run db:check` → "Everything's fine". No live-database run: the new columns
+  are exercised by the migration only when an operator migrates (not done here).
+- **Open — why §6.1 is not closed.** (a) ZarinPal returns the CUSTOMER'S BROWSER
+  with a plain `GET ?Authority=…&Status=OK|NOK`, which carries no HMAC and so
+  cannot be received by the signed `POST /api/webhooks/payment`; the route behind
+  `ZARINPAL_CALLBACK_URL` must still be written, resolving the order through
+  `findPaymentAuthorization` and then driving the SAME transition service. (b)
+  `createZarinPalGatewayFromEnv` is bound in no route yet — the mock still
+  answers — so `ZARINPAL_MERCHANT_ID` / `ZARINPAL_CALLBACK_URL` /
+  `ZARINPAL_SANDBOX` are read by nothing in production. (c) No sandbox
+  round-trip has been run and no credential exists (D-045); activation remains
+  owner-gated (D-139), and **G0** (owner review of the fashion Phase 5 closure
+  records) is still outstanding.
+
 ### 6.2 SMS Notification System
 - SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.
 
