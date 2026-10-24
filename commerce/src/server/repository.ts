@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, lte, ne, or, sql } from 'drizzle-orm';
 
 import type {
   CartAvailabilityLine,
@@ -14,12 +14,20 @@ import type { CommerceDb } from '@/db';
 import { sortSizes } from '@/lib/catalog-filters';
 import { computeCheckoutTotals, evaluateCoupon } from '@/lib/checkout-rules';
 import { stockLevelFor } from '@/lib/inventory-rules';
+import {
+  MAX_SMS_ATTEMPTS,
+  NOTIFICATION_LEASE_MS,
+  orderReference,
+  type OrderNotificationChannel,
+  type OrderNotificationKind,
+} from '@/lib/notification-rules';
 import { shippingAmountFor } from '@/lib/shipping';
 import { normalizePhoneNumber, normalizePostalCode } from '@/lib/validation';
 import {
   categories,
   coupons,
   customers,
+  notificationOutbox,
   orderItems,
   orderStatusHistory,
   orders,
@@ -29,6 +37,7 @@ import {
 } from '@/db/schema';
 import type {
   DiscountType,
+  NotificationStatus,
   OrderStatus,
   OrderStatusSource,
   ProductStatus,
@@ -394,6 +403,48 @@ export interface RecordPaymentAuthorizationInput {
   amount: number;
 }
 
+/**
+ * §6.2 — what a transition asks to ANNOUNCE, recorded in the same transaction.
+ *
+ * The type is narrower than a message: it names a KIND and a CHANNEL, both from
+ * the closed sets in `@/lib/notification-rules`. Nothing here is a body, a
+ * recipient or a provider — those belong to the dispatcher, which is what keeps
+ * the payment path free of SMS concerns.
+ */
+export interface OrderNotificationIntent {
+  kind: OrderNotificationKind;
+  channel: OrderNotificationChannel;
+}
+
+/** §6.2 — one row of the outbox, as read back. */
+export interface OrderNotification {
+  id: string;
+  orderId: string;
+  kind: OrderNotificationKind;
+  channel: OrderNotificationChannel;
+  status: NotificationStatus;
+  attempts: number;
+  lastError: string | null;
+  providerMessageId: string | null;
+  payload: Record<string, unknown>;
+  nextAttemptAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  /** Set exactly when `status` is `SENT` (the schema's own check). */
+  sentAt: Date | null;
+}
+
+/** §6.2 — a claimed row handed to a dispatcher. The recipient is NOT here. */
+export interface NotificationWorkItem {
+  id: string;
+  orderId: string;
+  kind: OrderNotificationKind;
+  channel: OrderNotificationChannel;
+  /** Attempts INCLUDING the claim that produced this item. */
+  attempts: number;
+  payload: Record<string, unknown>;
+}
+
 export interface CommerceRepository {
   listCategories(): Promise<Array<{ id: string; name: string; slug: string }>>;
   createProductGraph(graph: NewProductGraph): Promise<{ productId: string; variantIds: string[] }>;
@@ -423,11 +474,18 @@ export interface CommerceRepository {
    * enforced by the service): this is the storage-level guard, and it is the
    * last line of defence for the restock and the trail rather than a second
    * authority on which edges are legal.
+   *
+   * `notifications` (§6.2) are enqueued IN THE SAME TRANSACTION, after the
+   * trail row: a paid order that committed without its announcement is a message
+   * no retry would ever send, so the queue entry is part of the same write. The
+   * unique `(order_id, kind, channel)` index makes a repeat a no-op — which is
+   * why a concurrent duplicate callback cannot produce a second SMS.
    */
   updateOrderStatus(
     orderId: string,
     status: OrderStatus,
     trigger: OrderTransitionTrigger,
+    notifications?: OrderNotificationIntent[],
   ): Promise<boolean>;
 
   /** The order's audit trail, oldest first. Empty when the order is unknown. */
@@ -525,6 +583,49 @@ export interface CommerceRepository {
     provider: string,
     authority: string,
   ): Promise<PaymentAuthorizationRecord | null>;
+
+  /*
+   * §6.2 — the notification queue.
+   *
+   * The queue is a STORAGE fact, which is why these four calls live on the
+   * repository and not in the dispatcher: claiming has to be atomic across
+   * processes (`FOR UPDATE SKIP LOCKED`), and only PostgreSQL can do that. The
+   * in-memory double models the same contract so the dispatcher is unit-testable,
+   * but the concurrency claim is proven against a real server (`smoke:db`).
+   */
+
+  /**
+   * Claims up to `limit` due notifications, oldest first, and marks them
+   * `SENDING` with `attempts` incremented — one transaction, so two dispatchers
+   * can never claim the same row (the loser skips it, it does not wait).
+   *
+   * A row is due when it is `PENDING` and `next_attempt_at <= now`, or when it is
+   * `SENDING` whose lease is older than `NOTIFICATION_LEASE_MS` (a claimant
+   * crashed). Rows that have spent their attempt budget are not claimable.
+   */
+  claimNotificationBatch(limit: number, now?: Date): Promise<NotificationWorkItem[]>;
+
+  /** Records the provider's acceptance. Returns `false` for an unknown id. */
+  markNotificationSent(
+    id: string,
+    providerMessageId: string | null,
+    now?: Date,
+  ): Promise<boolean>;
+
+  /**
+   * Records a refusal. `retryAt` non-null reschedules (`PENDING`); `null` is
+   * terminal (`FAILED`). `code` is a stable adapter code, never a provider
+   * message or a credential.
+   */
+  markNotificationFailed(
+    id: string,
+    code: string,
+    retryAt: Date | null,
+    now?: Date,
+  ): Promise<boolean>;
+
+  /** The order's queued notifications, oldest first (empty when unknown). */
+  listOrderNotifications(orderId: string): Promise<OrderNotification[]>;
 }
 
 /** Postgres implementation — the only file that speaks SQL/schema. */
@@ -815,7 +916,7 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
      * A variant referenced by an order line can never have been deleted
      * (`order_items.variant_id` is RESTRICT), so every line has a row to credit.
      */
-    async updateOrderStatus(orderId, status, trigger) {
+    async updateOrderStatus(orderId, status, trigger, notifications = []) {
       return db.transaction(async (tx) => {
         const [current] = await tx
           .select({ status: orders.status })
@@ -866,6 +967,29 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           source: trigger.source,
           metadata: trigger.metadata ?? null,
         });
+
+        // §6.2 — the announcement is part of the SAME commit. `DO NOTHING` is
+        // the idempotency boundary: a concurrent duplicate that somehow reaches
+        // this line (it cannot, the row lock serialises it) writes no second SMS.
+        if (notifications.length > 0) {
+          await tx
+            .insert(notificationOutbox)
+            .values(
+              notifications.map((intent) => ({
+                orderId,
+                kind: intent.kind,
+                channel: intent.channel,
+                payload: { orderRef: orderReference(orderId) },
+              })),
+            )
+            .onConflictDoNothing({
+              target: [
+                notificationOutbox.orderId,
+                notificationOutbox.kind,
+                notificationOutbox.channel,
+              ],
+            });
+        }
         return true;
       });
     },
@@ -1364,6 +1488,147 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         authority: row.authority,
         amount: row.amount,
       };
+    },
+
+    /**
+     * §6.2 — claim due notifications.
+     *
+     * Two statements in ONE transaction: select the candidate ids with
+     * `FOR UPDATE SKIP LOCKED` (so a concurrent dispatcher skips them instead of
+     * blocking behind them), then move exactly those rows to `SENDING` with the
+     * attempt counter bumped. Because the claim is the status change, a row can
+     * belong to exactly one claimant — that is what makes "one SMS" a property of
+     * the storage rather than of the caller's good manners.
+     *
+     * `attempts < MAX_SMS_ATTEMPTS` keeps a spent row out of every future batch:
+     * the budget, not a timer, is what finally stops a bad recipient.
+     */
+    async claimNotificationBatch(limit, now = new Date()) {
+      if (!Number.isInteger(limit) || limit <= 0) {
+        return [];
+      }
+      const leaseFloor = new Date(now.getTime() - NOTIFICATION_LEASE_MS);
+
+      return db.transaction(async (tx) => {
+        const due = await tx
+          .select({ id: notificationOutbox.id })
+          .from(notificationOutbox)
+          .where(
+            and(
+              lt(notificationOutbox.attempts, MAX_SMS_ATTEMPTS),
+              or(
+                and(
+                  eq(notificationOutbox.status, 'PENDING'),
+                  lte(notificationOutbox.nextAttemptAt, now),
+                ),
+                // A crashed claimant's lease. Without this a deploy at the wrong
+                // moment would strand `SENDING` rows forever.
+                and(
+                  eq(notificationOutbox.status, 'SENDING'),
+                  lt(notificationOutbox.updatedAt, leaseFloor),
+                ),
+              ),
+            ),
+          )
+          .orderBy(asc(notificationOutbox.createdAt))
+          .limit(limit)
+          .for('update', { skipLocked: true });
+
+        if (due.length === 0) {
+          return [];
+        }
+
+        const rows = await tx
+          .update(notificationOutbox)
+          .set({
+            status: 'SENDING',
+            attempts: sql`${notificationOutbox.attempts} + 1`,
+            updatedAt: now,
+          })
+          .where(
+            inArray(
+              notificationOutbox.id,
+              due.map((entry) => entry.id),
+            ),
+          )
+          .returning({
+            id: notificationOutbox.id,
+            orderId: notificationOutbox.orderId,
+            kind: notificationOutbox.kind,
+            channel: notificationOutbox.channel,
+            attempts: notificationOutbox.attempts,
+            payload: notificationOutbox.payload,
+          });
+
+        return rows.map((row) => ({
+          id: row.id,
+          orderId: row.orderId,
+          kind: row.kind as OrderNotificationKind,
+          channel: row.channel as OrderNotificationChannel,
+          attempts: row.attempts,
+          payload: row.payload,
+        }));
+      });
+    },
+
+    async markNotificationSent(id, providerMessageId, now = new Date()) {
+      const rows = await db
+        .update(notificationOutbox)
+        .set({
+          status: 'SENT',
+          providerMessageId,
+          lastError: null,
+          sentAt: now,
+          updatedAt: now,
+        })
+        .where(eq(notificationOutbox.id, id))
+        .returning({ id: notificationOutbox.id });
+      return rows.length === 1;
+    },
+
+    async markNotificationFailed(id, code, retryAt, now = new Date()) {
+      const rows = await db
+        .update(notificationOutbox)
+        .set({
+          status: retryAt === null ? 'FAILED' : 'PENDING',
+          lastError: code.slice(0, 64),
+          updatedAt: now,
+          // A terminal row keeps the instant it became due; only a rescheduled
+          // one moves its clock forward, so "when did this give up" stays readable.
+          ...(retryAt === null ? {} : { nextAttemptAt: retryAt }),
+        })
+        .where(eq(notificationOutbox.id, id))
+        .returning({ id: notificationOutbox.id });
+      return rows.length === 1;
+    },
+
+    async listOrderNotifications(orderId) {
+      const rows = await db
+        .select({
+          id: notificationOutbox.id,
+          orderId: notificationOutbox.orderId,
+          kind: notificationOutbox.kind,
+          channel: notificationOutbox.channel,
+          status: notificationOutbox.status,
+          attempts: notificationOutbox.attempts,
+          lastError: notificationOutbox.lastError,
+          providerMessageId: notificationOutbox.providerMessageId,
+          payload: notificationOutbox.payload,
+          nextAttemptAt: notificationOutbox.nextAttemptAt,
+          createdAt: notificationOutbox.createdAt,
+          updatedAt: notificationOutbox.updatedAt,
+          sentAt: notificationOutbox.sentAt,
+        })
+        .from(notificationOutbox)
+        .where(eq(notificationOutbox.orderId, orderId))
+        .orderBy(asc(notificationOutbox.createdAt));
+
+      return rows.map((row) => ({
+        ...row,
+        kind: row.kind as OrderNotificationKind,
+        channel: row.channel as OrderNotificationChannel,
+        status: row.status as NotificationStatus,
+      }));
     },
   };
 }

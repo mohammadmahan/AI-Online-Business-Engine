@@ -831,6 +831,67 @@ live database was migrated, nothing was connected, and no credential exists
   artifacts, verification commands, historical-evidence preservation, rollback
   and the exact authorization wording — is recorded in `TODO.md` G3.
 
+- **Build record (2026-10-24 — the §2.3 BUYER TRIGGER and its queue now exist
+  in the `commerce/` app; nothing was sent, no credential was requested).**
+  This supersedes item (c) of the “Open” bullet above **for the app path**: the
+  §2.3 buyer SMS trigger is built, and it is built as an OUTBOX rather than as a
+  call inside the payment path. (1) **Producer.** The transaction that moves an
+  order to `PAID` — shared by the signed webhook, the ZarinPal browser return and
+  the merchant panel — also writes one `commerce.notification_outbox` row
+  (migration `commerce/drizzle/0004_order_notification_outbox.sql`), so a
+  provider outage cannot fail a payment that has already been taken and a
+  payment write cannot be slowed down by an SMS. `CANCELLED` announces nothing.
+  (2) **Exactly-once is structural, not a flag.** The enqueue is an
+  `ON CONFLICT DO NOTHING` against a UNIQUE index on
+  `(order_id, kind, channel)`; the claim is a status change
+  (`PENDING → SENDING`) taken under `FOR UPDATE SKIP LOCKED`, so one dispatcher
+  owns a row; a `SENT` row is never claimable again. A crashed claimant leaves a
+  `SENDING` row whose lease expires and which is then retried —
+  at-least-once in that window, which is the correct trade for a notification.
+  (3) **The queue holds no PII.** No phone number, no body and no credential are
+  stored: the recipient is resolved from `commerce.customers` and the Persian
+  body is rendered at DISPATCH time, so a corrected number is not shadowed by a
+  stale queue entry and a body edit is a code change rather than a data
+  migration. (4) **The provider seam is unchanged.** `SmsChannel` is the port;
+  `MockSmsChannel` is the DEFAULT (records, sends nothing — the D-045 state) and
+  `KavenegarSmsChannel` is live only behind `SMS_LIVE_ENABLED=true` +
+  `KAVENEGAR_API_KEY` + `KAVENEGAR_SENDER` over an INJECTED transport (no test
+  opens a socket). The flag without credentials is a hard REFUSAL, never a
+  silent mock, and the refusal claims nothing. Retry classification mirrors the
+  canonical adapter (`classifyKavenegarStatus`), including a provider-supplied
+  `retryAfterSeconds`; the attempt budget is bounded (`MAX_SMS_ATTEMPTS`), after
+  which the row is `FAILED` and never claimed again.
+  (5) **The trigger is an operator endpoint, not a background loop**:
+  `POST /api/internal/notifications/dispatch` (bearer token
+  `NOTIFICATIONS_DISPATCH_TOKEN`, constant-time over digests, `no-store`,
+  report-only body — no recipient, no token). An unset token is `503` and
+  nothing is claimed (an absent configuration is a refusal, not an open door).
+  No scheduler is invented: a cron/operator invocation is the trigger, and
+  calling it never is safe because the rows simply wait.
+  (6) **The sealed contract registry was NOT touched.** This queue is the app's
+  own storage (G-1/G-2) with its own body table, so it delivers `order.confirmed`
+  wording without admitting `order.confirmed.v1` to
+  `notification_contracts.TEMPLATES`; the D-168 phase-18 chain digest is
+  byte-identical. Item (b) above therefore still governs the CANONICAL worker and
+  the OTP route, and (a) still governs the live round-trip.
+  (7) **Evidence.** `npm test` → **298 tests / 73 suites, 0 fail** (new suites:
+  notification rules, the dispatcher's delivery / retry / budget / skip
+  branches, the two enqueue cases, the channel construction gate, the dispatch
+  endpoint's authentication matrix and its route shim);
+  `commerce/src/__tests__/live-db/phase6-notifications-live.test.ts` → **13 new
+  real-PostgreSQL cases** (migration 0004 columns/enums/indexes/CHECKs/FK,
+  a duplicate enqueue refused `23505`, two CONCURRENT `PAID` writes leaving one
+  row and one trail entry, the queue row provably holding no phone and no body,
+  two racing claimants taking DISJOINT batches, a fresh lease respected and a
+  stale one reclaimed, a spent row never claimed, one message per order with no
+  second send, a transient refusal × 3 → `FAILED` with the provider code, and
+  the endpoint draining the real queue while a tokenless caller claims nothing);
+  `npm run smoke:db` → **68 tests / 0 fail** against the DISPOSABLE loopback
+  harness (schema reset + committed migrations 0000–0004); `npm run typecheck`
+  exit 0; `npm run lint` 0 problems; `npm run db:check` → “Everything's fine”.
+  Nothing was sent to Kavenegar, no credential exists (D-045) and no staging or
+  production database was touched.
+
 ### 6.3 Deployment & Staging Hardening
 - Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.
 

@@ -2,6 +2,11 @@ import type { CheckoutTotals, CouponRuleInput, StockLevel } from '@/contracts/st
 import type { CouponRow } from '@/contracts/promotions';
 import type { OrderStatus, OrderStatusSource, ProductStatus } from '@/db/schema';
 import { computeCheckoutTotals, evaluateCoupon } from '@/lib/checkout-rules';
+import {
+  MAX_SMS_ATTEMPTS,
+  NOTIFICATION_LEASE_MS,
+  orderReference,
+} from '@/lib/notification-rules';
 import { stockLevelFor } from '@/lib/inventory-rules';
 import { shippingAmountFor } from '@/lib/shipping';
 import { normalizePhoneNumber, normalizePostalCode } from '@/lib/validation';
@@ -17,6 +22,8 @@ import {
   type OrderDetail,
   type OrderItemView,
   type OrderListItem,
+  type OrderNotification,
+  type OrderNotificationIntent,
   type OrderStatusHistoryEntry,
   type PaymentAuthorizationRecord,
   type ProductListItem,
@@ -262,6 +269,51 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
   const paymentAuthorizationsTable = new Map<string, PaymentAuthorizationRecord>();
 
   /**
+   * §6.2 — the notification outbox.
+   *
+   * The double models the ONE rule the real table adds that a caller could
+   * otherwise get wrong: `(order_id, kind, channel)` is unique, so enqueuing the
+   * same announcement twice keeps one row. Ordering and timestamps are synthetic
+   * (a fixture's clock must not depend on how fast the test ran), and every
+   * enqueued row is due immediately so a dispatch test needs no sleeping.
+   */
+  const notificationOutboxTable: OrderNotification[] = [];
+  const NOTIFICATION_EPOCH = new Date('2026-05-01T00:00:00.000Z');
+  let notificationCursor = 0;
+
+  function enqueueOrderNotifications(
+    orderId: string,
+    intents: OrderNotificationIntent[],
+  ): void {
+    for (const intent of intents) {
+      const exists = notificationOutboxTable.some(
+        (row) =>
+          row.orderId === orderId && row.kind === intent.kind && row.channel === intent.channel,
+      );
+      if (exists) {
+        continue;
+      }
+      notificationCursor += 1;
+      const at = new Date(NOTIFICATION_EPOCH.getTime() + notificationCursor * 60_000);
+      notificationOutboxTable.push({
+        id: nextId('notify'),
+        orderId,
+        kind: intent.kind,
+        channel: intent.channel,
+        status: 'PENDING',
+        attempts: 0,
+        lastError: null,
+        providerMessageId: null,
+        payload: { orderRef: orderReference(orderId) },
+        nextAttemptAt: at,
+        createdAt: at,
+        updatedAt: at,
+        sentAt: null,
+      });
+    }
+  }
+
+  /**
    * Appends one audit row, stamped one minute after the last one written. The
    * clock is deliberately synthetic and monotonic: "oldest first" must be a
    * property of the fixture, not of how fast the machine ran the test.
@@ -401,7 +453,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       return ordersTable.find((order) => order.id === orderId) ?? null;
     },
 
-    async updateOrderStatus(orderId, status, trigger) {
+    async updateOrderStatus(orderId, status, trigger, notifications = []) {
       const order = ordersTable.find((entry) => entry.id === orderId);
       if (!order) {
         return false;
@@ -434,6 +486,9 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         source: trigger.source,
         metadata: trigger.metadata ?? null,
       });
+      // §6.2 — the announcement rides the same move, and the dedupe above is the
+      // double's stand-in for the real unique index.
+      enqueueOrderNotifications(orderId, notifications);
       return true;
     },
 
@@ -795,6 +850,73 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         }
       }
       return null;
+    },
+
+    async claimNotificationBatch(limit, now = new Date()) {
+      if (!Number.isInteger(limit) || limit <= 0) {
+        return [];
+      }
+      const leaseFloor = now.getTime() - NOTIFICATION_LEASE_MS;
+      const due = notificationOutboxTable
+        .filter(
+          (row) =>
+            row.attempts < MAX_SMS_ATTEMPTS &&
+            ((row.status === 'PENDING' && row.nextAttemptAt.getTime() <= now.getTime()) ||
+              (row.status === 'SENDING' && row.updatedAt.getTime() < leaseFloor)),
+        )
+        .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime())
+        .slice(0, limit);
+
+      // Synchronous claim: two concurrent dispatchers cannot interleave between
+      // the filter and the status write, which is the property the SQL path gets
+      // from `FOR UPDATE SKIP LOCKED`.
+      for (const row of due) {
+        row.status = 'SENDING';
+        row.attempts += 1;
+        row.updatedAt = now;
+      }
+
+      return due.map((row) => ({
+        id: row.id,
+        orderId: row.orderId,
+        kind: row.kind,
+        channel: row.channel,
+        attempts: row.attempts,
+        payload: row.payload,
+      }));
+    },
+
+    async markNotificationSent(id, providerMessageId, now = new Date()) {
+      const row = notificationOutboxTable.find((entry) => entry.id === id);
+      if (!row) {
+        return false;
+      }
+      row.status = 'SENT';
+      row.providerMessageId = providerMessageId;
+      row.lastError = null;
+      row.sentAt = now;
+      row.updatedAt = now;
+      return true;
+    },
+
+    async markNotificationFailed(id, code, retryAt, now = new Date()) {
+      const row = notificationOutboxTable.find((entry) => entry.id === id);
+      if (!row) {
+        return false;
+      }
+      row.status = retryAt === null ? 'FAILED' : 'PENDING';
+      row.lastError = code.slice(0, 64);
+      row.updatedAt = now;
+      if (retryAt !== null) {
+        row.nextAttemptAt = retryAt;
+      }
+      return true;
+    },
+
+    async listOrderNotifications(orderId) {
+      return notificationOutboxTable
+        .filter((row) => row.orderId === orderId)
+        .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
     },
   };
 }

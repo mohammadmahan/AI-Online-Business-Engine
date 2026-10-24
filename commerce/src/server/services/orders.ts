@@ -8,6 +8,7 @@ import { issuesToMessage, validateTrackingCode } from '@/lib/validation';
 import type {
   CommerceRepository,
   OrderDetail,
+  OrderNotificationIntent,
   OrderStatusHistoryEntry,
   OrderTransitionTrigger,
 } from '../repository';
@@ -60,12 +61,18 @@ export async function getOrder(
  * The refusal of a status the order is already in happens HERE (a clear Persian
  * message for the panel), while the repository's no-op branch covers a direct
  * caller and a retried callback.
+ *
+ * `notifications` (§6.2) are queued by the SAME write that moves the status. The
+ * default is empty, so the merchant panel's transitions announce nothing until a
+ * template for them exists: an order confirmation is the only §6.2 message with a
+ * trigger and a body today.
  */
 export async function transitionOrder(
   repo: CommerceRepository,
   orderId: string,
   next: OrderStatus,
   trigger: OrderTransitionTrigger,
+  notifications: OrderNotificationIntent[] = [],
 ): Promise<OrderMutationResult> {
   const order = await repo.getOrderDetail(orderId);
   if (!order) {
@@ -81,7 +88,7 @@ export async function transitionOrder(
       message: `تغییر وضعیت از «${order.status}» به «${next}» مجاز نیست.`,
     };
   }
-  const updated = await repo.updateOrderStatus(orderId, next, trigger);
+  const updated = await repo.updateOrderStatus(orderId, next, trigger, notifications);
   return updated
     ? { ok: true }
     : { ok: false, code: 'NOT_FOUND', message: 'سفارش پیدا نشد.' };

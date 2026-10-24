@@ -2717,6 +2717,67 @@ repository hygiene, not deployment authorization.
                   Ordering note: **G0** (owner review of the fashion Phase 5
                   closure records) remains OUTSTANDING; this work is
                   build-only and crossed no gate.
+            - [ ] **B** §2.3 buyer SMS trigger + order-confirmation outbox —
+                  **BUILT & VERIFIED (2026-10-24, `commerce/`); the box stays
+                  unticked for the credential reason above, not for missing
+                  code.** This closes item (c) of the adapter record **for the
+                  app path**: the `PAID` transition now emits the buyer SMS.
+                  (1) **Outbox, not an inline send.** The same transaction that
+                  moves an order to `PAID` (shared by the signed webhook, the
+                  ZarinPal browser return and the merchant panel) inserts one
+                  `commerce.notification_outbox` row — migration
+                  `commerce/drizzle/0004_order_notification_outbox.sql`
+                  (`notification_outbox`, enums `notification_channel` /
+                  `notification_status`, UNIQUE `(order_id, kind, channel)`,
+                  due-scan index, CHECKs for known kind / non-negative attempts /
+                  `SENT ⇔ sent_at` / object payload, cascading FK).
+                  `CANCELLED` announces nothing.
+                  (2) **Exactly-once is structural.** Enqueue is
+                  `ON CONFLICT DO NOTHING`; the claim is `PENDING → SENDING`
+                  under `FOR UPDATE SKIP LOCKED` with an attempt bump, so one
+                  dispatcher owns a row; a `SENT` row is never claimable; a
+                  crashed claimant's `SENDING` lease expires and the row is
+                  retried (at-least-once in that window, stated rather than
+                  hidden).
+                  (3) **No PII in the queue.** No phone, no body, no credential:
+                  the recipient is resolved from `commerce.customers` and the
+                  body is rendered at dispatch, so a corrected number is not
+                  shadowed and a body edit is a code change.
+                  (4) **Seam unchanged.** `SmsChannel` port with
+                  `MockSmsChannel` as DEFAULT (D-045: records, sends nothing) and
+                  `KavenegarSmsChannel` live only behind `SMS_LIVE_ENABLED=true`
+                  + key + sender over an INJECTED transport; the flag without
+                  credentials is a REFUSAL that claims nothing, never a silent
+                  mock. Retry classification mirrors `classifyKavenegarStatus`
+                  (including `retryAfterSeconds`), bounded by
+                  `MAX_SMS_ATTEMPTS`.
+                  (5) **Trigger.** `POST /api/internal/notifications/dispatch`
+                  (bearer `NOTIFICATIONS_DISPATCH_TOKEN`, constant-time over
+                  digests, `no-store`, report-only body). Unset token → 503 with
+                  nothing claimed. **No scheduler is invented** — a cron/operator
+                  call is the trigger, and not calling it is safe.
+                  (6) **The sealed registry was NOT touched:**
+                  `order.confirmed.v1` is still absent from
+                  `notification_contracts.TEMPLATES`, so the D-168 phase-18 chain
+                  digest is byte-identical; the app queue carries its own body
+                  table (G-1/G-2). The O package below is therefore still the
+                  gate for the canonical worker and OTP.
+                  (7) **Evidence.** `npm test` **298 tests / 73 suites, 0 fail**;
+                  `commerce/src/__tests__/live-db/phase6-notifications-live.test.ts`
+                  **13 real-PostgreSQL cases** against the disposable loopback
+                  harness (migration 0004 objects, `23505` on a duplicate
+                  enqueue, two CONCURRENT `PAID` writes → one row + one trail
+                  entry, no phone/body in the row, two racing claimants get
+                  DISJOINT batches, fresh lease respected / stale reclaimed,
+                  spent row never claimed, one message per order, transient × 3
+                  → `FAILED`, endpoint drains the queue while a tokenless caller
+                  claims nothing); `npm run smoke:db` **68 tests / 0 fail**
+                  (migrations 0000–0004); `typecheck` exit 0; `lint` 0 problems;
+                  `db:check` “Everything's fine”. Nothing was sent to Kavenegar.
+                  **Still open:** the live round-trip needs the owner credential
+                  (D-045); the storefront OTP step (§3.4) is unbuilt; and no
+                  scheduler exists, so delivery depends on an operator or cron
+                  calling the endpoint.
             - [ ] **O — registry admission of the three §6.2 buyer
                   templates (owner decision package, recorded 2026-10-23;
                   audit-only — nothing was admitted and no sealed value

@@ -44,7 +44,38 @@ export const orderStatusSource = commerce.enum('order_status_source', [
   'SYSTEM',
 ]);
 
+/**
+ * D-172 §6.2 — the delivery channel of a queued notification.
+ *
+ * A closed set of ONE today, on purpose: the owner selected Kavenegar as the
+ * SMS provider (decision-register row 74), and no other channel has a provider.
+ * Adding `EMAIL` later is a migration, not a free-text column that quietly
+ * accumulates values nothing can deliver.
+ */
+export const notificationChannel = commerce.enum('notification_channel', ['SMS']);
+
+/**
+ * D-172 §6.2 — a queued notification's delivery state.
+ *
+ *   - `PENDING`  — enqueued, due at `next_attempt_at` (the initial state);
+ *   - `SENDING`  — CLAIMED by a dispatcher, whose lease expires so a crashed
+ *                  claimant cannot strand the row forever;
+ *   - `SENT`     — the provider accepted it (`sent_at` is set);
+ *   - `FAILED`   — terminal: a permanent refusal, or the attempt budget spent.
+ *
+ * `SENT` and `ready_to_send` are deliberately different facts: a queue entry is
+ * not a delivery, and only the provider's own acceptance moves this row on.
+ */
+export const notificationStatus = commerce.enum('notification_status', [
+  'PENDING',
+  'SENDING',
+  'SENT',
+  'FAILED',
+]);
+
 export type ProductStatus = (typeof productStatus.enumValues)[number];
 export type OrderStatus = (typeof orderStatus.enumValues)[number];
 export type DiscountType = (typeof discountType.enumValues)[number];
 export type OrderStatusSource = (typeof orderStatusSource.enumValues)[number];
+export type NotificationChannel = (typeof notificationChannel.enumValues)[number];
+export type NotificationStatus = (typeof notificationStatus.enumValues)[number];

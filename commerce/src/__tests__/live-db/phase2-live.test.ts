@@ -45,7 +45,7 @@ import { createProduct } from '@/server/services/products';
  *
  * Re-runnability: `before()` resets the `commerce` namespace and re-applies the
  * committed migrations, so every run starts from the same empty schema and
- * re-proves that 0000–0003 apply cleanly. That is also why the fixtures below
+ * re-proves that 0000–0004 apply cleanly. That is also why the fixtures below
  * may use fixed slugs/SKUs — there is no state to collide with.
  *
  * Scope honesty: two fixtures have no Phase 2 admin write path and are inserted
@@ -177,7 +177,7 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     await pool.end();
   });
 
-  describe('migrations 0000 + 0001 + 0002 + 0003', () => {
+  describe('migrations 0000 + 0001 + 0002 + 0003 + 0004', () => {
     it('applies to PostgreSQL 16.x and records every migration in the Drizzle journal', async () => {
       const version = await pool.query<{ v: string }>('select version() as v');
       assert.match(version.rows[0]?.v ?? '', /PostgreSQL 16\./, 'expected a PostgreSQL 16 server');
@@ -192,6 +192,7 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
           'categories',
           'coupons',
           'customers',
+          'notification_outbox',
           'order_items',
           'order_status_history',
           'orders',
@@ -199,7 +200,7 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
           'product_variants',
           'products',
         ],
-        'the seven roadmap tables (0000), the §2.4 coupons table (0001) and the audit table (0002) must exist',
+        'the seven roadmap tables (0000), the §2.4 coupons table (0001), the audit table (0002) and the §6.2 notification outbox (0004) must exist',
       );
 
       // 0003 qualifies the payment columns: the adapter records WHAT it asked
@@ -226,13 +227,24 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
       );
       assert.deepEqual(
         enums.rows.map((row) => row.n),
-        ['discount_type', 'order_status', 'order_status_source', 'product_status'],
+        [
+          'discount_type',
+          'notification_channel',
+          'notification_status',
+          'order_status',
+          'order_status_source',
+          'product_status',
+        ],
       );
 
       const journal = await journalTable(pool);
       assert.notEqual(journal, null, 'the Drizzle migration journal must exist after migrate()');
       const applied = await pool.query<{ n: number }>(`select count(*)::int as n from ${journal}`);
-      assert.equal(applied.rows[0]?.n, 4, 'exactly migrations 0000, 0001, 0002 and 0003 must be recorded');
+      assert.equal(
+        applied.rows[0]?.n,
+        5,
+        'exactly migrations 0000, 0001, 0002, 0003 and 0004 must be recorded',
+      );
     });
 
     it('materialises the constraints the refusal cases rely on', async () => {

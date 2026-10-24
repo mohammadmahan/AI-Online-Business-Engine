@@ -1,4 +1,5 @@
 import type { OrderStatus } from '@/db/schema';
+import { ORDER_CONFIRMED_KIND, SMS_CHANNEL } from '@/lib/notification-rules';
 
 import { DB_NOT_CONFIGURED_MESSAGE, getRepository } from '../db-context';
 import {
@@ -6,7 +7,7 @@ import {
   verifyWebhookSignature,
   webhookSecret,
 } from '../payments/webhook-signature';
-import type { CommerceRepository } from '../repository';
+import type { CommerceRepository, OrderNotificationIntent } from '../repository';
 import { transitionOrder } from './orders';
 
 /**
@@ -215,6 +216,18 @@ export interface PaymentCallbackVerdict {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * §6.2 — what a `PAID` move announces: one SMS, queued by the transition itself.
+ *
+ * Declared ONCE, here, because this module is the single pipeline both callback
+ * transports share. A second call site would be a second chance to enqueue twice
+ * (or not at all), and the queue's unique index would hide the former rather than
+ * make it correct.
+ */
+const PAID_NOTIFICATIONS: OrderNotificationIntent[] = [
+  { kind: ORDER_CONFIRMED_KIND, channel: SMS_CHANNEL },
+];
+
 export type PaymentCallbackResult =
   | {
       ok: true;
@@ -266,13 +279,22 @@ export async function applyPaymentCallback(
       return { ok: true, orderId, status: order.status, duplicate: true };
     }
 
-    const outcome = await transitionOrder(repository, orderId, status, {
-      source: 'PAYMENT_CALLBACK',
-      // The trail is the one place these ids live today: the reference is also
-      // recorded as an order attribute, but the audit row keeps it even if that
-      // write is lost, and the event id is only ever useful next to a timestamp.
-      metadata: { ...(verdict.metadata ?? {}), reference },
-    });
+    const outcome = await transitionOrder(
+      repository,
+      orderId,
+      status,
+      {
+        source: 'PAYMENT_CALLBACK',
+        // The trail is the one place these ids live today: the reference is also
+        // recorded as an order attribute, but the audit row keeps it even if that
+        // write is lost, and the event id is only ever useful next to a timestamp.
+        metadata: { ...(verdict.metadata ?? {}), reference },
+      },
+      // §6.2 — the confirmation SMS is queued by the SAME transaction that marks
+      // the order paid, and ONLY for a payment. A cancellation announces nothing:
+      // its customer is told by the refusal page, not by an SMS.
+      status === 'PAID' ? PAID_NOTIFICATIONS : [],
+    );
 
     if (!outcome.ok) {
       // THE CONCURRENT-DUPLICATE WINDOW. The guard above compares against a read
