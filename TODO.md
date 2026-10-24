@@ -3328,6 +3328,11 @@ these even if they seem helpful:
       payload merge under `memory_context.winners_block`, zero-shot
       degradation on any store/budget failure.
       `test_notification_and_winner_context_e2e.py` 20/20 ×2.
+      **Authorization request recorded (2026-10-24):**
+      `docs/deployment/phase-7-memory-authorization-request.md` —
+      five-link owner chain (row 8 → D-058/G1 → D-141 C+ → dedicated
+      D-142 work authorization → D-045 connectivity); nothing
+      connected, nothing credentialled.
 - [ ] Work package — **Dokploy Deployment Integration** — **ACTIVE
       (2026-09-20; D-141 Approved — planning + Stages A–B only)**:
       optional, replaceable deployment-management layer for
