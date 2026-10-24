@@ -895,6 +895,81 @@ live database was migrated, nothing was connected, and no credential exists
 ### 6.3 Deployment & Staging Hardening
 - Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.
 
+#### §6.3 step 5 record (2026-10-24) — cutover checklist PROMOTED, readiness EXECUTED; build GO, activation NO-GO
+
+Direct owner instruction, in-session, Phase 6 Step 5. The checklist that was
+drafted on 2026-10-23 lived **outside** the working tree in `/tmp` and was lost
+when the host restarted; it is now a tracked artifact —
+**`docs/deployment/phase-6-cutover-checklist.md`** — reconstructed from
+repository evidence (every clause cites the artifact or command that proves it)
+rather than from memory. Promoting it was previously reserved for the owner; the
+Step-5 instruction supersedes that reservation and moves no gate.
+
+- **The artifact, not a promise.** The document carries the 11-item deliverable
+  inventory across §6.1–§6.3, the **9-variable environment contract** with the
+  unset/empty behaviour of each (order and payment variables refuse, SMS falls
+  back to the mock, the dispatch trigger answers 503), **33 cutover clauses**
+  tagged `[AUTO]` / `[BLOCKED]`, the ordered operator sequence, the post-cutover
+  checks and the evidence table.
+- **Verdict, two answers deliberately not merged.** **BUILD / ARTIFACT: GO** —
+  **24 `[AUTO]` clauses executed and passed, 0 failures** on this tree.
+  **PRODUCTION ACTIVATION: NO-GO** — **9 `[BLOCKED]`** clauses, and not one is a
+  code gap: each is an owner act (D-045 credentials, D-168 sealed-template
+  re-attestation, D-139 deployment authorization + C-1/C-2 manifest wiring,
+  G-5/C-8 digest pinning, a dispatch scheduler, MON-001 observability).
+- **Evidence (2026-10-24).** `npm run verify` → **298 tests / 74 suites, 0 fail**,
+  lint 0 problems, typecheck exit 0, `db:check` “Everything's fine”; `npm run
+  smoke:db` → **68 / 0** (schema reset + migrations 0000–0004);
+  `docker build -f commerce/Dockerfile -t commerce:local commerce` → rc=0
+  (`commerce:local`, 292 MB, `sha256:71cecbc07197…`); `docker compose … build` →
+  `aobe-commerce-local:verify`, `sha256:920a115e8acd…`; `compose up --wait` →
+  healthy under `read_only` / `cap_drop:[ALL]` / `no-new-privileges` /
+  tmpfs-only `/tmp` + `/app/.next/cache` / 512 MiB / 1.0 CPU / `USER node`.
+  The shipped artifact's route table contains **all four** Phase 6 surfaces
+  (`ƒ /healthz`, `ƒ /api/webhooks/payment`, `ƒ /api/payments/zarinpal/callback`,
+  `ƒ /api/internal/notifications/dispatch`).
+- **Readiness proven inside the image, not just on the host.** `GET /healthz` →
+  **200** `{"status":"ok"}` with `cache-control: no-store`; the SAME fail-closed
+  matrix holds in one-off containers from the same digest: no `DATABASE_URL` →
+  **503** `db_unconfigured`, closed port → **503** `db_unreachable`.
+- **The dispatch endpoint proven inside the image.** Unset
+  `NOTIFICATIONS_DISPATCH_TOKEN` → **503** `DISPATCH_NOT_CONFIGURED` (nothing
+  claimed); `GET` → **405**; no bearer → **401**; wrong bearer → **401**; correct
+  bearer → **200** with counts only. With `SMS_LIVE_ENABLED=true` and no key →
+  **503** `SMS_LIVE_MODE_MISSING_CREDENTIAL` while the queued row stayed
+  `PENDING` at attempts 0 (a refusal, never a silent mock). With the default mock
+  channel a real row drained exactly once — `{"claimed":1,"sent":1}`, row
+  `SENT` with a provider message id — and the second call reported
+  `{"claimed":0}`. Nothing was sent to Kavenegar.
+- **A real packaging defect found and recorded (clause P6-C4).** The first
+  `compose up` **reused an existing image tag** (`aobe-commerce-local:verify`,
+  built before §6.2 existed), so the dispatch route answered **404** in a stack
+  that otherwise looked healthy — a stale artifact passing a probe. After
+  `compose build` the same URL answered `503 DISPATCH_NOT_CONFIGURED`. Cutover
+  must therefore **build the image or pin a digest**, never trust a tag.
+- **One correction to the §6.3 G-4 gap, dated.** That entry says SMS variables
+  are “deliberately NOT mapped because no module under `commerce/src` reads them
+  (grep-verified)”. §6.2 step 4 made that statement false: `sms.ts` and
+  `dispatch-endpoint.ts` read `SMS_LIVE_ENABLED`, `KAVENEGAR_API_KEY`,
+  `KAVENEGAR_SENDER` and `NOTIFICATIONS_DISPATCH_TOKEN`. `commerce/
+  docker-compose.local.yml` now maps all four with `${VAR:-}` empty defaults
+  (`docker compose config` renders `""` for each) — empty means mock, sends
+  nothing, and the dispatch trigger refuses. The staging / production / Dokploy
+  envelopes still carry none of these keys: wiring them is the owner act B1/B3.
+- **Not done, deliberately.** Nothing was deployed, provisioned, migrated outside
+  the disposable loopback harness, pushed to any registry, or credentialed
+  (D-045/D-139); no sealed template was admitted (D-168); no scheduler was
+  invented (B5); no commerce service was added to a staging/production/Dokploy
+  manifest (C-1/C-2). Those are exactly the `[BLOCKED]` clauses.
+- **Phase 6 status.** §6.1, §6.2 and §6.3 are **built, packaged and verified**;
+  the phase is **not closed** because activation is owner-gated. The two
+  production blockers the owner asked to be named are **D-045** (ZarinPal
+  merchant id + callback URL, Kavenegar key + sender line, dispatch token,
+  webhook secret — none exists, none was requested) and **D-168** (owner
+  re-attestation before the three §6.2 templates may enter the sealed registry;
+  it governs the canonical worker and the unbuilt OTP step, **not** the app
+  path, which renders its own Persian bodies).
+
 ---
 
 ## API Contracts

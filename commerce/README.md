@@ -44,9 +44,15 @@ src/lib/         pure rules shared by both surfaces: validation, variant matrix,
 src/server/      db-context (fail-closed gate) · repository.ts (Postgres impl) ·
                  repository-memory.ts (test double) · services/ (read + write
                  paths) · actions/ (the 'use server' edge) · payments/ (the gateway
-                 iface + the webhook signature gate)
+                 iface, the ZarinPal adapter, the durable authority store and the
+                 webhook signature gate) · notifications/ (the order-confirmation
+                 outbox dispatcher, the SMS port with its mock/Kavenegar adapters
+                 and the operator trigger)
 src/app/         (storefront)/ — the customer surface · admin/ — the merchant panel
-                 api/webhooks/payment — the async callback endpoint (shim only)
+                 api/webhooks/payment — the signed async callback endpoint
+                 api/payments/zarinpal/callback — the browser return (shim only)
+                 api/internal/notifications/dispatch — the outbox trigger (shim)
+                 healthz — the fail-closed readiness probe (shim)
 src/components/  ui/ (primitives) · admin/ · storefront/
 drizzle/         generated migration SQL + journal (committed, never hand-edited)
 ```
@@ -116,7 +122,7 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run db:up` | starts the harness and waits for its healthcheck |
 | `npm run db:down` | stops it, keeping the volume |
 | `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
-| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000–0002 |
+| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000–0004 |
 | `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel, the audit trail + callback seam) |
 
 ```bash
@@ -248,3 +254,57 @@ gesture behaviour remain untested on a device; and stock is now reserved at
 checkout rather than at payment capture, which is the owner's ruling on the Phase
 3 live pass (a cancelled order restocks; coupon usage is not refunded). Nothing is
 deployed; no credential exists or is requested (D-045/D-139).
+
+Phase 6 **payment, notification and packaging** (§6.1–§6.3) — this supersedes the
+“Phases 5–6 not started” sentence of the Phase 4 record above, for §6.1–§6.3
+only; the Phase 4 AI engine and Phase 5 social automation remain separate tracks
+with their own records.
+
+- **§6.1 payment.** `src/server/payments/zarinpal.ts` implements the EXISTING
+  `PaymentGateway` (`authorize()` = request step, `verifyCallback()` = verify
+  step) over an injected transport; the `authority → amount` pair is persisted on
+  the order row (`payment_provider` / `payment_authority` / `payment_amount`,
+  migration `0003`) behind `authority-store.ts`, so a callback verifies in a
+  process that never issued the request. `GET /api/payments/zarinpal/callback`
+  asks the provider for the amount PERSISTED at request time (Toman → Rial once,
+  never the query string) and applies the move through the SAME
+  `applyPaymentCallback` pipeline the signed webhook uses — one write path, one
+  audit vocabulary, one idempotency boundary, and concurrent duplicates converge
+  to one `PAID` row.
+- **§6.2 notification.** The `PAID` transaction also enqueues one
+  `commerce.notification_outbox` row (migration `0004`; UNIQUE
+  `(order_id, kind, channel)`, `ON CONFLICT DO NOTHING`), so a provider outage
+  can never fail a payment. `src/server/notifications/` holds the dispatcher
+  (claim `PENDING → SENDING` under `FOR UPDATE SKIP LOCKED`, bounded retries,
+  stale-lease reclaim), the `SmsChannel` port with `MockSmsChannel` as the
+  DEFAULT and `KavenegarSmsChannel` live only behind credentials, and the
+  operator trigger `POST /api/internal/notifications/dispatch` (bearer token,
+  constant-time compare, `no-store`, counts only). The queue stores **no phone
+  number and no body** — both are resolved at dispatch. There is **no
+  scheduler**: a cron or operator call drains the queue, and not calling it is
+  safe.
+- **§6.3 packaging.** `Dockerfile` (digest-pinned `node:20-alpine`, `standalone`
+  runner, `USER node`, `node -e` probe), `.dockerignore`, and
+  `docker-compose.local.yml` (loopback `127.0.0.1:13000`, `read_only`,
+  `cap_drop: [ALL]`, `no-new-privileges`, tmpfs `/tmp` + `/app/.next/cache`,
+  512 MiB / 1.0 CPU, every env reference `${VAR:-}`). `GET /healthz` answers
+  **200** only when the canonical database resolves `SELECT 1`, and **503**
+  `db_unconfigured` / `db_unreachable` otherwise, with `no-store` on every
+  answer. Every unset variable refuses rather than degrading — see
+  `.env.example` for the names and the refusal each one produces.
+- **Evidence.** `npm run verify` → **298 tests / 74 suites, 0 fail** (lint 0,
+  typecheck exit 0, `db:check` clean); `npm run smoke:db` → **68 / 0** against the
+  disposable loopback harness with migrations 0000–0004; `docker build` → rc=0,
+  292 MB, every Phase 6 route in the shipped route table; the container runs
+  healthy under the hardened posture with `/healthz` 200, `db_unconfigured` 503
+  and `db_unreachable` 503 reproduced in-image; the dispatch endpoint answers
+  503/401/405 in-image and drains a real row exactly once (`claimed 1 / sent 1`,
+  then `claimed 0`); `SMS_LIVE_ENABLED=true` without a key is a hard
+  `SMS_LIVE_MODE_MISSING_CREDENTIAL` refusal that claims nothing.
+- **Not done, owner-gated.** No credential exists (D-045), so **no** payment or
+  SMS has ever reached a provider; nothing is deployed (D-139); the sealed
+  template registry is untouched (D-168), which governs the canonical worker and
+  the unbuilt OTP step, not this app's own bodies; the image is not pinned into
+  any deployment manifest (G-5/C-8). Cutover status, clause by clause:
+  [`docs/deployment/phase-6-cutover-checklist.md`](../docs/deployment/phase-6-cutover-checklist.md)
+  — **build/artifact GO, production activation NO-GO**.

@@ -2508,6 +2508,22 @@ repository hygiene, not deployment authorization.
           (decision-register row 74) were SELECTED 2026-10-23, so §6.1/§6.2
           are unblocked for build; only the shipping provider
           (decision 11) is still unselected and stays mock-only)
+          **Status 2026-10-24 (Step 5 readiness assessment — the phase box
+          stays UNTICKED, and for ONE reason only: activation is
+          owner-gated, not code):** every §6.1–§6.3 deliverable now exists,
+          is packaged in a pinned-digest image, and is verified by an
+          executed clause set — `docs/deployment/phase-6-cutover-checklist.md`
+          → **24 `[AUTO]` clauses passed, 9 `[BLOCKED]`**, verdict
+          **build/artifact GO · production activation NO-GO**. §6.1 (adapter
+          + durable authority + browser return + idempotent updating), §6.2
+          (outbox + dispatcher + Kavenegar adapter + operator endpoint) and
+          §6.3 (image + local posture + `/healthz`) are all built; what
+          remains is **B1** credentials (D-045), **B2** the sealed-template
+          re-attestation (D-168, canonical worker/OTP only), **B3**
+          deployment authorization and manifest wiring (D-139/C-1/C-2),
+          **B4** digest pinning (G-5/C-8), **B5** a dispatch scheduler, and
+          **B6** observability (MON-001). **G0** (owner review of the Phase 5
+          closure records) is still outstanding above all of it.
           **Next Launch Checklist — fashion Phase 6 only (recorded
           2026-10-23).** Ordered; a **B** item starts only after the **O**
           item it sits under. **O** marks what the docs call an owner act
@@ -3023,17 +3039,75 @@ repository hygiene, not deployment authorization.
                   digest placeholder was replaced. Containerization of the
                   D-171 control plane is a different surface (already
                   Route-A verified) and was not touched here.
-              - [ ] **B** Staging deployment readiness and the production cutover
-                    checklist
-                    *(state 2026-10-23: the checklist itself is drafted —
-                    env contract, the eight gaps above, 17 clauses tagged
-                    auto/owner/blocked — and deliberately lives OUTSIDE
-                    the working tree at
-                    `/tmp/aobe_phase6_step5_cutover_checklist.md`;
-                    promoting it into `docs/deployment/` is a tracked edit
-                    reserved for the owner. The bullet therefore stays
-                    open, and no clause marked owner/blocked was
-                    actioned.)*
+              - [x] **B** Staging deployment readiness and the production cutover
+                    checklist — **DONE 2026-10-24 (Phase 6 Step 5): the
+                    checklist is now a TRACKED artifact and the readiness
+                    assessment has been executed, not asserted.**
+                    `docs/deployment/phase-6-cutover-checklist.md` carries
+                    11 deliverables, the 9-variable env contract with each
+                    unset behaviour, **33 clauses** (24 `[AUTO]` executed
+                    and passed, 9 `[BLOCKED]` on owner acts), the verdict
+                    (**build/artifact GO · production activation NO-GO**),
+                    the ordered operator sequence, post-cutover checks and
+                    the evidence table. The earlier draft lived in `/tmp`
+                    and was LOST when the host restarted; it was
+                    reconstructed from repository evidence, and promoting
+                    it was done here on direct owner instruction (the
+                    previous record reserved that edit for the owner — the
+                    instruction supersedes it; no gate moved).
+                    Re-verification on this tree: `npm run verify` →
+                    **298 tests / 74 suites, 0 fail**, lint 0, typecheck
+                    exit 0, `db:check` “Everything's fine” (run with
+                    `COMMERCE_DATABASE_URL` UNSET: `npm test` also executes
+                    the compiled live suites when that variable is
+                    exported, so with it set and the harness down the gate
+                    fails loudly `ECONNREFUSED 127.0.0.1:55432` — correct
+                    fail-closed behaviour, recorded as an environment
+                    caveat in the checklist §6, not a defect); `npm run
+                    smoke:db` → **68 / 0**; `docker build` → **rc=0**,
+                    `commerce:local` 292 MB `sha256:71cecbc07197…`;
+                    `compose build` → `aobe-commerce-local:verify`
+                    `sha256:920a115e8acd…`; `compose up --wait` → healthy
+                    under `read_only`/`cap_drop:[ALL]`/`no-new-privileges`/
+                    tmpfs/512 MiB/1.0 CPU/`USER node`. **New evidence this
+                    step:** `/healthz` **200** on the host and the SAME
+                    fail-closed matrix **inside the image** (no
+                    `DATABASE_URL` → 503 `db_unconfigured`; closed port →
+                    503 `db_unreachable`); the dispatch endpoint **in the
+                    shipped artifact** answering 503 unset-token /
+                    401 no-bearer / 401 wrong-bearer / 405 on `GET`;
+                    `SMS_LIVE_ENABLED=true` without a key → 503
+                    `SMS_LIVE_MODE_MISSING_CREDENTIAL` with the queued row
+                    left `PENDING` at attempts 0; then a real drain
+                    `claimed 1 / sent 1` (row `SENT` with a provider id)
+                    and a second call `claimed 0`. **One real packaging
+                    defect found and recorded (P6-C4):** `compose up`
+                    silently reused a pre-§6.2 image tag, so the dispatch
+                    route answered **404** until `compose build` ran —
+                    cutover must build or pin a digest, never trust a tag.
+                    **Correction to the §6.3 G-4 gap above, dated:** that
+                    entry says SMS variables are “deliberately NOT mapped”
+                    because no module reads them; §6.2 step 4 made that
+                    false (`sms.ts`, `dispatch-endpoint.ts` read
+                    `SMS_LIVE_ENABLED`, `KAVENEGAR_API_KEY`,
+                    `KAVENEGAR_SENDER`, `NOTIFICATIONS_DISPATCH_TOKEN`), so
+                    `commerce/docker-compose.local.yml` now maps all four
+                    with `${VAR:-}` empty defaults — empty means mock
+                    (sends nothing), and the staging/production/Dokploy
+                    envelopes still carry none of them (owner act).
+                    **Nothing deployed, provisioned, migrated outside the
+                    disposable harness, pushed to a registry, or
+                    credentialed (D-045/D-139).** Remaining owner-gated
+                    production blockers, exactly as tabled in the
+                    checklist §4: **B1** D-045 credentials (ZarinPal
+                    merchant id + callback URL, Kavenegar key + sender,
+                    dispatch token, webhook secret) · **B2** D-168 sealed
+                    template re-attestation (canonical worker + OTP only —
+                    the app path renders its own bodies) · **B3** D-139
+                    deployment authorization + manifest/probe wiring
+                    (C-1/C-2) · **B4** G-5/C-8 digest pinning · **B5** a
+                    scheduler that calls the dispatch endpoint · **B6**
+                    MON-001 observability and a rollback drill.
     - [x] **Phase 2 audit-record gap — CLOSED 2026-10-13 by the Phase 4
           transition work (above):** the merchant-panel requirement that
           an irreversible action be auditable is now met — every order

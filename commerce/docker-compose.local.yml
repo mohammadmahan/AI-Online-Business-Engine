@@ -57,11 +57,26 @@ services:
       # without a merchant id anyway, so the default cannot enable a live charge.
       ZARINPAL_SANDBOX: ${ZARINPAL_SANDBOX:-true}
 
-      # SMS is deliberately NOT mapped. Not one line of `commerce/src` reads a
-      # `KAVENEGAR_*` or `SMS_LIVE_ENABLED` variable — the SMS channel lives
-      # behind the Python notification seam and is configured by the engine's
-      # own env contract (repo-root `.env.example`). Adding it here would be a
-      # dead switch that looks like wiring, which is worse than its absence.
+      # SMS / order-notification seam (§6.2) — mapped because `commerce/src`
+      # DOES read these now (`src/server/notifications/sms.ts`,
+      # `dispatch-endpoint.ts`); the earlier "not mapped, no module reads it"
+      # note described the tree before the app-side outbox existed and would be
+      # a false statement today.
+      #   SMS_LIVE_ENABLED               -> empty means MOCK: messages are
+      #                                     recorded and NOTHING is sent (D-045)
+      #   KAVENEGAR_API_KEY / _SENDER    -> empty + live enabled is a REFUSAL
+      #                                     (`SMS_LIVE_MODE_MISSING_CREDENTIAL`)
+      #                                     that claims no queue row, never a
+      #                                     silent fall back to the mock
+      #   NOTIFICATIONS_DISPATCH_TOKEN   -> empty makes
+      #                                     POST /api/internal/notifications/dispatch
+      #                                     answer 503 DISPATCH_NOT_CONFIGURED
+      # A real key is owner-supplied and belongs in the host environment (or a
+      # secret store), never in this file (D-045/D-124).
+      SMS_LIVE_ENABLED: ${SMS_LIVE_ENABLED:-}
+      KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
+      KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-}
+      NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
