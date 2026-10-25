@@ -123,12 +123,25 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run db:down` | stops it, keeping the volume |
 | `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
 | `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000–0004 |
+| `npm run db:seed` | loads `scripts/seed-catalog.sql` — the local demo catalog (3 categories, 3 products, 15 variants) |
 | `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel, the audit trail + callback seam) |
 
 ```bash
 export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55432/commerce_smoke
 npm run db:up && npm run db:migrate && npm run smoke:db
 ```
+
+`db:seed` is development convenience, not a migration and not test fixture data:
+`scripts/seed-catalog.sql` is **insert-only** — every statement skips a row that is
+already present (category slug / product slug / variant sku), so a second run
+inserts nothing and rewrites no price, stock, description or category. It also
+does not restore values a checkout or an edit has changed; `db:reset` + `db:seed`
+is the way back to the pristine demo catalog. `scripts/seed-catalog.mjs` validates
+that its target is loopback:55432 **before it connects** and runs the file in one
+transaction, so a shared database is out of reach and a failed seed changes
+nothing. It carries **no** `product_images` rows — media storage is still the open
+G-5 decision, so the catalog ships without dead URLs — and `smoke:db` never depends
+on it: the live suites drop and re-apply the schema themselves.
 
 The suites SKIP with a named reason when `COMMERCE_DATABASE_URL` is absent (they
 never guess a target: an absent configuration is a refusal, not a pass) and
