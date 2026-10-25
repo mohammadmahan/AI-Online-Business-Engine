@@ -154,6 +154,19 @@ Recorded boundary with the existing data layer (no overlap, one database):
 No item in this list may be resolved silently; each requires its own owner
 ruling, recorded as a dated amendment.
 
+**AMENDMENT 2026-10-25 — G-5 local-only media backend APPROVED (owner ruling;
+append-only, the OPEN wording above is preserved as history).** The owner
+approved the **existing local MinIO service** (`local/infra/docker-compose.yml`
+→ `media`, loopback `127.0.0.1:19000`) as the **local-only** media backend for
+Commerce development and testing, used through the **existing provider-neutral
+adapter boundary** (`commerce/src/server/media.ts`; D-056-compatible,
+D-129–D-132 swappability preserved). This is a local decision only: the
+**production media provider, production credentials and deployment remain OPEN
+and undecided**, and no cloud service, live credential, deployment or
+production change is authorized. It does **not** close G0, any phase, or any
+other gate, and it performs no implementation. Read precisely: the G-5 row
+above remains accurate for the production provider, which is still unselected.
+
 ## 5. Deliverables in this change
 
 | Artifact | Change |
