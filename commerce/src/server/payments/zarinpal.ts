@@ -473,10 +473,15 @@ export function createZarinPalGateway(options: ZarinPalGatewayOptions): PaymentG
 }
 
 /**
- * The adapter the application would wire once the owner exports the merchant id
- * and callback URL. Deliberately NOT exported as a ready-made singleton: this
- * module must stay importable without a configured environment, and the default
- * wiring in `checkout.ts` still points at the fail-closed mock.
+ * The adapter the application wires by default (`gateway-runtime.ts`), reading
+ * the merchant id and callback URL at call time. Deliberately NOT exported as a
+ * ready-made singleton: this module must stay importable without a configured
+ * environment, and the selector builds a fresh gateway per call so an unset
+ * variable cannot be frozen into a cached instance.
+ *
+ * `PAYMENT_MODE=mock` is the only way past this adapter, and it is a demo mode
+ * that never verifies with ZarinPal; it is refused outright in a production
+ * build (`NODE_ENV=production`).
  *
  * The store is passed through unchanged and is REQUIRED — see
  * `ZarinPalGatewayOptions.store`.

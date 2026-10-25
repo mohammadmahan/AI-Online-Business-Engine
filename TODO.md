@@ -2660,6 +2660,30 @@ repository hygiene, not deployment authorization.
                   build-only — nothing was provisioned, migrated against a live
                   database, connected or credentialed, so no gate below G0 was
                   silently crossed.
+                  **Local demo Mock Payment Sandbox (2026-10-24, append-only —
+                  implementation-level; no gate moved, this box stays
+                  UNTICKED).** `PAYMENT_MODE=mock` (exact, case-folded)
+                  selects the offline mock adapter: `authorize()` answers
+                  `AUTHORIZED` with a `MOCK-` reference and redirects to
+                  `/api/payments/mock/callback?reference=MOCK-<orderId>`. That
+                  route is 404 unless the same mode is on AND the build is not
+                  production (`NODE_ENV=production` refuses both the selection
+                  and the route — AC-8, D-139). Confirmation runs through the
+                  SAME `applyPaymentCallback` as the webhook and the ZarinPal
+                  return: `PENDING → PAID` once, a replay is `duplicate` with
+                  no second audit row, no stock movement (checkout already
+                  reserved it) and no second SMS job; the confirmation is only
+                  QUEUED in `commerce.notification_outbox`, where the default
+                  `MockSmsChannel` records it and sends nothing (D-045). A
+                  `MOCK-` reference cannot be honoured by the ZarinPal return
+                  (no durable `(zarinpal, authority)` record → 404 without a
+                  provider call), and the demo route refuses any reference
+                  without the prefix. Evidence: `npm test` 324/324 across 79
+                  suites, `typecheck` exit 0, `lint` 0 problems, `build` exit 0
+                  with the new dynamic route. **This is a local/demo sandbox,
+                  NOT a live ZarinPal integration**, and nothing above changes:
+                  (c) remains true — no credential exists and no sandbox
+                  round-trip has been run.
       - [ ] **G3 — roadmap §6.2 SMS (starts after row 74)**
             - [ ] **B** SMS provider adapter (Kavenegar / MelliSMS) for OTP
                   login, order confirmation and postal tracking notifications

@@ -1187,6 +1187,20 @@ Phase 4** (Fashion AI Engine).
 > integration, so fashion Phase 6 §6.1/§6.2 are unblocked for BUILD while
 > Phase 6 itself remains NOT started.
 >
+> **Local demo payment sandbox 2026-10-24 (append-only; adds no provider and
+> moves no gate).** The fashion track now has an OFFLINE demo payment path,
+> opt-in only: `PAYMENT_MODE=mock` (exact value) selects the mock adapter, which
+> answers `AUTHORIZED` with a `MOCK-` reference and redirects to
+> `/api/payments/mock/callback`. That route is `404` unless the same mode is on
+> and the build is not `NODE_ENV=production` (production refuses the selection
+> itself), and confirmation applies `PAID` through the SAME
+> `applyPaymentCallback` the signed webhook and the ZarinPal return use — one
+> transition service, one audit vocabulary, one idempotency boundary. A replay
+> writes nothing; the confirmation SMS is only queued in the §6.2 outbox and the
+> default `MockSmsChannel` sends nothing (D-045). No credential exists, nothing
+> was connected and no sandbox round-trip was run, so roadmap §6.1 remains OPEN
+> and production activation remains the sole owner-gated act (D-139).
+>
 
 ### Phase 0 --- Foundation
 

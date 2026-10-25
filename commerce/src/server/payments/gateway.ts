@@ -74,12 +74,26 @@ function authorized(orderId: string): PaymentAttempt {
   };
 }
 
+export interface MockPaymentGatewayOptions {
+  outcome?: MockPaymentOutcome;
+  /**
+   * DEMO ONLY: where an authorised mock attempt sends the browser, with
+   * `{reference}` substituted (URL-encoded). Unset by default — the generic mock
+   * knows no route. The runtime supplies the mock return path, and that route is
+   * itself gated on `PAYMENT_MODE=mock`, so a template alone opens nothing.
+   */
+  redirectUrlTemplate?: string;
+}
+
 /**
  * The mock adapter. `UNAVAILABLE` unless a caller deliberately asks for another
  * outcome — so the deployed storefront can only ever refuse to charge.
  */
-export function createMockPaymentGateway(options?: { outcome?: MockPaymentOutcome }): PaymentGateway {
+export function createMockPaymentGateway(
+  options?: MockPaymentGatewayOptions,
+): PaymentGateway {
   const outcome: MockPaymentOutcome = options?.outcome ?? 'UNAVAILABLE';
+  const redirectUrlTemplate = options?.redirectUrlTemplate;
 
   return {
     id: 'mock',
@@ -92,7 +106,17 @@ export function createMockPaymentGateway(options?: { outcome?: MockPaymentOutcom
         return declined('شناسهٔ سفارش نامعتبر');
       }
       if (outcome === 'AUTHORIZED') {
-        return authorized(request.orderId);
+        const attempt = authorized(request.orderId);
+        if (redirectUrlTemplate === undefined) {
+          return attempt;
+        }
+        return {
+          ...attempt,
+          redirectUrl: redirectUrlTemplate.replace(
+            '{reference}',
+            encodeURIComponent(attempt.reference ?? ''),
+          ),
+        };
       }
       if (outcome === 'DECLINED') {
         return declined('پاسخ آزمایشی درگاه');

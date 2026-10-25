@@ -773,6 +773,55 @@ live database was migrated, nothing was connected, and no credential exists
   `PENDING`; activation remains owner-gated (D-139). (b) **G0** (owner review of
   the fashion Phase 5 closure records) is still outstanding.
 
+#### §6.1 LOCAL DEMO record (2026-10-24) — offline Mock Payment Sandbox; the §6.1 bullet stays OPEN
+
+Direct owner instruction, in-session. **This is a LOCAL/DEMO Mock Payment
+Sandbox, not a live ZarinPal integration**, and it closes no gate: the §6.1
+bullet remains OPEN because no sandbox round-trip with a real merchant id has
+been run (D-045). Nothing was connected, credentialed, provisioned or sent.
+
+- **Opt-in only, fail-closed default.** `commerce/src/server/payments/gateway-runtime.ts`
+  selects the demo adapter only when `PAYMENT_MODE` is exactly `mock` (trimmed,
+  case-folded). Unset, `zarinpal` and every unrecognised value keep the ZarinPal
+  adapter, which still refuses `UNAVAILABLE` without credentials. A production
+  build (`NODE_ENV=production`) refuses the demo regardless of the variable,
+  because production in this track is live-money activation behind D-139
+  (AC-8; this roadmap's §6.3 verdict is NO-GO).
+- **Two steps, one write path.** Mock authorisation returns `AUTHORIZED` with a
+  `MOCK-` prefixed reference and ONLY records it; the order stays `PENDING`
+  (AC-8: a status is never faked). The returned redirect points at
+  `GET /api/payments/mock/callback?reference=MOCK-<orderId>`, which is inert
+  (404) unless the mode is `mock`, re-derives the order from the reference and
+  applies `PAID` through the SAME `applyPaymentCallback` the signed webhook and
+  the ZarinPal return use — no second transition service, no second audit
+  vocabulary, no second idempotency boundary.
+- **Idempotency and side effects.** A replay finds the order already `PAID`,
+  answers `duplicate: true` and writes nothing: no second
+  `order_status_history` row, no second stock movement (`PAID` moves no stock;
+  checkout reserved it), and no second notification job — the §6.2 outbox
+  enqueue is `ON CONFLICT DO NOTHING` and only runs inside the transition. An
+  invalid, missing, malformed or unknown reference returns before the order is
+  read and mutates nothing.
+- **Provider isolation both ways.** The ZarinPal return resolves a durable
+  `(zarinpal, authority)` record, which the demo adapter never writes, so a
+  `MOCK-` reference answers `404 UNKNOWN_AUTHORITY` without a provider call;
+  the demo route refuses anything without the `MOCK-` prefix.
+- **No external call, no live SMS, no credential.** The adapter is a local
+  stub; the confirmation SMS is queued in `commerce.notification_outbox` and
+  the default `MockSmsChannel` records it and sends nothing (D-045, §6.2).
+- **UI scope unchanged.** The return serves the same JSON contract as the
+  ZarinPal return; no styled success page was added — that belongs to the
+  storefront UI/UX phase.
+- **Evidence (2026-10-24).** `npm test` → **324 tests / 79 suites, 0 fail, 0
+  skipped** (focused 44 across `gateway-runtime.test.ts`,
+  `mock-payment-callback.test.ts` and the new provider-isolation case in
+  `payment-callback.test.ts`); `npm run typecheck` exit 0; `npm run lint` 0
+  problems; `npm run build` exit 0 with `ƒ /api/payments/mock/callback` in the
+  route table.
+- **Still open, unchanged:** the §6.1 bullet itself (a real sandbox round-trip
+  and merchant id, D-045), G0 owner review of the Phase 5 records, shipping
+  (row 11), the D-168 re-attestation, and production activation (D-139).
+
 ### 6.2 SMS Notification System
 - SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.
 - **Build record (2026-10-23 — adapter only; nothing sent, no credential).**

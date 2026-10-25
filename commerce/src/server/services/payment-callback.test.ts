@@ -303,6 +303,23 @@ describe('GET /api/payments/zarinpal/callback — the browser return', () => {
     assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
   });
 
+  it('a MOCK- reference is never honoured by the ZarinPal return', async () => {
+    // The demo adapter never records a durable (zarinpal, authority) pair, so a
+    // mock reference cannot be verified — or paid — through the provider path.
+    const h = await harness({ record: false });
+    const response = await handleZarinPalCallback(
+      h.callback({ Authority: 'MOCK-ORD-1', Status: 'OK' }),
+      { getRepository: () => h.repository, gateway: h.gateway },
+    );
+
+    assert.equal(response.status, 404);
+    const body = (await response.json()) as Record<string, unknown>;
+    assert.equal(body.code, 'UNKNOWN_AUTHORITY');
+    assert.equal(h.calls.length, 0, 'a mock reference must not reach the provider');
+    assert.deepEqual(await h.order(), { status: 'PENDING', paymentRefId: null });
+    assert.equal((await h.trail()).length, 1);
+  });
+
   it('a return without Authority is refused before anything is read or written', async () => {
     const h = await harness();
     const response = await handleZarinPalCallback(h.callback({ Status: 'OK' }), {
