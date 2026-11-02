@@ -72,8 +72,79 @@ export function ProductIngestionForm({
     setResult({ kind: 'idle' });
   }
 
+  /**
+   * Sends the compressed previews to the LOCAL upload edge, in the order the
+   * merchant arranged them. Returns the existing gallery plus the stored
+   * entries, or a message — it never invents a path for bytes that were not
+   * accepted. A failure stops the submission BEFORE any product row is written.
+   */
+  async function uploadPendingImages(): Promise<
+    { ok: true; images: ProductImagePayload[] } | { ok: false; message: string }
+  > {
+    const merged = [...images];
+    for (const preview of pending) {
+      let blob: Blob;
+      try {
+        blob = await (await fetch(preview.dataUrl)).blob();
+      } catch {
+        return { ok: false, message: `پیش‌نمایش «${preview.fileName}» خوانده نشد.` };
+      }
+
+      const body = new FormData();
+      body.set('file', new File([blob], preview.fileName, { type: blob.type || 'image/jpeg' }));
+
+      let response: Response;
+      try {
+        response = await fetch('/api/admin/media', { method: 'POST', body });
+      } catch {
+        return { ok: false, message: 'ارتباط با ذخیره‌سازی محلی رسانه برقرار نشد.' };
+      }
+
+      const data: unknown = await response.json().catch(() => null);
+      const record = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null;
+      const storagePath = record?.storagePath;
+      const publicUrl = record?.publicUrl;
+      if (
+        !response.ok ||
+        record?.ok !== true ||
+        typeof storagePath !== 'string' ||
+        typeof publicUrl !== 'string'
+      ) {
+        const message = typeof record?.message === 'string' ? record.message : null;
+        return {
+          ok: false,
+          message: message ?? `بارگذاری «${preview.fileName}» انجام نشد.`,
+        };
+      }
+
+      merged.push({
+        storagePath,
+        publicUrl,
+        displayOrder: merged.length,
+        isPrimary: merged.length === 0,
+      });
+    }
+    return { ok: true, images: merged };
+  }
+
   async function submit() {
     setResult({ kind: 'busy' });
+
+    // The local edge may be unconfigured even though the page rendered; in that
+    // case the server action must still see the pending bytes and refuse, rather
+    // than creating a product whose chosen images were silently dropped.
+    let finalImages = images;
+    let pendingUploads = pending.length;
+    if (pending.length > 0 && !mediaUploadBlocked) {
+      const uploaded = await uploadPendingImages();
+      if (!uploaded.ok) {
+        setResult({ kind: 'error', message: uploaded.message, field: 'images' });
+        return;
+      }
+      finalImages = uploaded.images;
+      pendingUploads = 0;
+    }
+
     const payload: ProductCreatePayload = {
       categoryId,
       title,
@@ -89,10 +160,10 @@ export function ProductIngestionForm({
       careInstructions: careInstructions === '' ? null : careInstructions,
       status,
       variants: rows,
-      images,
+      images: finalImages,
     };
 
-    const response = await createProductAction({ product: payload, pendingUploads: pending.length });
+    const response = await createProductAction({ product: payload, pendingUploads });
     if (response.ok) {
       setResult({
         kind: 'ok',

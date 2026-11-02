@@ -12,7 +12,9 @@ import { mediaUploadAllowed } from '@/server/media';
  * Two independent gates are resolved on the server and passed down as props, so
  * the form's UI and the server's refusal are decided by the same fact:
  *  - `categories` comes from the database (an empty list is stated, not faked);
- *  - `mediaUploadBlocked` reports the still-open G-5 media-storage decision.
+ *  - `mediaUploadBlocked` reports whether the LOCAL media backend and its
+ *    upload edge are both configured; the production provider (G-5) is still
+ *    an open decision.
  */
 
 export const metadata: Metadata = { title: 'افزودن محصول' };

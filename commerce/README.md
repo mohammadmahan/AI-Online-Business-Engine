@@ -69,6 +69,7 @@ npm run db:generate    # regenerate SQL from the schema    — offline
 npm run db:check       # journal/schema consistency        — offline
 npm run verify         # typecheck + lint + test + db:check — offline
 npm run build          # production build                  — offline
+npm run media:bucket   # LOCAL MinIO bucket + read policy  — loopback:19000 only
 npm run db:migrate     # APPLY migrations — needs DATABASE_URL, owner-gated
 npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 ```
@@ -139,9 +140,10 @@ does not restore values a checkout or an edit has changed; `db:reset` + `db:seed
 is the way back to the pristine demo catalog. `scripts/seed-catalog.mjs` validates
 that its target is loopback:55432 **before it connects** and runs the file in one
 transaction, so a shared database is out of reach and a failed seed changes
-nothing. It carries **no** `product_images` rows — media storage is still the open
-G-5 decision, so the catalog ships without dead URLs — and `smoke:db` never depends
-on it: the live suites drop and re-apply the schema themselves.
+nothing. It carries **no** `product_images` rows — the seed still ships without
+dead URLs, because the local media backend (below) is opt-in and the production
+G-5 provider remains open — and `smoke:db` never depends on it: the live suites
+drop and re-apply the schema themselves.
 
 The suites SKIP with a named reason when `COMMERCE_DATABASE_URL` is absent (they
 never guess a target: an absent configuration is a refusal, not a pass) and
@@ -153,6 +155,44 @@ truncate the first suite's fixtures mid-run.
 `db:reset` — the one destructive command — refuses anything that is not
 loopback:55432. The credentials in the compose file are the disposable
 container's own literals; no real credential exists in this repository.
+
+## Local media (G-5) — MinIO on loopback only
+
+The owner approved the EXISTING local MinIO service
+(`local/infra/docker-compose.yml`, `127.0.0.1:19000/19001`) as the
+**local-only** media backend behind the provider-neutral `MediaStoreAdapter`
+(D-172 §4.4 amendment 2026-10-25). The production provider, its credentials and
+the deployment remain **OPEN**: G-5 is not closed and nothing here is a
+cloud integration.
+
+```bash
+# start the local stack's MinIO, then create the bucket + anonymous read policy
+export MEDIA_S3_ENDPOINT=http://127.0.0.1:19000
+export MEDIA_S3_BUCKET=commerce-media
+export MEDIA_S3_ACCESS_KEY=<local-compose-access-key>
+export MEDIA_S3_SECRET_KEY=<local-compose-secret-key>
+export MEDIA_PUBLIC_BASE_URL=http://127.0.0.1:19000/commerce-media
+export MEDIA_LOCAL_UPLOAD_ENABLED=true
+npm run media:bucket
+```
+
+`src/server/media.ts` resolves the adapter only when every value is present and
+valid, the endpoint is loopback on port **19000**, the public base is that same
+origin plus the bucket, and `NODE_ENV` is not `production`. Anything else leaves
+the existing refusal in place. `POST /api/admin/media` accepts JPEG, PNG or
+WebP, decides the format by **magic bytes** (never the client name or
+declared type), caps the file at 5 MiB, and stores it content-addressed at
+`products/sha256/<first2>/<sha256>.<ext>`; identical bytes are a no-op. Errors
+are stable codes (`400`/`413`/`415`/`503`), never driver detail. The product form
+sends each pending preview through this route before it writes the product, so a
+failed upload stops the submission instead of creating a gallery with no bytes.
+
+**This route has no authentication.** The Commerce admin panel has no
+session/role guard yet, so `MEDIA_LOCAL_UPLOAD_ENABLED=true` is safe only in a
+development process bound to loopback. Do not expose it, and do not treat the
+flag as access control. A seller-auth decision is required before any
+non-loopback use. `scripts/media-bucket.mjs` enforces the same loopback:19000
+target and refuses anything else.
 
 ## Verification status
 
@@ -254,8 +294,9 @@ third row.
 
 **Not started:** the Phase 4 AI engine itself and Phases 5–6 (copywriting, social
 automation, payment/SMS/launch). Open items, unchanged and recorded: media
-storage (G-5) is still unselected so a submission with pending image bytes is
-refused with its reason; the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so
+storage (G-5) is still unselected for production, so unless the local MinIO
+backend is configured (see “Local media” above) a submission with pending image
+bytes is refused with its reason; the §2.3 buyer SMS stays a Phase 6 adapter (G-4), so
 checkout has **no OTP** — the phone number is validated and stored as the customer
 identity; payment is a fail-closed `MockPaymentGateway` that answers `UNAVAILABLE`
 and leaves the order `PENDING`, and there is no provider-specific webhook scheme

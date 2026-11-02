@@ -18,10 +18,12 @@ import { Banner, Badge, Field, buttonClass, inputClass } from '@/components/ui/p
  *     longest edge capped, aspect ratio preserved, JPEG re-encode — and shown as
  *     previews the merchant can order and pick a primary from. Nothing leaves
  *     the machine.
- *  2. **Storage** (blocked): the bytes cannot be written anywhere because
- *     **G-5 (media storage) is still OPEN**. The submit path therefore REFUSES
- *     while compressed files are pending, instead of inventing a provider or
- *     writing gallery rows that point at images which do not exist.
+ *  2. **Storage** (local, opt-in): when the server resolves the local MinIO
+ *     backend AND its upload edge is enabled, the pending previews are POSTed
+ *     to `/api/admin/media` before the product is written. Otherwise the submit
+ *     path REFUSES while compressed files are pending, instead of writing
+ *     gallery rows that point at images which do not exist. The production
+ *     provider is still undecided (G-5 remains open beyond local development).
  *
  * A merchant who already hosts images elsewhere can attach them by path + URL;
  * that path persists today and goes through the normal §1.4 contract.
@@ -128,10 +130,11 @@ export function ImageUploader({
   return (
     <div className="flex flex-col gap-3">
       {uploadBlocked ? (
-        <Banner tone="warning" title="بارگذاری فایل تصویر فعلاً غیرفعال است (تصمیم باز G-5)">
-          ذخیره‌سازی رسانهٔ فروشگاه هنوز توسط مالک تعیین نشده است. تصویرها فقط در همین مرورگر
-          فشرده و پیش‌نمایش می‌شوند؛ تا آن زمان محصول بدون تصویر ثبت می‌شود یا می‌توانید تصویرِ
-          میزبانی‌شدهٔ خودتان را با «نشانی بیرونی» پیوست کنید.
+        <Banner tone="warning" title="بارگذاری فایل تصویر در این نصب فعال نیست">
+          ذخیره‌سازی محلی MinIO پیکربندی نشده است (یا این یک بیلد تولیدی است). تصویرها فقط در همین
+          مرورگر فشرده و پیش‌نمایش می‌شوند؛ محصول بدون تصویر ثبت می‌شود یا می‌توانید تصویرِ
+          میزبانی‌شدهٔ خودتان را با «نشانی بیرونی» پیوست کنید. انتخاب رسانهٔ تولیدی همچنان باز است
+          (G-5).
         </Banner>
       ) : null}
 
