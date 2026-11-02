@@ -167,6 +167,31 @@ production change is authorized. It does **not** close G0, any phase, or any
 other gate, and it performs no implementation. Read precisely: the G-5 row
 above remains accurate for the production provider, which is still unselected.
 
+**AMENDMENT 2026-11-02 — G-5 local-only media backend IMPLEMENTED & VERIFIED on
+loopback (append-only; the 2026-10-25 ruling above is unchanged, and the
+production provider remains OPEN).** Commit `a2ce4c3` implements the approved
+local backend strictly behind the existing `MediaStoreAdapter`:
+`commerce/src/server/media.ts` resolves an S3/MinIO adapter only for a complete
+loopback (`127.0.0.1:19000`) configuration and refuses in production;
+`media/formats.ts` decides JPEG/PNG/WebP from **magic bytes** and caps at 5 MiB;
+`media/s3.ts` stores content-addressed keys
+`products/sha256/<first2>/<sha256>.<ext>`; `POST /api/admin/media` is the HTTP
+edge; and `commerce/scripts/media-bucket.mjs` creates the bucket and its
+anonymous read-only policy. **Live loopback verification (2026-11-02, no cloud
+credentials, all endpoints bound to `127.0.0.1`):** a real 1×1 PNG uploaded
+(`200`), was retrievable from MinIO with byte-identical SHA-256, and a repeat was
+`duplicate: true`; a text payload named `.jpg` → `415`, 5 MiB + 1 byte → `413`, a
+non-multipart body → `400`, an empty file → `400`, and `GET` → `405`; with
+`MEDIA_LOCAL_UPLOAD_ENABLED` off the route answered `404`, and a production
+server answered `404` even with the flag on. **Not verified live:** JPEG and
+WebP uploads (hermetic only), the browser uploader → product-creation flow, and
+`npm run smoke:db`. **Security boundary:** the route has **no request-level
+authentication** (the Commerce admin panel has no session/role guard); it is
+enabled only by an explicit flag and must not be exposed beyond a
+loopback-bound local process. **Nothing is closed by this amendment:** G0,
+fashion Phase 6, and the production media provider remain exactly as recorded;
+no credential, deployment or production change exists.
+
 ## 5. Deliverables in this change
 
 | Artifact | Change |

@@ -1738,9 +1738,10 @@ repository hygiene, not deployment authorization.
       pre-start rulings DONE; Phases 1–3 COMPLETE & VERIFIED; Phase 4
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
       **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
-      keyboard closed 2026-10-22)**; Phase 6 NOT STARTED — payment (10)
-      and SMS (register row 74) SELECTED 2026-10-23, leaving only the
-      shipping provider (11) selection**:
+      keyboard closed 2026-10-22)**; fashion Phase 6 **BUILD COMPLETE &
+      VERIFIED (2026-10-24) while production activation stays owner-gated
+      (G0)** — payment (10) and SMS (register row 74) SELECTED 2026-10-23,
+      leaving only the shipping provider (11) selection**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
       stack; every prompt on this track must cite its Phase and
@@ -1822,6 +1823,19 @@ repository hygiene, not deployment authorization.
           writing gallery rows pointing at images that do not exist;
           the §2.3 buyer SMS stays a Phase 6 adapter (G-4) and the panel
           says so after saving a tracking code.
+          **G-5 local-media status amendment (2026-11-02, append-only — the
+          “still unselected” wording above describes the 2026-10-10 state).**
+          The owner approved the **local-only** MinIO backend on 2026-10-25
+          (D-172 §4.4 amendment) and it is now IMPLEMENTED & VERIFIED on
+          loopback in commit `a2ce4c3` — resolver, JPEG/PNG/WebP magic-byte
+          gate, 5 MiB cap, content-addressed keys, `POST /api/admin/media`,
+          and the bucket bootstrap. A real PNG upload/retrieval and both
+          fail-closed guards (flag off; production build) were exercised on
+          loopback; live JPEG/WebP uploads, the browser → product-creation
+          flow and `smoke:db` remain **unverified**. The route has **no
+          request-level authentication** and must stay on a loopback-bound
+          process. The **production media provider is still unselected**;
+          G-5 is not closed.
           §2.4 storage: the `coupons` table + `discount_type`
           enum are owned by Drizzle (`db/schema/promotions.ts`) with
           committed migration `commerce/drizzle/

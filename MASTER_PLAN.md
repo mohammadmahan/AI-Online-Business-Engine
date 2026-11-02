@@ -1201,6 +1201,17 @@ Phase 4** (Fashion AI Engine).
 > was connected and no sandbox round-trip was run, so roadmap §6.1 remains OPEN
 > and production activation remains the sole owner-gated act (D-139).
 >
+> **Status amendment 2026-11-02 (append-only; the “Phase 6 NOT started”
+> sentences above were true when recorded).** The fashion Phase 6 §6.1–§6.3
+> **build artifacts are COMPLETE and verified** —
+> `docs/deployment/phase-6-cutover-checklist.md` records 24 `[AUTO]` clauses
+> passed and 9 `[BLOCKED]`, verdict **build/artifact GO · production activation
+> NO-GO** — while **production activation remains NOT authorized** (G0 owner
+> sign-off and D-139 unchanged). Separately, the **local-only** G-5 MinIO media
+> backend is IMPLEMENTED and live-tested on loopback (commit `a2ce4c3`; D-172
+> amendment 2026-11-02); the **production media provider is still unselected**.
+> G0 is not closed and no phase is complete.
+>
 
 ### Phase 0 --- Foundation
 
@@ -1431,6 +1442,16 @@ engineering: selection of the payment provider (decision-register row 10), the
 shipping provider (row 11) and the SMS provider (row 74), plus owner review of
 the fashion Phase 5 completion records. Read “CLOSED” in the headline above as
 the ENGINE track only — it does not mean this project is finished or idle.
+
+**Status amendment 2026-11-02 (append-only — the paragraph above was recorded
+2026-10-23).** Fashion Phase 6 §6.1–§6.3 **build artifacts are now COMPLETE
+and verified** (24 `[AUTO]` clauses passed, 9 `[BLOCKED]`; **build/artifact GO ·
+production activation NO-GO**), so “NOT started” above describes the pre-build
+state only. What remains is **activation, not code**: G0 owner sign-off of the
+Phase 5 records, the shipping provider (row 11), and the B1–B6 owner acts.
+Separately, the **local-only G-5 media backend** is implemented and live-tested
+on loopback (commit `a2ce4c3`); the **production media provider remains OPEN**.
+G0 blocks the Phase 6 checklist regardless of build status.
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1731,12 +1752,18 @@ and Live Wiring programs; per-phase detail in §13 and the
     selections, together with owner review of the Phase 5 completion
     records; G-4, G-5 and G-6 remain open; nothing deployed or provisioned
     (D-139).
+    **Status amendment 2026-11-02:** the “Phase 6 is NOT started” sentence
+    above was true when written; the §6.1–§6.3 build artifacts are now complete
+    and verified (build GO / activation NO-GO), and the local-only G-5 media
+    backend is implemented and loopback-tested (`a2ce4c3`). Production
+    activation, G0 and the production media provider remain open.
     **Provider status update (2026-10-23):** two of the three selections named
     here are CLOSED — payment = **ZarinPal** (register row 10) and SMS =
     **Kavenegar** (row 74), both behind their existing seams (adapter pattern,
     provider swappable, no new dispatch path). Only shipping (row 11) remains
     unselected and mock-only; fashion Phase 6 §6.1/§6.2 are unblocked for
-    build while Phase 6 itself remains not started.
+    build while Phase 6 itself remains not started (superseded 2026-11-02 —
+    see the status amendment above).
 -   Graph remediation track (Phases 1--5, **CLOSED 2026-10-14**): the
     graph-tooling audit returned **zero real defects**. Phase 1 (baseline
     drift): HEAD `913531a` byte-identical to the audit anchor, zero tracked

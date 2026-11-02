@@ -187,12 +187,22 @@ are stable codes (`400`/`413`/`415`/`503`), never driver detail. The product for
 sends each pending preview through this route before it writes the product, so a
 failed upload stops the submission instead of creating a gallery with no bytes.
 
-**This route has no authentication.** The Commerce admin panel has no
-session/role guard yet, so `MEDIA_LOCAL_UPLOAD_ENABLED=true` is safe only in a
-development process bound to loopback. Do not expose it, and do not treat the
-flag as access control. A seller-auth decision is required before any
-non-loopback use. `scripts/media-bucket.mjs` enforces the same loopback:19000
-target and refuses anything else.
+**This route has no request-level authentication.** The Commerce admin panel
+has no session/role guard yet, so `MEDIA_LOCAL_UPLOAD_ENABLED=true` is safe only
+in a development process **bound to loopback** (`next dev --hostname
+127.0.0.1`). The flag is not access control and the handler does not check the
+request origin; do not expose the route, and a seller-auth decision is required
+before any non-loopback use. `scripts/media-bucket.mjs` enforces the same
+loopback:19000 target and refuses anything else.
+
+**Verification (2026-11-02, loopback only).** A real 1×1 PNG was uploaded
+through `POST /api/admin/media` (200), retrieved from MinIO with byte-identical
+SHA-256, and re-uploaded as `duplicate: true`; a text payload named `.jpg` →
+415, 5 MiB + 1 byte → 413, a non-multipart body → 400, an empty file → 400, and
+`GET` → 405. With `MEDIA_LOCAL_UPLOAD_ENABLED` unset the route answered 404, and
+a production server answered 404 even with the flag on. **Not verified live:**
+JPEG/WebP uploads (hermetic only), the browser uploader → product-creation
+flow, and `npm run smoke:db`.
 
 ## Verification status
 
