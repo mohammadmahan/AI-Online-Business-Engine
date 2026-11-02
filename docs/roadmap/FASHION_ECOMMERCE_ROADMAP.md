@@ -667,6 +667,18 @@ record. Full record in `D-172` §5.9 and §6.
 ## Phase 6: Payment, Notification & Production Launch
 Objective: Financial settlement and deployment hardening.
 
+#### G0 status (recorded 2026-11-02) — OPEN; awaits the owner's explicit informed acceptance
+
+**G0 is OPEN.** The Phase 5 §5.1/§5.2 completion records and the Phase 5 closure
+record still require **Mohammad's explicit informed review and acceptance**,
+and **no owner acceptance date exists**. Until that acceptance is recorded,
+**B1–B6 and production activation remain blocked** (D-139). The §6.1–§6.3 build
+artifacts remain complete and verified as recorded (build/artifact GO ·
+production activation NO-GO). This status selects **no** shipping provider
+(row 11), closes **no** production media provider (G-5), and authorizes **no**
+production activation. See the D-172 amendment 2026-11-02 and `DECISIONS.md`
+register row 73.
+
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 
@@ -1098,7 +1110,7 @@ never as rewrites of the decisions they touch (§2.1).
 | G-2 | Database: is **Supabase** the hosting of the one canonical PostgreSQL database, or a second database? | **D-055** (canonical PostgreSQL = SSOT) | **RESOLVED 2026-10-10 (owner ruling):** the **single canonical instance**; Supabase is a hosting choice for it, not a second database. D-053 local-first promotion and parity still bind; the track's tables live in their own `commerce` namespace (D-172 §4.2) |
 | G-3 | Data layer: **Drizzle/Prisma** vs the existing canonical data layer — who owns schema definitions and migrations? | D-055, D-053 (local → staging → production) | **RESOLVED 2026-10-10 (owner ruling):** **Drizzle ORM** owns this track's schema and migrations (`schemaFilter: ['commerce']`); the engine schemas stay owned by `local/db/schema.sql` (D-055). One database, no overlapping ownership, one migration path (D-172 §4.3) |
 | G-4 | Provider selections (all still open): payment (decision 10), shipping (decision 11), SMS provider (new), AI provider (decision 9) | open decisions 9/10/11, D-045 | **OPEN** — owner act; Phase 6.1/6.2 name candidate providers only and no live credential exists or is requested |
-| G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | **OPEN, not blocking** — the Phase 1 contract stays provider-agnostic (paths and URLs only, no storage SDK bound), keeping the swappability of D-129–D-132 intact until the owner selects a provider |
+| G-5 | Media storage for the storefront's `storage_path` / `public_url` | D-049/D-056 (media direction + local emulator), Phase 24 `MediaStoreContract` | **OPEN, not blocking** — the Phase 1 contract stays provider-agnostic (paths and URLs only, no storage SDK bound), keeping the swappability of D-129–D-132 intact until the owner selects a provider. The **local-only** MinIO backend for Commerce development is implemented and loopback-verified (`a2ce4c3`) and its **local** flag is CLOSED; the **production** provider remains unselected and OPEN |
 | G-6 | Channel publishing: reuse the canonical Instagram/Telegram publishers | D-069–D-072, D-073–D-076, D-077–D-080 | **OPEN as a build-time constraint** — the roadmap adds copy generation and scheduling; publishing must stay on the existing seams so there is exactly one dispatch path per channel |
 
 **Footnote (recorded 2026-10-23), additive — the table cells above are not

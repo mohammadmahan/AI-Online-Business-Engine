@@ -1739,8 +1739,10 @@ repository hygiene, not deployment authorization.
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
       **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
       keyboard closed 2026-10-22)**; fashion Phase 6 **BUILD COMPLETE &
-      VERIFIED (2026-10-24) while production activation stays owner-gated
-      (G0)** — payment (10) and SMS (register row 74) SELECTED 2026-10-23,
+      VERIFIED (2026-10-24); **G0 OPEN — Mohammad's explicit informed review
+      and acceptance of the Phase 5 closure records is still required, and no
+      acceptance date exists**, while production activation stays owner-gated
+      (D-139)** — payment (10) and SMS (register row 74) SELECTED 2026-10-23,
       leaving only the shipping provider (11) selection**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
@@ -1834,8 +1836,9 @@ repository hygiene, not deployment authorization.
           loopback; live JPEG/WebP uploads, the browser → product-creation
           flow and `smoke:db` remain **unverified**. The route has **no
           request-level authentication** and must stay on a loopback-bound
-          process. The **production media provider is still unselected**;
-          G-5 is not closed.
+          process. The **production media provider is still unselected**: the
+          **local** G-5 flag is closed as of 2026-11-02, while production G-5
+          remains open.
           §2.4 storage: the `coupons` table + `discount_type`
           enum are owned by Drizzle (`db/schema/promotions.ts`) with
           committed migration `commerce/drizzle/
@@ -2537,7 +2540,10 @@ repository hygiene, not deployment authorization.
           deployment authorization and manifest wiring (D-139/C-1/C-2),
           **B4** digest pinning (G-5/C-8), **B5** a dispatch scheduler, and
           **B6** observability (MON-001). **G0** (owner review of the Phase 5
-          closure records) is still outstanding above all of it.
+          closure records) is **OPEN and blocks every B1–B6 item below**:
+          the records (D-172 §5.9 and §6, the roadmap's §5.1/§5.2 records plus
+          the Phase 5 closure record) still require Mohammad's explicit
+          informed review and acceptance, and no owner acceptance date exists.
           **Next Launch Checklist — fashion Phase 6 only (recorded
           2026-10-23).** Ordered; a **B** item starts only after the **O**
           item it sits under. **O** marks what the docs call an owner act
@@ -2550,9 +2556,14 @@ repository hygiene, not deployment authorization.
           of this list, and the AI provider (row 9), media storage (G-5) and
           G-6 are not Phase 6 gates and are deliberately absent.
       - [ ] **G0 — owner sign-off of Phase 5 (blocks everything below)**
-            - [ ] **O** Owner review/acceptance of the fashion Phase 5
-                  completion and closure records (D-172 §5.9 and §6; roadmap
-                  §5.1/§5.2 records plus the closure record)
+            - [ ] **O** Owner explicit informed review/acceptance of the
+                  fashion Phase 5 completion and closure records (D-172 §5.9
+                  and §6; roadmap §5.1/§5.2 records plus the Phase 5 closure
+                  record) — **NOT ACCEPTED; no acceptance date exists.** The
+                  records still await Mohammad's explicit informed review.
+                  This gate stays OPEN and blocks B1–B6; production activation
+                  remains unauthorized (D-139) and shipping (row 11) remains
+                  OPEN.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

@@ -192,6 +192,25 @@ loopback-bound local process. **Nothing is closed by this amendment:** G0,
 fashion Phase 6, and the production media provider remain exactly as recorded;
 no credential, deployment or production change exists.
 
+**AMENDMENT 2026-11-02 — local-only G-5 media verified on loopback, local flag
+CLOSED; G0 remains OPEN (append-only; the 2026-10-25 local ruling and the
+implementation record above are unchanged).** Commit `a2ce4c3` is verified on
+loopback as recorded above, so the **local-only** G-5 media flag is **CLOSED**
+for Commerce development and testing. This is a local technical verification,
+**not** a production provider selection: the **production media provider
+remains OPEN and unselected**, and no production credential, deployment or
+production change exists. Unverified and stated as such: **live JPEG and WebP
+uploads** (hermetic only), the **browser uploader → product-creation flow**, and
+`npm run smoke:db`. The upload route has **no request-level authentication**
+(the Commerce admin panel has no session/role guard), so it must remain inside
+the approved local boundary — a flag-gated, loopback-bound local process only.
+**G0 is OPEN and unchanged:** the fashion Phase 5 completion and closure records
+(§5.9 and §6 of this record, the roadmap's §5.1/§5.2 records plus the Phase 5
+closure record, and the evidence they cite) still require **Mohammad's explicit
+informed review and acceptance**, and **no owner acceptance date exists**. B1–B6
+and production activation remain blocked (D-139), **shipping (row 11)** and the
+**AI provider (row 9)** remain OPEN, and no phase is complete.
+
 ## 5. Deliverables in this change
 
 | Artifact | Change |

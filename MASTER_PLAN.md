@@ -1210,7 +1210,11 @@ Phase 4** (Fashion AI Engine).
 > sign-off and D-139 unchanged). Separately, the **local-only** G-5 MinIO media
 > backend is IMPLEMENTED and live-tested on loopback (commit `a2ce4c3`; D-172
 > amendment 2026-11-02); the **production media provider is still unselected**.
-> G0 is not closed and no phase is complete.
+> **G0 remains OPEN:** Mohammad's explicit informed review and acceptance of
+> the fashion Phase 5 completion and closure records is still required, and no
+> owner acceptance date exists — the §5.1/§5.2 records and the Phase 5 closure
+> record await that review. No phase is complete, and production activation is
+> still NOT authorized (D-139).
 >
 
 ### Phase 0 --- Foundation
@@ -1447,11 +1451,12 @@ the ENGINE track only — it does not mean this project is finished or idle.
 2026-10-23).** Fashion Phase 6 §6.1–§6.3 **build artifacts are now COMPLETE
 and verified** (24 `[AUTO]` clauses passed, 9 `[BLOCKED]`; **build/artifact GO ·
 production activation NO-GO**), so “NOT started” above describes the pre-build
-state only. What remains is **activation, not code**: G0 owner sign-off of the
-Phase 5 records, the shipping provider (row 11), and the B1–B6 owner acts.
-Separately, the **local-only G-5 media backend** is implemented and live-tested
-on loopback (commit `a2ce4c3`); the **production media provider remains OPEN**.
-G0 blocks the Phase 6 checklist regardless of build status.
+state only. **G0 remains OPEN:** the owner's explicit informed review and
+acceptance of the Phase 5 closure records is still required before any B1–B6
+item can start, and no acceptance date exists. Separately, the **local-only G-5
+media backend** is implemented and live-tested on loopback (commit `a2ce4c3`)
+and its **local flag is closed**; the **production media provider remains
+OPEN**. Production activation is still NOT authorized (D-139).
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1755,8 +1760,10 @@ and Live Wiring programs; per-phase detail in §13 and the
     **Status amendment 2026-11-02:** the “Phase 6 is NOT started” sentence
     above was true when written; the §6.1–§6.3 build artifacts are now complete
     and verified (build GO / activation NO-GO), and the local-only G-5 media
-    backend is implemented and loopback-tested (`a2ce4c3`). Production
-    activation, G0 and the production media provider remain open.
+    backend is implemented and loopback-tested (`a2ce4c3`) and its local flag is
+    closed. Production activation and the production media provider remain
+    open; **G0 remains OPEN** (the Phase 5 closure records still await
+    Mohammad's explicit informed acceptance, and no acceptance date exists).
     **Provider status update (2026-10-23):** two of the three selections named
     here are CLOSED — payment = **ZarinPal** (register row 10) and SMS =
     **Kavenegar** (row 74), both behind their existing seams (adapter pattern,
