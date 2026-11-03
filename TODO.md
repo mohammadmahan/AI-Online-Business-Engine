@@ -2564,6 +2564,19 @@ repository hygiene, not deployment authorization.
                   This gate stays OPEN and blocks B1–B6; production activation
                   remains unauthorized (D-139) and shipping (row 11) remains
                   OPEN.
+            - [x] **Documentation review for offline mode — recorded
+                  2026-11-03. This is NOT acceptance and does not close G0.**
+                  The §6.2 offline evidence (71/71 live-db smoke, 350/350
+                  offline unit, focused 15/15) and the outbox clock-skew repair
+                  (commit `5753bfa`) were reviewed and recorded, alongside the
+                  Phase 5 acceptance package (D-172 §5.9 and §6; roadmap
+                  §5.1/§5.2 records plus the Phase 5 closure record). G0
+                  remains **OPEN**: Mohammad's explicit informed acceptance is
+                  still unrecorded, no acceptance date exists, B1–B6 stay
+                  blocked, and production activation remains unauthorized
+                  (D-139). Shipping (row 11), production media (G-5) and the AI
+                  provider (row 9) remain unselected; nothing was deployed,
+                  credentialed or sent.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable
@@ -2843,6 +2856,27 @@ repository hygiene, not deployment authorization.
                   (D-045); the storefront OTP step (§3.4) is unbuilt; and no
                   scheduler exists, so delivery depends on an operator or cron
                   calling the endpoint.
+                  (8) **Clock-skew repair (2026-11-03, append-only — commit
+                  `5753bfa`).** The claim compared `next_attempt_at` (stamped by
+                  the database `now()` at enqueue) against the application
+                  host's clock alone, so a host running a few milliseconds
+                  behind the server saw freshly queued rows as future-dated. The
+                  claim now evaluates due-ness against the later of the two
+                  clocks (`greatest(now(), $now)`) and stamps `updated_at` with
+                  that SAME reference instant — the half that keeps a lagging
+                  claimant's fresh lease from reading as expired, which was a
+                  duplicate-send window. `now()` is kept (transaction-start) so
+                  the pending predicate, the lease floor and the written lease
+                  read one identical value; no grace period, no schema or
+                  migration change, no weakened assertion, and injected clocks
+                  still advance time. Evidence: focused live file **15 tests, 15
+                  pass, 0 fail, 0 skip**; `npm run smoke:db` **71 tests, 71 pass,
+                  0 fail, 0 skip**; `npm test` **350 tests, 350 pass, 0 fail, 0
+                  skip**; `typecheck` / `lint` / `db:check` exit 0. The
+                  lagging-claimant case fails on `HEAD` and the lease case fails
+                  on the intermediate fix, so both are demonstrated regressions.
+                  Nothing was sent, no credential exists (D-045), and no staging
+                  or production database was touched.
             - [ ] **O — registry admission of the three §6.2 buyer
                   templates (owner decision package, recorded 2026-10-23;
                   audit-only — nothing was admitted and no sealed value

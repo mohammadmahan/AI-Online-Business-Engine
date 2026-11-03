@@ -679,6 +679,19 @@ production activation NO-GO). This status selects **no** shipping provider
 production activation. See the D-172 amendment 2026-11-02 and `DECISIONS.md`
 register row 73.
 
+#### G0 documentation review for offline mode (recorded 2026-11-03) — evidence reviewed and recorded; the gate is NOT accepted and stays OPEN
+
+The §6.2 offline evidence (71/71 live-db smoke, 350/350 offline unit, focused
+15/15) and the §6.2 clock-skew repair record below were reviewed and recorded
+for **offline scope only**, alongside the Phase 5 §5.1/§5.2 completion records
+and the Phase 5 closure record that form the acceptance package. **This is a
+documentation review, not acceptance.** G0 remains **OPEN**; no owner
+acceptance date exists, **B1–B6 and production activation stay blocked**
+(D-139), and the shipping provider (row 11), production media provider (G-5)
+and AI provider (row 9) remain unselected. Nothing was deployed, credentialed
+or activated. Mohammad's explicit informed acceptance is still the only act
+that closes G0.
+
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 
@@ -952,6 +965,40 @@ been run (D-045). Nothing was connected, credentialed, provisioned or sent.
   exit 0; `npm run lint` 0 problems; `npm run db:check` → “Everything's fine”.
   Nothing was sent to Kavenegar, no credential exists (D-045) and no staging or
   production database was touched.
+
+- **Clock-skew repair (2026-11-03, append-only — commit `5753bfa`).** The claim
+  compared `next_attempt_at` (stamped by the database `now()` at enqueue)
+  against the application host's clock alone, so a host running a few
+  milliseconds behind the server saw freshly queued rows as future-dated and
+  left them unclaimed until its own clock caught up. `claimNotificationBatch`
+  now evaluates due-ness against the later of the two clocks
+  (`greatest(now(), $now)`) and stamps the row `updated_at` with that SAME
+  reference instant instead of the caller's clock. The lease write is the half
+  that protects exactly-once: a claimant whose clock lagged the server
+  previously wrote a lease the shared reference judged already expired, which
+  let a second dispatcher take the row and send a second SMS. `now()` is kept
+  deliberately (transaction-start), so the pending predicate, the lease floor
+  and the written lease read one identical value; `clock_timestamp()` and
+  `statement_timestamp()` were rejected because they re-evaluate per call and
+  per statement respectively. No grace period was added, no assertion
+  weakened, no schema or migration changed, and the injected-time contract is
+  unchanged — an injected future clock still advances time, and only skew
+  larger than the 60 s minimum backoff could shorten a retry, which the owner
+  accepted as negligible for §6.2.
+- **Evidence (2026-11-03, disposable loopback harness only).** Focused
+  `phase6-notifications-live` → **15 tests, 15 pass, 0 fail, 0 skip** (12
+  pre-existing + 3 deterministic skew cases: a lagging claimant must not hide a
+  due row, a leading clock must not shorten a scheduled backoff, and a lease
+  written under a lagging clock must not be reclaimed immediately);
+  `npm run smoke:db` → **71 tests, 71 pass, 0 fail, 0 skip**, exit 0;
+  `npm test` → **350 tests, 350 pass, 0 fail, 0 skip**, exit 0;
+  `npm run typecheck` exit 0; `npm run lint` exit 0 (no warnings);
+  `npm run db:check` exit 0. The lagging-claimant case fails against `HEAD`'s
+  implementation (empty batch) and the lease case fails against the
+  intermediate fix that wrote `updated_at` from the caller's clock (immediate
+  re-claim), so both are demonstrated regressions rather than restatements;
+  the ahead-of-server case pins the opposite direction. Nothing was sent, no
+  credential exists (D-045), and no staging or production database was touched.
 
 ### 6.3 Deployment & Staging Hardening
 - Containerized build verification on local stack, staging deployment readiness, and production cutover checklist.
