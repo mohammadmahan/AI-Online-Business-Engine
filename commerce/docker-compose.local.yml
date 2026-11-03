@@ -5,7 +5,7 @@
 # `commerce/Dockerfile` can be started, probed and read on a developer machine
 # under the same hardened posture a deployed slot would use (§6.3 G-3/G-4/G-6).
 #
-# THE THREE PROPERTIES THIS FILE GUARANTEES
+# THE FOUR PROPERTIES THIS FILE GUARANTEES
 #
 #   1. LOOPBACK ONLY, NO COLLISION (G-6). Published as `127.0.0.1:13000`.
 #      3000 is avoided because a local `next dev` / control-plane run owns it;
@@ -23,7 +23,21 @@
 #      happens to hold, so the wiring could not be audited from this file.
 #
 #   3. NO CREDENTIAL LITERAL (D-045/D-124). There is no default secret here to
-#      leak, and the image bakes none.
+#      leak, and the image bakes none. The dispatch token stays a `${VAR:-}`
+#      reference for BOTH services, so the app and the scheduler can only ever
+#      agree by reading the same host value — never by a literal in this file.
+#
+#   4. THE SCHEDULER IS ITS OWN SERVICE (B3). `commerce-scheduler` runs
+#      `scripts/dispatch-scheduler.mjs` in a plain Node container: the runner has
+#      no dependencies and is deliberately NOT part of the app image (the image
+#      is a standalone Next build). It joins the app's NETWORK NAMESPACE rather
+#      than the bridge, because the runner refuses every non-loopback target by
+#      design (D-045/D-139) — inside `service:commerce-web` its `127.0.0.1:3000`
+#      IS the app, so the loopback guard stays intact and no shared hostname has
+#      to be invented, trusted or exceptions added to. It is LOCAL ONLY: no
+#      restart policy, mock SMS, and the same fail-closed token gate as the app.
+#      Starting it is an explicit operator command (`docker compose up`); nothing
+#      in the repository starts it, and no stage references this file.
 #
 # The host variable `COMMERCE_DATABASE_URL` (the name the smoke harness already
 # uses) is mapped onto the container's `DATABASE_URL`, the single variable the
@@ -73,7 +87,9 @@ services:
       #                                     answer 503 DISPATCH_NOT_CONFIGURED
       # A real key is owner-supplied and belongs in the host environment (or a
       # secret store), never in this file (D-045/D-124).
-      SMS_LIVE_ENABLED: ${SMS_LIVE_ENABLED:-}
+      # Explicit `false` default: mock delivery is the local contract, and live
+      # delivery needs a deliberate host-side override plus owner credentials.
+      SMS_LIVE_ENABLED: ${SMS_LIVE_ENABLED:-false}
       KAVENEGAR_API_KEY: ${KAVENEGAR_API_KEY:-}
       KAVENEGAR_SENDER: ${KAVENEGAR_SENDER:-}
       NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
@@ -117,3 +133,69 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 6
+
+  # §6.3 B3 — the LOCAL outbox ticker. `node:20-alpine` matches the host
+  # toolchain (Node 20.16) and the runner's only requirements: built-in `fetch`
+  # and `node:timers/promises`. One file is mounted read-only — no build context,
+  # no `npm install`, no dependency the local machine does not already have, and
+  # nothing that could drift from the script the tests in `src/` exercise.
+  commerce-scheduler:
+    image: node:20-alpine
+    container_name: aobe-commerce-scheduler
+
+    # Shares the app's network namespace instead of getting its own address. The
+    # runner validates its target and refuses anything that is not 127.0.0.1 /
+    # localhost / ::1, so this is the only shape that reaches the app WITHOUT
+    # weakening that guard (header, point 4).
+    network_mode: "service:commerce-web"
+
+    # Wait for `service_healthy`, not merely `started`: the probe also proves the
+    # canonical connection, so the scheduler's first tick cannot land on an app
+    # that would answer DB_NOT_CONFIGURED.
+    depends_on:
+      commerce-web:
+        condition: service_healthy
+
+    working_dir: /app
+    volumes:
+      - ./scripts/dispatch-scheduler.mjs:/app/dispatch-scheduler.mjs:ro
+    command: ["node", "/app/dispatch-scheduler.mjs", "--watch"]
+
+    environment:
+      # NOT taken from the host on purpose: inside this namespace the target is a
+      # fact, not a setting. A host `NOTIFICATIONS_DISPATCH_URL` is ignored here
+      # because any other loopback port would be a different service, and the
+      # runner would (rightly) refuse it.
+      NOTIFICATIONS_DISPATCH_URL: http://127.0.0.1:3000/api/internal/notifications/dispatch
+
+      # The SAME reference the app reads (header, point 3). Empty on both sides
+      # means the endpoint answers 503 and the runner exits 3 with a named
+      # refusal rather than looping quietly; a matching value drains the queue
+      # through the mock channel.
+      NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
+
+      # Local cadence: quick enough to watch a PAID order settle, slow enough not
+      # to poll in a tight loop. The runner floors this at 1000 ms.
+      NOTIFICATIONS_DISPATCH_INTERVAL_MS: ${NOTIFICATIONS_DISPATCH_INTERVAL_MS:-15000}
+      NOTIFICATIONS_DISPATCH_HTTP_TIMEOUT_MS: ${NOTIFICATIONS_DISPATCH_HTTP_TIMEOUT_MS:-5000}
+
+      # Restated inside the scheduler so the local ticker can never be the thing
+      # that sends a real SMS, whatever the app is configured with.
+      SMS_LIVE_ENABLED: "false"
+
+    # Same posture as the app: no privilege escalation, no capabilities, an
+    # immutable rootfs (`/tmp` is the only writable path).
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    mem_limit: 128m
+    cpus: 0.5
+
+    # A crash is the signal (`3` = wrong/absent token, `4` = app unreachable);
+    # a restart policy would hide exactly what an operator needs to read.
+    restart: "no"
