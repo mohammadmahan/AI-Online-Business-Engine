@@ -472,6 +472,80 @@ describe(
         await requeue(orderId);
       });
 
+      it('does not let a lagging claimant clock hide a row the database already made due', async () => {
+        const orderId = await paidOrderWithQueue();
+
+        // Manufactured skew, not a sleep: `next_attempt_at` was stamped by the
+        // DATABASE's clock at enqueue, while this claimant's clock is two seconds
+        // behind it — the shape of the real failure, made deterministic. Both
+        // branches now compare against the later of the two clocks, so the row is
+        // due; comparing against the caller's clock alone would return an empty
+        // batch here no matter how long the test waited.
+        const lagging = new Date(Date.now() - 2_000);
+        const claimed = await repo.claimNotificationBatch(1_000, lagging);
+        assert.ok(
+          claimed.some((item) => item.orderId === orderId),
+          'a lagging claimant clock must not strand a row the database considers due',
+        );
+
+        const [row] = await outboxOf(orderId);
+        assert.equal(row?.status, 'SENDING', 'the cross-clock claim IS the status change');
+
+        // The lag must not make the row claimable TWICE either: the fresh lease is
+        // still measured against the same reference instant.
+        const again = await repo.claimNotificationBatch(1_000, lagging);
+        assert.ok(
+          !again.some((item) => item.orderId === orderId),
+          'a row claimed under the lagging clock keeps its fresh lease',
+        );
+
+        await requeue(orderId);
+      });
+
+      it('does not claim a future-scheduled row early when the claimant clock runs ahead', async () => {
+        const orderId = await paidOrderWithQueue();
+
+        // The row is scheduled ten minutes out by the DATABASE, while this
+        // claimant's clock is five minutes AHEAD of the server. Being ahead must
+        // not spend a backoff that has not elapsed — a retry that fires early is
+        // a second message the customer did not have to receive.
+        await pool.query(
+          `update commerce.notification_outbox
+              set next_attempt_at = now() + interval '10 minutes'
+            where order_id = $1`,
+          [orderId],
+        );
+
+        const early = await repo.claimNotificationBatch(1_000, new Date(Date.now() + 5 * 60_000));
+        assert.ok(
+          !early.some((item) => item.orderId === orderId),
+          'an ahead-of-server clock must not shorten a scheduled backoff',
+        );
+
+        await requeue(orderId);
+      });
+
+      it('keeps a fresh lease fresh when the claimant that WROTE it lags the database', async () => {
+        const orderId = await paidOrderWithQueue();
+
+        // The claim stamps the lease; a later claimant evaluates it. If those two
+        // sides use different clocks, a row claimed seconds ago by a host whose
+        // clock is ten minutes behind the server reads as six minutes stale and is
+        // handed to a second dispatcher — two SMS for one order. The lease instant
+        // therefore has to be the same reference instant the evaluation uses.
+        const behind = new Date(Date.now() - 10 * 60_000);
+        const first = await repo.claimNotificationBatch(1_000, behind);
+        assert.ok(first.some((item) => item.orderId === orderId), 'the fixture row is claimed');
+
+        const again = await repo.claimNotificationBatch(1_000);
+        assert.ok(
+          !again.some((item) => item.orderId === orderId),
+          'a lease written by a lagging claimant must not be reclaimed immediately',
+        );
+
+        await requeue(orderId);
+      });
+
       it('reclaims a STALE lease and leaves a fresh one alone', async () => {
         const orderId = await paidOrderWithQueue();
 

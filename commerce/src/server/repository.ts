@@ -599,9 +599,18 @@ export interface CommerceRepository {
    * `SENDING` with `attempts` incremented — one transaction, so two dispatchers
    * can never claim the same row (the loser skips it, it does not wait).
    *
-   * A row is due when it is `PENDING` and `next_attempt_at <= now`, or when it is
-   * `SENDING` whose lease is older than `NOTIFICATION_LEASE_MS` (a claimant
+   * A row is due when it is `PENDING` and `next_attempt_at` has passed, or when it
+   * is `SENDING` whose lease is older than `NOTIFICATION_LEASE_MS` (a claimant
    * crashed). Rows that have spent their attempt budget are not claimable.
+   *
+   * "Has passed" is evaluated against the LATER of the database's clock and
+   * `now` (default: the caller's clock). `next_attempt_at` is stamped by the
+   * database's `now()` at enqueue but by the caller's clock on a retry, so
+   * trusting a single clock lets a few milliseconds of skew between the app host
+   * and the server hide a freshly queued row from every poll. Taking the later
+   * instant means skew can only make a row due EARLIER, never later — the safe
+   * direction for a queue whose only harm is delay — while an injected clock
+   * still advances time for the retry tests.
    */
   claimNotificationBatch(limit: number, now?: Date): Promise<NotificationWorkItem[]>;
 
@@ -1502,12 +1511,36 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
      *
      * `attempts < MAX_SMS_ATTEMPTS` keeps a spent row out of every future batch:
      * the budget, not a timer, is what finally stops a bad recipient.
+     *
+     * DUE-NESS USES ONE REFERENCE INSTANT — the later of the two clocks
+     * (`greatest(now(), $now)`) — for the pending branch, the lease floor AND the
+     * `updated_at` this claim writes, so no two parts of the claim can disagree
+     * about when "now" is. A row stamped by the database is therefore visible to
+     * a claimant whose own clock lags, and an injected future clock still advances
+     * time as the retry tests require.
+     *
+     * The written lease matters as much as the read: stamping `updated_at` with
+     * the caller's clock while measuring the lease against the reference instant
+     * would let a claimant whose clock lags the server hand out a lease that is
+     * already expired — a second dispatcher would take the row and send a second
+     * message. Writing it with the same instant can only make a lease look fresher
+     * than the writer's own clock would, never staler, so the skew that remains
+     * delays crash recovery instead of duplicating a send.
+     *
+     * `now()` is the TRANSACTION-START instant on purpose: the enqueue default and
+     * this claim's three uses of the reference instant must read one identical
+     * value. `clock_timestamp()` is re-evaluated per call and
+     * `statement_timestamp()` per statement, so either would let the predicate and
+     * the written lease disagree by a few microseconds for no benefit.
      */
     async claimNotificationBatch(limit, now = new Date()) {
       if (!Number.isInteger(limit) || limit <= 0) {
         return [];
       }
-      const leaseFloor = new Date(now.getTime() - NOTIFICATION_LEASE_MS);
+      // Bound as text with an explicit cast: without it PostgreSQL cannot resolve
+      // `greatest(now(), $1)`'s argument types, and the statement fails rather
+      // than falling back to the caller's clock.
+      const referenceNow = sql`greatest(now(), ${now.toISOString()}::timestamptz)`;
 
       return db.transaction(async (tx) => {
         const due = await tx
@@ -1519,13 +1552,16 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
               or(
                 and(
                   eq(notificationOutbox.status, 'PENDING'),
-                  lte(notificationOutbox.nextAttemptAt, now),
+                  lte(notificationOutbox.nextAttemptAt, referenceNow),
                 ),
                 // A crashed claimant's lease. Without this a deploy at the wrong
                 // moment would strand `SENDING` rows forever.
                 and(
                   eq(notificationOutbox.status, 'SENDING'),
-                  lt(notificationOutbox.updatedAt, leaseFloor),
+                  lt(
+                    notificationOutbox.updatedAt,
+                    sql`${referenceNow} - (${NOTIFICATION_LEASE_MS} * interval '1 millisecond')`,
+                  ),
                 ),
               ),
             ),
@@ -1543,7 +1579,9 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           .set({
             status: 'SENDING',
             attempts: sql`${notificationOutbox.attempts} + 1`,
-            updatedAt: now,
+            // The instant this lease will be measured against, not the caller's
+            // clock — see the contract above.
+            updatedAt: referenceNow,
           })
           .where(
             inArray(
