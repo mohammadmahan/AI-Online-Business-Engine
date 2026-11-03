@@ -692,6 +692,27 @@ and AI provider (row 9) remain unselected. Nothing was deployed, credentialed
 or activated. Mohammad's explicit informed acceptance is still the only act
 that closes G0.
 
+#### G0 ACCEPTED (2026-11-03) — Mohammad's explicit informed acceptance recorded; B1–B6 unblocked; production activation unchanged (D-139)
+
+**G0 is CLOSED by owner acceptance.** On **2026-11-03** Mohammad explicitly
+accepted the fashion Phase 5 completion and closure records — the roadmap's
+§5.1 and §5.2 completion records plus the Phase 5 closure record, and `D-172`
+§5.9 and §6, together with the evidence they cite — acknowledging that the
+acceptance is of **offline records**. The acceptance date is **2026-11-03**.
+The two OPEN records above are superseded for status only and are preserved as
+history (`PROJECT_RULES.md` §2.1).
+
+- **Unblocked:** preparation items **B1–B6** as defined in
+  `docs/deployment/phase-6-cutover-checklist.md` §4 — credentials (D-045),
+  sealed-template re-attestation (D-168), deployment authorization + manifest
+  wiring (D-139/C-1/C-2), digest pinning, the dispatch scheduler, and
+  observability (MON-001).
+- **Not authorized, unchanged:** production activation remains blocked behind
+  the separate, explicit, one-time **D-139** owner authorization; shipping
+  (row 11), the AI provider (row 9) and the production media provider (G-5)
+  remain OPEN; no credential, deployment, live provider connection or
+  production change exists. Acceptance is not production readiness.
+
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 
@@ -1077,6 +1098,33 @@ Step-5 instruction supersedes that reservation and moves no gate.
   re-attestation before the three §6.2 templates may enter the sealed registry;
   it governs the canonical worker and the unbuilt OTP step, **not** the app
   path, which renders its own Persian bodies).
+
+#### §6.3 B5 record (2026-11-03) — local notification dispatch scheduler (local/mock only)
+
+Appended on direct owner instruction, after G0 acceptance. **B5 is satisfied for
+the local environment only**; the operational scheduler for any deployed
+environment remains part of the owner-gated cutover (B3).
+
+- **What exists.** `commerce/scripts/dispatch-scheduler.mjs` — a standalone CLI
+  runner (`npm run scheduler:notifications`, or `-- --once` for cron) that calls
+  `POST /api/internal/notifications/dispatch` on an interval, drains up to five
+  batches per tick, and reports the endpoint's own counts.
+- **Fail-closed, same shape as the endpoint.** No
+  `NOTIFICATIONS_DISPATCH_TOKEN` → exit 2 **before any request**; a non-loopback
+  `NOTIFICATIONS_DISPATCH_URL` → exit 2 (there is no override, so a developer
+  machine cannot deliver a real customer's notification); a 401/403 or an
+  endpoint configuration code (`DISPATCH_NOT_CONFIGURED`, `DB_NOT_CONFIGURED`,
+  `SMS_LIVE_MODE_MISSING_CREDENTIAL`) → exit 3 with no retry; network errors and
+  5xx retry 250 ms → 500 ms → 1 s → 2 s and then exit 4 so a supervisor notices.
+- **Empty and draining batches.** `claimed=0` sleeps a full interval; a non-empty
+  batch is drained immediately (bounded per tick). The token and any URL userinfo
+  are never logged, and SIGINT/SIGTERM interrupt the sleep and stop cleanly.
+- **Evidence (2026-11-03, offline).** `src/server/notifications/dispatch-scheduler.test.ts`
+  spawns the real runner against a loopback HTTP server wrapping the REAL
+  endpoint over the REAL queue behaviour: bearer authentication, one-batch
+  drain + settle, second-pass no-op, empty-batch run, no-token refusal with zero
+  requests, non-loopback refusal, wrong-token stop after one request, and a 503
+  retry that recovers. No live SMS, credential, deployment or production change.
 
 ---
 

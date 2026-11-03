@@ -2555,7 +2555,8 @@ repository hygiene, not deployment authorization.
           (D-139, above) stays its own separate owner decision and is NOT part
           of this list, and the AI provider (row 9), media storage (G-5) and
           G-6 are not Phase 6 gates and are deliberately absent.
-      - [ ] **G0 — owner sign-off of Phase 5 (blocks everything below)**
+      - [x] **G0 — owner sign-off of Phase 5 — ACCEPTED 2026-11-03 (B1–B6
+            unblocked; production activation still blocked)**
             - [ ] **O** Owner explicit informed review/acceptance of the
                   fashion Phase 5 completion and closure records (D-172 §5.9
                   and §6; roadmap §5.1/§5.2 records plus the Phase 5 closure
@@ -2563,7 +2564,19 @@ repository hygiene, not deployment authorization.
                   records still await Mohammad's explicit informed review.
                   This gate stays OPEN and blocks B1–B6; production activation
                   remains unauthorized (D-139) and shipping (row 11) remains
-                  OPEN.
+                  OPEN. *(Superseded for status on 2026-11-03 by the acceptance
+                  recorded below; this pre-decision wording is preserved as
+                  history per `PROJECT_RULES.md` §2.1.)*
+            - [x] **ACCEPTED 2026-11-03 — Mohammad's explicit informed
+                  acceptance recorded.** The acceptance object is the five
+                  records named above (roadmap §5.1 and §5.2 completion records
+                  and the Phase 5 closure record; D-172 §5.9 and §6) plus the
+                  evidence they cite, accepted as **offline** records. **B1–B6
+                  are unblocked for preparation work.** Production activation
+                  remains blocked behind the separate one-time D-139 owner
+                  authorization; shipping (row 11), the AI provider (row 9) and
+                  the production media provider (G-5) remain OPEN; no
+                  credential, deployment or live provider connection exists.
             - [x] **Documentation review for offline mode — recorded
                   2026-11-03. This is NOT acceptance and does not close G0.**
                   The §6.2 offline evidence (71/71 live-db smoke, 350/350
@@ -2960,6 +2973,23 @@ repository hygiene, not deployment authorization.
                   count or a loosened pin is not an alternative
                   (`sms_adapter.py:42-52` states the same boundary).
       - [ ] **G4 — roadmap §6.3 hardening**
+            - [x] **B5 — local notification dispatch scheduler (2026-11-03,
+                  LOCAL/MOCK ONLY).** `commerce/scripts/dispatch-scheduler.mjs`
+                  (`npm run scheduler:notifications`, `-- --once` for cron)
+                  calls `POST /api/internal/notifications/dispatch` on an
+                  interval. Fail-closed: no `NOTIFICATIONS_DISPATCH_TOKEN` →
+                  exit 2 before any request; a non-loopback
+                  `NOTIFICATIONS_DISPATCH_URL` → exit 2 with no override; 401/403
+                  or an endpoint configuration code → exit 3 without retrying;
+                  network/5xx → 250 ms–2 s backoff, then exit 4. Empty batches
+                  sleep a full interval; a drained batch continues immediately
+                  (bounded per tick); the token is never logged. Evidence:
+                  `src/server/notifications/dispatch-scheduler.test.ts` spawns
+                  the real runner against a loopback server wrapping the REAL
+                  endpoint and queue (auth, drain+settle, second-pass no-op,
+                  empty run, no-token, non-loopback, wrong-token, 503 retry).
+                  Nothing deployed, no credential, no live SMS; the deployed
+                  environment's scheduler remains part of B3's cutover.
             - [x] **B** Containerized build verification on the local stack
                   *(2026-10-23: DONE — the image was built from the pinned
                   base, the compose stack came up `healthy`, the probe and
