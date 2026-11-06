@@ -1,0 +1,145 @@
+# D-172 §6.3 B3 — the ONE local development stack: PostgreSQL + the commerce app
+# + the notification scheduler.
+#
+# DEVELOPER MACHINE ONLY. This is not a deployment manifest: no stage, Dokploy
+# template or CI path references it, and the only credentials in it are the
+# disposable containers' own (D-045/D-124 govern REAL credentials; none exist
+# here and none is requested).
+#
+#   docker compose up -d --wait          # first boot installs deps + migrates
+#   docker compose logs -f commerce-scheduler
+#   docker compose down                  # keeps both named volumes
+#
+# Three deliberate properties:
+#
+#   1. NO HOST DEPENDENCIES. The app runs from source in `node:20-alpine` with its
+#      dependencies in a NAMED VOLUME, so `npm ci` never runs on the host and the
+#      host `node_modules` (a different platform) is never mounted over the app.
+#      The web service applies migrations before `next dev` starts, so a fresh
+#      volume is never served by an unmigrated database.
+#
+#   2. MOCK DELIVERY ONLY. `SMS_LIVE_ENABLED=false` on both services and no
+#      provider credential is mapped: the outbox is drained by `MockSmsChannel`,
+#      which records the message and sends nothing (D-045).
+#
+#   3. THE SCHEDULER SHARES THE APP'S NETWORK NAMESPACE. The runner refuses every
+#      non-loopback target by design, so `network_mode: service:commerce-web`
+#      makes its `127.0.0.1:3000` the app itself — no hostname exception and no
+#      loopback-guard rewrite.
+#
+# Ports are published on LOOPBACK ONLY and deliberately avoid the sibling local
+# files: 13001 here vs 13000 in `docker-compose.local.yml`, and 55433 here vs
+# 55432 in the `docker-compose.db.yml` harness. The stacks can therefore run
+# side by side without shadowing each other or a host `next dev`.
+name: commerce-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: commerce-dev-postgres
+    environment:
+      POSTGRES_USER: commerce_local
+      POSTGRES_PASSWORD: commerce_local_only
+      POSTGRES_DB: commerce_local
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - commerce-dev-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The web service waits on this, so `next dev` never races a half-started
+      # server, and `db:migrate` never runs against one either.
+      test: ["CMD-SHELL", "pg_isready -U commerce_local -d commerce_local -h 127.0.0.1"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    restart: "no"
+
+  commerce-web:
+    image: node:20-alpine
+    container_name: commerce-dev-web
+    working_dir: /app
+    # Install once per `node_modules` volume, then migrate, then serve. `exec`
+    # keeps the dev server as PID 1 so compose signals reach it directly.
+    command:
+      - sh
+      - -lc
+      - |
+        if [ ! -x node_modules/.bin/next ]; then npm ci --no-audit --no-fund; fi
+        npm run db:migrate
+        exec npm run dev -- -H 0.0.0.0 -p 3000
+    volumes:
+      - .:/app
+      - commerce-dev-node-modules:/app/node_modules
+    environment:
+      # The stack's own database: the service name is resolvable on the compose
+      # network, so nothing here depends on the host or on `host.docker.internal`.
+      DATABASE_URL: postgresql://commerce_local:commerce_local_only@postgres:5432/commerce_local
+      # Shared with the scheduler below by reference, never by literal, so the two
+      # services can only agree by reading the same host value. Empty means the
+      # endpoint answers 503 and the scheduler exits 3 with a named refusal.
+      NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
+      # Mock channel: messages are recorded, nothing leaves the machine.
+      SMS_LIVE_ENABLED: ${SMS_LIVE_ENABLED:-false}
+    ports:
+      - "127.0.0.1:13001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Same contract as the image: 200 only when a canonical connection is
+      # configured AND answers `SELECT 1`; 503 otherwise. The start period is
+      # generous because the first boot compiles dependencies in the container.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 240s
+      retries: 30
+    restart: "no"
+
+  # The runner the endpoint wait for: `scripts/dispatch-scheduler.mjs --watch`.
+  commerce-scheduler:
+    image: node:20-alpine
+    container_name: commerce-dev-scheduler
+    # See property 3 in the header.
+    network_mode: "service:commerce-web"
+    depends_on:
+      commerce-web:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./scripts/dispatch-scheduler.mjs:/app/dispatch-scheduler.mjs:ro
+    command: ["node", "/app/dispatch-scheduler.mjs", "--watch"]
+    environment:
+      # Not taken from the host: inside this namespace the target is a fact, not a
+      # setting (a different loopback port would be a different service).
+      NOTIFICATIONS_DISPATCH_URL: http://127.0.0.1:3000/api/internal/notifications/dispatch
+      NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
+      NOTIFICATIONS_DISPATCH_INTERVAL_MS: ${NOTIFICATIONS_DISPATCH_INTERVAL_MS:-15000}
+      NOTIFICATIONS_DISPATCH_HTTP_TIMEOUT_MS: ${NOTIFICATIONS_DISPATCH_HTTP_TIMEOUT_MS:-5000}
+      # Restated here so the ticker can never be the process that sends a real SMS.
+      SMS_LIVE_ENABLED: "false"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.5
+    # A crash is the signal (`3` = wrong/absent token, `4` = app unreachable);
+    # a restart policy would hide exactly what the operator needs to read.
+    restart: "no"
+
+volumes:
+  commerce-dev-postgres-data:
+    name: commerce-dev-postgres-data
+  commerce-dev-node-modules:
+    name: commerce-dev-node-modules
