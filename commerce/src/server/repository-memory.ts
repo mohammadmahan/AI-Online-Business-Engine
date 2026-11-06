@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { CheckoutTotals, CouponRuleInput, StockLevel } from '@/contracts/storefront';
 import type { CouponRow } from '@/contracts/promotions';
 import type { OrderStatus, OrderStatusSource, ProductStatus } from '@/db/schema';
@@ -100,10 +102,15 @@ export interface MemoryStatusHistorySeed {
   createdAt?: Date;
 }
 
-let sequence = 0;
-function nextId(prefix: string): string {
-  sequence += 1;
-  return `${prefix}-${String(sequence).padStart(4, '0')}`;
+/**
+ * The write models mint ids the way PostgreSQL does (`defaultRandom()`).
+ *
+ * A `var-0001`-style id would be a shape the real database can never return, and
+ * the service-level `isUuid` refusal would then be exercised against an id space
+ * production never has.
+ */
+function nextId(): string {
+  return randomUUID();
 }
 
 /** A stored catalog row: the product columns the public read path needs. */
@@ -163,7 +170,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
   const customersTable: MemoryCustomerRow[] = [];
 
   function addProduct(graph: NewProductGraph): { productId: string; variantIds: string[] } {
-    const productId = nextId('prod');
+    const productId = nextId();
     const category = categories.find((entry) => entry.id === graph.product.categoryId);
     createdAtCursor += 60_000;
     productsTable.push({
@@ -184,7 +191,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     });
     const variantIds: string[] = [];
     graph.variants.forEach((variant) => {
-      const variantId = nextId('var');
+      const variantId = nextId();
       variantIds.push(variantId);
       variantsTable.push({
         variantId,
@@ -224,11 +231,11 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     itemCount: order.items.reduce((total, item) => total + item.quantity, 0),
     // A seeded order carries no variant binding, so cancelling one restocks
     // nothing — the double cannot invent which variant it was.
-    items: order.items.map((item) => ({ ...item, id: nextId('item'), variantId: null })),
+    items: order.items.map((item) => ({ ...item, id: nextId(), variantId: null })),
   }));
 
   const couponsTable: CouponRow[] = (seed.coupons ?? []).map((coupon) => ({
-    id: coupon.id ?? nextId('coupon'),
+    id: coupon.id ?? nextId(),
     code: coupon.code,
     discountType: coupon.discountType ?? 'PERCENT',
     discountValue: coupon.discountValue ?? 10,
@@ -248,7 +255,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
   const HISTORY_EPOCH = new Date('2026-03-01T00:00:00.000Z');
 
   const statusHistoryTable: OrderStatusHistoryEntry[] = (seed.history ?? []).map((row) => ({
-    id: nextId('history'),
+    id: nextId(),
     orderId: row.orderId,
     fromStatus: row.fromStatus,
     toStatus: row.toStatus,
@@ -296,7 +303,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       notificationCursor += 1;
       const at = new Date(NOTIFICATION_EPOCH.getTime() + notificationCursor * 60_000);
       notificationOutboxTable.push({
-        id: nextId('notify'),
+        id: nextId(),
         orderId,
         kind: intent.kind,
         channel: intent.channel,
@@ -327,7 +334,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
   }): void {
     const last = statusHistoryTable[statusHistoryTable.length - 1];
     statusHistoryTable.push({
-      id: nextId('history'),
+      id: nextId(),
       orderId: entry.orderId,
       fromStatus: entry.fromStatus,
       toStatus: entry.toStatus,
@@ -518,7 +525,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     async createCoupon(input: NewCouponInput) {
       const row: CouponRow = {
         ...input,
-        id: nextId('coupon'),
+        id: nextId(),
         usedCount: 0,
         createdAt: new Date('2026-02-01T00:00:00.000Z'),
         updatedAt: new Date('2026-02-01T00:00:00.000Z'),
@@ -737,7 +744,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       const existing = customersTable.find((entry) => entry.phoneNumber === phoneNumber);
       if (!existing) {
         customersTable.push({
-          id: nextId('cust'),
+          id: nextId(),
           phoneNumber,
           fullName: input.customer.fullName.trim(),
           address: input.customer.address.trim(),
@@ -754,7 +761,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         discount,
         shipping,
       });
-      const orderId = nextId('order');
+      const orderId = nextId();
 
       ordersTable.unshift({
         id: orderId,
@@ -774,7 +781,7 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
           const variant = variantsTable.find((entry) => entry.variantId === item.variantId);
           const product = productsTable.find((entry) => entry.id === variant?.productId);
           return {
-            id: nextId('item'),
+            id: nextId(),
             variantId: item.variantId,
             sku: variant?.sku ?? '',
             productTitle: product?.title ?? '',

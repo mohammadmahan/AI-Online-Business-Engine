@@ -28,6 +28,7 @@ export const MAX_MONEY_TOMAN = 1_000_000_000_000;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SKU_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$/;
 const COUPON_RE = /^[A-Z0-9][A-Z0-9._-]{2,31}$/;
 const TRACKING_RE = /^[A-Za-z0-9-]{8,24}$/;
@@ -56,6 +57,18 @@ export function isStock(value: unknown): value is number {
 
 export function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_RE.test(value);
+}
+
+/**
+ * A row id in the shape PostgreSQL's `uuid` type accepts.
+ *
+ * Checked BEFORE a mutation reaches the driver: an arbitrary string would
+ * otherwise raise a cast error that the repository boundary reports as
+ * `UNEXPECTED`, and "the database broke" is the wrong answer to "the browser
+ * sent `variant-does-not-exist`" (D-171 §2.2 — refuse, do not guess).
+ */
+export function isUuid(value: unknown): value is string {
+  return typeof value === 'string' && UUID_RE.test(value.trim());
 }
 
 export function normalizeSku(value: string): string {

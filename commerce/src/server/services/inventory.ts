@@ -1,4 +1,5 @@
 import {
+  isUuid,
   issuesToMessage,
   validatePriceOverride,
   validateStockValue,
@@ -22,11 +23,28 @@ export type InventoryMutationResult =
       issues?: Array<{ field: string; message: string }>;
     };
 
+/**
+ * A malformed id is invalid INPUT, not a missing row: refusing it here keeps the
+ * driver out of the path, so the merchant sees a field message instead of the
+ * repository boundary's coarse `UNEXPECTED` (D-171 §2.2).
+ */
+function invalidVariantId(): InventoryMutationResult {
+  return {
+    ok: false,
+    code: 'VALIDATION_ERROR',
+    message: 'شناسهٔ گونه معتبر نیست.',
+    issues: [{ field: 'variantId', message: 'شناسهٔ گونه معتبر نیست.' }],
+  };
+}
+
 export async function updateStock(
   repo: CommerceRepository,
   variantId: string,
   stockQuantity: unknown,
 ): Promise<InventoryMutationResult> {
+  if (!isUuid(variantId)) {
+    return invalidVariantId();
+  }
   const validation = validateStockValue(stockQuantity);
   if (!validation.ok) {
     return {
@@ -47,6 +65,9 @@ export async function updatePrice(
   variantId: string,
   priceOverride: unknown,
 ): Promise<InventoryMutationResult> {
+  if (!isUuid(variantId)) {
+    return invalidVariantId();
+  }
   const validation = validatePriceOverride(priceOverride);
   if (!validation.ok) {
     return {
