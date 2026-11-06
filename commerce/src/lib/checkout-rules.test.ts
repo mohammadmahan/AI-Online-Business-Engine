@@ -8,6 +8,7 @@ import {
   evaluateCoupon,
   quantityProblem,
 } from '@/lib/checkout-rules';
+import { MAX_MONEY_TOMAN } from '@/lib/validation';
 
 /**
  * D-172 §3.4 — money arithmetic and coupon eligibility.
@@ -104,6 +105,77 @@ describe('coupon eligibility (§3.4)', () => {
     );
     assert.ok(decision.ok, 'at-or-above the minimum spend is eligible');
     assert.equal(decision.code, 'LIVE25');
+  });
+
+  it('bills a 100% coupon as shipping only, never as a credit', () => {
+    const decision = evaluateCoupon(coupon({ discountValue: 100 }), 870_000, now);
+    assert.ok(decision.ok);
+    assert.equal(decision.discount, 870_000);
+
+    const totals = computeCheckoutTotals({
+      subtotal: 870_000,
+      discount: decision.discount,
+      shipping: 45_000,
+    });
+    assert.deepEqual(totals, {
+      subtotal: 870_000,
+      discount: 870_000,
+      shipping: 45_000,
+      total: 45_000,
+    });
+  });
+
+  it('yields a zero discount on a zero-subtotal basket instead of a negative one', () => {
+    const percent = evaluateCoupon(coupon({ discountValue: 25 }), 0, now);
+    assert.ok(percent.ok);
+    assert.equal(percent.discount, 0);
+
+    const fixed = evaluateCoupon(
+      coupon({ discountType: 'FIXED', discountValue: 500_000 }),
+      0,
+      now,
+    );
+    assert.ok(fixed.ok);
+    assert.equal(fixed.discount, 0);
+
+    // Even a hand-built discount larger than the basket cannot produce a total
+    // below zero (the totals function clamps as a last line of defence).
+    assert.deepEqual(computeCheckoutTotals({ subtotal: 0, discount: 500_000, shipping: 0 }), {
+      subtotal: 0,
+      discount: 0,
+      shipping: 0,
+      total: 0,
+    });
+  });
+
+  it('clamps a ceiling-sized fixed discount to a one-Toman basket', () => {
+    const decision = evaluateCoupon(
+      coupon({ discountType: 'FIXED', discountValue: MAX_MONEY_TOMAN }),
+      1,
+      now,
+    );
+    assert.ok(decision.ok);
+    assert.equal(decision.discount, 1);
+  });
+
+  it('floors a percentage that lands below one Toman to no discount at all', () => {
+    const decision = evaluateCoupon(coupon({ discountValue: 1 }), 99, now);
+    assert.ok(decision.ok);
+    assert.equal(decision.discount, 0, '0.99 Toman is floored, never rounded up');
+  });
+
+  it('computes a percentage exactly once the product leaves the safe-integer range', () => {
+    // `huge × 100` is past 2^53, where a double starts dropping whole Tomans.
+    const huge = 90_071_992_547_400;
+
+    const full = evaluateCoupon(coupon({ discountValue: 100 }), huge, now);
+    assert.ok(full.ok);
+    assert.equal(full.discount, huge);
+
+    const onePercent = evaluateCoupon(coupon({ discountValue: 1 }), huge, now);
+    assert.ok(onePercent.ok);
+    assert.equal(onePercent.discount, 900_719_925_474);
+    assert.equal(Number.isSafeInteger(onePercent.discount), true);
   });
 });
 

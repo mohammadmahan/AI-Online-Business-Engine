@@ -37,6 +37,21 @@ const COUPON_MESSAGES: Record<CouponRefusalCode, string> = {
 };
 
 /**
+ * `percent` of `amount`, floored, using EXACT integer arithmetic.
+ *
+ * `amount * percent` is the one product in this module that can leave the safe
+ * integer range: a large basket times 100 crosses 2^53, where a double starts
+ * losing whole Tomans (D-114). BigInt keeps the division exact; the mesh is only
+ * used when it has to be, so ordinary baskets keep the same fast path.
+ */
+function percentOf(amount: number, percent: number): number {
+  if (Number.isSafeInteger(amount) && Number.isSafeInteger(percent)) {
+    return Number((BigInt(amount) * BigInt(percent)) / 100n);
+  }
+  return Math.floor((amount * percent) / 100);
+}
+
+/**
  * Discount for a coupon against a subtotal. Precedence mirrors
  * `couponState` in `@/lib/coupon-rules` (inactive → expired → exhausted) so the
  * table's badge and the checkout's answer can never disagree.
@@ -67,7 +82,7 @@ export function evaluateCoupon(
 
   const raw =
     coupon.discountType === 'PERCENT'
-      ? Math.floor((subtotal * coupon.discountValue) / 100)
+      ? percentOf(subtotal, coupon.discountValue)
       : coupon.discountValue;
 
   return { ok: true, code: coupon.code, discount: Math.min(raw, subtotal) };

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { MAX_MONEY_TOMAN } from '@/lib/validation';
 import { createMemoryRepository } from '@/server/repository-memory';
 import { createCoupon, listCoupons, setCouponActive } from '@/server/services/coupons';
 
@@ -110,6 +111,24 @@ describe('coupon service — creation (§2.4)', () => {
         discountValue: 10,
         expiresAt: 'هفتهٔ آینده',
       },
+      // D-114 money ceiling and integer boundaries.
+      {
+        code: 'OKH',
+        discountType: 'FIXED' as const,
+        discountValue: MAX_MONEY_TOMAN + 1,
+      },
+      {
+        code: 'OKI',
+        discountType: 'PERCENT' as const,
+        discountValue: 10,
+        minSpend: MAX_MONEY_TOMAN + 1,
+      },
+      {
+        code: 'OKJ',
+        discountType: 'PERCENT' as const,
+        discountValue: 10,
+        minSpend: 1_000.5,
+      },
     ];
 
     for (const payload of cases) {
@@ -117,6 +136,21 @@ describe('coupon service — creation (§2.4)', () => {
       assert.equal(result.ok, false, `expected refusal for ${payload.code}`);
     }
     assert.deepEqual(await listCoupons(repository), []);
+  });
+
+  it('accepts a fixed coupon exactly at the money ceiling and stores the integer', async () => {
+    const repository = createMemoryRepository();
+
+    const result = await createCoupon(
+      repository,
+      { code: 'CEILING', discountType: 'FIXED', discountValue: MAX_MONEY_TOMAN },
+      NOW,
+    );
+
+    assert.equal(result.ok, true);
+    const stored = await repository.findCouponByCode('CEILING');
+    assert.equal(stored?.discountValue, MAX_MONEY_TOMAN);
+    assert.equal(Number.isSafeInteger(stored?.discountValue), true);
   });
 });
 

@@ -7,6 +7,7 @@ import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
 import { DEFAULT_SHIPPING_METHOD_ID, shippingAmountFor } from '@/lib/shipping';
 import { createMockPaymentGateway, mockPaymentGateway } from '@/server/payments/gateway';
 import { createMemoryRepository } from '@/server/repository-memory';
+import type { MemoryRepositorySeed } from '@/server/repository-memory';
 import type { CommerceRepository } from '@/server/repository';
 import { normalizeCheckoutLines, placeCheckoutOrder } from '@/server/services/checkout';
 import { createProduct } from '@/server/services/products';
@@ -65,10 +66,14 @@ interface Harness {
   whiteMedium: string;
 }
 
-async function harness(): Promise<Harness> {
-  const repository = createMemoryRepository({
-    coupons: [{ code: COUPON_CODE, discountType: 'PERCENT', discountValue: 25, usageLimit: 3 }],
-  });
+type SeedCoupon = NonNullable<MemoryRepositorySeed['coupons']>[number];
+
+async function harness(
+  coupons: SeedCoupon[] = [
+    { code: COUPON_CODE, discountType: 'PERCENT', discountValue: 25, usageLimit: 3 },
+  ],
+): Promise<Harness> {
+  const repository = createMemoryRepository({ coupons });
   const created = await createProduct(repository, PRODUCT_PAYLOAD);
   assert.ok(created.ok, `the fixture product must be written: ${JSON.stringify(created)}`);
   return {
@@ -272,5 +277,126 @@ describe('placeCheckoutOrder — the write path (§3.4)', () => {
       (await getOrder(repository, placed.orderId))?.paymentRefId,
       placed.payment.reference,
     );
+  });
+});
+
+describe('coupon application at the write path (§2.4)', () => {
+  const EXPIRED_AT = new Date('2026-01-01T00:00:00.000Z');
+
+  it('bills a 100% coupon as shipping only and counts exactly one use', async () => {
+    const { repository, blackSmall } = await harness([
+      { code: 'FREE100', discountType: 'PERCENT', discountValue: 100, usageLimit: 5 },
+    ]);
+
+    const placed = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ couponCode: 'FREE100', lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+
+    assert.ok(placed.ok);
+    assert.equal(placed.totals.discount, placed.totals.subtotal);
+    assert.equal(placed.totals.total, placed.totals.shipping);
+    assert.equal((await repository.findCouponByCode('FREE100'))?.usedCount, 1);
+  });
+
+  it('caps a fixed coupon larger than the basket at the basket value', async () => {
+    const { repository, blackSmall } = await harness([
+      { code: 'BIGFIX', discountType: 'FIXED', discountValue: 999_999_999, usageLimit: 5 },
+    ]);
+
+    const placed = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ couponCode: 'BIGFIX', lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+
+    assert.ok(placed.ok);
+    assert.equal(placed.totals.discount, placed.totals.subtotal);
+    assert.equal(placed.totals.total, placed.totals.shipping);
+    assert.equal((await repository.findCouponByCode('BIGFIX'))?.usedCount, 1);
+  });
+
+  it('refuses an expired, below-minimum or exhausted coupon and writes nothing', async () => {
+    const cases: Array<{ code: string; coupon: SeedCoupon }> = [
+      {
+        code: 'EXPIRED20',
+        coupon: {
+          code: 'EXPIRED20',
+          discountType: 'PERCENT',
+          discountValue: 20,
+          expiresAt: EXPIRED_AT,
+        },
+      },
+      {
+        code: 'MINSPEND10',
+        coupon: {
+          code: 'MINSPEND10',
+          discountType: 'PERCENT',
+          discountValue: 10,
+          minSpend: 99_000_000,
+        },
+      },
+      {
+        code: 'USEDUP',
+        coupon: {
+          code: 'USEDUP',
+          discountType: 'PERCENT',
+          discountValue: 15,
+          usageLimit: 1,
+          usedCount: 1,
+        },
+      },
+      {
+        code: 'SWITCHEDOFF',
+        coupon: {
+          code: 'SWITCHEDOFF',
+          discountType: 'PERCENT',
+          discountValue: 15,
+          isActive: false,
+        },
+      },
+    ];
+
+    for (const testCase of cases) {
+      const { repository, blackSmall } = await harness([testCase.coupon]);
+
+      const result = await placeCheckoutOrder(
+        repository,
+        mockPaymentGateway,
+        draft({ couponCode: testCase.code, lines: [{ variantId: blackSmall, quantity: 1 }] }),
+      );
+
+      assert.equal(result.ok, false, `${testCase.code} must be refused`);
+      assert.equal(result.ok ? '' : result.code, 'COUPON_INVALID');
+      assert.deepEqual(await listOrders(repository), [], 'no refusal wrote an order');
+      assert.equal(
+        (await repository.findCouponByCode(testCase.code))?.usedCount,
+        testCase.coupon.usedCount ?? 0,
+        'no refusal counted a use',
+      );
+    }
+  });
+
+  it('accepts a code case-insensitively and refuses an unknown one', async () => {
+    const { repository, blackSmall } = await harness([
+      { code: 'LOWER10', discountType: 'PERCENT', discountValue: 10 },
+    ]);
+
+    const placed = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ couponCode: ' lower10 ', lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+    assert.ok(placed.ok);
+    assert.equal(placed.couponApplied, true);
+
+    const unknown = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ couponCode: 'NOT-A-COUPON', lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+    assert.equal(unknown.ok, false);
+    assert.equal(unknown.ok ? '' : unknown.code, 'COUPON_INVALID');
   });
 });
