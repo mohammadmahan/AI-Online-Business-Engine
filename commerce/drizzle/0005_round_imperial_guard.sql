@@ -1,0 +1,2 @@
+ALTER TABLE "commerce"."notification_outbox" DROP CONSTRAINT "notification_outbox_kind_known";--> statement-breakpoint
+ALTER TABLE "commerce"."notification_outbox" ADD CONSTRAINT "notification_outbox_kind_known" CHECK ("commerce"."notification_outbox"."kind" in ('order.confirmed', 'order.shipped'));

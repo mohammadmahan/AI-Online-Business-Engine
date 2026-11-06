@@ -6,6 +6,7 @@ import {
   ORDER_CONFIRMED_KIND,
   ORDER_NOTIFICATION_CHANNELS,
   ORDER_NOTIFICATION_KINDS,
+  ORDER_SHIPPED_KIND,
   SMS_BACKOFF_SECONDS,
   countCharacters,
   maskSmsRecipient,
@@ -30,8 +31,8 @@ import {
  */
 
 describe('§6.2 notification vocabulary', () => {
-  it('admits exactly one kind and one channel today', () => {
-    assert.deepEqual([...ORDER_NOTIFICATION_KINDS], ['order.confirmed']);
+  it('admits the two triggered kinds and one channel', () => {
+    assert.deepEqual([...ORDER_NOTIFICATION_KINDS], ['order.confirmed', 'order.shipped']);
     assert.deepEqual([...ORDER_NOTIFICATION_CHANNELS], ['SMS']);
   });
 });
@@ -100,5 +101,39 @@ describe('§6.2 retry backoff', () => {
     // A nonsensical attempt number is clamped rather than producing a negative
     // or fractional wait.
     assert.equal(smsBackoffSeconds(0), 60);
+  });
+});
+
+describe('§2.3 shipment body', () => {
+  it('renders the tracking code the order carries', () => {
+    const body = renderNotificationBody(ORDER_SHIPPED_KIND, {
+      orderRef: 'ABCD1234',
+      trackingCode: ' 24IR1234567890 ',
+    });
+    assert.equal(body, 'سفارش ABCD1234 ارسال شد. کد رهگیری: 24IR1234567890');
+    assert.ok(body !== null && countCharacters(body) <= MAX_SMS_CHARS);
+  });
+
+  it('still announces the shipment when no code has been recorded yet', () => {
+    assert.equal(
+      renderNotificationBody(ORDER_SHIPPED_KIND, { orderRef: 'ABCD1234', trackingCode: null }),
+      'سفارش ABCD1234 ارسال شد.',
+    );
+    assert.equal(
+      renderNotificationBody(ORDER_SHIPPED_KIND, { orderRef: 'ABCD1234' }),
+      'سفارش ABCD1234 ارسال شد.',
+    );
+    assert.equal(
+      renderNotificationBody(ORDER_SHIPPED_KIND, { orderRef: 'ABCD1234', trackingCode: '   ' }),
+      'سفارش ABCD1234 ارسال شد.',
+    );
+  });
+
+  it('leaves the confirmation body untouched and keeps the kind set closed', () => {
+    assert.deepEqual([...ORDER_NOTIFICATION_KINDS], [ORDER_CONFIRMED_KIND, ORDER_SHIPPED_KIND]);
+    assert.equal(
+      renderNotificationBody(ORDER_CONFIRMED_KIND, { orderRef: 'ABCD1234' }),
+      'سفارش ABCD1234 ثبت شد. از خرید شما سپاسگزاریم.',
+    );
   });
 });

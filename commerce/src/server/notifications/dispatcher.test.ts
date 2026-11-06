@@ -6,6 +6,7 @@ import type { CheckoutDraft } from '@/contracts/storefront';
 import {
   MAX_SMS_ATTEMPTS,
   ORDER_CONFIRMED_KIND,
+  ORDER_SHIPPED_KIND,
   SMS_CHANNEL,
   orderReference,
 } from '@/lib/notification-rules';
@@ -16,7 +17,7 @@ import { mockPaymentGateway } from '@/server/payments/gateway';
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository } from '@/server/repository';
 import { placeCheckoutOrder } from '@/server/services/checkout';
-import { MERCHANT_TRANSITION, transitionOrder } from '@/server/services/orders';
+import { MERCHANT_TRANSITION, setTrackingCode, transitionOrder } from '@/server/services/orders';
 import { applyPaymentCallback } from '@/server/services/payment-webhook';
 import { createProduct } from '@/server/services/products';
 
@@ -329,6 +330,36 @@ describe('§6.2 rows that cannot be sent are skipped, not retried', () => {
     const [row] = await repository.listOrderNotifications('order-no-phone');
     assert.equal(row?.status, 'FAILED');
     assert.equal(row?.lastError, 'invalid_recipient');
+  });
+});
+
+describe('§2.3 shipment dispatch', () => {
+  it('delivers the shipment body with the tracking code recorded before the ship', async () => {
+    const { repository, orderId } = await paidOrderWithQueue();
+    const channel = new MockSmsChannel();
+
+    // Drain the confirmation first so the shipment is the only due row.
+    await dispatchNotifications(repository, channel, { now: () => T0 });
+
+    await transitionOrder(repository, orderId, 'PROCESSING', MERCHANT_TRANSITION);
+    assert.equal((await setTrackingCode(repository, orderId, '24IR1234567890')).ok, true);
+    await transitionOrder(repository, orderId, 'SHIPPED', MERCHANT_TRANSITION);
+
+    const report = await dispatchNotifications(repository, channel, { now: () => minutes(1) });
+
+    assert.deepEqual(report, { claimed: 1, sent: 1, retried: 0, failed: 0, skipped: 0 });
+    assert.equal(channel.calls.length, 2);
+    assert.equal(
+      channel.calls[1]?.body,
+      `سفارش ${orderReference(orderId)} ارسال شد. کد رهگیری: 24IR1234567890`,
+    );
+    assert.equal(channel.calls[1]?.to, '09123456789');
+
+    // A second run has nothing to claim: the shipment is announced once.
+    const again = await dispatchNotifications(repository, channel, { now: () => minutes(2) });
+    assert.equal(again.claimed, 0);
+    const rows = await repository.listOrderNotifications(orderId);
+    assert.equal(rows.filter((row) => row.kind === ORDER_SHIPPED_KIND && row.status === 'SENT').length, 1);
   });
 });
 

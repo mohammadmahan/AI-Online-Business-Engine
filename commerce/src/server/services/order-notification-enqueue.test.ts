@@ -3,7 +3,12 @@ import { describe, it } from 'node:test';
 
 import type { ProductCreatePayload } from '@/contracts/catalog';
 import type { CheckoutDraft } from '@/contracts/storefront';
-import { ORDER_CONFIRMED_KIND, SMS_CHANNEL, orderReference } from '@/lib/notification-rules';
+import {
+  ORDER_CONFIRMED_KIND,
+  ORDER_SHIPPED_KIND,
+  SMS_CHANNEL,
+  orderReference,
+} from '@/lib/notification-rules';
 import { DEFAULT_SHIPPING_METHOD_ID } from '@/lib/shipping';
 import { mockPaymentGateway } from '@/server/payments/gateway';
 import { createMemoryRepository } from '@/server/repository-memory';
@@ -182,7 +187,7 @@ describe('§6.2 transitions that queue nothing', () => {
     assert.deepEqual(await repository.listOrderNotifications(orderId), []);
   });
 
-  it('a FORBIDDEN edge (PAID on a shipped order) writes no notification', async () => {
+  it('a FORBIDDEN edge (PAID on a shipped order) adds no notification', async () => {
     const repository = createMemoryRepository();
     const orderId = await placeOrder(repository);
 
@@ -198,10 +203,15 @@ describe('§6.2 transitions that queue nothing', () => {
     assert.equal(late.ok, false);
     assert.equal(late.ok === false ? late.code : '', 'ILLEGAL_TRANSITION');
 
-    // The row from the FIRST payment is still the only one: the refusal added
+    // The two rows written BEFORE the late callback — the payment confirmation
+    // and the shipment announcement — are still the only ones: the refusal added
     // neither a transition nor an announcement.
     const rows = await repository.listOrderNotifications(orderId);
-    assert.equal(rows.length, 1);
+    assert.equal(rows.length, 2);
+    assert.deepEqual(
+      rows.map((row) => row.kind).sort(),
+      [ORDER_CONFIRMED_KIND, ORDER_SHIPPED_KIND].sort(),
+    );
   });
 });
 

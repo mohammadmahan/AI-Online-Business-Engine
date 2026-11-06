@@ -50,10 +50,10 @@ export const notificationOutbox = commerce.table(
       .notNull()
       .references(() => orders.id, { onDelete: 'cascade' }),
     /**
-     * The notification KIND — the canonical template id
-     * (`order.confirmed`), never a rendered title. One kind per migration: the
-     * check constraint below is the reason an unknown kind cannot be enqueued by
-     * a caller that guessed.
+     * The notification KIND — the canonical template id (`order.confirmed`,
+     * `order.shipped`), never a rendered title. One kind per migration: the check
+     * constraint below is the reason an unknown kind cannot be enqueued by a
+     * caller that guessed.
      */
     kind: varchar('kind', { length: 64 }).notNull(),
     channel: notificationChannel('channel').notNull(),
@@ -86,7 +86,10 @@ export const notificationOutbox = commerce.table(
     index('notification_outbox_due_idx').on(table.status, table.nextAttemptAt),
     check('notification_outbox_attempts_non_negative', sql`${table.attempts} >= 0`),
     // A kind is admitted by a migration, not by a caller's imagination.
-    check('notification_outbox_kind_known', sql`${table.kind} = 'order.confirmed'`),
+    check(
+      'notification_outbox_kind_known',
+      sql`${table.kind} in ('order.confirmed', 'order.shipped')`,
+    ),
     // `sent_at` and `SENT` are two spellings of one fact; a row may not hold one
     // without the other.
     check(

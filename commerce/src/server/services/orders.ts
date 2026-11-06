@@ -1,4 +1,5 @@
 import type { OrderStatus } from '@/db/schema';
+import { ORDER_SHIPPED_KIND, SMS_CHANNEL } from '@/lib/notification-rules';
 import {
   TRACKING_ALLOWED_STATUSES,
   canTransition,
@@ -62,10 +63,11 @@ export async function getOrder(
  * message for the panel), while the repository's no-op branch covers a direct
  * caller and a retried callback.
  *
- * `notifications` (§6.2) are queued by the SAME write that moves the status. The
- * default is empty, so the merchant panel's transitions announce nothing until a
- * template for them exists: an order confirmation is the only §6.2 message with a
- * trigger and a body today.
+ * `notifications` (§6.2) are queued by the SAME write that moves the status, so
+ * a crash between "status changed" and "buyer told" is not a state this can
+ * reach. Passing an explicit list overrides the default; otherwise a move to
+ * `SHIPPED` announces the shipment to the buyer and every other move announces
+ * nothing (a cancellation is not a message the roadmap asks for).
  */
 export async function transitionOrder(
   repo: CommerceRepository,
@@ -88,7 +90,13 @@ export async function transitionOrder(
       message: `تغییر وضعیت از «${order.status}» به «${next}» مجاز نیست.`,
     };
   }
-  const updated = await repo.updateOrderStatus(orderId, next, trigger, notifications);
+  const intents =
+    notifications.length > 0
+      ? notifications
+      : next === 'SHIPPED'
+        ? [{ kind: ORDER_SHIPPED_KIND, channel: SMS_CHANNEL }]
+        : [];
+  const updated = await repo.updateOrderStatus(orderId, next, trigger, intents);
   return updated
     ? { ok: true }
     : { ok: false, code: 'NOT_FOUND', message: 'سفارش پیدا نشد.' };

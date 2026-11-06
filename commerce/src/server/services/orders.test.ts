@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import type { OrderStatus } from '@/db/schema';
+import { ORDER_SHIPPED_KIND, SMS_CHANNEL } from '@/lib/notification-rules';
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { MemoryRepositorySeed } from '@/server/repository-memory';
 import {
@@ -219,5 +220,47 @@ describe('order service — postal tracking code (§2.3)', () => {
 
     assert.equal(result.ok, false);
     assert.ok(!result.ok && result.code === 'NOT_FOUND');
+  });
+});
+
+describe('order service — shipment announcement (§2.3 + §6.2)', () => {
+  it('queues exactly one PENDING shipment row when the parcel ships', async () => {
+    const repository = createMemoryRepository(seed('PROCESSING'));
+    assert.equal((await setTrackingCode(repository, ORDER_ID, '24IR1234567890')).ok, true);
+
+    const shipped = await transitionOrder(repository, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION);
+    assert.equal(shipped.ok, true);
+
+    const rows = await repository.listOrderNotifications(ORDER_ID);
+    assert.equal(rows.length, 1);
+    const row = rows[0];
+    assert.ok(row);
+    assert.equal(row.kind, ORDER_SHIPPED_KIND);
+    assert.equal(row.channel, SMS_CHANNEL);
+    assert.equal(row.status, 'PENDING');
+    assert.equal(row.attempts, 0);
+    assert.equal(row.sentAt, null);
+    // The code stays on the ORDER; the queue holds only the order reference, so
+    // the outbox never grows a second copy of parcel data.
+    assert.deepEqual(Object.keys(row.payload), ['orderRef']);
+    assert.equal((await getOrder(repository, ORDER_ID))?.trackingCode, '24IR1234567890');
+  });
+
+  it('does not queue a second row when the same shipment move is repeated', async () => {
+    const repository = createMemoryRepository(seed('PROCESSING'));
+    await transitionOrder(repository, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION);
+
+    const repeat = await transitionOrder(repository, ORDER_ID, 'SHIPPED', MERCHANT_TRANSITION);
+    assert.equal(repeat.ok, false);
+    assert.ok(!repeat.ok && repeat.code === 'ILLEGAL_TRANSITION');
+    assert.equal((await repository.listOrderNotifications(ORDER_ID)).length, 1);
+  });
+
+  it('queues nothing for the moves before shipment', async () => {
+    const repository = createMemoryRepository(seed('PENDING'));
+    await transitionOrder(repository, ORDER_ID, 'PAID', MERCHANT_TRANSITION);
+    await transitionOrder(repository, ORDER_ID, 'PROCESSING', MERCHANT_TRANSITION);
+
+    assert.deepEqual(await repository.listOrderNotifications(ORDER_ID), []);
   });
 });

@@ -1,6 +1,7 @@
 import {
   MAX_SMS_ATTEMPTS,
   ORDER_CONFIRMED_KIND,
+  ORDER_SHIPPED_KIND,
   SMS_CHANNEL,
   maskSmsRecipient,
   normalizeSmsRecipient,
@@ -143,7 +144,10 @@ async function dispatchOne(
   item: NotificationWorkItem,
   now: Date,
 ): Promise<DispatchOutcome> {
-  if (item.kind !== ORDER_CONFIRMED_KIND || item.channel !== SMS_CHANNEL) {
+  if (
+    (item.kind !== ORDER_CONFIRMED_KIND && item.kind !== ORDER_SHIPPED_KIND) ||
+    item.channel !== SMS_CHANNEL
+  ) {
     await repository.markNotificationFailed(item.id, 'unsupported_kind', null, now);
     return { kind: 'skipped' };
   }
@@ -163,7 +167,13 @@ async function dispatchOne(
   const orderRef = isRecord(item.payload) && typeof item.payload.orderRef === 'string'
     ? item.payload.orderRef
     : orderReference(order.id);
-  const body = renderNotificationBody(item.kind, { orderRef });
+  // The tracking code is read from the ORDER at send time — never copied into
+  // the queue — so a code recorded before the ship is included and the payload
+  // stays free of customer data (see the outbox schema note).
+  const body = renderNotificationBody(item.kind, {
+    orderRef,
+    trackingCode: order.trackingCode,
+  });
   if (body === null) {
     await repository.markNotificationFailed(item.id, 'body_unavailable', null, now);
     return { kind: 'skipped' };

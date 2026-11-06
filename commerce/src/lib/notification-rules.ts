@@ -6,11 +6,10 @@
  *  1. WHAT may be announced (`ORDER_NOTIFICATION_KINDS`). The set is closed:
  *     a kind that is not listed cannot be enqueued, and adding one is a schema
  *     migration (`notification_outbox_kind_known`) plus a body, not a free-text
- *     string at a call site. The owner's §6.2 wish list — OTP login, order
- *     confirmation, postal tracking — is NOT copied in wholesale: only
- *     `order.confirmed` has a trigger and a provider path the commerce app can
- *     honour today, and tracking belongs to the shipping provider that decision
- *     row 11 has not selected.
+ *     string at a call site. Two kinds have a trigger and a provider path the
+ *     commerce app can honour today — `order.confirmed` on PAID and
+ *     `order.shipped` on SHIPPED; OTP login stays out until the auth flow that
+ *     would send it exists.
  *  2. WHAT the message says. The Persian bodies MIRROR
  *     `local/canonical/sms_adapter.py::_BODY_TEMPLATES` word for word, so the
  *     same order reads the same whether the canonical engine or this app sends
@@ -27,13 +26,24 @@
 
 /* ------------------------------------------------------------- vocabulary */
 
-/** The one message kind that has a trigger today (§6.2 buyer messages). */
+/** Payment received — queued by the PAID transition (§6.2). */
 export const ORDER_CONFIRMED_KIND = 'order.confirmed' as const;
+
+/**
+ * Parcel handed to the carrier — queued by the SHIPPED transition (§2.3).
+ *
+ * The roadmap asks for this message on the tracking-code flow; it is queued on
+ * the STATUS MOVE instead, because a code may be recorded while the parcel is
+ * still `PROCESSING` and a shipment must be announced even when no code exists
+ * yet. The dispatcher reads `orders.tracking_code` at send time, so a code
+ * recorded before the ship is included without being copied into the queue.
+ */
+export const ORDER_SHIPPED_KIND = 'order.shipped' as const;
 
 /** The only channel Kavenegar serves here (decision row 74). */
 export const SMS_CHANNEL = 'SMS' as const;
 
-export const ORDER_NOTIFICATION_KINDS = [ORDER_CONFIRMED_KIND] as const;
+export const ORDER_NOTIFICATION_KINDS = [ORDER_CONFIRMED_KIND, ORDER_SHIPPED_KIND] as const;
 export const ORDER_NOTIFICATION_CHANNELS = [SMS_CHANNEL] as const;
 
 export type OrderNotificationKind = (typeof ORDER_NOTIFICATION_KINDS)[number];
@@ -61,13 +71,19 @@ export const MAX_SMS_CHARS = 280;
 /**
  * Locally rendered Persian bodies (D-171: Persian prose, Latin identifiers).
  *
- * `order.tracking` is intentionally absent: a tracking SMS needs the carrier's
- * code and the shipping provider is still unselected (decision row 11). Writing
- * a body for it now would be inventing a message nothing can trigger.
+ * `order.shipped` has TWO renderings rather than one optional sentence, because
+ * a shipment is a fact on its own: the code is recorded on the order when the
+ * carrier has issued one, and a panel that shipped first and typed the code
+ * afterwards must still announce the shipment. Neither body invents a carrier
+ * name — the provider is still unselected (decision row 11).
  */
 const SMS_BODIES: Record<OrderNotificationKind, string> = {
   [ORDER_CONFIRMED_KIND]: 'سفارش {order_ref} ثبت شد. از خرید شما سپاسگزاریم.',
+  [ORDER_SHIPPED_KIND]: 'سفارش {order_ref} ارسال شد. کد رهگیری: {tracking_code}',
 };
+
+/** The `order.shipped` body when the order carries no tracking code yet. */
+const SHIPPED_WITHOUT_CODE_BODY = 'سفارش {order_ref} ارسال شد.';
 
 /**
  * A short, human-readable reference for an order, derived from its id.
@@ -89,13 +105,21 @@ export function orderReference(orderId: string): string {
  */
 export function renderNotificationBody(
   kind: OrderNotificationKind,
-  variables: { orderRef: string },
+  variables: { orderRef: string; trackingCode?: string | null },
 ): string | null {
   const template = SMS_BODIES[kind];
   if (template === undefined) {
     return null;
   }
-  const body = template.replace('{order_ref}', variables.orderRef);
+  const trackingCode =
+    typeof variables.trackingCode === 'string' ? variables.trackingCode.trim() : '';
+  const chosen =
+    kind === ORDER_SHIPPED_KIND && trackingCode.length === 0
+      ? SHIPPED_WITHOUT_CODE_BODY
+      : template;
+  const body = chosen
+    .replace('{order_ref}', variables.orderRef)
+    .replace('{tracking_code}', trackingCode);
   const length = countCharacters(body);
   if (length === 0 || length > MAX_SMS_CHARS) {
     return null;
