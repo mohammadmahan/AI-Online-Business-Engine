@@ -10,7 +10,8 @@ import {
 } from '@/lib/color-palette';
 import { formatCountFa } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { buildVariantMatrix, MATRIX_MAX_ROWS } from '@/lib/variant-matrix';
+import { buildVariantMatrix } from '@/lib/variant-matrix';
+import { variantMatrixRequestSchema } from '@/lib/variant-matrix-schema';
 import { isHexColor } from '@/lib/validation';
 import { Badge, Field, buttonClass, inputClass } from '@/components/ui/primitives';
 
@@ -106,17 +107,23 @@ export function VariantMatrixGenerator({
   }
 
   function generate() {
-    if (colors.length === 0 || sizes.length === 0) {
-      setNotice('برای ساخت ماتریس، حداقل یک رنگ و یک سایز انتخاب کنید.');
-      return;
-    }
-    if (colors.length * sizes.length > MATRIX_MAX_ROWS) {
-      setNotice(`تعداد سطرهای ماتریس نباید از ${formatCountFa(MATRIX_MAX_ROWS)} بیشتر باشد.`);
+    // Gate on the SAME Zod contract the server re-checks on submit
+    // (`@/lib/variant-matrix-schema`), so an empty palette, a duplicate size or
+    // an oversized matrix is refused with a field-level message here instead of
+    // becoming rows the submit path later rejects.
+    const parsed = variantMatrixRequestSchema.safeParse({
+      colors,
+      sizes,
+      skuPrefix,
+      defaultStock,
+    });
+    if (!parsed.success) {
+      setNotice(parsed.error.issues[0]?.message ?? 'ورودی ماتریس معتبر نیست.');
       return;
     }
     // Re-generating REPLACES the rows: the palette/size selection is the input,
     // and silently merging would produce rows nobody asked for.
-    onRowsChange(buildVariantMatrix({ colors, sizes, skuPrefix, defaultStock }));
+    onRowsChange(buildVariantMatrix(parsed.data));
     setNotice(null);
   }
 

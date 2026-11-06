@@ -1,6 +1,11 @@
-import type { VariantMatrixPayload, VariantPayload } from '@/contracts/catalog';
+import type { VariantPayload } from '@/contracts/catalog';
 
-import { isNonEmptyString } from './validation';
+import type { ValidationIssue } from './validation';
+import { MATRIX_MAX_ROWS, variantMatrixRequestSchema } from './variant-matrix-schema';
+import type { VariantMatrixRequest } from './variant-matrix-schema';
+
+export { MATRIX_MAX_ROWS };
+export type { VariantMatrixRequest };
 
 /**
  * D-172 §2.1 — the variant matrix generator, as a PURE module.
@@ -11,14 +16,6 @@ import { isNonEmptyString } from './validation';
  * refusal can never drift apart.
  */
 
-export interface VariantMatrixRequest extends VariantMatrixPayload {
-  /** SKU namespace, e.g. the product slug upper-cased (`MANTO-KETI`). */
-  skuPrefix: string;
-  defaultStock?: number;
-  defaultPriceOverride?: number | null;
-}
-
-export const MATRIX_MAX_ROWS = 240;
 
 function sizeToken(size: string, index: number): string {
   const cleaned = size
@@ -59,27 +56,20 @@ export function buildVariantMatrix(request: VariantMatrixRequest): VariantPayloa
   return rows;
 }
 
-export function validateMatrixRequest(request: VariantMatrixRequest): Array<{
-  field: string;
-  message: string;
-}> {
-  const issues: Array<{ field: string; message: string }> = [];
-  if (!isNonEmptyString(request.skuPrefix)) {
-    issues.push({ field: 'skuPrefix', message: 'پیشوند کد کالا الزامی است.' });
+/**
+ * The same rules the browser gate uses, reported in the panel's `{field,message}`
+ * shape. Delegating to the Zod schema (instead of re-listing the checks) is what
+ * keeps the client hint and the refusal identical: one definition, two callers.
+ */
+export function validateMatrixRequest(request: VariantMatrixRequest): ValidationIssue[] {
+  const parsed = variantMatrixRequestSchema.safeParse(request);
+  if (parsed.success) {
+    return [];
   }
-  if (!Array.isArray(request.colors) || request.colors.length === 0) {
-    issues.push({ field: 'colors', message: 'حداقل یک رنگ انتخاب کنید.' });
-  }
-  if (!Array.isArray(request.sizes) || request.sizes.length === 0) {
-    issues.push({ field: 'sizes', message: 'حداقل یک سایز انتخاب کنید.' });
-  }
-  if (request.colors.length * request.sizes.length > MATRIX_MAX_ROWS) {
-    issues.push({
-      field: 'matrix',
-      message: `تعداد سطرهای ماتریس بیش از حد مجاز (${MATRIX_MAX_ROWS}) است.`,
-    });
-  }
-  return issues;
+  return parsed.error.issues.map((issue) => ({
+    field: issue.path.length > 0 ? issue.path.map(String).join('.') : 'matrix',
+    message: issue.message,
+  }));
 }
 
 /** Minimal, deterministic rich-text fallback: escape, then paragraph breaks. */
