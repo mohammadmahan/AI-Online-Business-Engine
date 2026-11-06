@@ -5,6 +5,11 @@ import { ProductRail } from '@/components/storefront/product-rail';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
 import { Placeholder, buttonClass } from '@/components/ui/primitives';
 import { formatCountFa } from '@/lib/format';
+import {
+  HOME_RAIL_SIZE,
+  buildHomeCollections,
+  categoryCircleHref,
+} from '@/lib/storefront-home';
 import { getRepository } from '@/server/db-context';
 import {
   listBestSellers,
@@ -37,8 +42,6 @@ export const metadata: Metadata = {
 // A shop's front page is per-request by definition: stock and prices move.
 export const dynamic = 'force-dynamic';
 
-const RAIL_SIZE = 6;
-
 export default async function StorefrontHomePage() {
   const repository = getRepository();
   if (repository === null) {
@@ -52,11 +55,10 @@ export default async function StorefrontHomePage() {
   const [cards, categories, bestSellers] = await Promise.all([
     listPublishedProducts(repository),
     listStorefrontCategories(repository),
-    listBestSellers(repository, RAIL_SIZE),
+    listBestSellers(repository, HOME_RAIL_SIZE),
   ]);
 
-  const newArrivals = cards.slice(0, RAIL_SIZE);
-  const discounted = cards.filter((card) => card.hasDiscount).slice(0, RAIL_SIZE);
+  const collections = buildHomeCollections({ cards, bestSellers });
 
   return (
     <>
@@ -79,7 +81,7 @@ export default async function StorefrontHomePage() {
         </p>
       </section>
 
-      {cards.length === 0 ? (
+      {collections.isEmpty ? (
         <div className="mt-8">
           <Placeholder>
             هنوز محصول منتشرشده‌ای در فروشگاه وجود ندارد. پس از انتشار محصول در پنل مدیریت، در همین
@@ -97,7 +99,7 @@ export default async function StorefrontHomePage() {
                 {categories.map((category) => (
                   <li key={category.slug}>
                     <Link
-                      href={{ pathname: '/catalog', query: { category: category.name } }}
+                      href={categoryCircleHref(category.name)}
                       className="flex w-28 flex-col items-center gap-2 text-center"
                     >
                       <span
@@ -121,14 +123,14 @@ export default async function StorefrontHomePage() {
             id="storefront-new-arrivals"
             title="جدیدها"
             description="تازه‌ترین محصولات منتشرشده در فروشگاه."
-            cards={newArrivals}
+            cards={collections.newArrivals}
           />
 
           <ProductRail
             id="storefront-discounted"
             title="پیشنهادهای تخفیف‌دار"
             description="محصولاتی که قیمت تخفیف‌دار فعال دارند."
-            cards={discounted}
+            cards={collections.discounted}
           />
 
           <ProductRail

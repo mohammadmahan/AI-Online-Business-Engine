@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Vazirmatn } from 'next/font/google';
 
+import { DOCUMENT_DIRECTION, DOCUMENT_LANGUAGE } from '@/lib/document';
+
 import './globals.css';
 
 /**
@@ -49,8 +51,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // suppressed here instead of leaving a permanent false alarm that would
     // mask genuine mismatches deeper in the tree.
     <html
-      lang="fa"
-      dir="rtl"
+      lang={DOCUMENT_LANGUAGE}
+      dir={DOCUMENT_DIRECTION}
       data-theme="light"
       className={vazirmatn.variable}
       suppressHydrationWarning
