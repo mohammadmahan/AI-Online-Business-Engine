@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import type { CouponCreatePayload } from '@/contracts/promotions';
 
-import { withRepository, type CommerceActionResult } from '../db-context';
+import { withAdminRepository } from '../auth/with-admin';
+import type { CommerceActionResult } from '../db-context';
 import { createCoupon, setCouponActive } from '../services/coupons';
 
 /** D-172 §2.4 — coupon creation and activation toggling. */
@@ -12,7 +13,7 @@ import { createCoupon, setCouponActive } from '../services/coupons';
 export async function createCouponAction(
   payload: CouponCreatePayload,
 ): Promise<CommerceActionResult<{ couponId: string; code: string }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const created = await createCoupon(repository, payload);
     return created.ok
       ? { ok: true as const, data: { couponId: created.coupon.id, code: created.coupon.code } }
@@ -37,7 +38,7 @@ export interface ToggleCouponActionInput {
 export async function setCouponActiveAction(
   input: ToggleCouponActionInput,
 ): Promise<CommerceActionResult<{ couponId: string; isActive: boolean }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const outcome = await setCouponActive(repository, input.couponId, input.isActive);
     return outcome.ok
       ? {

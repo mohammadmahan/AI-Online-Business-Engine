@@ -1,4 +1,5 @@
 import type {
+  CategoryCreatePayload,
   ProductCreatePayload,
   VariantPayload,
 } from '@/contracts/catalog';
@@ -218,6 +219,54 @@ export function validateProduct(payload: ProductCreatePayload): Validation {
       );
     }
   });
+
+  return fromIssues(issues);
+}
+
+/* --------------------------------------------------------------- §1.1 input */
+
+/**
+ * A category submission (D-172 §1.1): the merchant panel's create form.
+ *
+ * `parentId` belongs to the schema (subcategories) but NOT to this surface yet:
+ * accepting it here would offer a hierarchy the panel cannot show or validate, so
+ * a non-null value is refused rather than silently dropped.
+ */
+export function validateCategory(payload: CategoryCreatePayload): Validation {
+  const issues: ValidationIssue[] = [];
+
+  if (!isNonEmptyString(payload.name)) {
+    issues.push(issue('name', 'نام دسته الزامی است.'));
+  } else {
+    const name = payload.name.trim();
+    if (name.length < 2) {
+      issues.push(issue('name', 'نام دسته حداقل ۲ نویسه باشد.'));
+    } else if (name.length > 255) {
+      issues.push(issue('name', 'نام دسته بیش از ۲۵۵ نویسه است.'));
+    }
+  }
+
+  if (!isNonEmptyString(payload.slug) || !SLUG_RE.test(payload.slug.trim())) {
+    issues.push(
+      issue('slug', 'نشانی دسته باید با حروف کوچک لاتین، عدد و خط تیره نوشته شود (مثال: manto-ketani).'),
+    );
+  } else if (payload.slug.trim().length > 255) {
+    issues.push(issue('slug', 'نشانی دسته بیش از ۲۵۵ نویسه است.'));
+  }
+
+  if (payload.description !== undefined && payload.description !== null) {
+    if (typeof payload.description !== 'string') {
+      issues.push(issue('description', 'توضیح دسته باید متن باشد.'));
+    } else if (payload.description.trim().length > 2000) {
+      issues.push(issue('description', 'توضیح دسته بیش از ۲۰۰۰ نویسه است.'));
+    }
+  }
+
+  if (payload.parentId !== undefined && payload.parentId !== null && payload.parentId !== '') {
+    issues.push(
+      issue('parentId', 'دستهٔ والد در این مرحله پشتیبانی نمی‌شود؛ دستهٔ اصلی بسازید.'),
+    );
+  }
 
   return fromIssues(issues);
 }

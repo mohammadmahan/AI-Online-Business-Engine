@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { withRepository, type CommerceActionResult } from '../db-context';
+import { withAdminRepository } from '../auth/with-admin';
+import type { CommerceActionResult } from '../db-context';
 import { updatePrice, updateStock } from '../services/inventory';
 
 /**
@@ -21,7 +22,7 @@ export interface UpdateStockActionInput {
 export async function updateStockAction(
   input: UpdateStockActionInput,
 ): Promise<CommerceActionResult<{ variantId: string }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const updated = await updateStock(repository, input.variantId, input.stockQuantity);
     return updated.ok
       ? { ok: true as const, data: { variantId: updated.variantId } }
@@ -46,7 +47,7 @@ export interface UpdatePriceActionInput {
 export async function updatePriceAction(
   input: UpdatePriceActionInput,
 ): Promise<CommerceActionResult<{ variantId: string }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const updated = await updatePrice(repository, input.variantId, input.priceOverride);
     return updated.ok
       ? { ok: true as const, data: { variantId: updated.variantId } }

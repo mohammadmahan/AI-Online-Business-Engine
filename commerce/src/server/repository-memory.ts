@@ -55,8 +55,16 @@ import {
  * never disagree with the real read path about a card's price, stock level or
  * image order.
  */
+export interface MemoryCategorySeed {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  createdAt?: Date;
+}
+
 export interface MemoryRepositorySeed {
-  categories?: Array<{ id: string; name: string; slug: string }>;
+  categories?: MemoryCategorySeed[];
   productGraphs?: NewProductGraph[];
   orders?: Array<{
     id: string;
@@ -158,10 +166,12 @@ type MemoryOrderItem = OrderItemView & { variantId: string | null };
 type MemoryOrderRow = Omit<OrderDetail, 'items'> & { items: MemoryOrderItem[] };
 
 export function createMemoryRepository(seed: MemoryRepositorySeed = {}): CommerceRepository {
-  const categories = seed.categories ?? [
+  // Mutable because the panel can create a category (§1.1); the seed stays the
+  // starting state, exactly like a migrated database with the demo catalog.
+  const categories: MemoryCategorySeed[] = [...(seed.categories ?? [
     { id: 'cat-1', name: 'مانتو', slug: 'manto' },
     { id: 'cat-2', name: 'شومیز', slug: 'shomiz' },
-  ];
+  ])];
 
   let createdAtCursor = new Date('2026-01-01T00:00:00.000Z').getTime();
   const productsTable: MemoryProductRow[] = [];
@@ -397,7 +407,53 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
 
   return {
     async listCategories() {
-      return categories;
+      return categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+      }));
+    },
+
+    async listCategoryAdminRows() {
+      return categories
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          description: category.description ?? null,
+          createdAt: category.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
+          productCount: productsTable.filter((product) => product.categoryId === category.id)
+            .length,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+    },
+
+    async findCategoryBySlug(slug) {
+      const found = categories.find((category) => category.slug === slug);
+      return found === undefined ? null : { id: found.id };
+    },
+
+    async createCategory(input) {
+      // The UNIQUE constraint, modelled: a duplicate slug answers `null` and the
+      // service renders it against the field.
+      if (categories.some((category) => category.slug === input.slug)) {
+        return null;
+      }
+      const row: MemoryCategorySeed = {
+        id: nextId(),
+        name: input.name,
+        slug: input.slug,
+        description: input.description,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+      };
+      categories.push(row);
+      return {
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        description: row.description ?? null,
+        createdAt: row.createdAt ?? new Date('2026-03-01T00:00:00.000Z'),
+      };
     },
 
     async createProductGraph(graph) {

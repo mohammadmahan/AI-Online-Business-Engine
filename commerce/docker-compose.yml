@@ -81,6 +81,12 @@ services:
       NOTIFICATIONS_DISPATCH_TOKEN: ${NOTIFICATIONS_DISPATCH_TOKEN:-}
       # Mock channel: messages are recorded, nothing leaves the machine.
       SMS_LIVE_ENABLED: ${SMS_LIVE_ENABLED:-false}
+      # Phase 4 single-admin guard. Empty by default, and an empty value is a
+      # REFUSAL (the panel answers "not configured", it never opens): the
+      # operator fills these in `.env` (gitignored). See .env.example.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
     ports:
       - "127.0.0.1:13001:3000"
     depends_on:

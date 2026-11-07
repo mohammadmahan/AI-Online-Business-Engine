@@ -70,6 +70,7 @@ npm run db:check       # journal/schema consistency        — offline
 npm run verify         # typecheck + lint + test + db:check — offline
 npm run build          # production build                  — offline
 npm run media:bucket   # LOCAL MinIO bucket + read policy  — loopback:19000 only
+npm run admin:hash     # produce ADMIN_PASSWORD_HASH (scrypt) for commerce/.env
 npm run db:migrate     # APPLY migrations — needs DATABASE_URL, owner-gated
 npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 ```
@@ -203,6 +204,82 @@ SHA-256, and re-uploaded as `duplicate: true`; a text payload named `.jpg` →
 a production server answered 404 even with the flag on. **Not verified live:**
 JPEG/WebP uploads (hermetic only), the browser uploader → product-creation
 flow, and `npm run smoke:db`.
+
+## Admin panel access (Phase 4 hardening)
+
+The merchant panel accepts **one** operator identity, supplied by the
+environment — not a user table, not a role model. The pilot shop has a single
+merchant, so this is the minimum that makes the panel defensible; anything more
+(multi-user, roles, password reset, audit of who changed what) is a separate
+owner decision.
+
+```bash
+# 1) one-time: hash the operator password (scrypt; the script prints the hash)
+npm run admin:hash -- 'the password'        # or: npm run admin:hash (stdin)
+
+# 2) put the three values in commerce/.env (gitignored; compose reads it)
+ADMIN_USERNAME=owner
+ADMIN_PASSWORD_HASH=scrypt:16384:8:1:<salt-hex>:<key-hex>
+ADMIN_SESSION_SECRET=$(openssl rand -hex 32)
+
+# 3) recreate the app service so it picks the values up
+docker compose up -d --force-recreate commerce-web
+```
+
+What is enforced, and where:
+
+- `src/proxy.ts` (Next 16's replacement for `middleware.ts`, Node runtime) guards
+  **`/admin/**` pages and `/api/admin/**` routes**. An unauthenticated page
+  request is redirected to `/admin/login?next=…`; an API request answers **401**
+  JSON so a script fails loudly instead of parsing an HTML login page.
+- Every admin Server Action (`products`, `inventory`, `orders`, `coupons`,
+  `categories`) goes through `withAdminRepository`, which re-checks the session
+  before touching the repository. The proxy and the action guard are separate on
+  purpose: an action id is a global URL, so the path rule alone does not describe
+  what a POST is allowed to write.
+- `POST /api/admin/media` (the local MinIO upload edge) checks the session inside
+  the handler as well as at the proxy.
+- Order views therefore hold customer PII (name, mobile, address) behind the
+  guard — before Phase 4 they were readable by anyone who could reach the port.
+- The rules themselves live in `src/server/auth/admin-auth.ts` (pure: config,
+  scrypt verify, signed cookie, access decision, throttle) and are unit tested in
+  `admin-auth.test.ts`.
+
+Fail-closed behaviour (D-171 §2.2): if `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` or
+`ADMIN_SESSION_SECRET` is absent **or malformed**, nothing opens. Pages land on
+`/admin/login`, which states the problem and renders **no password form**; APIs
+answer `503 ADMIN_NOT_CONFIGURED`. There is no default credential, no
+`admin/admin` fallback and no unsigned cookie.
+
+Session properties: HttpOnly, `SameSite=Lax`, `Secure` only under
+`NODE_ENV=production`, path `/`, **8 hours**, HMAC-SHA256 signed over the expiry
+AND the operator name (so rotating the name signs old cookies out), stateless — no
+row to clean up, and a restart does not sign anyone out. A wrong username and a
+wrong password answer the same message, and the login form is throttled
+in-process (8 failures / 5 minutes). Sign-out clears the cookie.
+
+**Scope limits, stated plainly:** no HTTPS, no edge rate limiting, no second
+identity, no password reset, no per-action audit of the operator. The panel
+remains a **loopback-only** surface for the pilot; this guard does not make it
+safe to expose, it makes it defensible to run.
+
+### Category management (`/admin/categories`)
+
+Before Phase 4 a category could only be created by `scripts/seed-catalog.mjs`,
+which refuses every target outside the disposable harness — so a merchant could
+not open their own catalog at all. The panel now has the missing write path:
+create a category (name, slug, description), see the existing ones with their
+product counts, and pick the new one immediately in **افزودن محصول** (the action
+revalidates that form).
+
+Rules: `validateCategory` (`src/lib/validation.ts`) enforces a 2–255 character
+name, a latin lowercase slug that is also the storefront filter identity, and a
+≤2000 character optional description; a duplicate slug answers `CONFLICT` on the
+slug field (pre-checked, and still caught if the UNIQUE constraint fires on a
+concurrent insert); `parentId` is refused rather than silently dropped, because
+subcategories have no panel surface yet. Rename and delete are deliberately not
+offered: a rename changes storefront copy, and `categories` is FK `RESTRICT`-protected
+by its products.
 
 ## Verification status
 
@@ -372,3 +449,37 @@ with their own records.
   any deployment manifest (G-5/C-8). Cutover status, clause by clause:
   [`docs/deployment/phase-6-cutover-checklist.md`](../docs/deployment/phase-6-cutover-checklist.md)
   — **build/artifact GO, production activation NO-GO**.
+
+Phase 4 **pilot hardening — admin guard & categories**. The panel is no longer an
+open surface: `src/proxy.ts` guards `/admin/**` and `/api/admin/**`, every admin
+Server Action re-checks the session through `withAdminRepository`, and the local
+media upload route checks it in-handler as well. Access, sign-out, the fail-closed
+configuration states and the rules themselves are covered by
+`src/server/auth/admin-auth.test.ts` (configuration ABSENT vs INVALID, scrypt
+verify, signed/expiring/name-bound cookie, the access decision matrix, the open-
+redirect guard, the login throttle). Categories gained their first merchant-
+reachable write path (`/admin/categories`, service + validation + action), tested
+in `src/server/services/categories.test.ts`.
+
+Evidence: `npm run verify` **exit 0 — 430 tests / 102 suites, 0 fail**, lint 0,
+`db:check` clean; `npm run build` exit 0 with `/admin/login`, `/admin/categories`
+and `ƒ Proxy (Middleware)` in the route table. Browser, on the loopback stack:
+anonymous `/admin` → **307 `/admin/login?next=%2Fadmin`**; `POST /api/admin/media`
+anonymous → **401**; wrong password → the single “wrong username or password”
+message, no navigation; correct sign-in → `/admin` with the operator name and a
+sign-out control; sign-out → login screen, and `/admin/orders` (the PII view) then
+redirects to `?next=%2Fadmin%2Forders`; a category created through the form
+(“شال و روسری” / `shal-va-rosari`) appeared in the table with a product count of
+0, in PostgreSQL (`commerce.categories`), and immediately in the **افزودن محصول**
+dropdown.
+
+Two real defects were found while verifying, both fixed and now pinned by tests:
+(1) a TRUNCATED hash verified, because scrypt's derived key is prefix-stable — the
+verifier now requires the canonical 32-byte key length; (2) a `$`-delimited hash
+cannot survive `commerce/.env`, because Docker Compose expands `$…` and then
+Next.js's env loader expands (and overwrites) it again — the stored format is now
+colon-delimited (`scrypt:N:r:p:salt:key`) and `npm run admin:hash` produces it.
+
+**Not done, and deliberately so:** one identity only (no accounts, roles, reset or
+per-action audit), no HTTPS or edge rate limiting, and the panel remains
+loopback-only — this guard makes the pilot defensible, not publicly exposable.

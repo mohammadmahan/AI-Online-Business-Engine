@@ -445,8 +445,45 @@ export interface NotificationWorkItem {
   payload: Record<string, unknown>;
 }
 
+/** §1.1 — a stored category as the panel's management page reads it. */
+export interface CategoryRecord {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  createdAt: Date;
+}
+
+/** §1.1 — the same row plus how many products point at it (a delete-risk signal). */
+export interface CategoryAdminRow extends CategoryRecord {
+  productCount: number;
+}
+
+export interface NewCategoryInput {
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
 export interface CommerceRepository {
   listCategories(): Promise<Array<{ id: string; name: string; slug: string }>>;
+
+  /**
+   * §1.1 — the merchant-facing category list, INCLUDING empty categories.
+   *
+   * `listCategories` above feeds the product form and answers exactly what it
+   * needs; this one carries the description and the product count so the panel
+   * can explain why a category cannot simply be deleted (the FK is RESTRICT).
+   */
+  listCategoryAdminRows(): Promise<CategoryAdminRow[]>;
+  findCategoryBySlug(slug: string): Promise<{ id: string } | null>;
+
+  /**
+   * §1.1 — inserts one category. A slug the database already holds answers
+   * `null`: the UNIQUE constraint is translated into a refusal the service can
+   * render against the slug field, never an `UNEXPECTED` crash.
+   */
+  createCategory(input: NewCategoryInput): Promise<CategoryRecord | null>;
   createProductGraph(graph: NewProductGraph): Promise<{ productId: string; variantIds: string[] }>;
   listProducts(): Promise<ProductListItem[]>;
   listInventory(): Promise<InventoryRow[]>;
@@ -637,6 +674,20 @@ export interface CommerceRepository {
   listOrderNotifications(orderId: string): Promise<OrderNotification[]>;
 }
 
+/**
+ * PostgreSQL's `unique_violation`. Used where a duplicate is an expected REFUSAL
+ * (a repeated category slug) rather than a fault: the service turns `null` into a
+ * field message instead of the panel reporting "the database broke".
+ */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === '23505'
+  );
+}
+
 /** Postgres implementation — the only file that speaks SQL/schema. */
 export function createPostgresRepository(db: CommerceDb): CommerceRepository {
   /* Three narrow reads composed in JS, rather than one wide aggregate: the
@@ -722,6 +773,58 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         .select({ id: categories.id, name: categories.name, slug: categories.slug })
         .from(categories)
         .orderBy(categories.name);
+    },
+
+    async listCategoryAdminRows() {
+      return db
+        .select({
+          id: categories.id,
+          name: categories.name,
+          slug: categories.slug,
+          description: categories.description,
+          createdAt: categories.createdAt,
+          // Grouped by the primary key, so PostgreSQL accepts the other columns
+          // by functional dependency; the cast keeps `count(*)` a number, not a
+          // string the UI would have to coerce.
+          productCount: sql<number>`count(${products.id})::int`,
+        })
+        .from(categories)
+        .leftJoin(products, eq(products.categoryId, categories.id))
+        .groupBy(categories.id)
+        .orderBy(asc(categories.name));
+    },
+
+    async findCategoryBySlug(slug) {
+      const [row] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.slug, slug))
+        .limit(1);
+      return row ?? null;
+    },
+
+    async createCategory(input) {
+      try {
+        const [row] = await db
+          .insert(categories)
+          .values(input)
+          .returning({
+            id: categories.id,
+            name: categories.name,
+            slug: categories.slug,
+            description: categories.description,
+            createdAt: categories.createdAt,
+          });
+        if (!row) {
+          throw new Error('category insert returned no row');
+        }
+        return row;
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return null;
+        }
+        throw error;
+      }
     },
 
     async createProductGraph(graph) {

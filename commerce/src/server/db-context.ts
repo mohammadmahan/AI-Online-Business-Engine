@@ -20,6 +20,7 @@ export const DB_NOT_CONFIGURED_MESSAGE =
 
 export type CommerceActionFailureCode =
   | 'DB_NOT_CONFIGURED'
+  | 'UNAUTHORIZED'
   | 'MEDIA_NOT_CONFIGURED'
   | 'VALIDATION_ERROR'
   | 'CONFLICT'

@@ -4,11 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import type { ProductCreatePayload } from '@/contracts/catalog';
 
-import {
-  withRepository,
-  type CommerceActionResult,
-  type CommerceActionFailure,
-} from '../db-context';
+import { withAdminRepository } from '../auth/with-admin';
+import type { CommerceActionFailure, CommerceActionResult } from '../db-context';
 import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaUploadAllowed } from '../media';
 import { createProduct } from '../services/products';
 
@@ -45,7 +42,7 @@ export async function createProductAction(
     return failure;
   }
 
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const created = await createProduct(repository, input.product);
     if (!created.ok) {
       return {

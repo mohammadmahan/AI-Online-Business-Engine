@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import type { OrderStatus } from '@/db/schema';
 
-import { withRepository, type CommerceActionResult } from '../db-context';
+import { withAdminRepository } from '../auth/with-admin';
+import type { CommerceActionResult } from '../db-context';
 import { MERCHANT_TRANSITION, setTrackingCode, transitionOrder } from '../services/orders';
 
 /**
@@ -23,7 +24,7 @@ export interface TransitionOrderActionInput {
 export async function transitionOrderAction(
   input: TransitionOrderActionInput,
 ): Promise<CommerceActionResult<{ orderId: string; status: OrderStatus }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     // The actor is the MERCHANT PANEL: the trail must not attribute an owner's
     // decision to a machine, and this is the only human-facing transition path.
     const outcome = await transitionOrder(
@@ -56,7 +57,7 @@ export interface TrackingCodeActionInput {
 export async function setTrackingCodeAction(
   input: TrackingCodeActionInput,
 ): Promise<CommerceActionResult<{ orderId: string; trackingCode: string }>> {
-  const result = await withRepository(async (repository) => {
+  const result = await withAdminRepository(async (repository) => {
     const outcome = await setTrackingCode(repository, input.orderId, input.trackingCode);
     return outcome.ok
       ? {
