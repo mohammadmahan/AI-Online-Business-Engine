@@ -5,11 +5,14 @@ import type { StorefrontProductCard } from '@/contracts/storefront';
 import { EMPTY_CATALOG_FILTERS } from '@/contracts/storefront';
 import {
   CATALOG_PAGE_SIZE,
+  PRICE_SLIDER_STEP,
   applyFilters,
   countActiveFilters,
   deriveFacets,
   normaliseSearchText,
   paginate,
+  priceStepFor,
+  withCategory,
 } from '@/lib/catalog-filters';
 
 /**
@@ -181,6 +184,87 @@ describe('filtering (§3.2)', () => {
       }),
       5,
     );
+  });
+});
+
+describe('price slider boundaries (§3.2)', () => {
+  it('keeps the coarse step when the ceiling is a multiple of it', () => {
+    assert.equal(PRICE_SLIDER_STEP, 50_000);
+    assert.equal(priceStepFor(2_450_000), PRICE_SLIDER_STEP);
+    assert.equal(priceStepFor(50_000), 50_000);
+  });
+
+  it('always lands exactly on a ceiling that does not divide the coarse step', () => {
+    const ceiling = 2_449_000;
+    const step = priceStepFor(ceiling);
+    assert.ok(step > 0);
+    assert.equal(ceiling % step, 0, 'the rail can reach the top product');
+    assert.equal((ceiling / step) * step, ceiling);
+    // The old fixed 50,000 step stopped at 2,400,000 and silently excluded the
+    // most expensive product while the handle looked like it was at the end.
+    assert.equal(ceiling % PRICE_SLIDER_STEP !== 0, true);
+  });
+
+  it('shrinks the step for a catalog cheaper than one coarse step', () => {
+    // With min=0, max=30,000 and step=50,000 the ONLY reachable value is 0, so
+    // any slider movement would filter the entire catalog out.
+    const step = priceStepFor(30_000);
+    assert.equal(step, 10_000);
+    assert.equal(30_000 % step, 0);
+    assert.ok(30_000 / step >= 1);
+  });
+
+  it('falls back to a single-unit step when there is no usable ceiling', () => {
+    assert.equal(priceStepFor(0), 1);
+    assert.equal(priceStepFor(-5), 1);
+    assert.equal(priceStepFor(Number.POSITIVE_INFINITY), 1);
+  });
+
+  it('treats the bound itself as inside the range and the next Toman as outside', () => {
+    assert.deepEqual(
+      applyFilters(CATALOG, { ...EMPTY_CATALOG_FILTERS, minPrice: 2_100_000 }).map((c) => c.slug),
+      ['manto-katan'],
+    );
+    assert.deepEqual(applyFilters(CATALOG, { ...EMPTY_CATALOG_FILTERS, minPrice: 2_100_001 }), []);
+    assert.deepEqual(
+      applyFilters(CATALOG, { ...EMPTY_CATALOG_FILTERS, maxPrice: 1_200_000 }).map((c) => c.slug),
+      ['shalvar-jean'],
+    );
+    assert.deepEqual(applyFilters(CATALOG, { ...EMPTY_CATALOG_FILTERS, maxPrice: 1_199_999 }), []);
+  });
+});
+
+describe('category arriving from the URL (§3.2)', () => {
+  it('replaces a stale category but keeps every other filter the customer set', () => {
+    const filters = {
+      ...EMPTY_CATALOG_FILTERS,
+      category: 'مانتو',
+      sizes: ['M'],
+      colors: ['مشکی'],
+      minPrice: 500_000,
+      maxPrice: 2_000_000,
+      onlyAvailable: true,
+      query: 'کتان',
+      sort: 'price-asc' as const,
+    };
+
+    const next = withCategory(filters, 'شلوار');
+
+    assert.equal(next.category, 'شلوار', 'the URL wins over the previous selection');
+    assert.deepEqual(next.sizes, ['M']);
+    assert.deepEqual(next.colors, ['مشکی']);
+    assert.equal(next.minPrice, 500_000);
+    assert.equal(next.maxPrice, 2_000_000);
+    assert.equal(next.onlyAvailable, true);
+    assert.equal(next.query, 'کتان');
+    assert.equal(next.sort, 'price-asc');
+    assert.equal(filters.category, 'مانتو', 'the previous state is not mutated');
+  });
+
+  it('returns the same state when the category is unchanged or cleared', () => {
+    const filters = { ...EMPTY_CATALOG_FILTERS, category: 'مانتو' };
+    assert.equal(withCategory(filters, 'مانتو'), filters, 'no needless state churn');
+    assert.equal(withCategory(filters, null).category, null);
   });
 });
 

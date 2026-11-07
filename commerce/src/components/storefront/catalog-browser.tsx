@@ -14,6 +14,8 @@ import {
   countActiveFilters,
   deriveFacets,
   paginate,
+  priceStepFor,
+  withCategory,
 } from '@/lib/catalog-filters';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { CATALOG_SORT_OPTIONS } from '@/lib/storefront-display';
@@ -36,8 +38,6 @@ import { ProductCard } from './product-card';
  * states a customer would otherwise read as a broken page.
  */
 
-const PRICE_STEP = 50_000;
-
 export function CatalogBrowser({
   cards,
   categories,
@@ -55,6 +55,9 @@ export function CatalogBrowser({
 
   const facets = useMemo(() => deriveFacets(cards), [cards]);
   const ceiling = facets.maxPrice > 0 ? facets.maxPrice : 0;
+  // The rail can only offer multiples of `step`, so a fixed step would leave a
+  // ceiling that is not a multiple of it unreachable (`@/lib/catalog-filters`).
+  const priceStep = priceStepFor(ceiling);
 
   // The two sliders hold their own values so a drag stays smooth; only a value
   // that actually narrows the range is written into the filter state.
@@ -64,6 +67,22 @@ export function CatalogBrowser({
   const filtered = useMemo(() => applyFilters(cards, filters), [cards, filters]);
   const visible = paginate(filtered, page, CATALOG_PAGE_SIZE);
   const activeCount = countActiveFilters(filters);
+
+  // A category can arrive AFTER the first render: `/catalog?category=…` is the
+  // homepage's category-circle target, and the App Router keeps this component
+  // mounted when only a search parameter changes (back/forward, or another
+  // category link while the catalog is already open). The prop only seeds state,
+  // so it is re-applied here during render — React's own pattern for state
+  // derived from a prop, and cheaper than an effect, which would paint the stale
+  // list once first. Paging resets because the result list is a new one. Choosing
+  // a chip on this page changes state, never the URL, so `appliedCategory` and
+  // the incoming prop stay equal and the customer's own choice is never undone.
+  const [appliedCategory, setAppliedCategory] = useState<string | null>(initialCategory);
+  if (appliedCategory !== initialCategory) {
+    setAppliedCategory(initialCategory);
+    setFilters((current) => withCategory(current, initialCategory));
+    setPage(1);
+  }
 
   /** Every filter change resets paging: results are a new list, not a longer one. */
   function update(patch: Partial<CatalogFilters>) {
@@ -217,7 +236,7 @@ export function CatalogBrowser({
               type="range"
               min={0}
               max={ceiling}
-              step={PRICE_STEP}
+              step={priceStep}
               value={minSlider}
               onChange={(event) => {
                 const next = Math.min(Number(event.target.value), maxSlider);
@@ -233,7 +252,7 @@ export function CatalogBrowser({
               type="range"
               min={0}
               max={ceiling}
-              step={PRICE_STEP}
+              step={priceStep}
               value={maxSlider}
               onChange={(event) => {
                 const next = Math.max(Number(event.target.value), minSlider);

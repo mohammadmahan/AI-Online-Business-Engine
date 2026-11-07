@@ -20,6 +20,9 @@ import type {
 
 export const CATALOG_PAGE_SIZE = 9;
 
+/** The coarse granularity a price slider prefers (50,000 Tomans). */
+export const PRICE_SLIDER_STEP = 50_000;
+
 export interface CatalogFacets {
   sizes: string[];
   colors: ColorSwatch[];
@@ -108,6 +111,43 @@ export function deriveFacets(cards: StorefrontProductCard[]): CatalogFacets {
     minPrice: Number.isFinite(minPrice) ? minPrice : 0,
     maxPrice,
   };
+}
+
+/**
+ * The step a price slider can use and still land on the ceiling exactly.
+ *
+ * A `range` input only offers `min + n * step`, so a fixed 50,000 step cannot
+ * reach a catalog whose highest price is not a multiple of it: the handle sits at
+ * the far end of the rail while the most expensive product is still filtered out.
+ * And when every product costs less than one step, the only reachable value is
+ * `min` itself, so touching the slider selects a bound that matches nothing.
+ *
+ * The greatest common divisor of the coarse step and the ceiling keeps the
+ * familiar 50,000 granularity wherever it fits and still lands on both 0 and the
+ * ceiling — the two positions that mean "no bound" to this page.
+ */
+export function priceStepFor(ceiling: number): number {
+  if (!Number.isFinite(ceiling) || ceiling <= 0) {
+    return 1;
+  }
+  let a = PRICE_SLIDER_STEP;
+  let b = Math.floor(ceiling);
+  while (b !== 0) {
+    const remainder = a % b;
+    a = b;
+    b = remainder;
+  }
+  return a;
+}
+
+/**
+ * Adopt a category that arrives from the URL (`?category=`) without discarding
+ * the filters the customer already set. Returns the SAME object when the
+ * category is unchanged, so an unrelated re-render cannot reset paging or
+ * re-sort the list for no reason.
+ */
+export function withCategory(filters: CatalogFilters, category: string | null): CatalogFilters {
+  return filters.category === category ? filters : { ...filters, category };
 }
 
 export function countActiveFilters(filters: CatalogFilters): number {
