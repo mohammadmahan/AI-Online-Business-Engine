@@ -18,8 +18,9 @@ import { Banner, Badge, Field, buttonClass, inputClass } from '@/components/ui/p
  *     longest edge capped, aspect ratio preserved, JPEG re-encode — and shown as
  *     previews the merchant can order and pick a primary from. Nothing leaves
  *     the machine.
- *  2. **Storage** (local, opt-in): when the server resolves the local MinIO
- *     backend AND its upload edge is enabled, the pending previews are POSTed
+ *  2. **Storage** (local, opt-in): when the server resolves a local backend
+ *     (filesystem directory or MinIO) AND its upload edge is enabled, the pending
+ *     previews are POSTed
  *     to `/api/admin/media` before the product is written. Otherwise the submit
  *     path REFUSES while compressed files are pending, instead of writing
  *     gallery rows that point at images which do not exist. The production
@@ -131,10 +132,10 @@ export function ImageUploader({
     <div className="flex flex-col gap-3">
       {uploadBlocked ? (
         <Banner tone="warning" title="بارگذاری فایل تصویر در این نصب فعال نیست">
-          ذخیره‌سازی محلی MinIO پیکربندی نشده است (یا این یک بیلد تولیدی است). تصویرها فقط در همین
-          مرورگر فشرده و پیش‌نمایش می‌شوند؛ محصول بدون تصویر ثبت می‌شود یا می‌توانید تصویرِ
-          میزبانی‌شدهٔ خودتان را با «نشانی بیرونی» پیوست کنید. انتخاب رسانهٔ تولیدی همچنان باز است
-          (G-5).
+          ذخیره‌سازی محلی رسانه (فایل‌سیستم یا MinIO) پیکربندی نشده است، یا این یک بیلد تولیدی
+          است. تصویرها فقط در همین مرورگر فشرده و پیش‌نمایش می‌شوند؛ محصول بدون تصویر ثبت می‌شود
+          یا می‌توانید تصویرِ میزبانی‌شدهٔ خودتان را با «نشانی بیرونی» پیوست کنید. انتخاب رسانهٔ
+          تولیدی همچنان باز است (G-5).
         </Banner>
       ) : null}
 

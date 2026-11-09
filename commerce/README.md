@@ -157,17 +157,34 @@ truncate the first suite's fixtures mid-run.
 loopback:55432. The credentials in the compose file are the disposable
 container's own literals; no real credential exists in this repository.
 
-## Local media (G-5) — MinIO on loopback only
+## Local media (G-5) — filesystem store, or MinIO
 
-The owner approved the EXISTING local MinIO service
-(`local/infra/docker-compose.yml`, `127.0.0.1:19000/19001`) as the
-**local-only** media backend behind the provider-neutral `MediaStoreAdapter`
-(D-172 §4.4 amendment 2026-10-25). The production provider, its credentials and
-the deployment remain **OPEN**: G-5 is not closed and nothing here is a
-cloud integration.
+Two LOCAL backends sit behind the provider-neutral `MediaStoreAdapter`, selected
+by `MEDIA_PROVIDER`; the production provider, its credentials and the deployment
+remain **OPEN** (G-5 is not closed, and nothing here is a cloud integration).
+
+**Filesystem (the pilot default, Phase 5).** `MEDIA_PROVIDER=local` writes to
+`MEDIA_LOCAL_DIR` — content-addressed as
+`products/sha256/<first2>/<sha256>.<jpg|png|webp>` — and
+`GET /media/[...path]` serves it. The store deliberately does NOT live under
+`public/`: Next treats `public/` as build input, so a file written while the
+server runs would be invisible to a production build; a route reads the
+directory at request time in both `next dev` and `next start`. The compose stack
+runs it as:
 
 ```bash
-# start the local stack's MinIO, then create the bucket + anonymous read policy
+# docker-compose.yml passes these through; the directory is inside the bind mount
+MEDIA_PROVIDER=local
+MEDIA_LOCAL_DIR=/app/.media-data      # gitignored; survives a container recreate
+MEDIA_LOCAL_UPLOAD_ENABLED=true
+```
+
+**MinIO (the approved local S3 service).** The owner approved the EXISTING local
+MinIO service (`local/infra/docker-compose.yml`, `127.0.0.1:19000/19001`) as the
+other local-only backend (D-172 §4.4 amendment 2026-10-25):
+
+```bash
+# leave MEDIA_PROVIDER unset (or set it to `s3`), start local MinIO, then:
 export MEDIA_S3_ENDPOINT=http://127.0.0.1:19000
 export MEDIA_S3_BUCKET=commerce-media
 export MEDIA_S3_ACCESS_KEY=<local-compose-access-key>
@@ -177,33 +194,23 @@ export MEDIA_LOCAL_UPLOAD_ENABLED=true
 npm run media:bucket
 ```
 
-`src/server/media.ts` resolves the adapter only when every value is present and
-valid, the endpoint is loopback on port **19000**, the public base is that same
-origin plus the bucket, and `NODE_ENV` is not `production`. Anything else leaves
-the existing refusal in place. `POST /api/admin/media` accepts JPEG, PNG or
-WebP, decides the format by **magic bytes** (never the client name or
-declared type), caps the file at 5 MiB, and stores it content-addressed at
-`products/sha256/<first2>/<sha256>.<ext>`; identical bytes are a no-op. Errors
-are stable codes (`400`/`413`/`415`/`503`), never driver detail. The product form
-sends each pending preview through this route before it writes the product, so a
-failed upload stops the submission instead of creating a gallery with no bytes.
+**Shared rules, whichever backend is selected.** The resolver is fail-closed
+(D-171 §2.2): a missing directory/value, an unrecognised `MEDIA_PROVIDER`, or
+`NODE_ENV=production` resolves to no adapter, so the product form shows its
+"uploads unavailable" notice and the action refuses pending bytes instead of
+writing a gallery that points at nothing. `POST /api/admin/media` **requires the
+Phase 4 admin session** (the proxy refuses anonymously; the handler checks
+again), accepts JPEG/PNG/WebP determined by **magic bytes** (never the client
+name or declared type), caps the file at 5 MiB, is idempotent for identical
+bytes, and answers stable codes (`400`/`401`/`413`/`415`/`503`). **`GET
+/media/…` is public** — a customer must see a product photo — and is read-only
+and narrow: only `jpg`/`png`/`webp`, a fixed content type, no traversal beyond
+the store, `nosniff`, and an immutable cache header (the key is a content hash).
+The product form uploads each pending preview through this route *before* it
+writes the product, so a failed upload stops the submission.
 
-**This route has no request-level authentication.** The Commerce admin panel
-has no session/role guard yet, so `MEDIA_LOCAL_UPLOAD_ENABLED=true` is safe only
-in a development process **bound to loopback** (`next dev --hostname
-127.0.0.1`). The flag is not access control and the handler does not check the
-request origin; do not expose the route, and a seller-auth decision is required
-before any non-loopback use. `scripts/media-bucket.mjs` enforces the same
-loopback:19000 target and refuses anything else.
-
-**Verification (2026-11-02, loopback only).** A real 1×1 PNG was uploaded
-through `POST /api/admin/media` (200), retrieved from MinIO with byte-identical
-SHA-256, and re-uploaded as `duplicate: true`; a text payload named `.jpg` →
-415, 5 MiB + 1 byte → 413, a non-multipart body → 400, an empty file → 400, and
-`GET` → 405. With `MEDIA_LOCAL_UPLOAD_ENABLED` unset the route answered 404, and
-a production server answered 404 even with the flag on. **Not verified live:**
-JPEG/WebP uploads (hermetic only), the browser uploader → product-creation
-flow, and `npm run smoke:db`.
+`scripts/media-bucket.mjs` still enforces the loopback:19000 target for the
+MinIO path and refuses anything else.
 
 ## Admin panel access (Phase 4 hardening)
 
@@ -483,3 +490,37 @@ colon-delimited (`scrypt:N:r:p:salt:key`) and `npm run admin:hash` produces it.
 **Not done, and deliberately so:** one identity only (no accounts, roles, reset or
 per-action audit), no HTTPS or edge rate limiting, and the panel remains
 loopback-only — this guard makes the pilot defensible, not publicly exposable.
+
+Phase 5 **local media upload — filesystem provider**. `MEDIA_PROVIDER=local`
+adds a second `MediaStoreAdapter` (`src/server/media/local.ts`) that writes to
+`MEDIA_LOCAL_DIR` instead of MinIO, and `GET /media/[...path]`
+(`src/app/media/[...path]/route.ts` + `src/server/media/serve.ts`) serves those
+bytes. The store is deliberately outside `public/`: Next snapshots `public/` at
+build time, so a file written by a running server would be invisible to a
+production build; the route reads the directory per request. The resolver stays
+fail-closed — unknown provider, missing directory, the filesystem root itself or
+`NODE_ENV=production` all resolve to no adapter — while an unset
+`MEDIA_PROVIDER` keeps the MinIO/S3 behaviour exactly as before. The writer is
+the existing `POST /api/admin/media`, now behind the Phase 4 session guard; the
+reader is public, read-only, restricted to jpg/png/webp with a fixed content
+type, refuses traversal, sends `nosniff` and an immutable cache header.
+
+Evidence: `npm run verify` **exit 0 — 442 tests / 106 suites, 0 fail** (12 new
+tests in `src/server/media/local.test.ts`: resolver matrix, content-addressed
+idempotent writes, no-write refusals for a non-image and a length mismatch,
+read-side traversal/extension/depth refusals, and handler → disk → reader
+end-to-end), lint 0, `db:check` clean; `npm run build` exit 0 with
+`ƒ /media/[...path]` in the route table. Browser, on the loopback stack: signed in
+as `owner`, attached a generated 800×1000 PNG through **افزودن محصول**; the form
+POSTed `/api/admin/media` → **200**, the bytes landed at
+`.media-data/products/sha256/9d/9dc0e2ca….jpg` (browser-side compression), and
+the product (`shal-abrishami-tarme`, PUBLISHED, 1 variant, stock 4) was written
+with `is_primary = true` and `public_url = /media/products/sha256/9d/…jpg`.
+`GET` that path → **200 `image/jpeg`, 50 046 bytes, `immutable`, `nosniff`**;
+`/media/../.env` and an encoded `../` walk → **404**; anonymous
+`POST /api/admin/media` → **401**; `/catalog` and
+`/products/shal-abrishami-tarme` both rendered the image (natural size 800×1000,
+PDP alt text and the ۸۹۰٬۰۰۰ price). **Not verified live:** JPEG/WebP files
+uploaded from a real picker (the browser re-encoded to JPEG in this pass),
+concurrent uploads, and survival of a `docker compose down -v` (the bind mount
+survives a recreate, not a volume purge).

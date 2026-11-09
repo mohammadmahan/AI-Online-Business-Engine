@@ -9,6 +9,9 @@
 # TypeScript build info
 *.tsbuildinfo
 
+# Local media store (Phase 5) — uploaded bytes are runtime data, never source
+/.media-data/
+
 # Next.js build output and the compiled test graph
 /.next/
 /out/

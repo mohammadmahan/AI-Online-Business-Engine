@@ -16,9 +16,22 @@
  *    in place (the action refuses pending bytes; the upload route refuses with
  *    `MEDIA_NOT_CONFIGURED`).
  *
+ * Phase 5 added a SECOND local provider — `MEDIA_PROVIDER=local`, a plain
+ * directory on this machine — because requiring a MinIO container just to add a
+ * product photo was friction without a benefit for a one-shop pilot. The two
+ * local providers are the same seam with the same byte gate and the same
+ * content-addressed key; only the write target differs (filesystem vs S3).
+ *
+ * `MEDIA_PROVIDER` unset keeps the previous behaviour exactly (the MinIO/S3
+ * branch), so every existing instruction and test still describes the default.
+ * An unrecognised provider is a REFUSAL — never a guess.
+ *
  * When G-5 is ruled for production, one adapter implementation is bound here and
  * the refusal disappears — no caller changes.
  */
+import path from 'node:path';
+
+import { createLocalMediaAdapter } from './media/local';
 import { createS3MediaAdapter, type S3MediaAdapterConfig } from './media/s3';
 
 /**
@@ -63,6 +76,41 @@ export const MEDIA_REQUIRED_ENV = [
   'MEDIA_PUBLIC_BASE_URL',
 ] as const;
 
+export const MEDIA_PROVIDER_S3 = 's3';
+export const MEDIA_PROVIDER_LOCAL = 'local';
+
+/**
+ * `s3` when unset (the pre-Phase-5 default), otherwise the normalised value.
+ * Anything that is not a known provider is returned as-is and refused later.
+ */
+export function resolveMediaProvider(env: MediaEnvironment = process.env): string {
+  const raw = env.MEDIA_PROVIDER?.trim().toLowerCase();
+  return raw === undefined || raw === '' ? MEDIA_PROVIDER_S3 : raw;
+}
+
+/**
+ * The filesystem store's absolute directory, or `null` when it is not the
+ * selected provider or the path is missing/unusable.
+ *
+ * A relative value is resolved against the process CWD (the app directory in the
+ * container). The filesystem root itself is refused: `MEDIA_LOCAL_DIR=/` would
+ * turn the reader and the writer loose on the whole machine.
+ */
+export function resolveLocalMediaDirectory(env: MediaEnvironment = process.env): string | null {
+  if (resolveMediaProvider(env) !== MEDIA_PROVIDER_LOCAL) {
+    return null;
+  }
+  const raw = env.MEDIA_LOCAL_DIR?.trim();
+  if (!raw) {
+    return null;
+  }
+  const resolved = path.resolve(raw);
+  if (resolved === path.parse(resolved).root) {
+    return null;
+  }
+  return resolved;
+}
+
 const LOCAL_MEDIA_PORT = '19000';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 // MinIO's own bucket rules are close enough to S3's for a local store; this
@@ -104,6 +152,17 @@ function isBucketName(value: string | undefined): value is string {
  */
 export function resolveMediaAdapter(env: MediaEnvironment = process.env): MediaStoreAdapter | null {
   if (isProductionEnvironment(env)) {
+    return null;
+  }
+
+  const provider = resolveMediaProvider(env);
+  if (provider === MEDIA_PROVIDER_LOCAL) {
+    const directory = resolveLocalMediaDirectory(env);
+    return directory === null ? null : createLocalMediaAdapter({ directory });
+  }
+  if (provider !== MEDIA_PROVIDER_S3) {
+    // A typo (`MEDIA_PROVIDER=files`) must not silently fall back to S3 or to an
+    // unwritable default; the panel then shows its "uploads unavailable" notice.
     return null;
   }
 

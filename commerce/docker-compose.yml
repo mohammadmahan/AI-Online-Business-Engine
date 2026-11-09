@@ -87,6 +87,13 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:-}
+      # Phase 5 local media: `local` writes to a directory on the mounted volume
+      # and serves it from GET /media/…; unset keeps the MinIO/S3 branch. The
+      # directory lives under the bind mount, so an upload survives a container
+      # recreate (and is gitignored on the host).
+      MEDIA_PROVIDER: ${MEDIA_PROVIDER:-}
+      MEDIA_LOCAL_DIR: ${MEDIA_LOCAL_DIR:-/app/.media-data}
+      MEDIA_LOCAL_UPLOAD_ENABLED: ${MEDIA_LOCAL_UPLOAD_ENABLED:-false}
     ports:
       - "127.0.0.1:13001:3000"
     depends_on:
