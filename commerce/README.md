@@ -217,6 +217,57 @@ writes the product, so a failed upload stops the submission.
 `scripts/media-bucket.mjs` still enforces the loopback:19000 target for the
 MinIO path and refuses anything else.
 
+### Orphan media — retention policy and dry run (Phase 5)
+
+**Policy: unreferenced media is RETAINED by default.** Removing a
+`product_images` association deletes the row, never the bytes: keys are
+content-addressed and one object may be shared by several products, so an
+absence of references today is not evidence that the object is disposable. There
+is no delete flag, no automatic collection, no reference-count table, no
+retention deadline and no scheduled cleanup. A destructive sweep would require a
+separate owner decision and a separately reviewed task (`PROJECT_RULES.md` §3).
+
+The only shipped surface is a **read-only, operator-invoked dry run** for the
+filesystem provider (`MEDIA_PROVIDER=local`); it is local-only and audits
+nothing in MinIO/S3:
+
+```bash
+DATABASE_URL=postgresql://…@127.0.0.1:55433/commerce_local \
+MEDIA_PROVIDER=local MEDIA_LOCAL_DIR=./.media-data \
+  npm run media:orphans              # human summary
+  npm run media:orphans -- --json    # machine-readable
+```
+
+It reads the COMPLETE `commerce.product_images.storage_path` set with one
+`SELECT` — no status filter, so DRAFT and ARCHIVED products' images count as
+references — and compares it with the regular files under
+`<MEDIA_LOCAL_DIR>/products/sha256/<2 hex>/<hash>.<jpg|png|webp>`. A key
+referenced by any product is referenced once, whoever owns it. It reports the
+unreferenced candidates, their total bytes and age for review, and separately
+counts what it could **not** classify (malformed keys, symlinks, unexpected
+entries, non-regular files) so nothing is silently treated as safe. It never
+follows a symlink, never leaves the configured root, never writes (no database
+statement, no media byte, no permission or timestamp change), prints no
+credential and no absolute host path, and has no HTTP or admin surface.
+
+It fails closed when the provider is not exactly `local`, the build is
+production, `MEDIA_LOCAL_DIR` is missing or the filesystem root, the directory is
+missing/a symlink/not canonical, or `DATABASE_URL` is missing, malformed,
+non-PostgreSQL or **not loopback** (a local root paired with a remote database is
+a mismatch this tool refuses to guess about). Exit codes: `0` report (with or
+without candidates) · `2` configuration refusal · `3` database refused · `4`
+unsafe media tree.
+
+> A dry run is a **point-in-time observation, not authorization**. A candidate
+> may be referenced again by a later gallery save, and age is shown for review
+> only — it is never evidence that deletion is safe. Any future cleanup needs,
+> at minimum: a verified backup of the media root and the database, a quiesced or
+> coordinated writer, a **fresh** reference check immediately before deleting
+> (not a reused report), and explicit owner approval for that specific run.
+
+The production media provider (G-5) remains **OPEN**; this policy and tool say
+nothing about a provider that does not exist yet.
+
 ## Admin panel access (Phase 4 hardening)
 
 The merchant panel accepts **one** operator identity, supplied by the
