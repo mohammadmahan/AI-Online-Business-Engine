@@ -38,6 +38,15 @@ export async function createProduct(
     };
   }
 
+  // Exactly one primary per gallery, decided HERE rather than by a per-row
+  // `?? index === 0` default: that default turned an OMITTED flag on slot 0 into
+  // `true` alongside a later explicit `true` (two primaries), and left a gallery
+  // whose flags were all explicitly `false` with none. Validation has already
+  // refused more than one explicit primary, so one winner is unambiguous.
+  const images = payload.images ?? [];
+  const requestedPrimary = images.findIndex((image) => image.isPrimary === true);
+  const primaryIndex = requestedPrimary >= 0 ? requestedPrimary : 0;
+
   const graph: NewProductGraph = {
     product: {
       categoryId: payload.categoryId,
@@ -65,12 +74,12 @@ export async function createProduct(
     // Variant binding is intentionally not accepted from the form in this phase
     // (G-5 media storage is still open): images attach to the product and carry
     // their order + primary flag here.
-    images: (payload.images ?? []).map((image, index) => ({
+    images: images.map((image, index) => ({
       variantIndex: null,
       storagePath: image.storagePath,
       publicUrl: image.publicUrl,
       displayOrder: image.displayOrder ?? index,
-      isPrimary: image.isPrimary ?? index === 0,
+      isPrimary: index === primaryIndex,
     })),
   };
 

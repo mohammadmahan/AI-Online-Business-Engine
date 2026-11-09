@@ -111,6 +111,11 @@ development target.
   cascaded away.
 - **Matrix integrity:** `(product_id, size, color_name)` is unique — the Phase 2.1
   variant generator cannot produce duplicates, and `sku` is globally unique.
+- **Gallery integrity:** a gallery that exists has **exactly one** primary image.
+  Both write paths decide it before the transaction — the create path promotes the
+  first slot when the merchant clears every flag (an omitted flag never becomes a
+  second primary), and the gallery editor does the same through
+  `@/lib/product-images`.
 
 ## Live database harness (opt-in, disposable)
 

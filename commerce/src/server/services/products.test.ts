@@ -148,6 +148,50 @@ describe('product ingestion service (§2.1)', () => {
     );
   });
 
+  it('keeps exactly one primary when the merchant explicitly clears every flag', async () => {
+    const { repository, graphs } = recordingRepository();
+
+    const result = await createProduct(
+      repository,
+      validProductPayload({
+        images: [
+          { storagePath: 'a/1.jpg', publicUrl: 'https://cdn.example/1.jpg', isPrimary: false },
+          { storagePath: 'a/2.jpg', publicUrl: 'https://cdn.example/2.jpg', isPrimary: false },
+        ],
+      }),
+    );
+
+    assert.equal(result.ok, true);
+    // A gallery that exists always has exactly one primary; with no explicit
+    // choice the first slot is it — the same rule the gallery editor applies.
+    assert.deepEqual(
+      (graphs[0]?.images ?? []).map((image) => image.isPrimary),
+      [true, false],
+    );
+  });
+
+  it('never persists two primaries when only a later slot is flagged', async () => {
+    const { repository, graphs } = recordingRepository();
+
+    const result = await createProduct(
+      repository,
+      validProductPayload({
+        images: [
+          { storagePath: 'a/1.jpg', publicUrl: 'https://cdn.example/1.jpg' },
+          { storagePath: 'a/2.jpg', publicUrl: 'https://cdn.example/2.jpg', isPrimary: true },
+        ],
+      }),
+    );
+
+    assert.equal(result.ok, true);
+    // An omitted flag on slot 0 must not default to `true` and collide with the
+    // merchant's explicit choice — the explicit slot stays the only primary.
+    assert.deepEqual(
+      (graphs[0]?.images ?? []).map((image) => image.isPrimary),
+      [false, true],
+    );
+  });
+
   it('accepts a product with no images (§1.4 media is optional)', async () => {
     const repository = createMemoryRepository();
 
