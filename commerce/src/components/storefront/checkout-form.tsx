@@ -1,13 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
-import type {
-  CheckoutDraft,
-  CheckoutTotals,
-  PlaceOrderResult,
-} from '@/contracts/storefront';
+import type { CheckoutTotals, PlaceOrderResult } from '@/contracts/storefront';
+import { type CheckoutFieldErrors, submitCheckout } from '@/lib/checkout-submit';
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { DEFAULT_SHIPPING_METHOD_ID, SHIPPING_METHODS, shippingAmountFor } from '@/lib/shipping';
@@ -16,7 +13,6 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_TONE,
 } from '@/lib/storefront-display';
-import { validateCheckoutCustomer } from '@/lib/validation';
 import { Badge, Banner, Card, CardHeader, Field, Table, Td, Th, buttonClass, inputClass } from '@/components/ui/primitives';
 import { checkCartAvailabilityAction, placeOrderAction } from '@/server/actions/storefront';
 
@@ -53,8 +49,12 @@ import { useCart } from './cart-provider';
  * here and stored as the customer identity.
  */
 
-type FieldErrors = Partial<Record<'fullName' | 'phoneNumber' | 'address' | 'postalCode', string>>;
-
+/**
+ * The form owns ONLY state and markup. The rules it applies (validation, the
+ * pre-flight refusal, the price-change notice, and what a failed submission
+ * means) live in `@/lib/checkout-submit`, where they are exercised without a
+ * browser — the same split the PDP's selection rules use.
+ */
 export function CheckoutForm() {
   const { lines, subtotal, hydrated, clear } = useCart();
 
@@ -65,9 +65,22 @@ export function CheckoutForm() {
   const [couponCode, setCouponCode] = useState('');
   const [shippingMethodId, setShippingMethodId] = useState(DEFAULT_SHIPPING_METHOD_ID);
   const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [errors, setErrors] = useState<CheckoutFieldErrors>({});
   const [notes, setNotes] = useState<string[]>([]);
   const [result, setResult] = useState<PlaceOrderResult | null>(null);
+  /**
+   * A submission whose outcome is UNKNOWN (the call threw). Kept apart from
+   * `result` on purpose: `result` is the server's own verdict, and a transport
+   * failure has no verdict to report.
+   */
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  /**
+   * The in-flight lock. `busy` re-renders the button as disabled, but React
+   * commits that after the handler returns, so two submissions in the same tick
+   * (a double click, or Enter plus a click) would otherwise both reach the
+   * server — and the write path has no idempotency key, so that is two orders.
+   */
+  const inFlight = useRef(false);
 
   const shipping = shippingAmountFor(shippingMethodId) ?? 0;
   const preview: CheckoutTotals = computeCheckoutTotals({ subtotal, discount: 0, shipping });
@@ -94,87 +107,55 @@ export function CheckoutForm() {
   }
 
   async function submit() {
+    // One submission at a time. The lock is taken BEFORE any await, so a second
+    // invocation in the same tick cannot reach the write path — `busy` alone
+    // only disables the button on the next render.
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
+    setBusy(true);
     setErrors({});
     setNotes([]);
     setResult(null);
-
-    const customerValidation = validateCheckoutCustomer({
-      fullName,
-      phoneNumber,
-      address,
-      postalCode,
-    });
-    if (!customerValidation.ok) {
-      const next: FieldErrors = {};
-      for (const issue of customerValidation.issues) {
-        if (
-          issue.field === 'fullName' ||
-          issue.field === 'phoneNumber' ||
-          issue.field === 'address' ||
-          issue.field === 'postalCode'
-        ) {
-          next[issue.field] = issue.message;
-        }
-      }
-      setErrors(next);
-      return;
-    }
-
-    const items = lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity }));
-    setBusy(true);
+    setSubmitError(null);
 
     try {
-      const preflight = await checkCartAvailabilityAction(items);
-      if (!preflight.ok) {
-        setResult(preflight);
+      const outcome = await submitCheckout(
+        {
+          customer: { fullName, phoneNumber, address, postalCode },
+          couponCode,
+          shippingMethodId,
+          cartLines: lines,
+        },
+        { checkAvailability: checkCartAvailabilityAction, placeOrder: placeOrderAction },
+      );
+
+      if (outcome.status === 'invalid') {
+        setErrors(outcome.errors);
+        return;
+      }
+      if (outcome.status === 'error') {
+        // No verdict was received: say so, and claim nothing about the order.
+        setSubmitError(outcome.message);
         return;
       }
 
-      const messages: string[] = [];
-      const blocked = preflight.lines.filter((line) => !line.available);
-      if (blocked.length > 0) {
-        setResult({
-          ok: false,
-          code: blocked.some((line) => line.effectivePrice === null)
-            ? 'VARIANT_UNAVAILABLE'
-            : 'STOCK_INSUFFICIENT',
-          message: `${formatCountFa(blocked.length)} قلم از سبد خرید دیگر قابل سفارش نیست. تعداد یا انتخاب خود را اصلاح کنید؛ هیچ سفارشی ثبت نشد.`,
-        });
-        return;
-      }
+      setNotes(outcome.notes);
+      setResult(outcome.result);
 
-      for (const line of preflight.lines) {
-        const stored = lines.find((entry) => entry.variantId === line.variantId);
-        if (stored && line.effectivePrice !== null && line.effectivePrice !== stored.unitPrice) {
-          messages.push(
-            `${line.productTitle} (${line.colorName}/${line.size}): قیمت روی سرور ${formatToman(line.effectivePrice)} است و در محاسبهٔ نهایی همین مبلغ لحاظ می‌شود.`,
-          );
-        }
-      }
-      if (messages.length > 0) {
-        setNotes(messages);
-      }
-
-      const draft: CheckoutDraft = {
-        customer: { fullName, phoneNumber, address, postalCode },
-        couponCode: couponCode.trim() === '' ? null : couponCode.trim().toUpperCase(),
-        shippingMethodId,
-        lines: items,
-      };
-
-      const placed = await placeOrderAction(draft);
-      setResult(placed);
-      if (placed.ok) {
+      if (outcome.status === 'placed') {
         clear();
         // §6.1 — a redirect-based provider: the adapter issued an authority and
         // persisted it on the order, and the customer pays on ZarinPal's page.
         // The order is still `PENDING` until the browser comes back and the
         // callback verifies; nothing here can mark it paid.
-        if (placed.payment.redirectUrl) {
-          window.location.assign(placed.payment.redirectUrl);
+        if (outcome.result.payment.redirectUrl) {
+          window.location.assign(outcome.result.payment.redirectUrl);
         }
       }
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
@@ -357,6 +338,12 @@ export function CheckoutForm() {
           <Banner tone="danger" title="سفارش ثبت نشد">
             {result.message}
             {result.field ? <span className="cp-code"> [{result.field}]</span> : null}
+          </Banner>
+        ) : null}
+
+        {submitError !== null ? (
+          <Banner tone="danger" title="نتیجهٔ ثبت سفارش تأیید نشد">
+            {submitError}
           </Banner>
         ) : null}
 

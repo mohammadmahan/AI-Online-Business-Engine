@@ -106,6 +106,21 @@ export function addLine(lines: CartLine[], line: CartLine, maxQuantity = MAX_LIN
   return [...lines, { ...line, quantity: Math.min(Math.max(line.quantity, 1), maxQuantity) }];
 }
 
+/**
+ * The drawer's «−» control DECREMENTS; it must never be the thing that deletes
+ * a line.
+ *
+ * `setLineQuantity(…, 0)` removes a line — that rule stays, because "set this
+ * line to zero pieces" genuinely has no other meaning. But a control announced
+ * as «کاهش تعداد …» that removes the product instead is a misleading action,
+ * especially for a screen-reader user who cannot see the row disappear. The
+ * drawer therefore disables the control at one piece, and removal stays on its
+ * own explicitly-labelled button.
+ */
+export function canDecrementLine(quantity: number): boolean {
+  return Number.isInteger(quantity) && quantity > 1;
+}
+
 /** Sets an absolute quantity; 0 (or less) removes the line. */
 export function setLineQuantity(lines: CartLine[], variantId: string, quantity: number): CartLine[] {
   if (!Number.isInteger(quantity) || quantity <= 0) {

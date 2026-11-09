@@ -3,6 +3,7 @@
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
+import { canDecrementLine } from '@/lib/cart-rules';
 import { MAX_LINE_QUANTITY } from '@/lib/checkout-rules';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { Modal } from '@/components/ui/dialog';
@@ -86,6 +87,11 @@ export function CartDrawer() {
                         type="button"
                         className={cn(buttonClass.neutral, 'px-2')}
                         aria-label={`کاهش تعداد ${line.productTitle}`}
+                        /* At one piece the control is honest: lowering the
+                           quantity is impossible, and deleting the line stays on
+                           the labelled «حذف» button rather than behind a
+                           decrement that silently removes the product. */
+                        disabled={!canDecrementLine(line.quantity)}
                         onClick={() => setQuantity(line.variantId, line.quantity - 1)}
                       >
                         <Minus aria-hidden="true" size={16} />

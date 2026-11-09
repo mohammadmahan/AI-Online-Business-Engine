@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { CartLine } from '@/contracts/storefront';
 import {
   addLine,
+  canDecrementLine,
   cartCount,
   cartSubtotal,
   parseStoredCart,
@@ -62,6 +63,20 @@ describe('cart lines (§3.2)', () => {
     assert.deepEqual(setLineQuantity(cart, 'v1', 0), []);
     assert.deepEqual(removeLine(cart, 'v1'), []);
     assert.deepEqual(setLineQuantity(cart, 'v1', 1.5), [], 'a fractional quantity removes the line');
+  });
+
+  it('keeps the drawer’s decrement honest: it steps down only above one piece', () => {
+    // The regression this guards: «−» is announced as «کاهش تعداد …», so it may
+    // not be the control that DELETES the line. At one piece it is disabled and
+    // removal stays on the explicitly-labelled «حذف» button.
+    assert.equal(canDecrementLine(2), true);
+    assert.equal(canDecrementLine(MAX_LINE_QUANTITY), true);
+    assert.equal(canDecrementLine(1), false);
+    assert.equal(canDecrementLine(0), false);
+    assert.equal(canDecrementLine(1.5), false);
+
+    // The rule underneath, unchanged: zero pieces means "this line is gone".
+    assert.deepEqual(setLineQuantity([line({ quantity: 1 })], 'v1', 0), []);
   });
 });
 
