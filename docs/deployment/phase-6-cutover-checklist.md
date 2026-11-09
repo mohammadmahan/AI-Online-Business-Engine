@@ -89,7 +89,7 @@ evidence column) · **`[OWNER]`** requires an owner act and was **not** performe
 
 | # | Clause | Tag | Evidence |
 | --- | --- | --- | --- |
-| P6-C7 | The committed migrations apply cleanly and completely (0000–0004) | `[AUTO]` | `npm run smoke:db` resets + migrates on the disposable harness → **68 tests, 0 fail**; `npm run db:check` → “Everything's fine” (journal: 5 rows) |
+| P6-C7 | The committed migrations apply cleanly and completely (0000–0005) | `[AUTO]` | `npm run smoke:db` resets + migrates on the disposable harness → **77 tests, 0 fail**; the Phase 2 suite pins the contract, not a count: committed `.sql` files = journal tags in order, each row recorded once with the sha256 of the committed file (journal: 6 rows); `npm run db:check` → “Everything's fine” |
 | P6-C8 | `notification_outbox` and its guarantees exist in the migrated database | `[AUTO]` | live suite: columns/enums/indexes/CHECKs/FK present; duplicate enqueue → `23505`; CHECK refusals → `23514` |
 | P6-C9 | A migration is **additive** and has no down-script; rollback is a restore, not a revert | `[AUTO]` (recorded) | `drizzle/*.sql` contain no `down` statements — cutover rollback = restore the pre-cutover snapshot (see `docs/deployment/staging-volume-backup-policy.md`) |
 | P6-C10 | Migrating the staging/production database | `[BLOCKED]` | D-139 — owner act; nothing outside the disposable loopback harness was migrated |
@@ -181,7 +181,7 @@ docker build -f commerce/Dockerfile -t commerce:<git-sha> commerce
 docker image inspect commerce:<git-sha> --format '{{index .RepoDigests 0}}'
 
 # 3. migrate the target database through the project's own toolchain (P6-C7/C10)
-DATABASE_URL=… npm run db:migrate          # 0000–0004, additive only
+DATABASE_URL=… npm run db:migrate          # 0000–0005, additive only
 
 # 4. export the §2 contract into the service environment (never into the image)
 #    DATABASE_URL, COMMERCE_PAYMENT_WEBHOOK_SECRET, ZARINPAL_MERCHANT_ID,

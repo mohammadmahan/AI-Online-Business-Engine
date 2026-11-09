@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
@@ -45,8 +46,9 @@ import { createProduct } from '@/server/services/products';
  *
  * Re-runnability: `before()` resets the `commerce` namespace and re-applies the
  * committed migrations, so every run starts from the same empty schema and
- * re-proves that 0000–0004 apply cleanly. That is also why the fixtures below
- * may use fixed slugs/SKUs — there is no state to collide with.
+ * re-proves that the committed journal applies cleanly, in order. That is also
+ * why the fixtures below may use fixed slugs/SKUs — there is no state to
+ * collide with.
  *
  * Scope honesty: two fixtures have no Phase 2 admin write path and are inserted
  * through the schema instead — a CATEGORY (roadmap §2 has no category CRUD;
@@ -80,6 +82,38 @@ function skipReason(): string | undefined {
  * journal from deep inside its own loader.
  */
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('../../../drizzle', import.meta.url));
+
+/** One committed journal entry — the tag names the `.sql` file drizzle applies. */
+type JournalEntry = { tag: string; when: number };
+
+/**
+ * The committed migration set, read from the journal drizzle itself consumes, so
+ * adding a migration cannot leave this suite asserting yesterday's count. The
+ * file list is asserted against it separately, which catches a `.sql` that was
+ * committed without a journal entry (or a journal entry with no file) rather
+ * than trusting one source for both sides.
+ */
+function committedMigrations(): JournalEntry[] {
+  const journal = JSON.parse(
+    readFileSync(`${MIGRATIONS_FOLDER}/meta/_journal.json`, 'utf8'),
+  ) as { entries: JournalEntry[] };
+  return journal.entries;
+}
+
+/** The `.sql` files actually present, in the order drizzle would apply them. */
+function committedSqlTags(): string[] {
+  return readdirSync(MIGRATIONS_FOLDER)
+    .filter((name) => name.endsWith('.sql'))
+    .map((name) => name.slice(0, -'.sql'.length))
+    .sort();
+}
+
+/** Drizzle records this digest — sha256 of the file's text — per applied migration. */
+function migrationHash(tag: string): string {
+  return createHash('sha256')
+    .update(readFileSync(`${MIGRATIONS_FOLDER}/${tag}.sql`, 'utf8'))
+    .digest('hex');
+}
 
 /** Locate the Drizzle journal wherever Drizzle placed it in this database. */
 async function journalTable(pool: Pool): Promise<string | null> {
@@ -177,8 +211,8 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
     await pool.end();
   });
 
-  describe('migrations 0000 + 0001 + 0002 + 0003 + 0004', () => {
-    it('applies to PostgreSQL 16.x and records every migration in the Drizzle journal', async () => {
+  describe('the committed migration journal', () => {
+    it('applies to PostgreSQL 16.x and records every committed migration, in order', async () => {
       const version = await pool.query<{ v: string }>('select version() as v');
       assert.match(version.rows[0]?.v ?? '', /PostgreSQL 16\./, 'expected a PostgreSQL 16 server');
 
@@ -237,13 +271,38 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
         ],
       );
 
+      // ── the migration CONTRACT: committed files, applied in order, recorded ──
+      // A count alone would pass if drizzle re-ran one file twice and skipped
+      // another, or if the journal lagged behind the folder. Pin all three facts:
+      // which files are committed, that the folder and journal agree, and that
+      // each row carries the digest of the exact file that is committed now.
+      const entries = committedMigrations();
+      assert.ok(entries.length > 0, 'the committed journal must not be empty');
+      assert.deepEqual(
+        committedSqlTags(),
+        entries.map((entry) => entry.tag),
+        'every committed .sql file must have a journal entry, in the order drizzle applies them',
+      );
+
       const journal = await journalTable(pool);
       assert.notEqual(journal, null, 'the Drizzle migration journal must exist after migrate()');
-      const applied = await pool.query<{ n: number }>(`select count(*)::int as n from ${journal}`);
+      const applied = await pool.query<{ hash: string; created_at: string }>(
+        `select hash, created_at from ${journal} order by id`,
+      );
       assert.equal(
-        applied.rows[0]?.n,
-        5,
-        'exactly migrations 0000, 0001, 0002, 0003 and 0004 must be recorded',
+        applied.rows.length,
+        entries.length,
+        `all ${entries.length} committed migrations (${entries.map((entry) => entry.tag).join(', ')}) must be recorded exactly once`,
+      );
+      assert.deepEqual(
+        applied.rows.map((row) => row.hash),
+        entries.map((entry) => migrationHash(entry.tag)),
+        'each recorded row must be the sha256 of the committed file, in the committed order — not just a row count',
+      );
+      assert.deepEqual(
+        applied.rows.map((row) => Number(row.created_at)),
+        entries.map((entry) => entry.when),
+        'the recorded application order must follow the committed journal',
       );
     });
 

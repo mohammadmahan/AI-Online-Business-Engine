@@ -728,6 +728,48 @@ already exists; it starts no new phase, changes no schema and closes no gate.
   run, any production media provider (G-5 OPEN), deployment or production
   activation (D-139). No credential exists or is requested (D-045).
 
+### 5.11 Live-journal contract repair: the two red live assertions (2026-11-09)
+
+The gallery work (§5.10) inherited two failing live assertions at `1cc782d` and
+left them untouched. Both were stale contracts rather than product defects; this
+block records what each actually pinned, what changed, and what proves it now.
+Nothing above is rewritten (append-only).
+
+- **Phase 2 migration count.** The suite asserted `count(*) = 5` on the Drizzle
+  journal and titled itself "0000 + 0001 + 0002 + 0003 + 0004". `0005`
+  (`554c552`, the fulfillment loop) is committed and the journal legitimately
+  holds six rows, so the assertion failed on a correct database. Raising the
+  literal to 6 would have re-created the same drift, so the assertion now pins
+  the CONTRACT instead: it reads the same `meta/_journal.json` drizzle consumes,
+  asserts that the committed `.sql` files and the journal tags are the same set
+  in the same order (a file committed without an entry, or an entry without a
+  file, fails), that every entry is recorded exactly once, that each recorded
+  hash is the sha256 of the committed file — in journal order — and that the
+  recorded `created_at` values follow the journal's own order. The pre-existing
+  schema assertions (tables, the 0003 payment columns, the enums) are unchanged.
+  Nothing was relaxed: the old test checked a number, the new one checks which
+  migrations ran and that they are the committed bytes.
+- **Phase 6 outbox refusal.** The "unknown kind" refusal case inserted
+  `order.shipped` and expected `23514`. `0005` widened
+  `notification_outbox_kind_known` to admit exactly that kind because the
+  shipment transition queues it, so the row became valid and the database
+  correctly accepted it. The fix keeps the fail-closed case with a kind no
+  migration admits (`order.fabricated` → `23514`,
+  `notification_outbox_kind_known`) and adds the missing positive regression: the
+  constraint definition must name `order.shipped`, a row of that kind must
+  persist with the real storefront order path, and the probe row is deleted again
+  so the suite's queue counts are unaffected. Production SQL was not changed —
+  `0005` is the intended behaviour — so no new migration was added.
+- **Evidence.** The two affected files first, with `COMMERCE_DATABASE_URL` on the
+  disposable harness: **38/38, 0 fail** (was 35/37 with both failures
+  reproduced). The COMPLETE live battery: `npm run smoke:db` exit 0 — **77 tests /
+  24 suites, 0 pass-to-pass caveat left, 0 fail, 0 skipped** (schema reset +
+  committed migrations, then every §2/§3/§5/§6 live file serially). Offline gate
+  unchanged: `npm run verify` exit 0 — 469 tests / 114 suites, 0 fail,
+  `db:check` clean; `npm run build` exit 0. Only the two test files changed; the
+  development database on 55433 was not touched, no volume was removed and
+  nothing was deployed.
+
 ## 6. Verification performed
 
 

@@ -124,7 +124,7 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run db:up` | starts the harness and waits for its healthcheck |
 | `npm run db:down` | stops it, keeping the volume |
 | `npm run db:migrate` | applies the committed migrations (`COMMERCE_DATABASE_URL`) |
-| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies 0000–0004 |
+| `npm run db:reset` | drops schema `commerce` + the migration journal, then re-applies every committed migration |
 | `npm run db:seed` | loads `scripts/seed-catalog.sql` — the local demo catalog (3 categories, 3 products, 15 variants) |
 | `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel, the audit trail + callback seam) |
 
@@ -569,11 +569,10 @@ disposable harness, `COMMERCE_DATABASE_URL`): the new suite **5/5 pass**
 the kept row ids preserved, product columns and variants unchanged byte for byte,
 a foreign image id and a foreign url each refused with the gallery untouched, and
 an emptied gallery that keeps the product and its variant. The whole live run is
-**74/76**, and the two failures are **pre-existing at HEAD** (`1cc782d`): the
-Phase 2 suite still pins exactly five migrations while `0005` has been committed,
-and one Phase 6 outbox refusal case fails identically without this change (proved
-by stashing the diff and re-running those two files) — neither touches the gallery
-path. Browser, on the loopback stack: `/admin` now links each row to
+now **77/77**: the two failures this change inherited at HEAD (`1cc782d`) are
+repaired — the Phase 2 suite pinned five migrations while `0005` was committed,
+and one Phase 6 refusal case used `order.shipped` as its "unknown kind" after
+`0005` deliberately admitted it (D-172 §5.11 records both causes and fixes). Browser, on the loopback stack: `/admin` now links each row to
 **ویرایش تصویرها**; on a new DRAFT test product (`image-edit-test`, so no
 published catalog row was touched) three PNGs were uploaded (`POST
 /api/admin/media` → 200 each), the gallery was reordered, its primary changed and

@@ -297,11 +297,14 @@ describe(
         const orderId = await placeOrder('P6-BLK-S');
 
         // A kind is admitted by a migration, not by a caller that guessed.
+        // `order.shipped` is deliberately NOT the probe: migration 0005 admits
+        // it (the fulfillment loop queues the shipment notice), so it is a valid
+        // row — that admission is asserted in the 0005 block below.
         assert.equal(
           await refusalCode(() =>
             pool.query(
               `insert into commerce.notification_outbox (order_id, kind, channel)
-               values ($1, 'order.shipped', 'SMS')`,
+               values ($1, 'order.fabricated', 'SMS')`,
               [orderId],
             ),
           ),
@@ -381,6 +384,36 @@ describe(
       });
     });
 
+    describe('migration 0005 — the admitted kind set', () => {
+      it('admits order.shipped while the CHECK stays closed to anything else', async () => {
+        const constraint = await pool.query<{ def: string }>(
+          `select pg_get_constraintdef(oid) as def from pg_constraint
+            where conname = 'notification_outbox_kind_known'`,
+        );
+        const definition = constraint.rows[0]?.def ?? '';
+        assert.match(
+          definition,
+          /'order\.shipped'/,
+          '0005 must widen notification_outbox_kind_known to admit order.shipped',
+        );
+        assert.match(definition, /'order\.confirmed'/);
+
+        // The admission is real, not just text in the constraint: a row of the
+        // kind the fulfillment loop queues can be written and read back.
+        const orderId = await placeOrder('P6-BLK-S');
+        const before = await outboxCount();
+        await pool.query(
+          `insert into commerce.notification_outbox (order_id, kind, channel)
+           values ($1, 'order.shipped', 'SMS')`,
+          [orderId],
+        );
+        const [row] = await outboxOf(orderId);
+        assert.equal(row?.kind, 'order.shipped', 'the admitted kind must persist');
+
+        await pool.query('delete from commerce.notification_outbox where order_id = $1', [orderId]);
+        assert.equal(await outboxCount(), before, 'the probe row is removed again');
+      });
+    });
 
     describe('the transaction that marks an order paid also queues the announcement', () => {
       it('writes the row with the status move, holding no PII and no body', async () => {
