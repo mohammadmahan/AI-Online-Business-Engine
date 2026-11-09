@@ -31,7 +31,7 @@
  */
 import path from 'node:path';
 
-import { createLocalMediaAdapter } from './media/local';
+import { LOCAL_MEDIA_PUBLIC_BASE, createLocalMediaAdapter } from './media/local';
 import { createS3MediaAdapter, type S3MediaAdapterConfig } from './media/s3';
 
 /**
@@ -147,25 +147,11 @@ function isBucketName(value: string | undefined): value is string {
 }
 
 /**
- * Resolves the ONE local adapter, or `null`. `env` is injectable so the guard is
- * testable without mutating the process environment.
+ * The S3/MinIO configuration, or `null` when any part of it is missing, wrong or
+ * not loopback. Extracted so the adapter and the public-URL derivation below
+ * cannot drift apart: both read the SAME validated config.
  */
-export function resolveMediaAdapter(env: MediaEnvironment = process.env): MediaStoreAdapter | null {
-  if (isProductionEnvironment(env)) {
-    return null;
-  }
-
-  const provider = resolveMediaProvider(env);
-  if (provider === MEDIA_PROVIDER_LOCAL) {
-    const directory = resolveLocalMediaDirectory(env);
-    return directory === null ? null : createLocalMediaAdapter({ directory });
-  }
-  if (provider !== MEDIA_PROVIDER_S3) {
-    // A typo (`MEDIA_PROVIDER=files`) must not silently fall back to S3 or to an
-    // unwritable default; the panel then shows its "uploads unavailable" notice.
-    return null;
-  }
-
+function resolveS3Config(env: MediaEnvironment): S3MediaAdapterConfig | null {
   const endpoint = parseLoopbackUrl(env.MEDIA_S3_ENDPOINT);
   if (endpoint === null || (endpoint.pathname !== '/' && endpoint.pathname !== '')) {
     return null;
@@ -193,7 +179,7 @@ export function resolveMediaAdapter(env: MediaEnvironment = process.env): MediaS
     return null;
   }
 
-  const config: S3MediaAdapterConfig = {
+  return {
     endpoint: endpoint.origin,
     region: env.MEDIA_S3_REGION?.trim() || 'us-east-1',
     bucket,
@@ -201,7 +187,55 @@ export function resolveMediaAdapter(env: MediaEnvironment = process.env): MediaS
     secretAccessKey,
     publicBaseUrl: publicBase.origin + basePath,
   };
-  return createS3MediaAdapter(config);
+}
+
+/**
+ * Resolves the ONE local adapter, or `null`. `env` is injectable so the guard is
+ * testable without mutating the process environment.
+ */
+export function resolveMediaAdapter(env: MediaEnvironment = process.env): MediaStoreAdapter | null {
+  if (isProductionEnvironment(env)) {
+    return null;
+  }
+
+  const provider = resolveMediaProvider(env);
+  if (provider === MEDIA_PROVIDER_LOCAL) {
+    const directory = resolveLocalMediaDirectory(env);
+    return directory === null ? null : createLocalMediaAdapter({ directory });
+  }
+  if (provider !== MEDIA_PROVIDER_S3) {
+    // A typo (`MEDIA_PROVIDER=files`) must not silently fall back to S3 or to an
+    // unwritable default; the panel then shows its "uploads unavailable" notice.
+    return null;
+  }
+
+  const config = resolveS3Config(env);
+  return config === null ? null : createS3MediaAdapter(config);
+}
+
+/**
+ * The prefix every stored object's PUBLIC url starts with, for the provider that
+ * is actually configured — or `null` when no provider resolves.
+ *
+ * This is what makes a submitted image reference checkable: a gallery row is only
+ * accepted when `publicUrl` is exactly `<prefix>/<storagePath>`, so a merchant
+ * (or a forged request) cannot point `product_images` at an arbitrary origin.
+ * Note the asymmetry with the adapter: on the local provider the url is
+ * site-relative (`/media/...`) because the app serves it itself, while the S3
+ * provider serves from the bucket's own public base.
+ */
+export function mediaPublicPrefix(env: MediaEnvironment = process.env): string | null {
+  if (isProductionEnvironment(env)) {
+    return null;
+  }
+  const provider = resolveMediaProvider(env);
+  if (provider === MEDIA_PROVIDER_LOCAL) {
+    return resolveLocalMediaDirectory(env) === null ? null : LOCAL_MEDIA_PUBLIC_BASE;
+  }
+  if (provider !== MEDIA_PROVIDER_S3) {
+    return null;
+  }
+  return resolveS3Config(env)?.publicBaseUrl ?? null;
 }
 
 /**

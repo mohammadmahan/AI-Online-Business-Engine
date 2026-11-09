@@ -112,6 +112,7 @@ export default async function AdminOverviewPage() {
                 <Th>قیمت تخفیف‌دار</Th>
                 <Th>گونه‌ها</Th>
                 <Th>تصویرها</Th>
+                <Th>عملیات</Th>
               </tr>
             }
           >
@@ -131,6 +132,14 @@ export default async function AdminOverviewPage() {
                 <Td>{product.discountPrice === null ? '—' : formatToman(product.discountPrice)}</Td>
                 <Td>{formatCountFa(product.variantCount)}</Td>
                 <Td>{formatCountFa(product.imageCount)}</Td>
+                <Td>
+                  <Link
+                    className={buttonClass.neutral}
+                    href={`/admin/products/${product.id}/images`}
+                  >
+                    ویرایش تصویرها
+                  </Link>
+                </Td>
               </tr>
             ))}
           </Table>

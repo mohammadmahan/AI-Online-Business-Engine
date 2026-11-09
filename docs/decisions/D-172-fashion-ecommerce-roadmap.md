@@ -669,6 +669,65 @@ local.tests.test_phase5_telegram_keyboard` → **23 tests OK**;
 or is requested (D-045); the §5.1 webhook trigger remains the existing
 n8n/direct-publisher seam; Phase 6 stays owner-gated behind the payment (10),shipping (11) and SMS provider selections.
 
+### 5.10 Phase 2 §2.1 extension — gallery editing for an EXISTING product (2026-11-09, owner-directed)
+
+Appended; nothing above is rewritten (append-only, `PROJECT_RULES.md` §2.1).
+**Anchor, stated rather than substituted:** the roadmap's §2.1 is *Smart Product
+Ingestion* — its “clean multi-image uploader” was implemented inside the
+ingestion form only, so §2.1 describes CREATION. Editing an existing product's
+gallery is the owner-directed extension of that same uploader to a product that
+already exists; it starts no new phase, changes no schema and closes no gate.
+
+- **Surface.** `/admin/products/[id]/images` (server component) linked from the
+  `/admin` product table; a client editor that uploads through the SAME
+  `/api/admin/media` edge (browser compression preserved), then reorders,
+  selects the primary and removes associations before ONE server action.
+- **One table, one transaction.** New `CommerceRepository.getProductImageEditor`
+  and `replaceProductImages`: the product is locked, a kept id the product does
+  not own answers `FOREIGN_IMAGE` with nothing written, the omitted rows are
+  deleted, the kept rows get their new `display_order`/`is_primary`, the new rows
+  are inserted. Title, prices, variants, stock and orders are untouched — the
+  live suite asserts the product columns and the variant rows column by column.
+- **Authorization stays request-level.** `updateProductImagesAction` runs through
+  `withAdminRepository` (Phase 4's guard), so the session is checked at the write,
+  not only by `proxy.ts`; a call with no request scope answers `UNAUTHORIZED`
+  before any validation, which is pinned by a test.
+- **References are checked against the configured provider.** A NEW image must be
+  exactly `products/sha256/<first2>/<sha256>.<jpg|png|webp>` with
+  `publicUrl === <prefix>/<storagePath>` (`/media` for the local filesystem store,
+  the bucket's public base for S3/MinIO — `mediaPublicPrefix` derives it from the
+  SAME validated config the adapter uses). Foreign origins, query strings,
+  `data:` URIs, traversal and hash/directory mismatches are refused with nothing
+  written; an EXISTING row keeps its identity and is not re-validated, so a
+  gallery attached before this feature still saves. Adding requires a configured
+  provider; reordering or removing does not (it touches no bytes).
+- **No file deletion.** Removing an association deletes no object: keys are
+  content-addressed and may be shared, so collecting unreferenced files needs its
+  own policy. G-5's production provider remains OPEN and the local provider still
+  refuses `NODE_ENV=production`.
+- **Evidence.** `npm run verify` exit 0 — **469 tests / 114 suites, 0 fail** (27
+  new: pure slot rules, the reference gate for both providers, the service against
+  the in-memory double, the action's anonymous refusal); `npm run build` exit 0
+  with `ƒ /admin/products/[id]/images`. Live PostgreSQL on the disposable harness:
+  the new `phase5-product-images-live.test.ts` **5/5 pass** (persisted order/
+  primary/add/remove with the kept row ids preserved, product+variants unchanged,
+  foreign id and foreign url refused with the gallery intact, emptied gallery keeps
+  product and variant). The full live run is 74/76 and both failures are
+  **pre-existing at `1cc782d`** (the Phase 2 suite still pins five migrations while
+  `0005` is committed; one Phase 6 outbox refusal case fails identically without
+  this change — proved by stashing the diff and re-running those two files).
+  Browser on loopback: three uploads (200 each), reorder + primary + removal saved
+  (200) into exactly two rows, a second save kept the same row ids, the primary
+  rendered first on the PDP and the catalog card of a DRAFT test product (returned
+  to DRAFT afterwards; no published demo product's images were touched), and a
+  `--force-recreate` of `commerce-web` (no volume removal) left every row and all
+  three files served (`200 image/jpeg`, including the de-associated one).
+  Anonymous editor page → 307 to login with `next`; anonymous media POST → 401.
+- **Not built / not implied:** editing any other product field from this page, a
+  variant ↔ image binding, orphan-file cleanup, a two-merchant concurrent-edit
+  run, any production media provider (G-5 OPEN), deployment or production
+  activation (D-139). No credential exists or is requested (D-045).
+
 ## 6. Verification performed
 
 

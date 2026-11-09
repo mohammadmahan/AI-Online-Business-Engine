@@ -140,7 +140,9 @@ interface MemoryProductRow {
 }
 
 interface MemoryImageRow {
+  id: string;
   productId: string;
+  storagePath: string;
   publicUrl: string;
   displayOrder: number;
   isPrimary: boolean;
@@ -220,7 +222,9 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     });
     graph.images.forEach((image, index) => {
       imagesTable.push({
+        id: nextId(),
         productId,
+        storagePath: image.storagePath,
         publicUrl: image.publicUrl,
         displayOrder: image.displayOrder ?? index,
         isPrimary: image.isPrimary,
@@ -458,6 +462,75 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
 
     async createProductGraph(graph) {
       return addProduct(graph);
+    },
+
+    async getProductImageEditor(productId) {
+      const product = productsTable.find((row) => row.id === productId);
+      if (!product) {
+        return null;
+      }
+      return {
+        productId: product.id,
+        title: product.title,
+        slug: product.slug,
+        status: product.status,
+        images: imagesTable
+          .filter((row) => row.productId === productId)
+          .slice()
+          .sort((left, right) => left.displayOrder - right.displayOrder)
+          .map((row) => ({
+            id: row.id,
+            storagePath: row.storagePath,
+            publicUrl: row.publicUrl,
+            displayOrder: row.displayOrder,
+            isPrimary: row.isPrimary,
+          })),
+      };
+    },
+
+    async replaceProductImages(productId, input) {
+      const product = productsTable.find((row) => row.id === productId);
+      if (!product) {
+        return { ok: false, reason: 'PRODUCT_NOT_FOUND' };
+      }
+      const owned = imagesTable.filter((row) => row.productId === productId);
+      const ownedIds = new Set(owned.map((row) => row.id));
+      if (input.keep.some((entry) => !ownedIds.has(entry.id))) {
+        return { ok: false, reason: 'FOREIGN_IMAGE' };
+      }
+      const keepIds = new Set(input.keep.map((entry) => entry.id));
+      for (let index = imagesTable.length - 1; index >= 0; index -= 1) {
+        const row = imagesTable[index]!;
+        if (row.productId === productId && !keepIds.has(row.id)) {
+          imagesTable.splice(index, 1);
+        }
+      }
+      for (const entry of input.keep) {
+        const row = imagesTable.find((candidate) => candidate.id === entry.id);
+        if (row) {
+          row.displayOrder = entry.displayOrder;
+          row.isPrimary = entry.isPrimary;
+        }
+      }
+      for (const entry of input.add) {
+        imagesTable.push({
+          id: nextId(),
+          productId,
+          storagePath: entry.storagePath,
+          publicUrl: entry.publicUrl,
+          displayOrder: entry.displayOrder,
+          isPrimary: entry.isPrimary,
+          variantId: null,
+        });
+      }
+      return {
+        ok: true,
+        imageIds: imagesTable
+          .filter((row) => row.productId === productId)
+          .slice()
+          .sort((left, right) => left.displayOrder - right.displayOrder)
+          .map((row) => row.id),
+      };
     },
 
     async listProducts(): Promise<ProductListItem[]> {

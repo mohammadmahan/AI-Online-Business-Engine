@@ -103,6 +103,26 @@ export interface ProductImageOrderPayload {
   primaryImageId?: string | null;
 }
 
+/**
+ * One slot in the merchant's gallery edit (§2.1, applied to an EXISTING product).
+ *
+ * The two forms are mutually exclusive and the server enforces that:
+ *  - `id` names a row the product already owns — no re-validation of its
+ *    reference, so a gallery attached before this feature keeps working even if
+ *    its (legacy) storage path is not one this build would produce;
+ *  - `storagePath` + `publicUrl` is a freshly stored image, and BOTH are checked
+ *    against the configured media provider before anything is written, so an
+ *    arbitrary or malformed URL never reaches `product_images`.
+ *
+ * Array order is display order. At most one entry may carry `isPrimary`.
+ */
+export interface ProductImageSelectionEntry {
+  id?: string;
+  storagePath?: string;
+  publicUrl?: string;
+  isPrimary?: boolean;
+}
+
 /* ------------------------------------------------------------- §1.2 writes */
 
 /**

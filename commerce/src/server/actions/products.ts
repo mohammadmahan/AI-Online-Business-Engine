@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 
-import type { ProductCreatePayload } from '@/contracts/catalog';
+import type { ProductCreatePayload, ProductImageSelectionEntry } from '@/contracts/catalog';
 
 import { withAdminRepository } from '../auth/with-admin';
 import type { CommerceActionFailure, CommerceActionResult } from '../db-context';
 import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaUploadAllowed } from '../media';
+import { updateProductImages } from '../services/product-images';
 import { createProduct } from '../services/products';
 
 /**
@@ -61,6 +62,62 @@ export async function createProductAction(
   if (result.ok) {
     revalidatePath('/admin/inventory');
     revalidatePath('/admin/products/new');
+  }
+  return result;
+}
+
+export interface UpdateProductImagesActionInput {
+  productId: string;
+  /** Ordered slots: existing rows by id, newly stored images by path + url. */
+  images: ProductImageSelectionEntry[];
+}
+
+/**
+ * §2.1 — saves an existing product's gallery (add / reorder / primary / remove).
+ *
+ * The session guard is HERE, not only in `proxy.ts`: an action id is a global
+ * URL, and the proxy's path rule says which PAGE a POST came from, not which
+ * repository operation it may perform (`withAdminRepository`). The service then
+ * validates every submitted reference before the first write, so a refused edit
+ * leaves the gallery exactly as it was.
+ *
+ * The storefront is revalidated too, because a product's photo and its order are
+ * customer-visible; nothing else about the product changes.
+ */
+export async function updateProductImagesAction(
+  input: UpdateProductImagesActionInput,
+): Promise<CommerceActionResult<{ productId: string; imageIds: string[] }>> {
+  if (!Array.isArray(input.images)) {
+    const failure: CommerceActionFailure = {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: 'فهرست تصویرها معتبر نیست.',
+      field: 'images',
+    };
+    return failure;
+  }
+
+  const result = await withAdminRepository(async (repository) => {
+    const updated = await updateProductImages(repository, input.productId, input.images);
+    if (!updated.ok) {
+      return {
+        ok: false as const,
+        code: updated.code,
+        message: updated.message,
+        field: updated.field,
+      };
+    }
+    return {
+      ok: true as const,
+      data: { productId: updated.productId, imageIds: updated.imageIds },
+    };
+  });
+
+  if (result.ok) {
+    revalidatePath('/admin');
+    revalidatePath(`/admin/products/${input.productId}/images`);
+    revalidatePath('/catalog');
+    revalidatePath('/products/[slug]', 'page');
   }
   return result;
 }

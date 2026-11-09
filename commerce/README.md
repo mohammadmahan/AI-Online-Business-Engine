@@ -524,3 +524,70 @@ PDP alt text and the ۸۹۰٬۰۰۰ price). **Not verified live:** JPEG/WebP fil
 uploaded from a real picker (the browser re-encoded to JPEG in this pass),
 concurrent uploads, and survival of a `docker compose down -v` (the bind mount
 survives a recreate, not a volume purge).
+
+**Gallery editing for an existing product (D-172 §2.1, owner-directed
+extension).** The multi-image uploader only ever ran inside *افزودن محصول*, so a
+product's photos were frozen at creation — no editor, no replacement, no
+reordering after the fact. `/admin/products/[id]/images` closes that: the admin
+product table links to it, and it adds images (compressed in the browser, stored
+through the same `/api/admin/media` edge), reorders them, selects the primary and
+removes associations, then saves the whole ordered list in one server action.
+
+- **Owner-approved scope, one table.** The write touches `product_images` only
+  (`replaceProductImages`, one transaction: delete the omitted rows, update the
+  kept ones, insert the new ones). Title, prices, variants, stock and orders are
+  not part of it, which the live suite asserts column by column.
+- **The session is checked in the action, not only at the page/proxy.** An action
+  id is a global URL, so `updateProductImagesAction` goes through
+  `withAdminRepository` (`UNAUTHORIZED` before any validation or write — pinned
+  by a test that calls it with no request scope).
+- **References are validated against the configured provider.** A *new* image
+  must be exactly `products/sha256/<first2>/<sha256>.<jpg|png|webp>` with
+  `publicUrl === <provider prefix>/<storagePath>` (`/media` for the filesystem
+  store, the bucket's public base for S3/MinIO). A foreign origin, a query
+  string, a `data:` URI, a traversal or a hash/directory mismatch is refused and
+  nothing is written. New references require a configured provider; a reorder or
+  removal does not (it touches no bytes). An *existing* row keeps its identity and
+  is not re-validated, so a gallery attached before this feature still saves.
+- **Ownership is decided in SQL.** A kept id the product does not own answers
+  `FOREIGN_IMAGE` and commits nothing, so a forged or stale id cannot move or
+  delete another product's photo.
+- **Removing an association never deletes a file.** Keys are content-addressed and
+  may be shared; collecting unreferenced objects is a separate policy, and the
+  copy on the page says so.
+- **Unchanged:** the production media provider (G-5) is still open and the local
+  provider still refuses `NODE_ENV=production`; there is no file/URL field for
+  third-party hosting on this page (the server would refuse it), and no variant ↔
+  image binding.
+
+**Verified.** `npm run verify` exit 0 — **469 tests / 114 suites, 0 fail** (27 new:
+the pure slot rules, the reference gate for both providers, the service against
+the in-memory double, and the action's anonymous refusal); `npm run build` exit 0
+with `ƒ /admin/products/[id]/images` in the route table. Live PostgreSQL (the
+disposable harness, `COMMERCE_DATABASE_URL`): the new suite **5/5 pass**
+(`phase5-product-images-live.test.ts`) — order/primary/add/remove persisted with
+the kept row ids preserved, product columns and variants unchanged byte for byte,
+a foreign image id and a foreign url each refused with the gallery untouched, and
+an emptied gallery that keeps the product and its variant. The whole live run is
+**74/76**, and the two failures are **pre-existing at HEAD** (`1cc782d`): the
+Phase 2 suite still pins exactly five migrations while `0005` has been committed,
+and one Phase 6 outbox refusal case fails identically without this change (proved
+by stashing the diff and re-running those two files) — neither touches the gallery
+path. Browser, on the loopback stack: `/admin` now links each row to
+**ویرایش تصویرها**; on a new DRAFT test product (`image-edit-test`, so no
+published catalog row was touched) three PNGs were uploaded (`POST
+/api/admin/media` → 200 each), the gallery was reordered, its primary changed and
+one association removed, then saved (`POST /admin/products/<id>/images` → 200) —
+`commerce.product_images` held exactly two rows with the chosen order and primary;
+a second save kept the SAME row ids. Publishing the test product for one check
+showed the primary photo first on `/products/image-edit-test` (natural size
+800×1000) and on its `/catalog` card, then it was returned to DRAFT. Recreating
+`commerce-web` (`up -d --force-recreate`, no volume removal) left every gallery
+row and **all three** files served (`200 image/jpeg`), including the one whose
+association had been removed. Anonymous `/admin/products/<id>/images` → **307** to
+login with `next`, anonymous `POST /api/admin/media` → **401**.
+
+**Not verified / not built:** concurrent edits of the same gallery by two
+merchants (the row lock and the transaction cover it, but no two-client run was
+made); orphan-file cleanup; JPEG/WebP picker input end to end (the browser
+re-encodes to JPEG); any production media provider (G-5 remains OPEN).

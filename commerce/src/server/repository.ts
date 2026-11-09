@@ -71,6 +71,40 @@ export interface ProductListItem {
   imageCount: number;
 }
 
+/**
+ * §2.1 — one gallery row as the EDIT page reads it.
+ *
+ * The storefront read models carry no `storagePath` and no row id on purpose
+ * (nothing a customer sees needs them); the merchant's editor needs BOTH: the id
+ * to reference an existing association stably, and the path so a new upload can
+ * be distinguished from a row that predates this feature.
+ */
+export interface ProductImageEditorRow {
+  id: string;
+  storagePath: string;
+  publicUrl: string;
+  displayOrder: number;
+  isPrimary: boolean;
+}
+
+export interface ProductImageEditor {
+  productId: string;
+  title: string;
+  slug: string;
+  status: ProductStatus;
+  images: ProductImageEditorRow[];
+}
+
+/** The already-normalised write (`@/lib/product-images`), split keep/add. */
+export interface ProductImagesWriteInput {
+  keep: Array<{ id: string; displayOrder: number; isPrimary: boolean }>;
+  add: Array<{ storagePath: string; publicUrl: string; displayOrder: number; isPrimary: boolean }>;
+}
+
+export type ProductImagesWriteResult =
+  | { ok: true; imageIds: string[] }
+  | { ok: false; reason: 'PRODUCT_NOT_FOUND' | 'FOREIGN_IMAGE' };
+
 export interface InventoryRow {
   variantId: string;
   productId: string;
@@ -485,6 +519,37 @@ export interface CommerceRepository {
    */
   createCategory(input: NewCategoryInput): Promise<CategoryRecord | null>;
   createProductGraph(graph: NewProductGraph): Promise<{ productId: string; variantIds: string[] }>;
+
+  /** The gallery editor's read: the product's identity plus its rows WITH paths. */
+  getProductImageEditor(productId: string): Promise<ProductImageEditor | null>;
+
+  /**
+   * Replaces a product's gallery ASSOCIATIONS in ONE transaction.
+   *
+   * Contract:
+   *   - an unknown product → `PRODUCT_NOT_FOUND`, nothing written;
+   *   - a kept id the product does NOT own → `FOREIGN_IMAGE`, nothing written.
+   *     This is checked INSIDE the transaction against the rows the product
+   *     actually holds, so a forged or stale id can never move another product's
+   *     photo into this gallery (nor delete it);
+   *   - otherwise the omitted rows are deleted, the kept rows get their new
+   *     `display_order` / `is_primary`, the new rows are inserted, and the
+   *     resulting ids are returned in display order.
+   *
+   * Deliberately scoped to `product_images`: variants, stock, prices, orders and
+   * every other product column are untouched, so a gallery edit cannot disturb
+   * the catalog around it.
+   *
+   * It does NOT delete any stored FILE. Keys are content-addressed, so the same
+   * object can be shared by several galleries (and by a retried edit); removing an
+   * association is not a licence to delete bytes. Collecting unreferenced objects
+   * needs its own policy and is not part of this path.
+   */
+  replaceProductImages(
+    productId: string,
+    input: ProductImagesWriteInput,
+  ): Promise<ProductImagesWriteResult>;
+
   listProducts(): Promise<ProductListItem[]>;
   listInventory(): Promise<InventoryRow[]>;
   updateVariantStock(variantId: string, stockQuantity: number): Promise<boolean>;
@@ -863,6 +928,104 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         }
 
         return { productId: product.id, variantIds };
+      });
+    },
+
+    async getProductImageEditor(productId) {
+      const [product] = await db
+        .select({
+          productId: products.id,
+          title: products.title,
+          slug: products.slug,
+          status: products.status,
+        })
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+      if (!product) {
+        return null;
+      }
+      const rows = await db
+        .select({
+          id: productImages.id,
+          storagePath: productImages.storagePath,
+          publicUrl: productImages.publicUrl,
+          displayOrder: productImages.displayOrder,
+          isPrimary: productImages.isPrimary,
+        })
+        .from(productImages)
+        .where(eq(productImages.productId, productId))
+        .orderBy(asc(productImages.displayOrder), asc(productImages.id));
+      return { ...product, images: rows };
+    },
+
+    async replaceProductImages(productId, input) {
+      return db.transaction(async (tx) => {
+        // Lock the product first: a gallery edit on a product being archived or
+        // deleted in another request must serialize against it, not race it.
+        const [product] = await tx
+          .select({ id: products.id })
+          .from(products)
+          .where(eq(products.id, productId))
+          .for('update');
+        if (!product) {
+          return { ok: false as const, reason: 'PRODUCT_NOT_FOUND' as const };
+        }
+
+        const ownedRows = await tx
+          .select({ id: productImages.id })
+          .from(productImages)
+          .where(eq(productImages.productId, productId))
+          .for('update');
+        const ownedIds = new Set(ownedRows.map((row) => row.id));
+        if (input.keep.some((entry) => !ownedIds.has(entry.id))) {
+          // Nothing has been written yet, so this transaction commits unchanged.
+          return { ok: false as const, reason: 'FOREIGN_IMAGE' as const };
+        }
+
+        const keepIds = new Set(input.keep.map((entry) => entry.id));
+        const removeIds = [...ownedIds].filter((id) => !keepIds.has(id));
+        if (removeIds.length > 0) {
+          await tx
+            .delete(productImages)
+            .where(
+              and(
+                eq(productImages.productId, productId),
+                inArray(productImages.id, removeIds),
+              ),
+            );
+        }
+
+        for (const entry of input.keep) {
+          await tx
+            .update(productImages)
+            .set({ displayOrder: entry.displayOrder, isPrimary: entry.isPrimary })
+            .where(
+              and(eq(productImages.id, entry.id), eq(productImages.productId, productId)),
+            );
+        }
+
+        if (input.add.length > 0) {
+          await tx.insert(productImages).values(
+            input.add.map((entry) => ({
+              productId,
+              // Variant binding is still not accepted from the panel (§2.1): the
+              // colour↔image link is a Phase 3 display concern.
+              variantId: null,
+              storagePath: entry.storagePath,
+              publicUrl: entry.publicUrl,
+              displayOrder: entry.displayOrder,
+              isPrimary: entry.isPrimary,
+            })),
+          );
+        }
+
+        const rows = await tx
+          .select({ id: productImages.id })
+          .from(productImages)
+          .where(eq(productImages.productId, productId))
+          .orderBy(asc(productImages.displayOrder), asc(productImages.id));
+        return { ok: true as const, imageIds: rows.map((row) => row.id) };
       });
     },
 
