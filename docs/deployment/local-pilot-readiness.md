@@ -4,7 +4,8 @@
 (`feat(commerce): read-only orphan-media dry run for the local provider`), identical
 to `origin/main` at the time of testing (`git rev-list --left-right --count` = `0 0`,
 clean tree apart from the untracked `.cloud-attachments/`). This record is an
-assessment of **that commit only**; later commits need their own run.
+assessment of **that commit only**; later commits need their own run — §10 is the
+independent re-verification run at `015ea4a` (verdicts unchanged).
 
 **What this is.** A bounded, developer-operated, loopback-only pilot of the
 `commerce/` track with synthetic data and the mock payment/SMS paths. It consolidates
@@ -243,3 +244,74 @@ build; there is no production state to roll back because nothing is deployed.
 record and §6.3 B5 record · `docs/decisions/D-172-fashion-ecommerce-roadmap.md` ·
 `docs/deployment/phase-6-cutover-checklist.md` · `commerce/README.md` (live harness,
 local media, orphan policy) · `TODO.md` G0/B1–B6 · `DECISIONS.md` D-045/D-139/MON-001.
+
+---
+
+## 10. Re-verification run — 2026-11-09 at `015ea4a` (append-only; §1–§7 unchanged)
+
+**Why.** §1–§7 are an assessment of `5c82312` only. This section records a second,
+independent bounded smoke pass of the same procedure (§4) on the current head.
+
+**Repo state at start.** `main` = `origin/main` = `015ea4a`
+(`docs(deployment): record local-pilot readiness verdicts for 5c82312`);
+`git rev-list --left-right --count` = `0 0`; working tree clean apart from the untracked
+`.cloud-attachments/`. No code differs from the tree §1–§7 assessed.
+
+**Development stack observed, never written.** `commerce-dev-web` (`next dev`, source
+mounted, `127.0.0.1:13001`) and `commerce-dev-postgres` (`127.0.0.1:55433`) both
+healthy; `GET /healthz` → **200** `{"status":"ok"}` before **and** after the run.
+Baseline read before: **5** products, **3** `product_images` rows, **1** order, **1**
+`notification_outbox` row `PENDING attempts=0` dated `2026-11-07 14:45:58.816601+00`;
+media store **4** files (3 referenced + the retained `54/548b…` candidate). Read after
+the run: **identical** on all five counts, outbox row still `PENDING attempts=0` at the
+same timestamp, media tree byte-identical (see “no writes” below).
+
+**One deliberate deviation from §4, stated rather than hidden.** The pilot ran from
+`git archive HEAD commerce` unpacked under `/tmp` (with a hard-linked `node_modules`),
+not in place: the development stack mounts `commerce/` and serves from the same
+`.next`, so an in-place `next build` would have destroyed the running dev server's
+output. The tree is byte-identical to `015ea4a`, so the behaviour exercised is the
+commit's behaviour.
+
+| # | Check | Command / target | Result |
+| --- | --- | --- | --- |
+| 1 | Disposable harness | `npm run db:up` → `127.0.0.1:55432` `postgres:16-alpine` (16.15) | healthy; `db:reset` + `db:seed` → 3 categories / 3 products / 15 variants / 0 images |
+| 2 | Pilot build | `next build` on the `git archive` tree | **rc=0**; `/checkout`, `/api/*`, `/healthz` all dynamic `ƒ` |
+| 3 | Pilot readiness probe | `GET 127.0.0.1:13002/healthz` | **200** `{"status":"ok"}` |
+| 4 | End-to-end checkout (synthetic customer) | `POST /checkout` → server action `placeOrderAction`; synthetic name, `09120000000`, synthetic address, `1111111111`; one line `DMN-PLS-BLK-M` ×1; `POST_PISHTAZ` | **order `501d521a-b370-4622-b1b1-622f05e4e9cf`**, `PENDING`, totals `890,000 + 45,000 = 935,000`, payment `UNAVAILABLE` / `ZARINPAL_NOT_CONFIGURED`, no payment ref written, history `→ PENDING (STOREFRONT)` |
+| 5 | Signed mock payment callback | `POST /api/webhooks/payment`, HMAC-SHA256 over the raw body in `x-commerce-signature: sha256=…` | **200** `PAID`, `duplicate:false`; order `PAID`, `payment_ref_id` recorded, history `PENDING→PAID (PAYMENT_CALLBACK)` |
+| 6 | Callback replay (idempotency) | identical signed body delivered again | **200** `PAID`, `duplicate:true` — nothing written |
+| 7 | Outbox after `PAID` | `commerce.notification_outbox` | exactly **1** row `order.confirmed / SMS / PENDING attempts=0` |
+| 8 | Single dispatch pass | `NOTIFICATIONS_DISPATCH_URL=…:13002… npm run scheduler:notifications -- --once` | **rc=0** `run ok (MOCK) claimed=1 sent=1 retried=0 failed=0 skipped=0`; row `SENT`, attempts 1, `MOCK-SMS-1` |
+| 9 | Exactly-once second pass | same `--once` again | `claimed=0 sent=0 retried=0 failed=0` |
+| 10 | Dispatch auth boundary | `POST` with a wrong bearer token | **401** `UNAUTHORIZED` |
+| 11 | Webhook signature boundary | same body, no signature header | **401** `SIGNATURE_MISSING` |
+| 12 | Orphan dry run, development store | `DATABASE_URL=…:55433/commerce_local MEDIA_LOCAL_DIR=./.media-data npm run media:orphans` | 4 files / 89.3 KiB, 3 reference rows (3 distinct), 3 referenced on disk, 0 missing, **1 candidate 13.3 KiB** `54/548b7c4e…f66.jpg`, 0 unclassified; “performed no writes and no deletes” |
+| 13 | No writes to the dev media store | `stat` + `shasum -a 256` over `.media-data` before/after | **diff empty** — bytes, mtime and digests identical |
+| 14 | Orphan dry run, pilot store | `DATABASE_URL=…:55432/commerce_smoke MEDIA_LOCAL_DIR=/tmp/aobe-pilot-media` | 0 files / 0 references / 0 candidates / 0 unclassified; the tool itself notes an empty tree “is not a cleanup signal” |
+| 15 | Teardown | kill pilot; `npm run db:down` (no `-v`); delete the isolated media dir | `13002` refused, `55432` refused, harness volume retained, no `db:reset` against `55433` |
+
+**No production flag, live SMS or live payment credential was used.** The pilot's
+environment was seven exports and nothing else: `DATABASE_URL` → the disposable `55432`
+harness; `COMMERCE_PAYMENT_WEBHOOK_SECRET` and `NOTIFICATIONS_DISPATCH_TOKEN` → loopback
+test literals minted for this run (never committed, deleted with the temporary tree);
+`MEDIA_PROVIDER=local`; `MEDIA_LOCAL_DIR=/tmp/aobe-pilot-media`;
+`MEDIA_LOCAL_UPLOAD_ENABLED=true`; `SMS_LIVE_ENABLED=false`. No `ZARINPAL_*`, no
+`KAVENEGAR_*` and no `PAYMENT_MODE` was present (count = 0 in that source), and no
+secret, token or URL with userinfo appeared in either log (grep count = 0). Behaviour
+corroborates the environment: the checkout's gateway answer was
+`ZARINPAL_NOT_CONFIGURED` and the dispatch report's mode was `MOCK`. `next start` sets
+`NODE_ENV=production`, which also disables the mock gateway adapter by construction
+(`gateway-runtime.ts`), so “mock” in this pass is the **mock webhook + mock SMS path**,
+exactly as §4 implies — the order was never given a faked payment status.
+
+**Non-failure note.** `next start` printed its standing warning that it “does not work
+with `output: 'standalone'`”. The server started, probed and served every check above;
+the warning concerns the container entrypoint contract (`.next/standalone/server.js`),
+not this pilot. Recorded so it is not later discovered as a surprise.
+
+**Verdicts.** Unchanged from §1: developer-operated, loopback-only, synthetic, mock
+payment/SMS → **GO with the recorded limitations and stop conditions**; real customers /
+reachable network / live money / live SMS → **NO-GO**; production activation → **NO-GO**
+(D-139). No owner gate was closed, opened or reinterpreted, and **no check in this pass
+failed**; the development baseline was neither altered nor read-modified.
