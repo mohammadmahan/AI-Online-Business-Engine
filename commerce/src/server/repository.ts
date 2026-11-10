@@ -383,6 +383,12 @@ export interface PlaceOrderInput {
   source: OrderStatusSource;
   /** Optional facts recorded with the opening row (never customer PII). */
   statusMetadata?: Record<string, unknown> | null;
+  /**
+   * Checkout intent id. When present, at most one order may exist for it; a
+   * second submission returns that order without repeating any side effect.
+   * NULL is reserved for historical/non-storefront writers.
+   */
+  idempotencyKey?: string | null;
 }
 
 export type PlaceOrderWriteResult =
@@ -392,8 +398,18 @@ export type PlaceOrderWriteResult =
       customerId: string;
       totals: CheckoutTotals;
       couponApplied: boolean;
-      /** The persisted status; the storefront never writes anything but PENDING. */
-      status: 'PENDING';
+      /** The persisted status; a fresh storefront write is always PENDING. */
+      status: OrderStatus;
+      /** True when the key already named an order and nothing was written. */
+      replayed: boolean;
+      /** A VERIFIED payment reference, when one is already recorded. */
+      paymentRefId: string | null;
+      /** A provider authorisation already persisted on the existing order. */
+      paymentAuthorization: {
+        provider: string;
+        authority: string;
+        amount: number;
+      } | null;
     }
   | {
       ok: false;
@@ -407,6 +423,39 @@ export type PlaceOrderWriteResult =
       field?: string;
       variantId?: string;
     };
+
+/**
+ * The durable answer for an idempotent replay: the order as it stands, with no
+ * new stock, coupon or history write. Totals are reconstructed from the stored
+ * amounts so the customer sees the same figures they were first quoted.
+ */
+function replayOrderResult(existing: typeof orders.$inferSelect): PlaceOrderWriteResult {
+  return {
+    ok: true,
+    orderId: existing.id,
+    customerId: existing.customerId,
+    totals: {
+      subtotal: existing.totalAmount - existing.shippingAmount + existing.discountAmount,
+      discount: existing.discountAmount,
+      shipping: existing.shippingAmount,
+      total: existing.totalAmount,
+    },
+    couponApplied: existing.discountAmount > 0,
+    status: existing.status,
+    replayed: true,
+    paymentRefId: existing.paymentRefId,
+    paymentAuthorization:
+      existing.paymentProvider !== null &&
+      existing.paymentAuthority !== null &&
+      existing.paymentAmount !== null
+        ? {
+            provider: existing.paymentProvider,
+            authority: existing.paymentAuthority,
+            amount: existing.paymentAmount,
+          }
+        : null,
+  };
+}
 
 export interface StorefrontCategory {
   name: string;
@@ -1623,6 +1672,27 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
 
       try {
         return await db.transaction(async (tx) => {
+          const idempotencyKey = input.idempotencyKey ?? null;
+
+          // Resolve a retry BEFORE pricing/stock checks: the first submission may
+          // have consumed the last piece, and a replay must return that order
+          // rather than turn into STOCK_INSUFFICIENT. The transaction-scoped
+          // advisory lock serialises same-key writers, so a concurrent second
+          // submission waits here and then sees the committed order instead of
+          // racing into a stock refusal; a rolled-back first attempt releases the
+          // lock and leaves the key free. Different keys hash apart and do not
+          // serialise.
+          if (idempotencyKey !== null) {
+            await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
+            const [existing] = await tx
+              .select()
+              .from(orders)
+              .where(eq(orders.idempotencyKey, idempotencyKey));
+            if (existing) {
+              return replayOrderResult(existing);
+            }
+          }
+
           const variantIds = input.items.map((item) => item.variantId);
 
           // Lock the variant rows for the duration of the write: two customers
@@ -1730,32 +1800,6 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
             couponId = coupon.id;
           }
 
-          // ── consume the stock, as the FIRST write of the transaction ────────
-          // The rows are already locked `for update`, so nothing can slip between
-          // the check above and this write; the conditional update still repeats
-          // the bound (`stock_quantity >= quantity`, backed by the column's
-          // `>= 0` CHECK) so check-and-consume is ONE statement per variant and
-          // overselling stays impossible even if a future edit drops the lock.
-          // A mismatch here is therefore an invariant violation, not a customer
-          // error: it THROWS so the whole transaction rolls back (an order must
-          // never exist without the stock it consumed), and the catch below turns
-          // it into the ordinary refusal.
-          for (const item of input.items) {
-            const consumed = await tx
-              .update(productVariants)
-              .set({ stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}` })
-              .where(
-                and(
-                  eq(productVariants.id, item.variantId),
-                  gte(productVariants.stockQuantity, item.quantity),
-                ),
-              )
-              .returning({ id: productVariants.id });
-            if (consumed.length !== 1) {
-              throw new StockConflictError(item.variantId);
-            }
-          }
-
           const phoneNumber = normalizePhoneNumber(input.customer.phoneNumber);
           // Idempotent by identity, not by name: an existing customer row is
           // reused UNTOUCHED (no silent overwrite of the profile), while this
@@ -1783,20 +1827,85 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           }
 
           const totals = computeCheckoutTotals({ subtotal, discount, shipping: shippingAmount });
-          const [order] = await tx
-            .insert(orders)
-            .values({
-              customerId,
-              totalAmount: totals.total,
-              discountAmount: totals.discount,
-              shippingAmount: totals.shipping,
-              status: 'PENDING',
-              paymentRefId: input.paymentRefId,
-              shippingAddress: input.shippingAddress.trim(),
-            })
-            .returning({ id: orders.id });
+
+          // Insert the ORDER before consuming stock or coupon usage. A retried
+          // intent therefore collides here and returns the existing order without
+          // any second decrement; a failure after this point (stock conflict,
+          // items/history write) rolls the order and its key back with the
+          // transaction, so the key is never left committed on a refusal.
+          const insertedOrders = idempotencyKey
+            ? await tx
+                .insert(orders)
+                .values({
+                  customerId,
+                  totalAmount: totals.total,
+                  discountAmount: totals.discount,
+                  shippingAmount: totals.shipping,
+                  status: 'PENDING',
+                  idempotencyKey,
+                  paymentRefId: input.paymentRefId,
+                  shippingAddress: input.shippingAddress.trim(),
+                })
+                .onConflictDoNothing({ target: orders.idempotencyKey })
+                .returning({ id: orders.id })
+            : await tx
+                .insert(orders)
+                .values({
+                  customerId,
+                  totalAmount: totals.total,
+                  discountAmount: totals.discount,
+                  shippingAmount: totals.shipping,
+                  status: 'PENDING',
+                  paymentRefId: input.paymentRefId,
+                  shippingAddress: input.shippingAddress.trim(),
+                })
+                .returning({ id: orders.id });
+
+          if (insertedOrders.length === 0) {
+            if (idempotencyKey === null) {
+              throw new Error('order insert returned no row');
+            }
+            // The other transaction has committed by the time ON CONFLICT sees
+            // it, so this read is the durable order for this intent. Nothing was
+            // consumed yet in THIS transaction: return it unchanged.
+            const [existing] = await tx
+              .select()
+              .from(orders)
+              .where(eq(orders.idempotencyKey, idempotencyKey));
+            if (!existing) {
+              throw new Error('idempotency key conflict without an order row');
+            }
+            return replayOrderResult(existing);
+          }
+          const order = insertedOrders[0];
           if (!order) {
             throw new Error('order insert returned no row');
+          }
+
+          // ── consume the stock, only after the order owns this intent ────────
+          // The rows are already locked `for update`, so nothing can slip between
+          // the check above and this write; the conditional update still repeats
+          // the bound (`stock_quantity >= quantity`, backed by the column's
+          // `>= 0` CHECK) so check-and-consume is ONE statement per variant and
+          // overselling stays impossible even if a future edit drops the lock.
+          // A mismatch here is therefore an invariant violation, not a customer
+          // error: it THROWS so the whole transaction rolls back (an order must
+          // never exist without the stock it consumed), and the catch below turns
+          // it into the ordinary refusal.
+          for (const item of input.items) {
+            const consumed = await tx
+              .update(productVariants)
+              .set({ stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}` })
+              .where(
+                and(
+                  eq(productVariants.id, item.variantId),
+                  gte(productVariants.stockQuantity, item.quantity),
+                ),
+              )
+              .returning({ id: productVariants.id });
+            if (consumed.length !== 1) {
+              throw new StockConflictError(item.variantId);
+            }
           }
 
           await tx.insert(orderItems).values(
@@ -1833,6 +1942,9 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
             totals,
             couponApplied: couponId !== null,
             status: 'PENDING' as const,
+            replayed: false,
+            paymentRefId: input.paymentRefId,
+            paymentAuthorization: null,
           };
         });
       } catch (error) {

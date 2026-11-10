@@ -162,6 +162,7 @@ describe(
         couponCode: null,
         shippingMethodId: DEFAULT_SHIPPING_METHOD_ID,
         lines: [{ variantId: variantIds['P3-BLK-S'] as string, quantity: 1 }],
+        idempotencyKey: crypto.randomUUID(),
         ...overrides,
       };
     }

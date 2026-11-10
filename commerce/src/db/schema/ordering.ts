@@ -64,6 +64,15 @@ export const orders = commerce.table(
       .notNull()
       .default(0),
     status: orderStatus('status').notNull().default('PENDING'),
+    /**
+     * Checkout idempotency key, owned by the browser's checkout intent.
+     *
+     * NULL for orders written before this column existed and for any
+     * non-storefront writer. PostgreSQL allows many NULLs under the unique index
+     * below, so historical rows stay valid while one key can name at most one
+     * order.
+     */
+    idempotencyKey: uuid('idempotency_key'),
     paymentRefId: varchar('payment_ref_id', { length: 255 }),
     /**
      * §6.1 — the redirect-based provider's AUTHORISATION, persisted at the moment
@@ -103,6 +112,10 @@ export const orders = commerce.table(
     // so a callback can never resolve to two of them. PostgreSQL allows many
     // NULLs here, which is what keeps every order without an authorisation valid.
     uniqueIndex('orders_payment_authority_unique').on(table.paymentAuthority),
+    // One checkout intent → at most one order. This is the write-path guard that
+    // makes a retried submission return the SAME order instead of creating a
+    // second one (and consuming stock/coupons twice).
+    uniqueIndex('orders_idempotency_key_unique').on(table.idempotencyKey),
     check('orders_total_amount_non_negative', sql`${table.totalAmount} >= 0`),
     check('orders_discount_amount_non_negative', sql`${table.discountAmount} >= 0`),
     check('orders_shipping_amount_non_negative', sql`${table.shippingAmount} >= 0`),

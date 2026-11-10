@@ -1,3 +1,4 @@
+import type { OrderStatus } from '../db/schema';
 import type { DiscountType } from './promotions';
 
 /**
@@ -145,6 +146,12 @@ export interface CheckoutDraft {
   couponCode: string | null;
   shippingMethodId: string;
   lines: Array<{ variantId: string; quantity: number }>;
+  /**
+   * Browser-owned checkout intent id (UUID). One key can create at most one
+   * order: retries and concurrent submissions return the same order instead of
+   * reserving stock or consuming a coupon again.
+   */
+  idempotencyKey: string;
 }
 
 /**
@@ -204,8 +211,14 @@ export interface OrderPlaced {
   payment: PaymentAttempt;
   /** True when the coupon was accepted AND its usage counter was incremented. */
   couponApplied: boolean;
-  /** `PENDING` unless a gateway actually authorized (never faked — AC-8). */
-  status: 'PENDING';
+  /** The persisted order status; a fresh storefront order is `PENDING`. */
+  status: OrderStatus;
+  /**
+   * True when this response describes an order that already existed for the
+   * submitted idempotency key. No stock, coupon or gateway side effect ran
+   * again for a replay.
+   */
+  replayed: boolean;
 }
 
 export interface OrderRefused {

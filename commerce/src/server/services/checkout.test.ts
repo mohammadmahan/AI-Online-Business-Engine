@@ -100,6 +100,7 @@ function draft(overrides: Partial<CheckoutDraft> = {}): CheckoutDraft {
     couponCode: null,
     shippingMethodId: DEFAULT_SHIPPING_METHOD_ID,
     lines: [{ variantId: 'placeholder', quantity: 1 }],
+    idempotencyKey: crypto.randomUUID(),
     ...overrides,
   };
 }
@@ -398,5 +399,113 @@ describe('coupon application at the write path (§2.4)', () => {
     );
     assert.equal(unknown.ok, false);
     assert.equal(unknown.ok ? '' : unknown.code, 'COUPON_INVALID');
+  });
+});
+
+describe('checkout idempotency (§3.3 hardening)', () => {
+  it('returns the same order for a duplicate key and consumes stock/coupon once', async () => {
+    const { repository, blackSmall } = await harness();
+    const key = crypto.randomUUID();
+    const orderDraft = draft({
+      idempotencyKey: key,
+      couponCode: COUPON_CODE,
+      lines: [{ variantId: blackSmall, quantity: 1 }],
+    });
+
+    const first = await placeCheckoutOrder(repository, mockPaymentGateway, orderDraft);
+    assert.ok(first.ok);
+    assert.equal(first.replayed, false);
+    const stockAfterFirst = await stockOf(repository, blackSmall);
+
+    const duplicate = await placeCheckoutOrder(repository, mockPaymentGateway, orderDraft);
+    assert.ok(duplicate.ok);
+    assert.equal(duplicate.orderId, first.orderId);
+    assert.equal(duplicate.replayed, true);
+    assert.equal(await stockOf(repository, blackSmall), stockAfterFirst);
+    assert.equal((await repository.findCouponByCode(COUPON_CODE))?.usedCount, 1);
+    assert.equal(await repository.listOrders().then((orders) => orders.length), 1);
+  });
+
+  it('resolves concurrent submissions with one key to one order', async () => {
+    const { repository, whiteMedium } = await harness();
+    const key = crypto.randomUUID();
+    const orderDraft = draft({
+      idempotencyKey: key,
+      lines: [{ variantId: whiteMedium, quantity: 2 }],
+    });
+
+    const results = await Promise.all([
+      placeCheckoutOrder(repository, mockPaymentGateway, orderDraft),
+      placeCheckoutOrder(repository, mockPaymentGateway, orderDraft),
+    ]);
+    assert.ok(results.every((result) => result.ok));
+    assert.equal(results[0]?.ok ? results[0].orderId : '', results[1]?.ok ? results[1].orderId : '');
+    assert.equal(await stockOf(repository, whiteMedium), 10);
+    assert.equal((await repository.listOrders()).length, 1);
+  });
+
+  it('creates distinct orders for distinct keys', async () => {
+    const { repository, blackSmall } = await harness();
+    const first = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+    const second = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+    assert.ok(first.ok && second.ok);
+    assert.notEqual(first.orderId, second.orderId);
+    assert.equal((await repository.listOrders()).length, 2);
+    assert.equal(await stockOf(repository, blackSmall), 2);
+  });
+
+  it('leaves a refused key usable because nothing was committed', async () => {
+    const { repository, blackSmall } = await harness();
+    const key = crypto.randomUUID();
+    const refused = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ idempotencyKey: key, lines: [{ variantId: blackSmall, quantity: 9 }] }),
+    );
+    assert.equal(refused.ok, false);
+    assert.equal(await stockOf(repository, blackSmall), 4);
+
+    const accepted = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({ idempotencyKey: key, lines: [{ variantId: blackSmall, quantity: 1 }] }),
+    );
+    assert.ok(accepted.ok);
+    assert.equal(accepted.replayed, false);
+  });
+
+  it('never authorises payment a second time for a replay', async () => {
+    const { repository, blackSmall } = await harness();
+    const authorised = createMockPaymentGateway({ outcome: 'AUTHORIZED' });
+    let calls = 0;
+    const gateway = {
+      id: 'counting',
+      authorize: async (request: Parameters<typeof authorised.authorize>[0]) => {
+        calls += 1;
+        return authorised.authorize(request);
+      },
+      verifyCallback: authorised.verifyCallback.bind(authorised),
+    };
+
+    const orderDraft = draft({ lines: [{ variantId: blackSmall, quantity: 1 }] });
+    const first = await placeCheckoutOrder(repository, gateway, orderDraft);
+    assert.ok(first.ok);
+    assert.equal(calls, 1);
+    assert.equal(first.payment.status, 'AUTHORIZED');
+
+    const replay = await placeCheckoutOrder(repository, gateway, orderDraft);
+    assert.ok(replay.ok);
+    assert.equal(calls, 1, 'the replay must not call the gateway');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.payment.status, 'AUTHORIZED');
+    assert.equal(replay.payment.reference, first.payment.reference);
   });
 });

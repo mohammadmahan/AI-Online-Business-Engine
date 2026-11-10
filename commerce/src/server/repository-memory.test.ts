@@ -66,6 +66,7 @@ async function placeOrder(
     couponCode: null,
     shippingMethodId: SHIPPING,
     lines: [{ variantId: created.variantIds[0] as string, quantity }],
+    idempotencyKey: crypto.randomUUID(),
   };
 
   const placed = await placeCheckoutOrder(repository, mockPaymentGateway, draft);

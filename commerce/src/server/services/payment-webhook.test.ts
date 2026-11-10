@@ -86,6 +86,7 @@ async function harness(): Promise<Harness> {
     couponCode: null,
     shippingMethodId: DEFAULT_SHIPPING,
     lines: [{ variantId, quantity: 2 }],
+    idempotencyKey: crypto.randomUUID(),
   };
   const placed = await placeCheckoutOrder(repository, mockPaymentGateway, draft);
   assert.ok(placed.ok, `the fixture order must be written: ${JSON.stringify(placed)}`);

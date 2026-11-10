@@ -43,6 +43,13 @@
       "when": 1793994247290,
       "tag": "0005_round_imperial_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794314499951,
+      "tag": "0006_next_salo",
+      "breakpoints": true
     }
   ]
 }

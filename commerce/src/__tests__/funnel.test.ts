@@ -193,6 +193,7 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
         variantId: line.variantId,
         quantity: line.quantity,
       })),
+      idempotencyKey: crypto.randomUUID(),
       ...overrides,
     };
   }

@@ -28,6 +28,7 @@ import {
   type OrderNotificationIntent,
   type OrderStatusHistoryEntry,
   type PaymentAuthorizationRecord,
+  type PlaceOrderWriteResult,
   type ProductListItem,
   type StorefrontHeadRow,
 } from './repository';
@@ -240,6 +241,9 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     addProduct(graph);
   });
 
+  /** One checkout intent id → one order id, mirroring the unique index. */
+  const ordersByIdempotencyKey = new Map<string, string>();
+
   const ordersTable: MemoryOrderRow[] = (seed.orders ?? []).map((order) => ({
     ...order,
     itemCount: order.items.reduce((total, item) => total + item.quantity, 0),
@@ -288,6 +292,34 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
    * teach a caller something the database cannot do.
    */
   const paymentAuthorizationsTable = new Map<string, PaymentAuthorizationRecord>();
+
+  /** Builds the replay answer from the stored row without writing anything. */
+  function replayOrderResult(order: MemoryOrderRow): PlaceOrderWriteResult {
+    const authorization = paymentAuthorizationsTable.get(order.id) ?? null;
+    return {
+      ok: true,
+      orderId: order.id,
+      customerId:
+        customersTable.find((entry) => entry.phoneNumber === order.customerPhone)?.id ?? '',
+      totals: {
+        subtotal: order.totalAmount - order.shippingAmount + order.discountAmount,
+        discount: order.discountAmount,
+        shipping: order.shippingAmount,
+        total: order.totalAmount,
+      },
+      couponApplied: order.discountAmount > 0,
+      status: order.status,
+      replayed: true,
+      paymentRefId: order.paymentRefId,
+      paymentAuthorization: authorization
+        ? {
+            provider: authorization.provider,
+            authority: authorization.authority,
+            amount: authorization.amount,
+          }
+        : null,
+    };
+  }
 
   /**
    * §6.2 — the notification outbox.
@@ -846,6 +878,17 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     /* ------------------------------------------------ §3.4 ordering */
 
     async placeOrder(input) {
+      const idempotencyKey = input.idempotencyKey ?? null;
+      if (idempotencyKey !== null) {
+        const existingOrderId = ordersByIdempotencyKey.get(idempotencyKey);
+        const existing = existingOrderId
+          ? ordersTable.find((order) => order.id === existingOrderId)
+          : undefined;
+        if (existing) {
+          return replayOrderResult(existing);
+        }
+      }
+
       if (input.items.length === 0) {
         return { ok: false, code: 'EMPTY_CART', message: 'سبد خرید خالی است.' };
       }
@@ -919,17 +962,6 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         coupon = found;
       }
 
-      // Consume the stock as the FIRST write of the order, mirroring the SQL
-      // path: every refusal above happened before any state changed, so a
-      // refused checkout leaves the double exactly as it was.
-      for (const item of input.items) {
-        const variant = variantsTable.find((entry) => entry.variantId === item.variantId);
-        if (!variant) {
-          continue;
-        }
-        variant.stockQuantity -= item.quantity;
-      }
-
       const phoneNumber = normalizePhoneNumber(input.customer.phoneNumber);
       const existing = customersTable.find((entry) => entry.phoneNumber === phoneNumber);
       if (!existing) {
@@ -983,8 +1015,22 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         }),
       });
 
+      // Stock is consumed only after the order owns this intent, mirroring the
+      // SQL transaction's insert-before-effects order.
+      for (const item of input.items) {
+        const variant = variantsTable.find((entry) => entry.variantId === item.variantId);
+        if (!variant) {
+          continue;
+        }
+        variant.stockQuantity -= item.quantity;
+      }
+
       if (coupon) {
         coupon.usedCount += 1;
+      }
+
+      if (idempotencyKey !== null) {
+        ordersByIdempotencyKey.set(idempotencyKey, orderId);
       }
 
       // The trail's opening row, appended with the order itself: `fromStatus`
@@ -1004,6 +1050,9 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         totals,
         couponApplied: coupon !== null,
         status: 'PENDING',
+        replayed: false,
+        paymentRefId: input.paymentRefId,
+        paymentAuthorization: null,
       };
     },
 

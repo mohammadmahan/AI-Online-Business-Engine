@@ -7,6 +7,7 @@ import type {
 import { quantityProblem } from '@/lib/checkout-rules';
 import { shippingAmountFor } from '@/lib/shipping';
 import {
+  isUuid,
   issuesToMessage,
   normalizeCouponCode,
   validateCheckoutCustomer,
@@ -107,6 +108,10 @@ export async function placeCheckoutOrder(
   gateway: PaymentGateway,
   draft: CheckoutDraft,
 ): Promise<PlaceOrderResult> {
+  if (!isUuid(draft.idempotencyKey)) {
+    return validationRefusal('شناسهٔ یکتای تسویه معتبر نیست.', 'idempotencyKey');
+  }
+
   const normalized = normalizeCheckoutLines(draft.lines);
   if (!normalized.ok) {
     return normalized;
@@ -153,6 +158,7 @@ export async function placeCheckoutOrder(
       shippingMethodId,
       items: normalized.items,
       couponCode,
+      idempotencyKey: draft.idempotencyKey,
       paymentRefId: null,
       // The trail's opening row records that the CUSTOMER created this order, as
       // opposed to the merchant or a callback moving it later.
@@ -178,6 +184,38 @@ export async function placeCheckoutOrder(
     return written;
   }
 
+  if (written.replayed) {
+    // AC-8/D-172 §3.4 — a replay must NEVER authorise again. Report only what
+    // the stored order already knows: a verified reference, an existing provider
+    // authority, or an honest "no payment recorded yet".
+    const payment = written.paymentRefId
+      ? {
+          status: 'AUTHORIZED' as const,
+          code: 'ORDER_ALREADY_PLACED',
+          message: 'این سفارش قبلاً ثبت شده و پرداخت آن تأیید شده است؛ پرداخت دوباره انجام نشد.',
+          reference: written.paymentRefId,
+        }
+      : {
+          status: 'UNAVAILABLE' as const,
+          code: 'ORDER_ALREADY_PLACED',
+          message: written.paymentAuthorization
+            ? 'این سفارش قبلاً ثبت شده و پرداخت آن آغاز شده است؛ پرداخت جدیدی آغاز نشد.'
+            : 'این سفارش قبلاً ثبت شده است؛ پرداخت جدیدی آغاز نشد. وضعیت پرداخت را از فروشگاه پیگیری کنید.',
+          reference: null,
+          authority: written.paymentAuthorization?.authority ?? null,
+        };
+
+    return {
+      ok: true,
+      orderId: written.orderId,
+      totals: written.totals,
+      payment,
+      couponApplied: written.couponApplied,
+      status: written.status,
+      replayed: true,
+    };
+  }
+
   const payment = await gateway.authorize({
     orderId: written.orderId,
     amount: written.totals.total,
@@ -194,6 +232,7 @@ export async function placeCheckoutOrder(
     totals: written.totals,
     payment,
     couponApplied: written.couponApplied,
-    status: 'PENDING',
+    status: written.status,
+    replayed: false,
   };
 }

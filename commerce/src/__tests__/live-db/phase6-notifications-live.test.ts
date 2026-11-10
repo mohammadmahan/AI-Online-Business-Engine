@@ -155,6 +155,7 @@ describe(
         couponCode: null,
         shippingMethodId: DEFAULT_SHIPPING_METHOD_ID,
         lines: [{ variantId: variantIds[sku] as string, quantity }],
+        idempotencyKey: crypto.randomUUID(),
       };
       const placed = await placeCheckoutOrder(repo, mockPaymentGateway, draft);
       assert.ok(placed.ok, `the live order must be written: ${JSON.stringify(placed)}`);

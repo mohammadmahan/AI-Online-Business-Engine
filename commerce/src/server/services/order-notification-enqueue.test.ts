@@ -71,6 +71,7 @@ function checkoutDraft(variantId: string): CheckoutDraft {
     couponCode: null,
     shippingMethodId: DEFAULT_SHIPPING_METHOD_ID,
     lines: [{ variantId, quantity: 1 }],
+    idempotencyKey: crypto.randomUUID(),
   };
 }
 

@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 
 import type { CheckoutTotals, PlaceOrderResult } from '@/contracts/storefront';
+import {
+  checkoutIdempotencyKey,
+  clearCheckoutIdempotencyKey,
+  type CheckoutIntent,
+  type CheckoutKeyStorage,
+} from '@/lib/checkout-idempotency';
 import { type CheckoutFieldErrors, submitCheckout } from '@/lib/checkout-submit';
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
 import { fieldA11y } from '@/lib/field-a11y';
@@ -18,6 +24,29 @@ import { Badge, Banner, Card, CardHeader, Field, Table, Td, Th, buttonClass, inp
 import { checkCartAvailabilityAction, placeOrderAction } from '@/server/actions/storefront';
 
 import { useCart } from './cart-provider';
+
+/**
+ * `sessionStorage` when the browser allows it; otherwise an in-page fallback so
+ * a blocked storage costs reusable keys, never the ability to checkout.
+ */
+const fallbackKeyStorage = new Map<string, string>();
+const noopKeyStorage: CheckoutKeyStorage = {
+  getItem: (key) => fallbackKeyStorage.get(key) ?? null,
+  setItem: (key, value) => {
+    fallbackKeyStorage.set(key, value);
+  },
+  removeItem: (key) => {
+    fallbackKeyStorage.delete(key);
+  },
+};
+
+function checkoutKeyStorage(): CheckoutKeyStorage {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return noopKeyStorage;
+  }
+}
 
 /**
  * D-172 §3.4 — one-step checkout.
@@ -121,6 +150,14 @@ export function CheckoutForm() {
     setResult(null);
     setSubmitError(null);
 
+    const keyStorage = checkoutKeyStorage();
+    const intent: CheckoutIntent = {
+      lines: lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity })),
+      customer: { fullName, phoneNumber, address, postalCode },
+      couponCode: couponCode.trim() === '' ? null : couponCode,
+      shippingMethodId,
+    };
+
     try {
       const outcome = await submitCheckout(
         {
@@ -128,6 +165,7 @@ export function CheckoutForm() {
           couponCode,
           shippingMethodId,
           cartLines: lines,
+          idempotencyKey: checkoutIdempotencyKey(intent, keyStorage),
         },
         { checkAvailability: checkCartAvailabilityAction, placeOrder: placeOrderAction },
       );
@@ -146,6 +184,9 @@ export function CheckoutForm() {
       setResult(outcome.result);
 
       if (outcome.status === 'placed') {
+        // The order exists (fresh or replayed): this intent must never be
+        // resubmitted. The cart is cleared through the ordinary success path.
+        clearCheckoutIdempotencyKey(keyStorage);
         clear();
         // §6.1 — a redirect-based provider: the adapter issued an authority and
         // persisted it on the order, and the customer pays on ZarinPal's page.
@@ -372,7 +413,11 @@ export function CheckoutForm() {
           <Card>
             <CardHeader
               title="سفارش ثبت شد"
-              description="سفارش با وضعیت «در انتظار پرداخت» ثبت شده است."
+              description={
+                result.replayed
+                  ? 'این سبد پیش‌تر ثبت شده بود؛ سفارش تازه‌ای ایجاد نشد و موجودی یا تخفیف دوباره مصرف نشد.'
+                  : 'سفارش با وضعیت «در انتظار پرداخت» ثبت شده است.'
+              }
             />
             <p className="text-cp-label text-ink">
               شناسهٔ سفارش: <span className="cp-code">{result.orderId}</span>

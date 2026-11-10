@@ -191,6 +191,7 @@ describe(
         couponCode: null,
         shippingMethodId: COUPON_FREE_DRAFT,
         lines: [{ variantId: variantIds[sku] as string, quantity }],
+        idempotencyKey: crypto.randomUUID(),
       };
       const placed = await placeCheckoutOrder(repo, mockPaymentGateway, draft);
       assert.ok(placed.ok, `the live order must be written: ${JSON.stringify(placed)}`);
@@ -389,6 +390,7 @@ describe(
           couponCode: null,
           shippingMethodId: COUPON_FREE_DRAFT,
           lines: [{ variantId: variantIds['P4-WHT-M'] as string, quantity: 5 }],
+          idempotencyKey: crypto.randomUUID(),
         });
         assert.ok(!refused.ok, 'the oversell must be refused');
 

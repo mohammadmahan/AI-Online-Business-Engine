@@ -74,6 +74,7 @@ const PLACED: OrderPlaced = {
   },
   couponApplied: false,
   status: 'PENDING',
+  replayed: false,
 };
 
 interface Calls {
@@ -102,6 +103,7 @@ function input(overrides: Partial<CheckoutSubmissionInput> = {}): CheckoutSubmis
     couponCode: '',
     shippingMethodId: 'POST_PISHTAZ',
     cartLines: [cartLine({ quantity: 2 })],
+    idempotencyKey: crypto.randomUUID(),
     ...overrides,
   };
 }

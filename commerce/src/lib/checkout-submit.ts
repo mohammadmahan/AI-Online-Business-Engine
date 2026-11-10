@@ -66,6 +66,11 @@ export interface CheckoutSubmissionInput {
   shippingMethodId: string;
   /** The cart's own lines, used only to NOTICE a price the server changed. */
   cartLines: CartLine[];
+  /**
+   * Browser-owned intent id. Reused across a retry/reload of the same cart and
+   * rotated by the caller when the intent changes.
+   */
+  idempotencyKey: string;
 }
 
 /** The two server actions, injected so the pipeline needs no Next runtime. */
@@ -194,6 +199,7 @@ export async function submitCheckout(
       couponCode: normalizeCouponInput(input.couponCode),
       shippingMethodId: input.shippingMethodId,
       lines,
+      idempotencyKey: input.idempotencyKey,
     });
 
     return placed.ok
