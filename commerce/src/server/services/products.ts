@@ -24,6 +24,56 @@ export type CreateProductResult =
       issues: Array<{ field: string; message: string }>;
     };
 
+/**
+ * The two catalog uniqueness rules the DATABASE still owns, mapped to the field
+ * the merchant can act on.
+ *
+ * `validateProduct` already refuses a duplicate SKU WITHIN one submission, but a
+ * slug or SKU that another product already holds can only be caught by the unique
+ * index. Letting that error surface as "unexpected database error" tells the
+ * merchant nothing and reads like an outage, so the two constraints this write
+ * can violate are translated here. Anything else is rethrown unchanged and keeps
+ * the generic refusal from `withRepository`.
+ */
+const UNIQUE_VIOLATION = '23505';
+
+const DUPLICATE_FIELDS: Record<string, { field: string; message: string }> = {
+  products_slug_unique: {
+    field: 'slug',
+    message: 'این نشانی محصول قبلاً استفاده شده است؛ نشانی دیگری انتخاب کنید.',
+  },
+  product_variants_sku_unique: {
+    field: 'variants',
+    message: 'کد کالای یکی از سطرها قبلاً در کاتالوگ ثبت شده است؛ کد دیگری انتخاب کنید.',
+  },
+};
+
+function duplicateIssue(
+  error: unknown,
+): { field: string; message: string } | null {
+  // Drizzle wraps the driver's error (`DrizzleQueryError`), so the SQLSTATE and
+  // constraint live on the CAUSE chain rather than on the thrown object. Walk it
+  // a few levels; a cycle or a non-Error cause simply ends the search.
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  for (let depth = 0; depth < 4 && typeof current === 'object' && current !== null; depth += 1) {
+    if (seen.has(current)) {
+      return null;
+    }
+    seen.add(current);
+    const { code, constraint, cause } = current as {
+      code?: unknown;
+      constraint?: unknown;
+      cause?: unknown;
+    };
+    if (code === UNIQUE_VIOLATION && typeof constraint === 'string') {
+      return DUPLICATE_FIELDS[constraint] ?? null;
+    }
+    current = cause;
+  }
+  return null;
+}
+
 export async function createProduct(
   repo: CommerceRepository,
   payload: ProductCreatePayload,
@@ -83,7 +133,21 @@ export async function createProduct(
     })),
   };
 
-  const created = await repo.createProductGraph(graph);
+  let created: { productId: string; variantIds: string[] };
+  try {
+    created = await repo.createProductGraph(graph);
+  } catch (error) {
+    const duplicate = duplicateIssue(error);
+    if (duplicate === null) {
+      throw error;
+    }
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: duplicate.message,
+      issues: [duplicate],
+    };
+  }
   return { ok: true, ...created };
 }
 

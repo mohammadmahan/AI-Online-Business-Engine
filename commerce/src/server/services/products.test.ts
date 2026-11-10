@@ -232,4 +232,66 @@ describe('product ingestion service (§2.1)', () => {
     assert.equal(graphs.length, 0);
     assert.deepEqual(await listProducts(repository), []);
   });
+
+  it('turns a duplicate slug index violation into a slug-level refusal', async () => {
+    const repository: CommerceRepository = {
+      ...createMemoryRepository(),
+      async createProductGraph() {
+        // Drizzle wraps the driver error: the SQLSTATE is on the cause.
+        throw new Error('Failed query', {
+          cause: Object.assign(new Error('duplicate key'), {
+            code: '23505',
+            constraint: 'products_slug_unique',
+          }),
+        });
+      },
+    };
+
+    const result = await createProduct(repository, validProductPayload());
+
+    assert.equal(result.ok, false);
+    if (result.ok) {
+      return;
+    }
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'slug');
+    assert.match(result.message, /قبلاً استفاده شده/);
+  });
+
+  it('turns a duplicate SKU index violation into a variant-level refusal', async () => {
+    const repository: CommerceRepository = {
+      ...createMemoryRepository(),
+      async createProductGraph() {
+        throw Object.assign(new Error('duplicate key'), {
+          code: '23505',
+          constraint: 'product_variants_sku_unique',
+        });
+      },
+    };
+
+    const result = await createProduct(repository, validProductPayload());
+
+    assert.equal(result.ok, false);
+    if (result.ok) {
+      return;
+    }
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'variants');
+    assert.match(result.message, /کد کالای یکی از سطرها قبلاً/);
+  });
+
+  it('rethrows a database failure that is not one of the two uniqueness rules', async () => {
+    const failure = Object.assign(new Error('foreign key'), {
+      code: '23503',
+      constraint: 'products_category_id_categories_id_fk',
+    });
+    const repository: CommerceRepository = {
+      ...createMemoryRepository(),
+      async createProductGraph() {
+        throw failure;
+      },
+    };
+
+    await assert.rejects(() => createProduct(repository, validProductPayload()), failure);
+  });
 });
