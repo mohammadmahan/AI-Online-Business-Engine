@@ -45,7 +45,8 @@ interface CartContextValue {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  add: (line: CartLine) => void;
+  /** `false` when the distinct-line cap refused a NEW line. */
+  add: (line: CartLine) => boolean;
   setQuantity: (variantId: string, quantity: number) => void;
   remove: (variantId: string) => void;
   clear: () => void;

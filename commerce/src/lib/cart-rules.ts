@@ -90,6 +90,19 @@ export function serializeCart(lines: CartLine[]): string {
   return JSON.stringify(lines);
 }
 
+/**
+ * Whether `addLine` can represent this line right now.
+ *
+ * Merging into an existing variant is always allowed; a NEW variant needs room
+ * under the distinct-line cap. Exported so the caller can tell the customer why
+ * an add did nothing instead of silently accepting it.
+ */
+export function canAddDistinctLine(lines: CartLine[], variantId: string): boolean {
+  return (
+    lines.some((entry) => entry.variantId === variantId) || lines.length < MAX_DISTINCT_LINES
+  );
+}
+
 /** Adds a line, merging with an existing row for the same variant. */
 export function addLine(lines: CartLine[], line: CartLine, maxQuantity = MAX_LINE_QUANTITY): CartLine[] {
   const existing = lines.find((entry) => entry.variantId === line.variantId);
@@ -100,7 +113,7 @@ export function addLine(lines: CartLine[], line: CartLine, maxQuantity = MAX_LIN
         : entry,
     );
   }
-  if (lines.length >= MAX_DISTINCT_LINES) {
+  if (!canAddDistinctLine(lines, line.variantId)) {
     return lines;
   }
   return [...lines, { ...line, quantity: Math.min(Math.max(line.quantity, 1), maxQuantity) }];

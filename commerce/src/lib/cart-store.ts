@@ -3,6 +3,7 @@ import type { CartLine } from '@/contracts/storefront';
 import {
   CART_STORAGE_KEY,
   addLine,
+  canAddDistinctLine,
   parseStoredCart,
   removeLine,
   serializeCart,
@@ -131,8 +132,20 @@ function commit(lines: CartLine[]): void {
   notify();
 }
 
-export function addCartLine(line: CartLine): void {
-  commit(addLine(getCartSnapshot().lines, line));
+/**
+ * Adds (or merges) a line and reports whether the basket changed.
+ *
+ * `false` means the basket already holds the maximum number of DISTINCT lines and
+ * this line was for a new variant: the customer is told instead of the click
+ * being lost silently. The store still publishes nothing in that case.
+ */
+export function addCartLine(line: CartLine): boolean {
+  const lines = getCartSnapshot().lines;
+  if (!canAddDistinctLine(lines, line.variantId)) {
+    return false;
+  }
+  commit(addLine(lines, line));
+  return true;
 }
 
 export function setCartLineQuantity(variantId: string, quantity: number): void {

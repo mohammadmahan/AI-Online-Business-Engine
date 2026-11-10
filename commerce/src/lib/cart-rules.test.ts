@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import type { CartLine } from '@/contracts/storefront';
 import {
   addLine,
+  canAddDistinctLine,
   canDecrementLine,
   cartCount,
   cartSubtotal,
@@ -12,7 +13,7 @@ import {
   serializeCart,
   setLineQuantity,
 } from '@/lib/cart-rules';
-import { MAX_LINE_QUANTITY } from '@/lib/checkout-rules';
+import { MAX_DISTINCT_LINES, MAX_LINE_QUANTITY } from '@/lib/checkout-rules';
 
 /**
  * D-172 §3.2 — the client cart.
@@ -108,6 +109,21 @@ describe('cart persistence is fail-closed (§3.2)', () => {
     const parsed = parseStoredCart(stored);
     assert.equal(parsed.length, 1);
     assert.equal(parsed[0]?.variantId, 'v1');
+  });
+
+  it('refuses a NEW line beyond the distinct-line cap but always allows a merge', () => {
+    const full = Array.from({ length: MAX_DISTINCT_LINES }, (_, index) =>
+      line({ variantId: `v${index + 1}`, size: String(index + 1) }),
+    );
+
+    assert.equal(canAddDistinctLine(full, 'brand-new'), false);
+    assert.equal(canAddDistinctLine(full, 'v7'), true);
+    assert.equal(canAddDistinctLine(full.slice(0, MAX_DISTINCT_LINES - 1), 'brand-new'), true);
+
+    assert.equal(addLine(full, line({ variantId: 'brand-new' })), full, 'a full cart is unchanged');
+    const merged = addLine(full, line({ variantId: 'v7' }));
+    assert.equal(merged.length, MAX_DISTINCT_LINES);
+    assert.equal(merged.find((entry) => entry.variantId === 'v7')?.quantity, 2);
   });
 
   it('clamps a stored quantity into range rather than trusting it', () => {

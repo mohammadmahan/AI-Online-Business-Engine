@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import type { CheckoutTotals, PlaceOrderResult } from '@/contracts/storefront';
 import { type CheckoutFieldErrors, submitCheckout } from '@/lib/checkout-submit';
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
+import { fieldA11y } from '@/lib/field-a11y';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { DEFAULT_SHIPPING_METHOD_ID, SHIPPING_METHODS, shippingAmountFor } from '@/lib/shipping';
 import {
@@ -160,6 +161,13 @@ export function CheckoutForm() {
     }
   }
 
+  // Visible errors must also be announced: each pair is decided in one place so
+  // the message id, `aria-invalid` and `aria-describedby` cannot drift apart.
+  const nameA11y = fieldA11y(errors.fullName, 'checkout-name-error');
+  const phoneA11y = fieldA11y(errors.phoneNumber, 'checkout-phone-error');
+  const addressA11y = fieldA11y(errors.address, 'checkout-address-error');
+  const postalA11y = fieldA11y(errors.postalCode, 'checkout-postal-error');
+
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
       <Card>
@@ -175,12 +183,19 @@ export function CheckoutForm() {
             void submit();
           }}
         >
-          <Field label="نام و نام خانوادگی" htmlFor="checkout-name" required error={errors.fullName}>
+          <Field
+            label="نام و نام خانوادگی"
+            htmlFor="checkout-name"
+            required
+            error={errors.fullName}
+            errorId={nameA11y.errorId}
+          >
             <input
               id="checkout-name"
               className={inputClass}
               value={fullName}
               autoComplete="name"
+              {...nameA11y.inputProps}
               onChange={(event) => setFullName(event.target.value)}
             />
           </Field>
@@ -191,6 +206,7 @@ export function CheckoutForm() {
             required
             hint="۱۱ رقم و با ۰۹ شروع شود"
             error={errors.phoneNumber}
+            errorId={phoneA11y.errorId}
           >
             <input
               id="checkout-phone"
@@ -199,6 +215,7 @@ export function CheckoutForm() {
               dir="ltr"
               autoComplete="tel"
               value={phoneNumber}
+              {...phoneA11y.inputProps}
               onChange={(event) => setPhoneNumber(event.target.value)}
             />
           </Field>
@@ -209,12 +226,14 @@ export function CheckoutForm() {
             required
             hint="استان، شهر، خیابان، پلاک و واحد"
             error={errors.address}
+            errorId={addressA11y.errorId}
           >
             <textarea
               id="checkout-address"
               className={inputClass}
               rows={3}
               value={address}
+              {...addressA11y.inputProps}
               onChange={(event) => setAddress(event.target.value)}
             />
           </Field>
@@ -225,6 +244,7 @@ export function CheckoutForm() {
             required
             hint="۱۰ رقم"
             error={errors.postalCode}
+            errorId={postalA11y.errorId}
           >
             <input
               id="checkout-postal"
@@ -232,6 +252,7 @@ export function CheckoutForm() {
               inputMode="numeric"
               dir="ltr"
               value={postalCode}
+              {...postalA11y.inputProps}
               onChange={(event) => setPostalCode(event.target.value)}
             />
           </Field>

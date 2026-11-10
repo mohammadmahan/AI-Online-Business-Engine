@@ -4,6 +4,7 @@ import { Ruler, ShoppingBag } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import type { StorefrontProductDetail } from '@/contracts/storefront';
+import { MAX_DISTINCT_LINES } from '@/lib/checkout-rules';
 import { formatCountFa, formatToman } from '@/lib/format';
 import {
   SIZE_CHART,
@@ -66,6 +67,7 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sizeChartOpen, setSizeChartOpen] = useState(false);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
 
   const sizes = useMemo(
     () => sizeOptions(product.sizes, product.variants, selectedColor),
@@ -87,7 +89,16 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
     if (!selectedVariant) {
       return;
     }
-    add(toCartLine(product, selectedVariant, quantity));
+    const added = add(toCartLine(product, selectedVariant, quantity));
+    if (!added) {
+      // The basket already holds MAX_DISTINCT_LINES variants; say so rather than
+      // letting the click disappear.
+      setCartNotice(
+        `سبد خرید حداکثر ${formatCountFa(MAX_DISTINCT_LINES)} ردیف دارد؛ برای افزودن این گونه ابتدا یک ردیف را حذف کنید.`,
+      );
+      return;
+    }
+    setCartNotice(null);
     openCart();
   }
 
@@ -236,6 +247,11 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
           <ShoppingBag aria-hidden="true" size={16} />
           افزودن به سبد خرید
         </button>
+        {cartNotice === null ? null : (
+          <p role="status" className="text-cp-caption font-medium text-danger">
+            {cartNotice}
+          </p>
+        )}
 
         <Modal
           open={sizeChartOpen}

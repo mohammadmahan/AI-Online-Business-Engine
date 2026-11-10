@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import type { CartLine } from '@/contracts/storefront';
 import { CART_STORAGE_KEY } from '@/lib/cart-rules';
+import { MAX_DISTINCT_LINES } from '@/lib/checkout-rules';
 import {
   addCartLine,
   clearCart,
@@ -155,6 +156,41 @@ describe('cart store (§3.2)', () => {
     otherTabWrites(null, null);
     assert.deepEqual(getCartSnapshot().lines, [], 'a full clear empties our basket too');
     assert.equal(getCartSnapshot().hydrated, true);
+  });
+
+  it('reports a refused line at the distinct-line cap instead of dropping it silently', () => {
+    clearCart();
+    const full = Array.from({ length: MAX_DISTINCT_LINES }, (_, index) =>
+      line({ variantId: `cap-${index + 1}`, size: String(index + 1) }),
+    );
+    otherTabWrites(CART_STORAGE_KEY, JSON.stringify(full));
+    assert.equal(getCartSnapshot().lines.length, MAX_DISTINCT_LINES);
+
+    let notifications = 0;
+    const unsubscribe = subscribeToCart(() => {
+      notifications += 1;
+    });
+    const storedBefore = store.get(CART_STORAGE_KEY);
+
+    assert.equal(
+      addCartLine(line({ variantId: 'cap-new' })),
+      false,
+      'the caller learns the add was refused',
+    );
+    assert.equal(getCartSnapshot().lines.length, MAX_DISTINCT_LINES);
+    assert.equal(store.get(CART_STORAGE_KEY), storedBefore, 'a refusal writes nothing');
+    assert.equal(notifications, 0, 'a refusal publishes nothing');
+
+    assert.equal(
+      addCartLine(line({ variantId: 'cap-3' })),
+      true,
+      'merging an existing variant is still allowed',
+    );
+    assert.equal(getCartSnapshot().lines.find((entry) => entry.variantId === 'cap-3')?.quantity, 2);
+    assert.equal(notifications, 1);
+
+    unsubscribe();
+    clearCart();
   });
 
   it('degrades a hand-edited blob to an empty cart instead of throwing', () => {
