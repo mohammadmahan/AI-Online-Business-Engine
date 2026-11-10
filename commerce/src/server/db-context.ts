@@ -34,6 +34,12 @@ export interface CommerceActionFailure {
   code: CommerceActionFailureCode;
   message: string;
   field?: string;
+  /**
+   * Every field-level refusal, when the action has more than the first one to
+   * report. Optional so existing actions keep their exact shape; forms that
+   * render per-field errors read this and fall back to `field`.
+   */
+  issues?: Array<{ field: string; message: string }>;
 }
 
 export type CommerceActionResult<T> = { ok: true; data: T } | CommerceActionFailure;

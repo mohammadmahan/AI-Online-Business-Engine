@@ -1,9 +1,11 @@
 import type {
   CategoryCreatePayload,
   ProductCreatePayload,
+  ProductUpdatePayload,
   VariantPayload,
 } from '@/contracts/catalog';
 import type { CouponCreatePayload } from '@/contracts/promotions';
+import { PRODUCT_STATUSES, isProductStatus } from '@/lib/product-status';
 
 /**
  * D-172 Phase 2 — fail-closed validation for every write the merchant panel can
@@ -143,7 +145,28 @@ export function validateVariant(variant: VariantPayload, index: number): Validat
  * unique SKU, and one row per colour × size. Catching them here turns a
  * constraint violation into a field-level message.
  */
-export function validateProduct(payload: ProductCreatePayload): Validation {
+/** The product-level fields both the create and the edit forms submit. */
+interface ProductFieldInput {
+  title: string;
+  slug: string;
+  categoryId: string;
+  basePrice: number;
+  discountPrice?: number | null;
+  descriptionRaw: string;
+  fabricType: string;
+  season: string;
+  careInstructions?: unknown;
+  /** Optional for creation (defaults to DRAFT); any provided value is checked. */
+  status?: unknown;
+}
+
+/**
+ * The shared field rules (§2.1) — one place decides whether a title, slug,
+ * price, discount, description, fabric or season is acceptable, so the create
+ * and edit forms cannot drift apart. Status is optional here because creation
+ * defaults it; a PROVIDED value must still be one of the schema's statuses.
+ */
+function productFieldIssues(payload: ProductFieldInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
   if (!isNonEmptyString(payload.title)) {
@@ -178,6 +201,37 @@ export function validateProduct(payload: ProductCreatePayload): Validation {
   if (!isNonEmptyString(payload.season)) {
     issues.push(issue('season', 'فصل الزامی است.'));
   }
+  if (
+    payload.careInstructions !== undefined &&
+    payload.careInstructions !== null &&
+    typeof payload.careInstructions !== 'string'
+  ) {
+    issues.push(issue('careInstructions', 'راهنمای نگهداری باید متن باشد.'));
+  }
+  if (payload.status !== undefined && !isProductStatus(payload.status)) {
+    issues.push(
+      issue('status', `وضعیت محصول باید یکی از ${PRODUCT_STATUSES.join('، ')} باشد.`),
+    );
+  }
+  return issues;
+}
+
+/** The edit form submits every product-level field, including the status. */
+export function validateProductUpdate(payload: ProductUpdatePayload): Validation {
+  const issues = productFieldIssues(payload);
+  if (!isProductStatus(payload.status)) {
+    // Already recorded above for any unknown value; this branch exists so a
+    // caller that someday makes `status` optional cannot save without one.
+    if (!issues.some((entry) => entry.field === 'status')) {
+      issues.push(issue('status', 'وضعیت محصول را انتخاب کنید.'));
+    }
+  }
+  return fromIssues(issues);
+}
+
+export function validateProduct(payload: ProductCreatePayload): Validation {
+  const issues: ValidationIssue[] = productFieldIssues(payload);
+
   if (!Array.isArray(payload.variants) || payload.variants.length === 0) {
     issues.push(issue('variants', 'حداقل یک ترکیب رنگ و سایز لازم است.'));
   } else {

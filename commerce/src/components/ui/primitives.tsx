@@ -125,6 +125,7 @@ export function Field({
   label,
   hint,
   error,
+  errorId,
   htmlFor,
   children,
   required,
@@ -132,6 +133,8 @@ export function Field({
   label: string;
   hint?: string;
   error?: string;
+  /** Lets the input's `aria-describedby` point at the rendered error text. */
+  errorId?: string;
   htmlFor?: string;
   children: ReactNode;
   required?: boolean;
@@ -145,7 +148,7 @@ export function Field({
       {children}
       {hint ? <p className="text-cp-caption text-ink-muted">{hint}</p> : null}
       {error ? (
-        <p className="text-cp-caption font-medium text-danger" role="alert">
+        <p id={errorId} className="text-cp-caption font-medium text-danger" role="alert">
           {error}
         </p>
       ) : null}

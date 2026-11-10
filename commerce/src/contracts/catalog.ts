@@ -145,6 +145,24 @@ export interface ProductCreatePayload {
   images?: ProductImagePayload[];
 }
 
-export type ProductUpdatePayload = Partial<
-  Omit<ProductCreatePayload, 'variants' | 'images'>
->;
+/**
+ * §2.1 — the ADMIN EDIT form's write contract.
+ *
+ * Full rather than partial on purpose: the edit page renders every field it
+ * submits, so "omitted" would be indistinguishable from "cleared" and a partial
+ * payload could erase a value the merchant never saw. Variants, images and SKUs
+ * are absent by design — they have their own workflows (`inventory`, `images`)
+ * and this write must never recreate them.
+ */
+export interface ProductUpdatePayload {
+  categoryId: string;
+  title: string;
+  slug: string;
+  basePrice: number;
+  discountPrice: number | null;
+  descriptionRaw: string;
+  fabricType: string;
+  season: string;
+  careInstructions: string | null;
+  status: ProductStatus;
+}

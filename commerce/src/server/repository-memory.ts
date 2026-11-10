@@ -488,6 +488,67 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       };
     },
 
+    async getProductForEdit(productId) {
+      const product = productsTable.find((row) => row.id === productId);
+      if (!product) {
+        return null;
+      }
+      return {
+        id: product.id,
+        categoryId: product.categoryId,
+        title: product.title,
+        slug: product.slug,
+        basePrice: product.basePrice,
+        discountPrice: product.discountPrice,
+        descriptionRaw: product.descriptionRaw,
+        descriptionHtml: product.descriptionHtml,
+        fabricType: product.fabricType,
+        season: product.season,
+        careInstructions: product.careInstructions,
+        status: product.status,
+      };
+    },
+
+    async updateProductDetails(productId, input) {
+      const product = productsTable.find((row) => row.id === productId);
+      if (!product) {
+        return { ok: false, reason: 'NOT_FOUND' };
+      }
+      if (
+        productsTable.some(
+          (candidate) => candidate.id !== productId && candidate.slug === input.slug,
+        )
+      ) {
+        return { ok: false, reason: 'DUPLICATE_SLUG' };
+      }
+      if (!categories.some((category) => category.id === input.categoryId)) {
+        return { ok: false, reason: 'CATEGORY_NOT_FOUND' };
+      }
+      product.title = input.title;
+      product.slug = input.slug;
+      product.categoryId = input.categoryId;
+      product.categoryName =
+        categories.find((category) => category.id === input.categoryId)?.name ?? product.categoryName;
+      product.basePrice = input.basePrice;
+      product.discountPrice = input.discountPrice;
+      product.descriptionRaw = input.descriptionRaw;
+      product.descriptionHtml = input.descriptionHtml;
+      product.fabricType = input.fabricType;
+      product.season = input.season;
+      product.careInstructions = input.careInstructions;
+      product.status = input.status;
+      // The inventory read joins the product in PostgreSQL; this double stores
+      // the display mirrors, so an edit must refresh them to stay faithful.
+      for (const variant of variantsTable) {
+        if (variant.productId === productId) {
+          variant.productTitle = input.title;
+          variant.productSlug = input.slug;
+          variant.basePrice = input.basePrice;
+        }
+      }
+      return { ok: true };
+    },
+
     async replaceProductImages(productId, input) {
       const product = productsTable.find((row) => row.id === productId);
       if (!product) {

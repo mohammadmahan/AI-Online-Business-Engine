@@ -1,6 +1,12 @@
-import type { ProductCreatePayload } from '@/contracts/catalog';
+import type { ProductCreatePayload, ProductUpdatePayload } from '@/contracts/catalog';
 import { toDescriptionHtml } from '@/lib/variant-matrix';
-import { issuesToMessage, normalizeSku, validateProduct } from '@/lib/validation';
+import {
+  isUuid,
+  issuesToMessage,
+  normalizeSku,
+  validateProduct,
+  validateProductUpdate,
+} from '@/lib/validation';
 
 import type { CommerceRepository, NewProductGraph, ProductListItem } from '../repository';
 
@@ -37,15 +43,19 @@ export type CreateProductResult =
  */
 const UNIQUE_VIOLATION = '23505';
 
+const DUPLICATE_SLUG_ISSUE = {
+  field: 'slug',
+  message: 'این نشانی محصول قبلاً استفاده شده است؛ نشانی دیگری انتخاب کنید.',
+};
+
+const DUPLICATE_SKU_ISSUE = {
+  field: 'variants',
+  message: 'کد کالای یکی از سطرها قبلاً در کاتالوگ ثبت شده است؛ کد دیگری انتخاب کنید.',
+};
+
 const DUPLICATE_FIELDS: Record<string, { field: string; message: string }> = {
-  products_slug_unique: {
-    field: 'slug',
-    message: 'این نشانی محصول قبلاً استفاده شده است؛ نشانی دیگری انتخاب کنید.',
-  },
-  product_variants_sku_unique: {
-    field: 'variants',
-    message: 'کد کالای یکی از سطرها قبلاً در کاتالوگ ثبت شده است؛ کد دیگری انتخاب کنید.',
-  },
+  products_slug_unique: DUPLICATE_SLUG_ISSUE,
+  product_variants_sku_unique: DUPLICATE_SKU_ISSUE,
 };
 
 function duplicateIssue(
@@ -149,6 +159,108 @@ export async function createProduct(
     };
   }
   return { ok: true, ...created };
+}
+
+export type UpdateProductResult =
+  | { ok: true; productId: string }
+  | {
+      ok: false;
+      code: 'VALIDATION_ERROR';
+      message: string;
+      issues: Array<{ field: string; message: string }>;
+    }
+  | { ok: false; code: 'NOT_FOUND'; message: string };
+
+/**
+ * D-172 §2.1 — edit the product-level fields of an EXISTING product.
+ *
+ * Deliberately narrow: it writes ONE `products` row. Variants, SKUs, stock,
+ * media associations and order snapshots are not read for writing, recreated or
+ * deleted, so an edit cannot disturb the inventory or gallery workflows.
+ *
+ * `descriptionHtml` is preserved when the raw text was not changed; when the
+ * merchant edits the raw description, the stored body is re-derived through the
+ * SAME escaping used at creation (the admin panel never submits HTML).
+ */
+export async function updateProduct(
+  repo: CommerceRepository,
+  productId: string,
+  payload: ProductUpdatePayload,
+): Promise<UpdateProductResult> {
+  // A malformed id is "no such product", not a database cast error.
+  if (!isUuid(productId)) {
+    return { ok: false, code: 'NOT_FOUND', message: 'محصول مورد نظر پیدا نشد.' };
+  }
+
+  const validation = validateProductUpdate(payload);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: issuesToMessage(validation.issues),
+      issues: validation.issues,
+    };
+  }
+
+  const existing = await repo.getProductForEdit(productId);
+  if (existing === null) {
+    return { ok: false, code: 'NOT_FOUND', message: 'محصول مورد نظر پیدا نشد.' };
+  }
+
+  // The category list is tiny and already feeds the form; checking membership
+  // here turns a forged/stale id into a field message. The write still maps the
+  // FK refusal, because another request may delete the category in between.
+  const categories = await repo.listCategories();
+  if (!categories.some((category) => category.id === payload.categoryId)) {
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: 'دستهٔ انتخاب‌شده وجود ندارد؛ یک دستهٔ معتبر انتخاب کنید.',
+      issues: [{ field: 'categoryId', message: 'دستهٔ انتخاب‌شده وجود ندارد.' }],
+    };
+  }
+
+  const descriptionRaw = payload.descriptionRaw.trim();
+  const descriptionHtml =
+    descriptionRaw === existing.descriptionRaw.trim()
+      ? existing.descriptionHtml
+      : toDescriptionHtml(descriptionRaw);
+
+  const updated = await repo.updateProductDetails(productId, {
+    categoryId: payload.categoryId,
+    title: payload.title.trim(),
+    slug: payload.slug.trim(),
+    basePrice: payload.basePrice,
+    discountPrice: payload.discountPrice ?? null,
+    descriptionRaw,
+    descriptionHtml,
+    fabricType: payload.fabricType.trim(),
+    season: payload.season.trim(),
+    careInstructions:
+      typeof payload.careInstructions === 'string' ? payload.careInstructions.trim() || null : null,
+    status: payload.status,
+  });
+
+  if (updated.ok) {
+    return { ok: true, productId };
+  }
+  if (updated.reason === 'NOT_FOUND') {
+    return { ok: false, code: 'NOT_FOUND', message: 'محصول مورد نظر پیدا نشد.' };
+  }
+  if (updated.reason === 'DUPLICATE_SLUG') {
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: DUPLICATE_SLUG_ISSUE.message,
+      issues: [DUPLICATE_SLUG_ISSUE],
+    };
+  }
+  return {
+    ok: false,
+    code: 'VALIDATION_ERROR',
+    message: 'دستهٔ انتخاب‌شده وجود ندارد؛ یک دستهٔ معتبر انتخاب کنید.',
+    issues: [{ field: 'categoryId', message: 'دستهٔ انتخاب‌شده وجود ندارد.' }],
+  };
 }
 
 export async function listProducts(repo: CommerceRepository): Promise<ProductListItem[]> {

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { ConnectionMissing } from '@/components/admin/connection-notice';
 import { ProductImageEditor } from '@/components/admin/product-image-editor';
 import { Badge, PageHeader, Placeholder, buttonClass } from '@/components/ui/primitives';
+import { PRODUCT_STATUS_LABELS } from '@/lib/product-status';
 import { isUuid } from '@/lib/validation';
 import { getRepository } from '@/server/db-context';
 import { mediaUploadAllowed } from '@/server/media';
@@ -92,8 +93,16 @@ async function ProductEditor({
       <p className="flex flex-wrap items-center gap-2 rounded-[--radius-cp] border border-edge bg-surface-muted p-3 text-cp-label text-ink-muted">
         <span className="font-semibold text-ink">{product.title}</span>
         <span className="cp-code">{product.slug}</span>
-        <Badge tone={product.status === 'PUBLISHED' ? 'success' : 'neutral'}>
-          {product.status === 'PUBLISHED' ? 'منتشرشده' : 'پیش‌نویس'}{' '}
+        <Badge
+          tone={
+            product.status === 'PUBLISHED'
+              ? 'success'
+              : product.status === 'ARCHIVED'
+                ? 'warning'
+                : 'neutral'
+          }
+        >
+          {PRODUCT_STATUS_LABELS[product.status]}{' '}
           <span className="cp-code">{product.status}</span>
         </Badge>
       </p>

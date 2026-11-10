@@ -499,6 +499,51 @@ export interface NewCategoryInput {
   description: string | null;
 }
 
+/**
+ * §2.1 — the admin EDIT page's read: every product-level field the form can
+ * change, and nothing it must not (variants, SKUs, stock, media, orders).
+ *
+ * `descriptionHtml` is included because the service must preserve the stored
+ * body when the raw description was not edited; only the raw text is editable.
+ */
+export interface ProductEditRecord {
+  id: string;
+  categoryId: string;
+  title: string;
+  slug: string;
+  basePrice: number;
+  discountPrice: number | null;
+  descriptionRaw: string;
+  descriptionHtml: string;
+  fabricType: string;
+  season: string;
+  careInstructions: string | null;
+  status: ProductStatus;
+}
+
+/** The already-validated, already-trimmed product-level write (one row). */
+export interface ProductDetailsWrite {
+  categoryId: string;
+  title: string;
+  slug: string;
+  basePrice: number;
+  discountPrice: number | null;
+  descriptionRaw: string;
+  descriptionHtml: string;
+  fabricType: string;
+  season: string;
+  careInstructions: string | null;
+  status: ProductStatus;
+}
+
+/**
+ * §2.1 — the update's refusal vocabulary, persisted-constraint shaped so the
+ * memory double and PostgreSQL answer identically.
+ */
+export type ProductDetailsWriteResult =
+  | { ok: true }
+  | { ok: false; reason: 'NOT_FOUND' | 'DUPLICATE_SLUG' | 'CATEGORY_NOT_FOUND' };
+
 export interface CommerceRepository {
   listCategories(): Promise<Array<{ id: string; name: string; slug: string }>>;
 
@@ -522,6 +567,23 @@ export interface CommerceRepository {
 
   /** The gallery editor's read: the product's identity plus its rows WITH paths. */
   getProductImageEditor(productId: string): Promise<ProductImageEditor | null>;
+
+  /** §2.1 — the edit page's read; `null` for an unknown id (the page 404s). */
+  getProductForEdit(productId: string): Promise<ProductEditRecord | null>;
+
+  /**
+   * §2.1 — updates ONLY the product row.
+   *
+   * One row means one statement: variants, inventory, media associations and
+   * order snapshots are not touched at all, so no transaction is needed and no
+   * failure can half-apply among them. The two constraints this write can meet
+   * are reported by name (`DUPLICATE_SLUG`, `CATEGORY_NOT_FOUND`) so the service
+   * can put the message on the field the merchant can fix.
+   */
+  updateProductDetails(
+    productId: string,
+    input: ProductDetailsWrite,
+  ): Promise<ProductDetailsWriteResult>;
 
   /**
    * Replaces a product's gallery ASSOCIATIONS in ONE transaction.
@@ -753,6 +815,37 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+/**
+ * The SQLSTATE and constraint name of a driver refusal.
+ *
+ * Drizzle wraps the driver's error, so the fields live on the CAUSE chain. Used
+ * by the product edit path, where a duplicate slug or a deleted category is an
+ * expected refusal that must be named rather than reported as a database fault.
+ */
+function driverViolation(error: unknown): { code?: string; constraint?: string } {
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  for (let depth = 0; depth < 4 && typeof current === 'object' && current !== null; depth += 1) {
+    if (seen.has(current)) {
+      break;
+    }
+    seen.add(current);
+    const { code, constraint, cause } = current as {
+      code?: unknown;
+      constraint?: unknown;
+      cause?: unknown;
+    };
+    if (typeof code === 'string') {
+      return {
+        code,
+        constraint: typeof constraint === 'string' ? constraint : undefined,
+      };
+    }
+    current = cause;
+  }
+  return {};
+}
+
 /** Postgres implementation — the only file that speaks SQL/schema. */
 export function createPostgresRepository(db: CommerceDb): CommerceRepository {
   /* Three narrow reads composed in JS, rather than one wide aggregate: the
@@ -957,6 +1050,50 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         .where(eq(productImages.productId, productId))
         .orderBy(asc(productImages.displayOrder), asc(productImages.id));
       return { ...product, images: rows };
+    },
+
+    async getProductForEdit(productId) {
+      const [row] = await db
+        .select({
+          id: products.id,
+          categoryId: products.categoryId,
+          title: products.title,
+          slug: products.slug,
+          basePrice: products.basePrice,
+          discountPrice: products.discountPrice,
+          descriptionRaw: products.descriptionRaw,
+          descriptionHtml: products.descriptionHtml,
+          fabricType: products.fabricType,
+          season: products.season,
+          careInstructions: products.careInstructions,
+          status: products.status,
+        })
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+      return row ?? null;
+    },
+
+    async updateProductDetails(productId, input) {
+      try {
+        const rows = await db
+          .update(products)
+          .set({ ...input, updatedAt: new Date() })
+          .where(eq(products.id, productId))
+          .returning({ id: products.id });
+        return rows.length === 0
+          ? { ok: false as const, reason: 'NOT_FOUND' as const }
+          : { ok: true as const };
+      } catch (error) {
+        const { code, constraint } = driverViolation(error);
+        if (code === '23505' && constraint === 'products_slug_unique') {
+          return { ok: false as const, reason: 'DUPLICATE_SLUG' as const };
+        }
+        if (code === '23503' && constraint === 'products_category_id_categories_id_fk') {
+          return { ok: false as const, reason: 'CATEGORY_NOT_FOUND' as const };
+        }
+        throw error;
+      }
     },
 
     async replaceProductImages(productId, input) {

@@ -5,6 +5,7 @@ import { ConnectionMissing } from '@/components/admin/connection-notice';
 import { Badge, Card, CardHeader, PageHeader, Table, Td, Th, buttonClass } from '@/components/ui/primitives';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { inventorySummary, LOW_STOCK_THRESHOLD } from '@/lib/inventory-rules';
+import { PRODUCT_STATUS_LABELS } from '@/lib/product-status';
 import { getRepository } from '@/server/db-context';
 import { listProducts } from '@/server/services/products';
 
@@ -123,8 +124,16 @@ export default async function AdminOverviewPage() {
                   <span className="cp-code">{product.slug}</span>
                 </Td>
                 <Td>
-                  <Badge tone={product.status === 'PUBLISHED' ? 'success' : 'neutral'}>
-                    {product.status === 'PUBLISHED' ? 'منتشرشده' : 'پیش‌نویس'}{' '}
+                  <Badge
+                    tone={
+                      product.status === 'PUBLISHED'
+                        ? 'success'
+                        : product.status === 'ARCHIVED'
+                          ? 'warning'
+                          : 'neutral'
+                    }
+                  >
+                    {PRODUCT_STATUS_LABELS[product.status]}{' '}
                     <span className="cp-code">{product.status}</span>
                   </Badge>
                 </Td>
@@ -133,12 +142,17 @@ export default async function AdminOverviewPage() {
                 <Td>{formatCountFa(product.variantCount)}</Td>
                 <Td>{formatCountFa(product.imageCount)}</Td>
                 <Td>
-                  <Link
-                    className={buttonClass.neutral}
-                    href={`/admin/products/${product.id}/images`}
-                  >
-                    ویرایش تصویرها
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link className={buttonClass.primary} href={`/admin/products/${product.id}/edit`}>
+                      ویرایش محصول
+                    </Link>
+                    <Link
+                      className={buttonClass.neutral}
+                      href={`/admin/products/${product.id}/images`}
+                    >
+                      ویرایش تصویرها
+                    </Link>
+                  </div>
                 </Td>
               </tr>
             ))}

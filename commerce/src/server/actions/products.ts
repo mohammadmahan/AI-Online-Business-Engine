@@ -2,13 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 
-import type { ProductCreatePayload, ProductImageSelectionEntry } from '@/contracts/catalog';
+import type {
+  ProductCreatePayload,
+  ProductImageSelectionEntry,
+  ProductUpdatePayload,
+} from '@/contracts/catalog';
 
 import { withAdminRepository } from '../auth/with-admin';
 import type { CommerceActionFailure, CommerceActionResult } from '../db-context';
 import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaUploadAllowed } from '../media';
 import { updateProductImages } from '../services/product-images';
-import { createProduct } from '../services/products';
+import { createProduct, updateProduct } from '../services/products';
 
 /**
  * D-172 §2.1 — the only way a product enters the SSOT.
@@ -62,6 +66,62 @@ export async function createProductAction(
   if (result.ok) {
     revalidatePath('/admin/inventory');
     revalidatePath('/admin/products/new');
+  }
+  return result;
+}
+
+export interface UpdateProductActionInput {
+  productId: string;
+  product: ProductUpdatePayload;
+}
+
+/**
+ * §2.1 — saves the product-level edit form.
+ *
+ * The session guard is the same one every admin action uses; the service then
+ * validates, verifies the product and category exist, and writes ONE product
+ * row. A refusal carries the field-level issues so the form can keep the
+ * submitted values and mark the inputs it is complaining about.
+ */
+export async function updateProductAction(
+  input: UpdateProductActionInput,
+): Promise<CommerceActionResult<{ productId: string }>> {
+  const result = await withAdminRepository(async (repository) => {
+    // Inside the guard: an anonymous caller must learn nothing about the body.
+    if (
+      typeof input !== 'object' ||
+      input === null ||
+      typeof input.product !== 'object' ||
+      input.product === null
+    ) {
+      return {
+        ok: false as const,
+        code: 'VALIDATION_ERROR' as const,
+        message: 'دادهٔ فرم معتبر نیست.',
+      };
+    }
+
+    const updated = await updateProduct(repository, input.productId, input.product);
+    if (!updated.ok) {
+      const issues = updated.code === 'VALIDATION_ERROR' ? updated.issues : undefined;
+      return {
+        ok: false as const,
+        code: updated.code,
+        message: updated.message,
+        field: issues?.[0]?.field,
+        issues,
+      };
+    }
+    return { ok: true as const, data: { productId: updated.productId } };
+  });
+
+  if (result.ok) {
+    revalidatePath('/admin');
+    revalidatePath(`/admin/products/${input.productId}/edit`);
+    revalidatePath(`/admin/products/${input.productId}/images`);
+    revalidatePath('/admin/inventory');
+    revalidatePath('/catalog');
+    revalidatePath('/products/[slug]', 'page');
   }
   return result;
 }
