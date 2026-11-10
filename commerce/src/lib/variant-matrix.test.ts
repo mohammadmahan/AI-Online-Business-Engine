@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   MATRIX_MAX_ROWS,
   buildVariantMatrix,
+  matrixOutOfDate,
   toDescriptionHtml,
   validateMatrixRequest,
 } from '@/lib/variant-matrix';
@@ -81,6 +82,20 @@ describe('variant matrix (§2.1)', () => {
       sizes: Array.from({ length: 15 }, (_, index) => `${index}`),
     };
     assert.deepEqual(validateMatrixRequest(atCeiling), []);
+  });
+
+  it('treats a completed creation’s empty builder as current, not stale', () => {
+    // After a successful create the form clears the rows and the generator is
+    // remounted, so both counts are zero. That must NOT raise the mismatch
+    // warning the way a real palette/size mismatch does.
+    assert.equal(matrixOutOfDate(0, 0, 0), false);
+    assert.equal(matrixOutOfDate(2, 3, 6), false);
+  });
+
+  it('warns when a palette/size selection has not been generated (or was edited)', () => {
+    assert.equal(matrixOutOfDate(1, 1, 0), true, 'selected but never generated');
+    assert.equal(matrixOutOfDate(2, 3, 5), true, 'row removed after generation');
+    assert.equal(matrixOutOfDate(1, 2, 4), true, 'extra row without a matching selection');
   });
 
   it('escapes merchant text before it becomes HTML', () => {

@@ -10,7 +10,7 @@ import {
 } from '@/lib/color-palette';
 import { formatCountFa } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { buildVariantMatrix } from '@/lib/variant-matrix';
+import { buildVariantMatrix, matrixOutOfDate } from '@/lib/variant-matrix';
 import { variantMatrixRequestSchema } from '@/lib/variant-matrix-schema';
 import { isHexColor } from '@/lib/validation';
 import { Badge, Field, buttonClass, inputClass } from '@/components/ui/primitives';
@@ -54,7 +54,7 @@ export function VariantMatrixGenerator({
   const [notice, setNotice] = useState<string | null>(null);
 
   const expectedRows = colors.length * sizes.length;
-  const outOfDate = expectedRows > 0 && expectedRows !== rows.length;
+  const outOfDate = matrixOutOfDate(colors.length, sizes.length, rows.length);
 
   const generatedLabel = useMemo(
     () =>

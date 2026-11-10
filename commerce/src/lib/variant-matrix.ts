@@ -27,6 +27,22 @@ function sizeToken(size: string, index: number): string {
 }
 
 /**
+ * Whether the generated rows still correspond to the palette/size selection.
+ *
+ * A FRESH builder has no selection and no rows, which is current — not stale.
+ * A selection that has not been generated (or was generated and then edited) is
+ * genuinely out of date and the merchant must regenerate.
+ */
+export function matrixOutOfDate(
+  colorCount: number,
+  sizeCount: number,
+  rowCount: number,
+): boolean {
+  const expectedRows = colorCount * sizeCount;
+  return expectedRows > 0 && expectedRows !== rowCount;
+}
+
+/**
  * Colours × sizes → one row per combination.
  *
  * The SKU is a PROPOSAL (`<PREFIX>-<SIZE>-<COLOUR#>`): the matrix table renders

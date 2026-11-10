@@ -43,6 +43,11 @@ export function ProductIngestionForm({
   const [descriptionRaw, setDescriptionRaw] = useState('');
   const [status, setStatus] = useState<'DRAFT' | 'PUBLISHED'>('DRAFT');
   const [rows, setRows] = useState<VariantPayload[]>([]);
+  // The generator owns its palette/size selection; the form owns the generated
+  // rows. After a successful create the rows are cleared, so the selection must
+  // be reset too — otherwise the page shows a stale "matrix no longer matches"
+  // warning about a selection the merchant already submitted.
+  const [matrixSession, setMatrixSession] = useState(0);
   const [images, setImages] = useState<ProductImagePayload[]>([]);
   const [pending, setPending] = useState<CompressedPreview[]>([]);
   const [result, setResult] = useState<
@@ -173,6 +178,7 @@ export function ProductIngestionForm({
       setRows([]);
       setImages([]);
       setPending([]);
+      setMatrixSession((session) => session + 1);
       return;
     }
     setResult({ kind: 'error', message: response.message, field: response.field });
@@ -320,7 +326,12 @@ export function ProductIngestionForm({
           title="ماتریس رنگ و سایز"
           description="رنگ‌ها و سایزها را انتخاب کنید؛ سطرها ساخته و قابل ویرایش می‌شوند."
         />
-        <VariantMatrixGenerator skuPrefix={skuPrefix} rows={rows} onRowsChange={setRows} />
+        <VariantMatrixGenerator
+          key={matrixSession}
+          skuPrefix={skuPrefix}
+          rows={rows}
+          onRowsChange={setRows}
+        />
       </Card>
 
       <Card>
