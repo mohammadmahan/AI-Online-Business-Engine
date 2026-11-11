@@ -38,13 +38,15 @@ try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
 
-  await page.goto(`${base}/admin/login`, { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('نام کاربری').fill(username);
-  await page.getByLabel('گذرواژه').fill(password);
-  await Promise.all([
-    page.waitForURL((url) => url.pathname === '/admin', { waitUntil: 'commit', timeout: 20_000 }),
-    page.getByRole('button', { name: 'ورود' }).click(),
-  ]);
+  await page.goto(`${base}/admin/login`, { waitUntil: 'networkidle' });
+  const userField = page.getByLabel('نام کاربری');
+  await userField.click();
+  await userField.pressSequentially(username);
+  const passwordField = page.getByLabel('گذرواژه');
+  await passwordField.click();
+  await passwordField.pressSequentially(password);
+  await page.getByRole('button', { name: 'ورود' }).click();
+  await page.waitForFunction(() => location.pathname === '/admin', null, { timeout: 20_000 });
 
   for (const width of widths) {
     await page.setViewportSize({ width, height: 844 });
@@ -58,10 +60,12 @@ try {
         documentScrollWidth: de.scrollWidth,
         bodyScrollWidth: document.body.scrollWidth,
         dir: getComputedStyle(document.body).direction,
+        rowCount: t ? t.querySelectorAll('tbody tr').length : 0,
         tableWrapper: w
           ? {
               clientWidth: w.clientWidth,
               scrollWidth: w.scrollWidth,
+              tableWidth: t ? t.getBoundingClientRect().width : 0,
               overflowX: getComputedStyle(w).overflowX,
               contain: getComputedStyle(w).contain,
             }
@@ -77,6 +81,10 @@ try {
       console.error(`FAIL RTL lost at ${width}px: direction=${measured.dir}`);
       failed = true;
     }
+    if (!measured.tableWrapper || measured.rowCount < 2) {
+      console.error(`FAIL populated inventory table missing at ${width}px: rows=${measured.rowCount}`);
+      failed = true;
+    }
     if (measured.tableWrapper && measured.tableWrapper.overflowX !== 'auto') {
       console.error(`FAIL table wrapper lost horizontal scrolling at ${width}px`);
       failed = true;
@@ -89,11 +97,36 @@ try {
       console.error(`FAIL wide table does not scroll on a narrow viewport at ${width}px`);
       failed = true;
     }
+    if (width < 1024) {
+      const scroll = await page.evaluate(() => {
+        const w = document.querySelector('table')?.parentElement;
+        if (!w) return null;
+        // Chromium RTL scrollLeft is 0 at the right edge and negative toward the left.
+        w.scrollLeft = -Math.abs(w.scrollWidth - w.clientWidth);
+        return { scrollLeft: w.scrollLeft, max: w.scrollWidth - w.clientWidth };
+      });
+      if (!scroll || scroll.scrollLeft >= 0) {
+        console.error(`FAIL table cannot be scrolled horizontally at ${width}px`);
+        failed = true;
+      }
+    }
   }
 
-  if (widths.includes(320) && (await page.locator('nav').count()) === 0) {
-    console.error('FAIL admin navigation is absent');
-    failed = true;
+  for (const path of ['/admin', '/admin/orders']) {
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(`${base}${path}`, { waitUntil: 'networkidle' });
+      const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+      console.log(`PAGE ${path} ${width}px overflow=${pageOverflow}`);
+      if (pageOverflow) {
+        console.error(`FAIL page overflow on ${path} at ${width}px`);
+        failed = true;
+      }
+      if ((await page.locator('nav').count()) === 0) {
+        console.error(`FAIL admin navigation absent on ${path} at ${width}px`);
+        failed = true;
+      }
+    }
   }
 } catch (error) {
   console.error(`FAIL admin mobile check could not complete: ${error.message}`);

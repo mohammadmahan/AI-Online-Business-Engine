@@ -129,9 +129,9 @@ were left running and untouched.
   overflow remains **true**. The table itself scrolls (`clientWidth 324`,
   `scrollWidth 768`), but it does not contain the page overflow.
 - An attempted `overflow-x-clip` on the admin `<main>` did not fix it and was
-  reverted. This remains **OPEN**; no claim of a passing mobile layout is made.
+  reverted. This was **OPEN at the time**; it was fixed and re-measured in the third/fourth pass below.
 
-### n8n result: PARTIAL / VERIFIED
+### n8n result: PARTIAL at the time (historical)
 
 - Disposable `n8nio/n8n@sha256:b73045…` with a separate SQLite volume and
   disposable PostgreSQL, no published ports.
@@ -173,21 +173,25 @@ were left running and untouched.
 - **Mobile page overflow — OPEN.** Recorded above; not hidden or marked as a
   pass.
 
-## Third verification pass — mobile overflow and fresh suites (2026-11-11)
+## Current remediation status (2026-11-11 fourth pass)
 
-**Mobile admin overflow: FIXED and VERIFIED.** Reproduced on the populated inventory table at 390px: `html.clientWidth=390`, `html.scrollWidth=635`; table wrapper `clientWidth=324`, `scrollWidth=871`; table left `-514`. The cause was RTL negative overflow from the wide table escaping its `overflow-x:auto` wrapper (not a lack of table scrolling). Added `contain: paint` to the shared table scroll wrapper; the table remains intentionally scrollable. Measured after: 320px document `320` (wrapper `254/871`), 390px document `390` (wrapper `324/871`), 1440px document `1440` (wrapper `1054/1054`); RTL retained at all widths. Added `npm run check:admin-mobile` (Playwright-core + system Chrome) which authenticates, checks inventory at 320/390/1440, and fails on page-level overflow.
+This summary supersedes earlier status labels; the dated sections below retain their original measurements.
 
-**Fresh suites:** Python against disposable PostgreSQL, exact cached digest, `DOCKER_CONTEXT=colima`: **2,877 run, 0 failed, 102 skipped, OK**. Commerce typecheck **PASS**, lint **PASS**, offline **540/540**, live DB smoke **87/87**, production build **PASS**, HTTP/CSP **PASS**. Control-plane/shared code was not changed; no control-plane suite rerun was required.
+| Item | Current status | Latest evidence |
+|---|---|---|
+| AUD-14 Dokploy runtime | **VERIFIED** | Exact cached digests; 5/5 healthy; 13/13 schemas; idempotent re-apply; teardown 0. |
+| Authenticated admin browser flows | **VERIFIED** | Disposable app/DB; auth, product/category/archive, inventory, image upload/display/removal, order transition, anonymous denial. |
+| Mobile/RTL admin layout | **FIXED / VERIFIED** | 320/390/1440 document widths equal viewports; populated 871px table scrolls inside its wrapper; RTL retained. |
+| n8n smoke workflow | **VERIFIED** | Disposable execution succeeded with a synthetic fixture. |
+| n8n error-router runtime | **VERIFIED** | Active synthetic webhook parent failed; active router ran as a separate `error`-mode `success` execution; durable class B `dead_letter_hitl` output. |
+| Latest Python suite | **PASS** | 2,877 run, 0 failed, 102 skipped, disposable PostgreSQL, exact cached digest. |
 
-**n8n error-router runtime: NOT VERIFIED.** Imported the committed router and a synthetic parent workflow with a thrown Code-node error and no external endpoints. `n8n execute` did not reach execution because the container reported `n8n Task Broker's port 5679 is already in use`; no Error Trigger evidence was produced. Import or classifier unit tests are not runtime evidence.
+## Third/fourth verification pass — mobile fix and error-router runtime (2026-11-11)
 
-Standing health/data were checked before start and after cleanup. Disposable DB/app/n8n resources were removed; the standing baseline remains 4 categories, 5 products, 17 variants, 3 images, 1 order (1 paid), 1 pending outbox, 4 media files, health 200.
-## Third verification pass — mobile overflow and fresh suites (2026-11-11)
+**Mobile admin overflow: FIXED and VERIFIED.** Reproduced on the populated inventory table at 390px: `html.clientWidth=390`, `html.scrollWidth=635`; table wrapper `clientWidth=324`, `scrollWidth=871`; table left `-514`. The cause was RTL negative overflow escaping the table's `overflow-x:auto` wrapper. Added `contain: paint` to the shared wrapper; the table remains intentionally scrollable. After: 320px document `320` (wrapper `254/871`), 390px document `390` (wrapper `324/871`), 1440px document `1440` (wrapper `1054/1054`), RTL retained. `npm run check:admin-mobile` authenticates and fails if the populated inventory table is absent, has fewer than two rows, cannot scroll horizontally at narrow widths, or widens the page; it also spot-checks `/admin` and `/admin/orders` at all three widths.
 
-**Mobile admin overflow: FIXED and VERIFIED.** Reproduced on the populated inventory table at 390px: `html.clientWidth=390`, `html.scrollWidth=635`; table wrapper `clientWidth=324`, `scrollWidth=871`; table left `-514`. The cause was RTL negative overflow escaping the table's `overflow-x:auto` wrapper. Added `contain: paint` to the shared wrapper; the table remains intentionally scrollable. After: 320px document `320` (wrapper `254/871`), 390px document `390` (wrapper `324/871`), 1440px document `1440` (wrapper `1054/1054`), RTL retained. Added `npm run check:admin-mobile`, which authenticates and fails on page-level overflow.
+**n8n error-router runtime: VERIFIED.** n8n 2.39.8 in a disposable instance, with no external credentials or endpoints. A synthetic parent workflow was activated behind a loopback webhook and linked via `settings.errorWorkflow` to the committed router, which was also activated. `POST /webhook/synthetic-failure` returned 200 and the parent `Stop And Error` failed with `synthetic invoice invariant failure`. Durable n8n SQLite showed two parent executions with status `error` and one router execution with status `success`, mode `error`. The router output contained `failure_class: "B"`, `retry_policy: "never_retry"`, `route: "dead_letter_hitl"`, with the synthetic origin workflow and sanitized reason. The task-broker port 5679 conflict was caused by starting a second CLI process inside the running n8n instance; using the running webhook avoided it.
 
-**Fresh suites:** Python against disposable PostgreSQL with the exact cached digest, `DOCKER_CONTEXT=colima`: **2,877 run, 0 failed, 102 skipped, OK**. Commerce typecheck PASS, lint PASS, offline 540/540, live DB smoke 87/87, production build PASS, HTTP/CSP PASS. Control-plane/shared code was not changed.
+**Fresh Python suite: PASS.** Exact command: `DOCKER_CONTEXT=colima LOCAL_PGHOST=127.0.0.1 LOCAL_PGPORT=55437 LOCAL_PGDATABASE=business_engine_local LOCAL_PGUSER=engine_local LOCAL_PGPASSWORD=engine-local-only PYTHONPATH=. python3 -m unittest discover -s local/tests -t .` against disposable PostgreSQL 16 at the cached digest. Result: **2,877 run, 0 failed, 102 skipped, OK**. The historical `e6b2c7d` result of **1 failure / 103 skipped** remains above as dated evidence; the fresh run does not relabel it as having passed at that time. The skip count decreased by one, from 103 to 102. The suite log does not identify the individual skipped tests, so no definitive cause is asserted for that delta.
 
-**n8n error-router runtime: NOT VERIFIED.** Imported the committed router and a synthetic parent workflow with a thrown Code-node error and no external endpoints. `n8n execute` did not reach execution because the container reported `n8n Task Broker port 5679 is already in use`; no Error Trigger evidence was produced.
-
-Disposable resources were removed. Standing baseline remains 4 categories, 5 products, 17 variants, 3 images, 1 order (1 paid), 1 pending outbox, 4 media files, health 200.
+Disposable app, PostgreSQL and n8n resources were removed. Standing health/data remained unchanged.
