@@ -26,13 +26,13 @@ Baseline commit: `73b27de` (audit checkpoint). Remediation commits: `08cdc88`,
 | AUD-11 | Control plane had no component README. | Added `control-plane/README.md`: start, verification, provenance, loopback-only exposure, container caveat. | Commands executed successfully. | **FIXED** |
 | AUD-12 | No concurrent same-key/different-payload test. | Added live race using `IDEM-D`: same key, quantity 1 vs 2. Asserts exactly one durable order, one stock movement, mismatch refusal. Corrected a separate notification assertion that assumed an `ok` count, which contradicts the documented same-status no-op contract; durable one-trail/one-outbox assertions remain. | Live suite **87/87 twice** (26 suites); offline **540/540** (129 suites); build exit 0. | **FIXED** |
 | AUD-13 | External integrations unverified. | No live provider was activated. Existing simulated/sandbox tests ran; n8n JSON assets validated structurally, no credential literals/dangling connections. | n8n asset tests 3/3. ZarinPal/SMS/AI/Instagram/Telegram/Notion/shipping remain unverified. | **BLOCKED** — owner credentials, sandbox access and explicit side-effect authorization |
-| AUD-14 | Dokploy runtime check blocked by pinned image pulls. | Investigated without deploying. The failure remains an image-registry pull, not application logic. | `test_runtime_mode_with_local_daemon` fails on `Image quay.io/minio/minio@sha256:14cea493…` pull; earlier pinned WordPress image also failed. Suite totals: 2,877 run, 2,773 passed, 1 failed, 103 skipped. | **BLOCKED** — registry access or a locally preloaded, approved image set; runtime not verified |
+| AUD-14 | Dokploy runtime check blocked by pinned image pulls. | Rechecked with the exact production digests. All five were already cached locally, so the isolated `prodcheck` runtime was retried. The pull failure no longer reproduced; no digest was changed. | Runtime **VERIFIED**: 5/5 containers healthy, hardening and read-only checks passed, SSOT migration applied (13/13 schemas), re-apply idempotent, teardown `rc=0`. | **VERIFIED** |
 
 ## Coverage gap outside AUD numbering
 
 | Gap | Result | State |
 |---|---|---|
-| Authenticated admin CRUD, media upload, order transition in an isolated browser setup | Not exercised end to end. The standing dev database was deliberately not written to. A local disposable admin session with generated credentials, a separate app origin and media target was not available/created for this pass. Unit/auth and live repository/media paths passed, but this is not a completed authenticated browser flow. | **BLOCKED / NOT VERIFIED** |
+| Authenticated admin CRUD, media upload, order transition in an isolated browser setup | Exercised against a disposable PostgreSQL/media/app copy on `127.0.0.1:13002` with generated credentials. See the second-pass evidence below. | **VERIFIED** |
 | Control-plane LIVE adapters beyond `automations` | Not added; current plan does not require them and no telemetry contract exists to fabricate. | **VERIFIED-NOT-A-DEFECT** |
 | n8n assets | Both committed workflows parse, have unique nodes, valid connection targets and no obvious credential literals. Not executed against n8n. | **FIXED (contract only)** |
 
@@ -79,7 +79,96 @@ Standing stack after remediation:
    control-plane exposure.
 3. Supply and authorize payment, SMS and other provider credentials in the
    target secret store, then run the activation checklist in sandbox mode.
-4. Provide registry access or an approved preloaded image set for Dokploy runtime
-   verification.
-5. Authorize a separate isolated admin-browser rehearsal if authenticated CRUD,
-   upload and transitions need end-to-end evidence.
+4. ~~Provide registry access or an approved preloaded image set for Dokploy
+   runtime verification.~~ **Resolved:** exact digests were already cached and
+   the isolated runtime passed.
+5. ~~Authorize a separate isolated admin-browser rehearsal.~~ **Completed:** the
+   synthetic browser rehearsal ran without touching the standing stack.
+
+## Second verification pass — 2026-11-11
+
+This pass used only disposable resources. The standing app on `13001`, its
+database on `55433`, the harness on `55432`, and the five staging containers
+were left running and untouched.
+
+### Disposable commerce browser environment
+
+- Separate PostgreSQL container `aobe-browser-pg` on `127.0.0.1:55434`.
+- Separate app copy at `commerce/.browser-rehearsal/app` with independent
+  `.next`, media root `commerce/.browser-rehearsal/media`, origin
+  `127.0.0.1:13002`, generated `rehearsal` credentials and synthetic seed data.
+- Final rehearsal counts: categories **4**, products **4**, variants **17**,
+  images **0**, orders **1** (`PAID`), retained media objects **1**.
+- Standing counts before and after this pass: categories **4**, products **5**,
+  variants **17**, images **3**, orders **1**, paid **1**, pending outbox **1**,
+  media files **4**; `13001/healthz` **200**.
+
+### Browser-flow result: VERIFIED
+
+- Unauthenticated `/admin` → **307** to login; unauthenticated
+  `POST /api/admin/media` → **401** with `ADMIN_UNAUTHORIZED`.
+- Real browser sign-in with generated credentials → `/admin`.
+- Category creation succeeded; product creation succeeded with two variants
+  after a deliberate missing-field rejection.
+- Inventory stock/price edits persisted exactly: stock **7**, override
+  **700000**, second variant unchanged.
+- Product edit/archive persisted: status became **ARCHIVED**.
+- Image upload succeeded after the CSP fix; public `/media/...` served **200**,
+  `image/jpeg`, 96×96. Removing the association persisted `images=0` while the
+  content-addressed file remained (**1** file), matching the documented
+  retention policy.
+- Order display and transition succeeded: `PENDING → PAID`, exactly one
+  `order_status_history` row.
+- Product deletion is not implemented; archive is the supported lifecycle
+  operation. Category creation only is implemented by design.
+
+### Responsive/RTL result: FAILED (new UI defect)
+
+- `dir` and computed direction are **rtl**; navigation renders at 390px.
+- At viewport **390px**, `documentElement.scrollWidth` is **667** and page-level
+  overflow remains **true**. The table itself scrolls (`clientWidth 324`,
+  `scrollWidth 768`), but it does not contain the page overflow.
+- An attempted `overflow-x-clip` on the admin `<main>` did not fix it and was
+  reverted. This remains **OPEN**; no claim of a passing mobile layout is made.
+
+### n8n result: PARTIAL / VERIFIED
+
+- Disposable `n8nio/n8n@sha256:b73045…` with a separate SQLite volume and
+  disposable PostgreSQL, no published ports.
+- Both committed workflows imported; credential import succeeded.
+- `n8n execute --id=3f2c9b74-6a11-4d8e-9c2f-5b7a1e9d4a01 --rawOutput` against a
+  synthetic `seed.size_family` row returned `status: success`, `finished: true`,
+  and observed `size_families: 1`.
+- The error-router workflow imported but was not manually executed: its only
+  trigger is n8n's Error Trigger, which requires a failed parent execution. Its
+  runtime remains **NOT VERIFIED**; the canonical classifier code is covered by
+  its existing unit tests.
+
+### Dokploy result: VERIFIED
+
+- Exact pinned images present in the local cache: WordPress, MySQL,
+  PostgreSQL, n8n and `quay.io/minio/minio`.
+- `DOCKER_CONTEXT=colima python3 local/scripts/validate_dokploy_runtime.py --runtime`
+  → isolated stack up, **5/5 healthy**, no-new-privileges/memory/read-only
+  checks passed, SSOT schema 13/13 applied, idempotent re-apply passed, teardown
+  `rc=0`. No digest was replaced.
+
+### Control-plane boundary result: VERIFIED locally / non-local still BLOCKED
+
+- Host: `npm start` on `13003` listened only on `127.0.0.1:13003`; `/api/health`
+  returned 200.
+- Container: `docker run -p 127.0.0.1:13003:3000 control-plane:verify` served
+  `/api/health` 200; `docker port` reported `3000/tcp -> 127.0.0.1:13003`.
+- Inside the container the server binds `0.0.0.0:3000` (`/proc/net/tcp`), so
+  isolation depends on the loopback publication. No committed compose file
+  enforces that publication and no authentication exists. Non-local exposure
+  remains **BLOCKED / owner-gated**; no public auth design was assumed.
+
+### New defects / fixes
+
+- **CSP upload failure — FIXED.** Image upload failed because the picker fetches
+  its compressed `data:` preview while CSP `connect-src` omitted `data:`. Added
+  `data:` and extended `check:http-status` to assert it. The same check now
+  passes against the isolated server.
+- **Mobile page overflow — OPEN.** Recorded above; not hidden or marked as a
+  pass.

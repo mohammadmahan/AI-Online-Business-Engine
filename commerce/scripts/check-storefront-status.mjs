@@ -23,9 +23,28 @@ async function check(label, path, expected) {
   if (!ok) failed = true;
 }
 
+/**
+ * CSP regression: the image picker fetches its own compressed data: preview
+ * before uploading it. A connect-src without data: makes every image upload
+ * fail in the browser even though the upload endpoint is healthy.
+ */
+async function checkCsp() {
+  const response = await fetch(`${base}/admin/login`);
+  const csp = response.headers.get('content-security-policy') || '';
+  const ok = /connect-src[^;]*\bdata:/.test(csp) && /frame-ancestors 'none'/.test(csp);
+  console.log(
+    `${ok ? 'PASS' : 'FAIL'} admin CSP: data: preview fetch allowed and framing denied`,
+  );
+  if (!ok) {
+    console.log(`  CSP: ${csp || '<missing>'}`);
+    failed = true;
+  }
+}
+
 try {
   await check('known published product', `/products/${encodeURIComponent(known)}`, 200);
   await check('unknown product', `/products/${encodeURIComponent(unknown)}`, 404);
+  await checkCsp();
 } catch (error) {
   console.error(`FAIL storefront status check could not reach ${base}: ${error.message}`);
   failed = true;
