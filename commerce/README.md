@@ -120,7 +120,7 @@ development target.
 ## Live database harness (opt-in, disposable)
 
 The Phase 2 write paths are verified against a REAL PostgreSQL 16 server through
-`docker-compose.db.yml` — a throwaway container published on **127.0.0.1:55432
+`docker-compose.db.yml` — a throwaway container published on **127.0.0.1:55431
 only**, with its own network and volume. Nothing auto-starts it (no `restart:`
 policy, no hook in the repository); every step is an explicit operator command:
 
@@ -134,7 +134,7 @@ policy, no hook in the repository); every step is an explicit operator command:
 | `npm run smoke:db` | runs the live suites serially (migrations, §2.1–§2.4 writes and refusals, §3.1–§3.4 storefront funnel, the audit trail + callback seam) |
 
 ```bash
-export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55432/commerce_smoke
+export COMMERCE_DATABASE_URL=postgresql://commerce_smoke:commerce_smoke_local_only@127.0.0.1:55431/commerce_smoke
 npm run db:up && npm run db:migrate && npm run smoke:db
 ```
 
@@ -144,7 +144,7 @@ already present (category slug / product slug / variant sku), so a second run
 inserts nothing and rewrites no price, stock, description or category. It also
 does not restore values a checkout or an edit has changed; `db:reset` + `db:seed`
 is the way back to the pristine demo catalog. `scripts/seed-catalog.mjs` validates
-that its target is loopback:55432 **before it connects** and runs the file in one
+that its target is loopback:55431 **before it connects** and runs the file in one
 transaction, so a shared database is out of reach and a failed seed changes
 nothing. It carries **no** `product_images` rows — the seed still ships without
 dead URLs, because the local media backend (below) is opt-in and the production
@@ -159,8 +159,16 @@ and re-applies the committed migrations in `before()`, so `smoke:db` passes
 `--test-concurrency=1`: in parallel processes the second `drop schema` would
 truncate the first suite's fixtures mid-run.
 `db:reset` — the one destructive command — refuses anything that is not
-loopback:55432. The credentials in the compose file are the disposable
+loopback:55431. The credentials in the compose file are the disposable
 container's own literals; no real credential exists in this repository.
+
+Port 55431 is the commerce-harness default and leaves 55432 to the Python local
+canonical stack. Override it consistently with `COMMERCE_DB_PORT` (the compose
+file, `db:reset`, `db:seed`, and `COMMERCE_DATABASE_URL` must agree).
+
+After starting a server, verify product visibility status codes with
+`COMMERCE_BASE_URL=http://localhost:13001 KNOWN_PRODUCT_SLUG=<published-slug>
+npm run check:http-status`; unknown slugs must be **404**, never a rendered 200.
 
 ## Local media (G-5) — filesystem store, or MinIO
 

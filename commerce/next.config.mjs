@@ -11,6 +11,12 @@ const nextConfig = {
    */
   output: 'standalone',
   poweredByHeader: false,
+  // The supported forwarded dev host is loopback-only. Next's default
+  // cross-origin guard blocks HMR/dev-resource requests from 127.0.0.1 as
+  // "cross-origin" when the container is reached through a forwarded port,
+  // which also prevents client hydration. Allow only that hostname for
+  // development; production behaviour and bundle contents are unaffected.
+  allowedDevOrigins: ['127.0.0.1'],
   // Server Actions are the only write path; their body limit is explicit
   // rather than inherited (the packing-slip and product payloads are small).
   experimental: {

@@ -52,6 +52,19 @@ from sync_engine import (            # noqa: E402
 TODAY = date(2026, 9, 13)
 
 
+def _pg_env() -> dict:
+    """The configured local PostgreSQL environment, in one place."""
+    return {
+        "PGHOST": os.environ.get("LOCAL_PGHOST", "127.0.0.1"),
+        "PGPORT": os.environ.get("LOCAL_PGPORT", "55432"),
+        "PGDATABASE": os.environ.get("LOCAL_PGDATABASE",
+                                     "business_engine_local"),
+        "PGUSER": os.environ.get("LOCAL_PGUSER", "engine_local"),
+        "PGPASSWORD": os.environ.get("LOCAL_PGPASSWORD",
+                                     "engine-local-only"),
+    }
+
+
 def _has_psql() -> bool:
     return shutil.which("psql") is not None
 
@@ -60,15 +73,7 @@ def _pg_reachable() -> bool:
     if not _has_psql():
         return False
     env = dict(os.environ)
-    env.update({
-        "PGHOST": os.environ.get("LOCAL_PGHOST", "127.0.0.1"),
-        "PGPORT": os.environ.get("LOCAL_PGPORT", "55432"),
-        "PGDATABASE": os.environ.get("LOCAL_PGDATABASE",
-                                     "business_engine_local"),
-        "PGUSER": os.environ.get("LOCAL_PGUSER", "engine_local"),
-        "PGPASSWORD": os.environ.get("LOCAL_PGPASSWORD",
-                                     "engine-local-only"),
-    })
+    env.update(_pg_env())
     try:
         return subprocess.run(
             ["psql", "-X", "-q", "-A", "-t", "-c", "SELECT 1;"],
@@ -111,10 +116,7 @@ class TestL1Schema(unittest.TestCase):
             self.skipTest("local PostgreSQL not running (Docker absent); "
                           "offline structural validation passed")
         env = dict(os.environ)
-        env.update({"PGHOST": "127.0.0.1", "PGPORT": "55432",
-                    "PGDATABASE": "business_engine_local",
-                    "PGUSER": "engine_local",
-                    "PGPASSWORD": "engine-local-only"})
+        env.update(_pg_env())
         with open(os.path.join(LOCAL, "db", "schema.sql"),
                   encoding="utf-8") as f:
             sql = f.read()

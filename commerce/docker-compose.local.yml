@@ -9,9 +9,9 @@
 #
 #   1. LOOPBACK ONLY, NO COLLISION (G-6). Published as `127.0.0.1:13000`.
 #      3000 is avoided because a local `next dev` / control-plane run owns it;
-#      55432 is PostgreSQL's (the smoke harness AND the engine stack both bind
-#      it — they cannot run simultaneously, so this service never publishes a
-#      database port at all). Containers on the default bridge reach the host
+ #      55431 is the commerce harness and 55432 the Python engine stack; this
+#      service never publishes a database port at all. Containers on the
+#      default bridge reach the host
 #      as `host.docker.internal`, which `extra_hosts` also provides on Linux.
 #
 #   2. EXPLICIT, OPTIONAL, FAIL-CLOSED ENV (G-4). Every value is a reference
@@ -43,7 +43,8 @@
 # uses) is mapped onto the container's `DATABASE_URL`, the single variable the
 # app reads. Inside a container `127.0.0.1` is the container itself, so a
 # harness or engine database is addressed as
-# `postgresql://…@host.docker.internal:55432/…`.
+# `postgresql://…@host.docker.internal:55431/…` for the commerce harness, or
+# `…:55432/…` for the Python canonical stack.
 services:
   commerce-web:
     build:

@@ -12,7 +12,9 @@
 # that runs `docker compose up` — running it is an explicit operator command
 # (`npm run db:up`).
 #
-# Ports: the harness publishes its port on LOOPBACK ONLY (127.0.0.1:55432). A
+# Ports: the harness publishes its port on LOOPBACK ONLY. The default is 55431
+# so it never collides with the Python canonical stack on 55432. Override with
+# COMMERCE_DB_PORT when needed. A
 # published port is unavoidable here because the smoke suite runs on the host,
 # not inside the container; binding it to the loopback interface keeps it off
 # the LAN, and 55432 is deliberately not 5432 so a canonical/staging instance on
@@ -43,7 +45,7 @@ services:
       POSTGRES_PASSWORD: commerce_smoke_local_only
       POSTGRES_DB: commerce_smoke
     ports:
-      - '127.0.0.1:55432:5432'
+      - '127.0.0.1:${COMMERCE_DB_PORT:-55431}:5432'
     volumes:
       - commerce-db-harness-data:/var/lib/postgresql/data
     healthcheck:

@@ -1,4 +1,4 @@
--- LOCAL DEMO CATALOG — disposable harness only (127.0.0.1:55432).
+-- LOCAL DEMO CATALOG — disposable harness only (127.0.0.1:55431).
 --
 -- What this is: a small Persian fashion catalog (3 categories, 3 published
 -- products, 15 variants) so the merchant panel and the storefront can be read
@@ -6,7 +6,7 @@
 -- for any test suite, and NOT for staging or production.
 --
 -- How it runs: `npm run db:seed` (scripts/seed-catalog.mjs) validates its target
--- BEFORE connecting, refuses anything that is not loopback:55432, and runs this
+-- BEFORE connecting, refuses anything that is not loopback:55431, and runs this
 -- file inside the transaction opened below — any failing statement aborts it and
 -- leaves the catalog exactly as it was.
 --

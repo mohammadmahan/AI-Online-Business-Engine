@@ -7,6 +7,9 @@
 > Current remediation-baseline evidence at `73b27de` is **540 tests / 129
 > suites** offline and **86 tests / 26 suites** live-PostgreSQL; the older
 > 497/117 and 77/24 numbers are retained only as history.
+> The commerce harness default is now **55431** (configurable through
+> `COMMERCE_DB_PORT`); references to 55432 below describe the historical run and
+> the Python canonical stack's port.
 (`feat(commerce): read-only orphan-media dry run for the local provider`), identical
 to `origin/main` at the time of testing (`git rev-list --left-right --count` = `0 0`,
 clean tree apart from the untracked `.cloud-attachments/`). This record is an

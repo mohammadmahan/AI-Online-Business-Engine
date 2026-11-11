@@ -71,8 +71,11 @@ def _configure_transport() -> None:
             f"refusing DB target outside {STAGING_PROJECT_PREFIX}*: "
             f"{container!r}")
     os.environ["LOCAL_PG_CONTAINER"] = container
-    os.environ.setdefault("LOCAL_PGUSER", "engine_staging")
-    os.environ.setdefault("LOCAL_PGDATABASE", "business_engine_staging")
+    # Stage D is a distinct identity. Never inherit an operator/audit
+    # override such as LOCAL_PGUSER=engine_local: the transport guard has
+    # already pinned the container, and the role/database must match it.
+    os.environ["LOCAL_PGUSER"] = "engine_staging"
+    os.environ["LOCAL_PGDATABASE"] = "business_engine_staging"
     # redirect EVERY seed_registry/q() call to the pinned container —
     # host psql is never attempted against staging (D-045 environment
     # separation: the staging SSOT is unreachable from the host net).

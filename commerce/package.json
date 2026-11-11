@@ -21,6 +21,7 @@
     "db:seed": "node scripts/seed-catalog.mjs",
     "media:bucket": "node scripts/media-bucket.mjs",
     "media:orphans": "node scripts/media-orphans.mjs",
+    "check:http-status": "node scripts/check-storefront-status.mjs",
     "admin:hash": "node scripts/hash-admin-password.mjs",
     "scheduler:notifications": "node scripts/dispatch-scheduler.mjs",
     "smoke:db": "npm run test:build && node --import ./test/register.mjs --test --test-concurrency=1 .test-build/__tests__/live-db",

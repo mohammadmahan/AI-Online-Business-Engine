@@ -29,7 +29,7 @@
 #
 # Ports are published on LOOPBACK ONLY and deliberately avoid the sibling local
 # files: 13001 here vs 13000 in `docker-compose.local.yml`, and 55433 here vs
-# 55432 in the `docker-compose.db.yml` harness. The stacks can therefore run
+# 55431 in the `docker-compose.db.yml` harness. The stacks can therefore run
 # side by side without shadowing each other or a host `next dev`.
 name: commerce-dev
 

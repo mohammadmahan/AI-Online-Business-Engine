@@ -284,15 +284,17 @@ class TestPostgresPlumbing(unittest.TestCase):
             captured["env"] = kwargs.get("env")
             return _Completed()
 
-        with unittest.mock.patch.object(hs.subprocess, "run",
-                                        side_effect=fake_run):
-            value, failure = hs._pg_read("SELECT 1;")
+        with unittest.mock.patch.dict(
+                os.environ, {"LOCAL_PGPORT": "55439"}, clear=False):
+            with unittest.mock.patch.object(hs.subprocess, "run",
+                                            side_effect=fake_run):
+                value, failure = hs._pg_read("SELECT 1;")
 
         self.assertEqual((value, failure), ("1", None))
         env = captured["env"]
         self.assertIsNotNone(env)
         self.assertEqual(env["PGHOST"], "127.0.0.1")
-        self.assertEqual(env["PGPORT"], "55432")
+        self.assertEqual(env["PGPORT"], "55439")
         self.assertTrue(env.get("PGPASSWORD"))
 
     def test_container_fallback_when_host_psql_missing(self):

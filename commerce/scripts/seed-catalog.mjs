@@ -28,7 +28,7 @@
 import { readFile } from 'node:fs/promises';
 import { Client } from 'pg';
 
-const HARNESS_PORT = '55432';
+const HARNESS_PORT = (process.env.COMMERCE_DB_PORT || '55431').trim();
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
 /** Driver errors are reported by name/code/message; never the connection string. */

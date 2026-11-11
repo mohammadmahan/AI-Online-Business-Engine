@@ -45,7 +45,9 @@ export async function generateMetadata({
   }
   const product = await getPublishedProduct(repository, slug);
   if (product === null) {
-    return { title: 'محصول پیدا نشد' };
+    // Resolve the missing product BEFORE streaming starts. Returning a title
+    // alone lets the loading boundary flush a 200 shell, producing a soft 404.
+    notFound();
   }
   return {
     title: product.title,
