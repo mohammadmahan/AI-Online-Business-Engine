@@ -30,6 +30,7 @@ npm run lint
 npm test
 npm run check:contrast
 npm run check:live-verdicts
+npm run check:provenance      # static MOCK/LIVE route contract
 npm run build
 ```
 
@@ -44,6 +45,11 @@ explicitly. The app has no authentication boundary, so it must not be published
 on `0.0.0.0`, a LAN interface, a public tunnel, or a remote host. Non-local
 access requires an owner-approved authentication and authorization design; it is
 not authorized by this README.
+
+Verified: `npm start` on port 13003 listened only on `127.0.0.1:13003` and
+`/api/health` returned `200`. `check:provenance` fails if a mock-only page starts
+consuming the live telemetry seam or if `automations` stops exposing its source
+mode.
 
 The production container contract may bind `0.0.0.0` inside an isolated
 container network only when an authenticated ingress and owner authorization

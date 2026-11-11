@@ -71,6 +71,7 @@ npm run verify         # typecheck + lint + test + db:check — offline
 npm run build          # production build                  — offline
 npm run media:bucket   # LOCAL MinIO bucket + read policy  — loopback:19000 only
 npm run admin:hash     # produce ADMIN_PASSWORD_HASH (scrypt) for commerce/.env
+npm run check:http-status # 200 for a published slug, 404 for an unknown one
 npm run db:migrate     # APPLY migrations — needs DATABASE_URL, owner-gated
 npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 ```
@@ -224,6 +225,25 @@ writes the product, so a failed upload stops the submission.
 
 `scripts/media-bucket.mjs` still enforces the loopback:19000 target for the
 MinIO path and refuses anything else.
+
+## Browser security headers
+
+Every route sends a restrictive `Content-Security-Policy` (`default-src
+'self'`, `frame-ancestors 'none'`, `object-src 'none'`, self-only form actions),
+plus `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer` and a `Permissions-Policy` that disables camera,
+microphone, geolocation and payment. The dev policy additionally allows
+`'unsafe-eval'` for the Next compiler; production does not.
+
+**HSTS belongs at the TLS terminator**, not in this app: local development is
+plain HTTP and a forced HSTS header there would poison the browser for
+`localhost`. When TLS is terminated by the deployment ingress, send
+`Strict-Transport-Security: max-age=31536000; includeSubDomains` there and keep
+the app's headers unchanged.
+
+Payment webhook and notification dispatch are fail-closed when their secrets are
+absent. Activation is a separate owner-gated procedure:
+[`docs/deployment/payment-notification-activation.md`](../docs/deployment/payment-notification-activation.md).
 
 ### Orphan media — retention policy and dry run (Phase 5)
 

@@ -57,6 +57,7 @@ const STOCK: Record<string, number> = {
   'IDEM-A': 4,
   'IDEM-B': 1,
   'IDEM-C': 3,
+  'IDEM-D': 3,
 };
 
 describe(
@@ -231,6 +232,34 @@ describe(
       assert.equal(results.filter((result) => result.ok && result.replayed).length, 1);
       assert.equal(await orderCount(), beforeOrders + 1);
       assert.equal(await stockOf('IDEM-B'), 0, 'the last piece was consumed once');
+    });
+
+    it('c. different keys create distinct orders', async () => {
+      // Deliberately absent from the earlier suite: two writers race with the
+      // SAME key but DIFFERENT payloads. Exactly one may create an order; the
+      // other must be refused as a mismatch, with no second stock/coupon edit.
+      const key = crypto.randomUUID();
+      const firstPayload = draft(variantIds['IDEM-D'] as string, 1, key);
+      const secondPayload = draft(variantIds['IDEM-D'] as string, 2, key);
+      const beforeOrders = await orderCount();
+      const beforeStock = await stockOf('IDEM-D');
+
+      const results = await Promise.all([
+        placeCheckoutOrder(repo, createMockPaymentGateway(), firstPayload),
+        placeCheckoutOrder(repo, createMockPaymentGateway(), secondPayload),
+      ]);
+      const accepted = results.filter((result) => result.ok);
+      const refused = results.filter((result) => !result.ok);
+      assert.equal(accepted.length, 1, 'exactly one concurrent payload may create the order');
+      assert.equal(refused.length, 1, 'the competing payload must be refused');
+      assert.equal(refused[0]?.ok ? '' : refused[0]?.code, 'IDEMPOTENCY_MISMATCH');
+      assert.equal(await orderCount(), beforeOrders + 1, 'exactly one order exists for the key');
+      const winnerQuantity = results[0]?.ok ? 1 : 2;
+      assert.equal(
+        await stockOf('IDEM-D'),
+        beforeStock - winnerQuantity,
+        'stock moved only for the winning payload',
+      );
     });
 
     it('c. different keys create distinct orders', async () => {

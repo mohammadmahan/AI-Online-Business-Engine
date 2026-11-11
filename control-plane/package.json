@@ -4,16 +4,17 @@
   "private": true,
   "description": "Unified Web Control Plane (D-171) — read-only operational dashboard over the canonical engine",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:build && node --import ./test/register.mjs --test .test-build",
     "test:build": "tsc -p tsconfig.test.json",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:live-verdicts": "node scripts/check-live-verdicts.mjs",
-    "check:view-isolation": "node scripts/check-view-isolation.mjs --base-url http://localhost:3000"
+    "check:view-isolation": "node scripts/check-view-isolation.mjs --base-url http://localhost:3000",
+    "check:provenance": "node scripts/check-source-labels.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",

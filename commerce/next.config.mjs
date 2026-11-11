@@ -1,4 +1,20 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  // Next.js hydration uses inline bootstrap scripts. 'unsafe-eval' is limited
+  // to the development compiler; production keeps it out of the policy.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' ws: wss:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
 const nextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
@@ -11,6 +27,23 @@ const nextConfig = {
    */
   output: 'standalone',
   poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+          },
+        ],
+      },
+    ];
+  },
   // The supported forwarded dev host is loopback-only. Next's default
   // cross-origin guard blocks HMR/dev-resource requests from 127.0.0.1 as
   // "cross-origin" when the container is reached through a forwarded port,
