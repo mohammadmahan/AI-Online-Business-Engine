@@ -14,7 +14,7 @@ supporting material: shared vocabulary and per-phase working documents.
 | [glossary.md](glossary.md) | Shared vocabulary: entities, provenance states, autonomy tiers, conventions. |
 | [roadmap/FASHION_ECOMMERCE_ROADMAP.md](roadmap/FASHION_ECOMMERCE_ROADMAP.md) | E-Commerce & Social Publishing track (**D-172**, approved 2026-10-10): the **authoritative execution plan** for the fashion commerce stack — architecture, Phase 1 catalog schema, Phases 1–6, derived API contract set, UI/UX requirements, owner rulings G-1…G-6. **Phases 1–5 IMPLEMENTED & VERIFIED offline** in `commerce/` and `local/`; **Phase 6 build artifacts COMPLETE**; the **CURRENT G0 gate is UNVERIFIED / owner-gated** — a later record claims acceptance on 2026-11-03, but no owner-signed acceptance artifact is present and `MASTER_PLAN.md` still records G0 OPEN, so B1–B6 and production activation remain owner-gated (D-139); local-only G-5 MinIO implemented and loopback-verified with its **local** flag closed, production media provider open and unselected; no provisioning, connection, credential or activation. |
 | [phases/](phases/) | Per-phase scope, entry/exit criteria, and Definition-of-Done tracking. |
-| [deployment/dokploy-plan.md](deployment/dokploy-plan.md) | Work package “Dokploy Deployment Integration” (D-141 **Proposed**, PLANNED): optional/replaceable deployment layer — architecture, environments, release governance, security, backup model, stages A–H, risks, exit strategy, official references. |
+| [deployment/dokploy-plan.md](deployment/dokploy-plan.md) | Work package “Dokploy Deployment Integration” (D-141 **Approved**; Stages A–H **VERIFIED** offline/local): optional/replaceable deployment layer — architecture, environments, release governance, security, backup model, stages A–H, risks, exit strategy, official references. Nothing is deployed or production-activated. |
 | [deployment/local-pilot-readiness.md](deployment/local-pilot-readiness.md) | **v1.0 (2026-11-09, commit `5c82312`)** — developer-operated loopback-only synthetic pilot: **GO**; real-customer/live-provider pilot **NO-GO**; production activation **NO-GO**. Evidence, operating procedure, limitations and stop conditions. |
 | [runbooks/dokploy-deployment.md](runbooks/dokploy-deployment.md) | PLANNED deployment runbook: preconditions, onboarding, promotion gates, rollback, stop conditions. |
 | [runbooks/dokploy-disaster-recovery.md](runbooks/dokploy-disaster-recovery.md) | PLANNED DR runbook: backup architecture, server-loss/corruption/migration/credential scenarios, restoration-evidence requirements. |
@@ -42,3 +42,12 @@ supporting material: shared vocabulary and per-phase working documents.
   silently false.
 - Directories are created only when they have real content; no empty
   placeholder directories.
+
+## Generated graph
+
+`graphify-out/` is a **gitignored generated artifact**, not a source of truth.
+The generator is `graphify` (documented in
+`docs/standards/graph-hygiene-and-exclusions.md`) and is refreshed with
+`graphify update .`. The report’s “Graph Freshness” header names the commit it
+was built from; compare that value with `git rev-parse HEAD`. A subsequent
+documentation-only commit can legitimately make the graph one commit behind.

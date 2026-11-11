@@ -1,5 +1,13 @@
 # Launch Candidate Handoff — Infrastructure Deployment & Staging Orchestration
 
+> **Historical handoff (2026-09-29).** The state below describes commit
+> `fb0890c` and the 2,226-test evidence of that date; it is retained as history,
+> not current status. The verified reconciliation baseline was `2225406`; a
+> documentation-only commit follows this note. Current status and test evidence
+> are maintained in `MASTER_PLAN.md` §16,
+> `TODO.md` and `docs/audits/remediation-2026-11-11.md`. G0 remains unresolved/
+> owner-gated, and nothing in this handoff authorizes deployment or activation.
+
 **Date:** 2026-09-29 · **Handoff trigger:** owner sign-off on the D-169 Live Wiring
 Program closeout record (attestation digest `c30d3047d28d6c69…`, 17/17 rule checks
 PASS) — recorded as **D-170**. The Live Wiring track (Phases 5–18) is OFFICIALLY

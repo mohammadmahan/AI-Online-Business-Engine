@@ -2,11 +2,15 @@
 
 Living task list for the AI-First Online Business Engine.
 
-> **Current release-gate status (2026-11-11 remediation).** G0 is **UNVERIFIED
-> / owner-gated pending explicit owner confirmation**. A 2026-11-03 acceptance
-> claim exists in later documents, but no owner-signed acceptance artifact has
-> been found and the historical G0 OPEN entries below are retained. This note
-> does not authorize B1–B6, deployment or production activation (D-139).
+> **Current execution status (2026-11-11 reconciliation).** The engine track is
+> **closed through Phase 26** and dormant; no engine Phase 27 work is approved.
+> The active D-172 fashion track has **Phase 6 build artifacts complete** but
+> its gate is unresolved: a **2026-11-03 G0 acceptance claim** exists in the
+> roadmap, while the canonical status files mark G0 **UNVERIFIED / owner-gated**
+> because no owner-signed acceptance artifact has been located. This conflict
+> requires an explicit owner decision; it does not authorize B1–B6, deployment,
+> credentials or production activation (D-139). The latest isolated evidence
+> is in `docs/audits/remediation-2026-11-11.md`.
 
 - Conventions: `[ ]` open, `[x]` done. Completed items stay until the
   phase closes.

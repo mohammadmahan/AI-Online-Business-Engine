@@ -694,6 +694,14 @@ that closes G0.
 
 #### G0 ACCEPTED (2026-11-03) — Mohammad's explicit informed acceptance recorded; B1–B6 unblocked; production activation unchanged (D-139)
 
+> **Reconciliation note 2026-11-11 (status conflict — owner resolution required).**
+> This dated acceptance record is retained as history, but it is **not** treated
+> as the current gate by `MASTER_PLAN.md`, `TODO.md` or `docs/README.md`: no
+> owner-signed acceptance artifact has been located, so those canonical status
+> files still mark **G0 UNVERIFIED / owner-gated**. B1–B6 must not start and
+> production activation remains blocked until the owner resolves this conflict
+> explicitly. This note does not erase or reinterpret the 2026-11-03 record.
+
 **G0 is CLOSED by owner acceptance.** On **2026-11-03** Mohammad explicitly
 accepted the fashion Phase 5 completion and closure records — the roadmap's
 §5.1 and §5.2 completion records plus the Phase 5 closure record, and `D-172`

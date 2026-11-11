@@ -10,18 +10,26 @@ The architecture must later be reusable for other online businesses
 with minimal change. The guiding principle: **build on existing
 technology; do not rebuild mature systems without a strong reason.**
 
-**Status:** Phases 0–26 implemented through the **Phase 26 launch
-readiness closeout** — a deterministic Go/No-Go launch candidate at
-**technical GO** (attested by the unified `launch_attestation.py`
-run: both disaster-recovery drill legs RECOVERED, 533 human decisions
-reconciled against the transactional store, AST/entropy sweeps CLEAN,
-full battery 891/891 ×2 green). **This is a launch CANDIDATE, not a
-launch:** live activation, payment capture, shipment purchase, and
-public publishing remain behind explicit one-time owner authorization
-(D-139); the Iranian payment and shipping providers are still
-unselected (open decisions 10–11). The engine runs strictly local-first
-(D-053): every subsystem operates on the local Docker stack with mock
-providers; no production credentials exist (D-045).
+**Status (reconciled 2026-11-11):** the engine track through **Phase 26**
+is closed, with the Live Wiring program and Dokploy Stages A–H verified
+offline/local. The active D-172 fashion track has **Phase 6 build
+artifacts complete**, but its **G0 gate is unresolved and owner-gated**:
+a 2026-11-03 acceptance record exists in the roadmap, while the canonical
+status files require an owner-signed acceptance artifact and still mark
+G0 unverified. **This is not a launch and not production approval:**
+live activation, payment capture, shipment purchase, SMS and public
+publishing remain behind the separate one-time D-139 owner authorization;
+shipping and AI providers remain unselected. The engine runs local-first
+(D-053) with mock providers; no production credentials exist (D-045).
+
+Latest recorded isolated evidence (2026-11-11 remediation) is in
+`docs/audits/remediation-2026-11-11.md`: commerce **540/129 offline** and
+**87/26 live-PostgreSQL**, control plane **119/21**, and Python **2,877
+run / 0 failed / 102 skipped**. Browser/admin and n8n error-router runtime
+checks passed in disposable environments. These results do not prove
+production behavior or approve a release. Later commits changed tests,
+documentation and the CSP/mobile fixes; every suite was not rerun at every
+subsequent HEAD, and the control plane was not changed by that remediation.
 
 ---
 
@@ -48,7 +56,7 @@ providers; no production credentials exist (D-045).
 | [DECISIONS.md](DECISIONS.md) | Decision log — approved decisions and open decisions (nothing silent) |
 | [TODO.md](TODO.md) | Current phase checklist, blocked items, next phase preview |
 | [docs/](docs/README.md) | Supporting docs: glossary, per-phase scope documents, deployment/runbook plans |
-| [docs/deployment/dokploy-plan.md](docs/deployment/dokploy-plan.md) | “Dokploy Deployment Integration” work package (D-141 Approved; Stages A–B VERIFIED, C–H owner-gated — optional/replaceable deployment layer; nothing installed) |
+| [docs/deployment/dokploy-plan.md](docs/deployment/dokploy-plan.md) | “Dokploy Deployment Integration” work package (D-141 Approved; Stages A–H VERIFIED offline/local — optional/replaceable deployment layer; **nothing deployed or production-activated**) |
 | [docs/deployment/staging-volume-backup-policy.md](docs/deployment/staging-volume-backup-policy.md) | Staging volume backup & retention template (G-B3) — supplement to D-125/drills, PLANNED |
 
 **Start here:** read `MASTER_PLAN.md` and `PROJECT_RULES.md` before any

@@ -1466,6 +1466,20 @@ media backend** is implemented and live-tested on loopback (commit `a2ce4c3`)
 and its **local flag is closed**; the **production media provider remains
 OPEN**. Production activation is still NOT authorized (D-139).
 
+**Reconciliation note 2026-11-11 (append-only; status evidence only).** The
+actual active track is **fashion Phase 6**, not engine Phase 25/26: the engine
+track is closed and dormant. Phase 6 build artifacts are complete, but the
+governing gate is unresolved. `docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`
+records a **2026-11-03 G0 acceptance claim**, while this file, `TODO.md`,
+`docs/README.md` and `docs/deployment/local-pilot-readiness.md` record **G0 as
+UNVERIFIED / owner-gated because no owner-signed acceptance artifact has been
+located**. That conflict is **pending an explicit owner decision**; it does not
+authorize B1–B6, deployment, credentials or production activation. No engine
+Phase 27 optimization work is approved or started. Latest recorded isolated
+evidence (2026-11-11 remediation) is commerce 540/129 offline + 87/26 live,
+control plane 119/21, Python 2,877/0 failed/102 skipped; not every suite was
+rerun at every later commit. See `docs/audits/remediation-2026-11-11.md`.
+
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
 `docs/phases/` specifications):
