@@ -377,6 +377,14 @@ TODO.md
 docs/
 ```
 
+**Current gate status (2026-11-11 remediation).** The fashion-track **G0 gate
+is UNVERIFIED / owner-gated pending explicit owner confirmation**. A later
+record claims acceptance on 2026-11-03, but no owner-signed acceptance artifact
+has been located and the historical G0 OPEN entries in this file remain as
+recorded. This status does not authorize B1–B6, deployment or production
+activation (D-139); it supersedes only the *current-status* reading of those
+entries, not their historical text.
+
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
 documents link (the read-before-work order is `PROJECT_RULES.md` §2).

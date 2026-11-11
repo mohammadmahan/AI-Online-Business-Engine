@@ -2,6 +2,12 @@
 
 Living task list for the AI-First Online Business Engine.
 
+> **Current release-gate status (2026-11-11 remediation).** G0 is **UNVERIFIED
+> / owner-gated pending explicit owner confirmation**. A 2026-11-03 acceptance
+> claim exists in later documents, but no owner-signed acceptance artifact has
+> been found and the historical G0 OPEN entries below are retained. This note
+> does not authorize B1–B6, deployment or production activation (D-139).
+
 - Conventions: `[ ]` open, `[x]` done. Completed items stay until the
   phase closes.
 - Required reading before work: `MASTER_PLAN.md`, `PROJECT_RULES.md`,

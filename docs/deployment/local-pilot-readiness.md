@@ -1,6 +1,12 @@
 # Local-pilot readiness record — fashion commerce (v1.0)
 
 **Date:** 2026-11-09 · **Version:** 1.0 · **Commit tested:** `5c82312`
+
+> **Historical evidence note (2026-11-11 remediation).** Every count in §2 is a
+> measurement of `5c82312` (and the later §10 rerun), not of current `main`.
+> Current remediation-baseline evidence at `73b27de` is **540 tests / 129
+> suites** offline and **86 tests / 26 suites** live-PostgreSQL; the older
+> 497/117 and 77/24 numbers are retained only as history.
 (`feat(commerce): read-only orphan-media dry run for the local provider`), identical
 to `origin/main` at the time of testing (`git rev-list --left-right --count` = `0 0`,
 clean tree apart from the untracked `.cloud-attachments/`). This record is an
@@ -16,10 +22,12 @@ storefront visibility) into one decision.
 **What this is not.** It is not a claim that the project or roadmap is complete, not
 authorization for real customers, real money, live SMS, a reachable network, a
 deployment or production activation. It does not close, open or reinterpret any
-owner gate. G0 was **accepted by the owner on 2026-11-03** (roadmap Phase 6, G0
-record); production activation remains blocked behind D-139, and B1–B6 remain as
-recorded below — earlier “G0 OPEN” wording and the checklist's 2026-10-24
-“no scheduler exists” statement are historical, not current status.
+owner gate. A later record **claims** G0 acceptance on 2026-11-03, but no
+owner-signed acceptance artifact is present and the authoritative status files
+still record G0 OPEN. The **CURRENT G0 gate is therefore UNVERIFIED /
+owner-gated pending explicit owner confirmation**; production activation remains
+blocked behind D-139, and B1–B6 remain as recorded below. The 2026-10-24 “no
+scheduler exists” statement is historical, not current status.
 
 ---
 

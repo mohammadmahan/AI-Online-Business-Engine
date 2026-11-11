@@ -1,10 +1,20 @@
 {
+  "snapshot": {
+    "kind": "HISTORICAL_STATIC",
+    "label": "Historical snapshot — not current system status",
+    "source": "Manual dashboard/state_summary.json capture; no automated telemetry",
+    "environment": "Historical local development snapshot",
+    "git_commit": "f17a9a0",
+    "observed_at": "2026-09-16T21:30:00Z",
+    "audit_baseline_commit": "73b27de",
+    "note": "Preserved for history. Do not use these values as current health, product counts or test evidence."
+  },
   "system_info": {
     "engine_name": "AI-First Online Business Engine",
-    "version": "0.12.0-alpha",
-    "current_phase": "Phase 12 - Order Management System (OMS) Closed — Phases 0-12 Complete",
+    "version": "0.12.0-alpha (historical)",
+    "current_phase": "HISTORICAL SNAPSHOT — Phase 12 state captured 2026-09-16; NOT current",
     "last_commit": "f17a9a0",
-    "system_status": "Operational",
+    "system_status": "HISTORICAL — DO NOT USE AS CURRENT",
     "last_sync_timestamp": "2026-09-16T21:30:00Z",
     "jalali_timestamp": "۱۴۰۵/۰۶/۲۵ - ۲۱:۳۰"
   },

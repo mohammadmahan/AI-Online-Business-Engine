@@ -5,6 +5,21 @@ Engine. Reads `dashboard/state_summary.json` at runtime (with an
 embedded fallback object, so opening `index.html` directly via
 `file://` still renders).
 
+> **Historical archive, not live telemetry.** The current snapshot is
+> `HISTORICAL_STATIC`, captured from `f17a9a0` on 2026-09-16. Its product and
+> test counts are historical and must never be read as current health or test
+> evidence. The page shows this warning prominently.
+>
+> Run the metadata/freshness guard after any snapshot edit:
+>
+> ```bash
+> node dashboard/check-snapshot.mjs
+> ```
+>
+> A `CURRENT` snapshot is accepted only when its commit equals HEAD and its
+> observation is at most 24 hours old. A historical snapshot must carry source,
+> environment, commit, observation date, a warning, and matching HTML markers.
+
 Run local static server from repository root:
 
 ```bash
@@ -30,5 +45,6 @@ Notes:
 - The engine's local Docker stack deliberately uses ports
   18080 / 55432 / 15678 / 19000–19001, so 8080 is reserved for this
   dashboard and never collides.
-- Edit `dashboard/state_summary.json` to update the snapshot the
-  dashboard displays; refresh from the button afterwards.
+- Edit `dashboard/state_summary.json` only through a deliberate snapshot
+  capture. Update the HTML meta markers and warning together, then run
+  `node dashboard/check-snapshot.mjs` before committing.

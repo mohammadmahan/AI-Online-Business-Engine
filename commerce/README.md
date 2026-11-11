@@ -624,9 +624,9 @@ disposable harness, `COMMERCE_DATABASE_URL`): the new suite **5/5 pass**
 (`phase5-product-images-live.test.ts`) — order/primary/add/remove persisted with
 the kept row ids preserved, product columns and variants unchanged byte for byte,
 a foreign image id and a foreign url each refused with the gallery untouched, and
-an emptied gallery that keeps the product and its variant. The whole live run is
-now **77/77**: the two failures this change inherited at HEAD (`1cc782d`) are
-repaired — the Phase 2 suite pinned five migrations while `0005` was committed,
+an emptied gallery that keeps the product and its variant. The live run at that checkpoint was **77/77**. Current remediation-baseline
+evidence at `73b27de` is **86/86**; the 77/77 figure is historical. The two
+failures this change inherited at HEAD (`1cc782d`) are repaired — the Phase 2 suite pinned five migrations while `0005` was committed,
 and one Phase 6 refusal case used `order.shipped` as its "unknown kind" after
 `0005` deliberately admitted it (D-172 §5.11 records both causes and fixes). Browser, on the loopback stack: `/admin` now links each row to
 **ویرایش تصویرها**; on a new DRAFT test product (`image-edit-test`, so no

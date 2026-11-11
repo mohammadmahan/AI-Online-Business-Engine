@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>داشبورد وضعیت و سلامت سیستم — موتور کسب‌وکار هوشمند</title>
+<title>آرشیو تاریخی وضعیت — موتور کسب‌وکار هوشمند</title>
+<meta name="snapshot-kind" content="HISTORICAL_STATIC">
+<meta name="snapshot-observed-at" content="2026-09-16T21:30:00Z">
+<meta name="snapshot-commit" content="f17a9a0">
 <!-- Tailwind Play engine is vendored locally (local-first: zero runtime
      external dependencies — environments without CDN egress render fully
      styled). The font CSS below stays on CDN but is cosmetic-only: when
@@ -53,8 +56,8 @@
 <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-10">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center gap-3">
     <div class="flex items-center gap-2.5 order-1">
-      <span id="live-dot" class="live-dot inline-block h-3 w-3 rounded-full bg-emerald-400" title="وضعیت پایدار"></span>
-      <span class="text-sm font-medium text-emerald-300" id="status-label">وضعیت پایدار</span>
+      <span id="live-dot" class="live-dot inline-block h-3 w-3 rounded-full bg-amber-400" title="آرشیو تاریخی"></span>
+      <span class="text-sm font-medium text-amber-300" id="status-label">آرشیو تاریخی</span>
     </div>
     <div class="order-2 sm:order-3 mr-auto">
       <button id="refresh-btn" title="دریافت مجدد state_summary.json بدون بارگذاری مجدد صفحه"
@@ -68,13 +71,20 @@
         <span class="block sm:inline text-xs sm:text-sm font-medium text-slate-400" dir="ltr">(AI-First Online Business Engine)</span>
       </h1>
       <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
-        داشبورد وضعیت و سلامت سیستم — <span class="text-sky-300 font-semibold">فاز ۱۲: سیستم مدیریت سفارش (فازهای ۰ تا ۱۲ تکمیل)</span>
+        آرشیو تاریخی — <span class="text-amber-300 font-semibold">وضعیت جاری نیست</span>
       </p>
     </div>
   </div>
 </header>
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <section id="snapshot-banner" class="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5" role="note">
+    <h2 id="snapshot-title" class="text-base font-bold text-amber-200">آرشیو تاریخی — وضعیت جاری نیست</h2>
+    <p id="snapshot-meta" class="mt-2 text-sm leading-6 text-amber-100/90">
+      این صفحه یک عکس دستی از ۲۰۲۶-۰۹-۱۶ است؛ مقادیر آن برای سلامت فعلی، تعداد محصول یا شواهد تست جاری معتبر نیستند.
+    </p>
+  </section>
 
   <!-- ================= KPI GRID ================= -->
   <section aria-label="شاخص‌های کلیدی" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -150,12 +160,22 @@
    یک شیء پیش‌فرض جاسازی‌شده به‌عنوان جایگزین ایمن استفاده می‌شود.
    ========================================================================= */
 const EMBEDDED_FALLBACK = {
+  snapshot: {
+    kind: "HISTORICAL_STATIC",
+    label: "Historical snapshot — not current system status",
+    source: "Embedded dashboard fallback; no automated telemetry",
+    environment: "Historical local development snapshot",
+    git_commit: "f17a9a0",
+    observed_at: "2026-09-16T21:30:00Z",
+    audit_baseline_commit: "73b27de",
+    note: "Preserved for history. Do not use these values as current health, product counts or test evidence."
+  },
   system_info: {
     engine_name: "AI-First Online Business Engine",
-    version: "0.12.0-alpha",
-    current_phase: "Phase 12 - Order Management System (OMS) Closed — Phases 0-12 Complete",
+    version: "0.12.0-alpha (historical)",
+    current_phase: "HISTORICAL SNAPSHOT — Phase 12 state captured 2026-09-16; NOT current",
     last_commit: "f17a9a0",
-    system_status: "Operational",
+    system_status: "HISTORICAL — DO NOT USE AS CURRENT",
     last_sync_timestamp: "2026-09-16T21:30:00Z",
     jalali_timestamp: "۱۴۰۵/۰۶/۲۵ - ۲۱:۳۰"
   },
@@ -200,9 +220,23 @@ const setNum = (id, v) => { const el = $(id); el.textContent = fa(v); };
 /* --- rendering --- */
 function render(data, source) {
   const si = data.system_info || {}, m = data.metrics || {},
-        t = (m.sync_ladder_tests || {});
+        t = (m.sync_ladder_tests || {}), snap = data.snapshot || {};
+  const historical = snap.kind === "HISTORICAL_STATIC";
 
-  $("status-label").textContent = "وضعیت پایدار";
+  $("status-label").textContent = historical ? "آرشیو تاریخی" : "وضعیت جاری";
+  $("status-label").className = historical
+    ? "text-sm font-medium text-amber-300"
+    : "text-sm font-medium text-emerald-300";
+  $("live-dot").className = historical
+    ? "inline-block h-3 w-3 rounded-full bg-amber-400"
+    : "live-dot inline-block h-3 w-3 rounded-full bg-emerald-400";
+  $("snapshot-banner").className = historical
+    ? "rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5"
+    : "hidden";
+  $("snapshot-title").textContent = snap.label || "Snapshot metadata unavailable";
+  $("snapshot-meta").textContent = snap.source
+    ? `${snap.source} · محیط: ${snap.environment || "—"} · کامیت: ${snap.git_commit || "—"} · مشاهده: ${snap.observed_at || "—"} — ${snap.note || ""}`
+    : "این صفحه فاقد فرادادهٔ snapshot است و نباید به‌عنوان وضعیت جاری خوانده شود.";
   setNum("kpi-products", m.total_products ?? "—");
   setNum("kpi-skus", m.active_skus ?? "—");
 
@@ -221,7 +255,7 @@ function render(data, source) {
   $("sys-version-2").textContent = si.version || "—";
   $("sys-commit").textContent = si.last_commit || "—";
   $("render-time").textContent = new Date().toLocaleTimeString("fa-IR");
-  $("data-source").textContent = source;
+  $("data-source").textContent = source + (snap.observed_at ? ` · snapshot ${snap.observed_at}` : "");
 
   /* engine modules */
   const mods = $("modules"); mods.replaceChildren();
