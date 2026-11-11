@@ -172,3 +172,22 @@ were left running and untouched.
   passes against the isolated server.
 - **Mobile page overflow — OPEN.** Recorded above; not hidden or marked as a
   pass.
+
+## Third verification pass — mobile overflow and fresh suites (2026-11-11)
+
+**Mobile admin overflow: FIXED and VERIFIED.** Reproduced on the populated inventory table at 390px: `html.clientWidth=390`, `html.scrollWidth=635`; table wrapper `clientWidth=324`, `scrollWidth=871`; table left `-514`. The cause was RTL negative overflow from the wide table escaping its `overflow-x:auto` wrapper (not a lack of table scrolling). Added `contain: paint` to the shared table scroll wrapper; the table remains intentionally scrollable. Measured after: 320px document `320` (wrapper `254/871`), 390px document `390` (wrapper `324/871`), 1440px document `1440` (wrapper `1054/1054`); RTL retained at all widths. Added `npm run check:admin-mobile` (Playwright-core + system Chrome) which authenticates, checks inventory at 320/390/1440, and fails on page-level overflow.
+
+**Fresh suites:** Python against disposable PostgreSQL, exact cached digest, `DOCKER_CONTEXT=colima`: **2,877 run, 0 failed, 102 skipped, OK**. Commerce typecheck **PASS**, lint **PASS**, offline **540/540**, live DB smoke **87/87**, production build **PASS**, HTTP/CSP **PASS**. Control-plane/shared code was not changed; no control-plane suite rerun was required.
+
+**n8n error-router runtime: NOT VERIFIED.** Imported the committed router and a synthetic parent workflow with a thrown Code-node error and no external endpoints. `n8n execute` did not reach execution because the container reported `n8n Task Broker's port 5679 is already in use`; no Error Trigger evidence was produced. Import or classifier unit tests are not runtime evidence.
+
+Standing health/data were checked before start and after cleanup. Disposable DB/app/n8n resources were removed; the standing baseline remains 4 categories, 5 products, 17 variants, 3 images, 1 order (1 paid), 1 pending outbox, 4 media files, health 200.
+## Third verification pass — mobile overflow and fresh suites (2026-11-11)
+
+**Mobile admin overflow: FIXED and VERIFIED.** Reproduced on the populated inventory table at 390px: `html.clientWidth=390`, `html.scrollWidth=635`; table wrapper `clientWidth=324`, `scrollWidth=871`; table left `-514`. The cause was RTL negative overflow escaping the table's `overflow-x:auto` wrapper. Added `contain: paint` to the shared wrapper; the table remains intentionally scrollable. After: 320px document `320` (wrapper `254/871`), 390px document `390` (wrapper `324/871`), 1440px document `1440` (wrapper `1054/1054`), RTL retained. Added `npm run check:admin-mobile`, which authenticates and fails on page-level overflow.
+
+**Fresh suites:** Python against disposable PostgreSQL with the exact cached digest, `DOCKER_CONTEXT=colima`: **2,877 run, 0 failed, 102 skipped, OK**. Commerce typecheck PASS, lint PASS, offline 540/540, live DB smoke 87/87, production build PASS, HTTP/CSP PASS. Control-plane/shared code was not changed.
+
+**n8n error-router runtime: NOT VERIFIED.** Imported the committed router and a synthetic parent workflow with a thrown Code-node error and no external endpoints. `n8n execute` did not reach execution because the container reported `n8n Task Broker port 5679 is already in use`; no Error Trigger evidence was produced.
+
+Disposable resources were removed. Standing baseline remains 4 categories, 5 products, 17 variants, 3 images, 1 order (1 paid), 1 pending outbox, 4 media files, health 200.

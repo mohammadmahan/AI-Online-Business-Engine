@@ -22,6 +22,7 @@
     "media:bucket": "node scripts/media-bucket.mjs",
     "media:orphans": "node scripts/media-orphans.mjs",
     "check:http-status": "node scripts/check-storefront-status.mjs",
+    "check:admin-mobile": "node scripts/check-admin-mobile.mjs",
     "admin:hash": "node scripts/hash-admin-password.mjs",
     "scheduler:notifications": "node scripts/dispatch-scheduler.mjs",
     "smoke:db": "npm run test:build && node --import ./test/register.mjs --test --test-concurrency=1 .test-build/__tests__/live-db",
@@ -48,6 +49,7 @@
     "drizzle-kit": "0.31.11",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
+    "playwright-core": "^1.65.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
   }

@@ -178,7 +178,7 @@ export function Table({
   children: ReactNode;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto" style={{ contain: 'paint' }}>
       <table className="w-full min-w-[48rem] border-collapse text-cp-label">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-muted text-ink">{head}</thead>
