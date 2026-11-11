@@ -241,8 +241,8 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     addProduct(graph);
   });
 
-  /** One checkout intent id → one order id, mirroring the unique index. */
-  const ordersByIdempotencyKey = new Map<string, string>();
+  /** One checkout intent id → its order and payload digest, mirroring the unique index. */
+  const ordersByIdempotencyKey = new Map<string, { orderId: string; intentHash: string | null }>();
 
   const ordersTable: MemoryOrderRow[] = (seed.orders ?? []).map((order) => ({
     ...order,
@@ -880,11 +880,20 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
     async placeOrder(input) {
       const idempotencyKey = input.idempotencyKey ?? null;
       if (idempotencyKey !== null) {
-        const existingOrderId = ordersByIdempotencyKey.get(idempotencyKey);
-        const existing = existingOrderId
-          ? ordersTable.find((order) => order.id === existingOrderId)
+        const record = ordersByIdempotencyKey.get(idempotencyKey);
+        const existing = record
+          ? ordersTable.find((order) => order.id === record.orderId)
           : undefined;
         if (existing) {
+          if (record?.intentHash === null || record?.intentHash !== (input.intentHash ?? null)) {
+            return {
+              ok: false,
+              code: 'IDEMPOTENCY_MISMATCH',
+              message:
+                'این شناسهٔ تسویه با سفارش ثبت‌شده هم‌خوان نیست؛ سفارش تازه‌ای ثبت نشد. سبد خرید را بازبینی کنید.',
+              field: 'idempotencyKey',
+            };
+          }
           return replayOrderResult(existing);
         }
       }
@@ -1030,7 +1039,10 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       }
 
       if (idempotencyKey !== null) {
-        ordersByIdempotencyKey.set(idempotencyKey, orderId);
+        ordersByIdempotencyKey.set(idempotencyKey, {
+          orderId,
+          intentHash: input.intentHash ?? null,
+        });
       }
 
       // The trail's opening row, appended with the order itself: `fromStatus`

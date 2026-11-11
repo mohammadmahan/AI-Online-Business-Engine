@@ -1,0 +1,1 @@
+ALTER TABLE "commerce"."orders" ADD COLUMN "checkout_intent_hash" varchar(64);

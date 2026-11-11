@@ -73,6 +73,16 @@ export const orders = commerce.table(
      * order.
      */
     idempotencyKey: uuid('idempotency_key'),
+    /**
+     * SHA-256 of the canonical checkout intent that created this keyed order.
+     *
+     * The key alone proves only "the same browser intent"; it does not prove that
+     * the submitted cart, recipient, coupon and shipping choice are unchanged.
+     * Binding the canonical payload to the order lets a replay refuse a key
+     * reused with a different payload instead of returning somebody else's order
+     * (or creating a second one). NULL on historical/keyless orders.
+     */
+    checkoutIntentHash: varchar('checkout_intent_hash', { length: 64 }),
     paymentRefId: varchar('payment_ref_id', { length: 255 }),
     /**
      * §6.1 — the redirect-based provider's AUTHORISATION, persisted at the moment

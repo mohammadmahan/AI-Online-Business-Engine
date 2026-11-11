@@ -389,6 +389,12 @@ export interface PlaceOrderInput {
    * NULL is reserved for historical/non-storefront writers.
    */
   idempotencyKey?: string | null;
+  /**
+   * SHA-256 of the canonical intent. Required whenever `idempotencyKey` is set:
+   * a replay must prove it carries the same payload, not merely the same key.
+   * NULL is reserved for historical/non-storefront writers.
+   */
+  intentHash?: string | null;
 }
 
 export type PlaceOrderWriteResult =
@@ -418,7 +424,8 @@ export type PlaceOrderWriteResult =
         | 'VARIANT_UNAVAILABLE'
         | 'STOCK_INSUFFICIENT'
         | 'COUPON_INVALID'
-        | 'SHIPPING_UNKNOWN';
+        | 'SHIPPING_UNKNOWN'
+        | 'IDEMPOTENCY_MISMATCH';
       message: string;
       field?: string;
       variantId?: string;
@@ -429,7 +436,27 @@ export type PlaceOrderWriteResult =
  * new stock, coupon or history write. Totals are reconstructed from the stored
  * amounts so the customer sees the same figures they were first quoted.
  */
-function replayOrderResult(existing: typeof orders.$inferSelect): PlaceOrderWriteResult {
+function idempotencyMismatchRefusal(): PlaceOrderWriteResult {
+  return {
+    ok: false,
+    code: 'IDEMPOTENCY_MISMATCH',
+    message:
+      'این شناسهٔ تسویه با سفارش ثبت‌شده هم‌خوان نیست؛ سفارش تازه‌ای ثبت نشد. سبد خرید را بازبینی کنید.',
+    field: 'idempotencyKey',
+  };
+}
+
+function replayOrderResult(
+  existing: typeof orders.$inferSelect,
+  intentHash: string | null,
+): PlaceOrderWriteResult {
+  // A keyed order must carry the payload it was created with. A NULL hash is a
+  // legacy/keyless row and cannot prove payload equality, so it is refused
+  // rather than treated as a wildcard replay.
+  if (existing.checkoutIntentHash === null || existing.checkoutIntentHash !== intentHash) {
+    return idempotencyMismatchRefusal();
+  }
+
   return {
     ok: true,
     orderId: existing.id,
@@ -1689,7 +1716,7 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
               .from(orders)
               .where(eq(orders.idempotencyKey, idempotencyKey));
             if (existing) {
-              return replayOrderResult(existing);
+              return replayOrderResult(existing, input.intentHash ?? null);
             }
           }
 
@@ -1843,6 +1870,7 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
                   shippingAmount: totals.shipping,
                   status: 'PENDING',
                   idempotencyKey,
+                  checkoutIntentHash: input.intentHash ?? null,
                   paymentRefId: input.paymentRefId,
                   shippingAddress: input.shippingAddress.trim(),
                 })
@@ -1875,7 +1903,7 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
             if (!existing) {
               throw new Error('idempotency key conflict without an order row');
             }
-            return replayOrderResult(existing);
+            return replayOrderResult(existing, input.intentHash ?? null);
           }
           const order = insertedOrders[0];
           if (!order) {

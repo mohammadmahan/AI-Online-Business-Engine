@@ -149,7 +149,8 @@ export interface CheckoutDraft {
   /**
    * Browser-owned checkout intent id (UUID). One key can create at most one
    * order: retries and concurrent submissions return the same order instead of
-   * reserving stock or consuming a coupon again.
+   * reserving stock or consuming a coupon again. Required and must be a UUID; a
+   * missing or malformed key is refused, never silently generated server-side.
    */
   idempotencyKey: string;
 }
@@ -231,6 +232,7 @@ export interface OrderRefused {
     | 'STOCK_INSUFFICIENT'
     | 'COUPON_INVALID'
     | 'SHIPPING_UNKNOWN'
+    | 'IDEMPOTENCY_MISMATCH'
     | 'UNEXPECTED';
   message: string;
   field?: string;

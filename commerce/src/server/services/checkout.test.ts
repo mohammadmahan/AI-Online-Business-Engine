@@ -482,6 +482,57 @@ describe('checkout idempotency (§3.3 hardening)', () => {
     assert.equal(accepted.replayed, false);
   });
 
+  it('refuses a key reused with a different cart, recipient, coupon or shipping choice', async () => {
+    const { repository, blackSmall } = await harness();
+    const key = crypto.randomUUID();
+    const base = draft({
+      idempotencyKey: key,
+      lines: [{ variantId: blackSmall, quantity: 1 }],
+    });
+
+    const first = await placeCheckoutOrder(repository, mockPaymentGateway, base);
+    assert.ok(first.ok);
+    const stockAfterFirst = await stockOf(repository, blackSmall);
+
+    const mismatches: CheckoutDraft[] = [
+      { ...base, lines: [{ variantId: blackSmall, quantity: 2 }] },
+      { ...base, customer: { ...base.customer, fullName: 'نام دیگری' } },
+      { ...base, couponCode: COUPON_CODE },
+      { ...base, shippingMethodId: 'EXPRESS_COURIER' },
+    ];
+
+    for (const mismatch of mismatches) {
+      const result = await placeCheckoutOrder(repository, mockPaymentGateway, mismatch);
+      assert.ok(!result.ok, 'a reused key must not replay a different payload');
+      assert.equal(result.code, 'IDEMPOTENCY_MISMATCH');
+      assert.equal(result.field, 'idempotencyKey');
+      assert.ok(!result.message.includes(first.orderId), 'the refusal never exposes the order id');
+    }
+
+    assert.equal(await stockOf(repository, blackSmall), stockAfterFirst);
+    assert.equal((await repository.findCouponByCode(COUPON_CODE))?.usedCount, 0);
+    assert.equal((await repository.listOrders()).length, 1);
+  });
+
+  it('refuses a missing or malformed idempotency key before writing', async () => {
+    const { repository, blackSmall } = await harness();
+    const valid = draft({ lines: [{ variantId: blackSmall, quantity: 1 }] });
+
+    for (const idempotencyKey of ['', 'not-a-uuid', undefined as unknown as string]) {
+      const result = await placeCheckoutOrder(
+        repository,
+        mockPaymentGateway,
+        { ...valid, idempotencyKey },
+      );
+      assert.ok(!result.ok);
+      assert.equal(result.code, 'VALIDATION_ERROR');
+      assert.equal(result.field, 'idempotencyKey');
+    }
+
+    assert.deepEqual(await listOrders(repository), []);
+    assert.equal(await stockOf(repository, blackSmall), 4);
+  });
+
   it('never authorises payment a second time for a replay', async () => {
     const { repository, blackSmall } = await harness();
     const authorised = createMockPaymentGateway({ outcome: 'AUTHORIZED' });

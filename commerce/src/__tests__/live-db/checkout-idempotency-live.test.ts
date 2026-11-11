@@ -274,6 +274,39 @@ describe(
       assert.equal(await orderCountForKey(key), 1);
     });
 
+    it('f. a key reused with a different payload is refused without exposing the order', async () => {
+      const key = crypto.randomUUID();
+      const base = draft(variantIds['IDEM-A'] as string, 1, key);
+      const beforeOrders = await orderCount();
+      const first = await placeCheckoutOrder(repo, createMockPaymentGateway(), base);
+      assert.ok(first.ok, `the first submission must be written: ${JSON.stringify(first)}`);
+      const stockAfterFirst = await stockOf('IDEM-A');
+      const couponUses = (await repo.findCouponByCode(COUPON_CODE))?.usedCount;
+
+      const mismatches: CheckoutDraft[] = [
+        { ...base, lines: [{ variantId: variantIds['IDEM-A'] as string, quantity: 2 }] },
+        { ...base, customer: { ...base.customer, fullName: 'نام دیگری' } },
+        { ...base, couponCode: COUPON_CODE },
+        { ...base, shippingMethodId: 'EXPRESS_COURIER' },
+      ];
+
+      for (const mismatch of mismatches) {
+        const result = await placeCheckoutOrder(repo, createMockPaymentGateway(), mismatch);
+        assert.equal(result.ok, false, 'a mismatched payload must not replay');
+        assert.equal(result.ok ? '' : result.code, 'IDEMPOTENCY_MISMATCH');
+        assert.equal(result.ok ? '' : result.field, 'idempotencyKey');
+        assert.ok(
+          !(result.ok ? '' : result.message).includes(first.orderId),
+          'the mismatch refusal must not disclose the existing order',
+        );
+      }
+
+      assert.equal(await orderCount(), beforeOrders + 1, 'one order, not five');
+      assert.equal(await stockOf('IDEM-A'), stockAfterFirst, 'no mismatch consumed stock');
+      assert.equal((await repo.findCouponByCode(COUPON_CODE))?.usedCount, couponUses);
+      assert.equal(await orderCountForKey(key), 1);
+    });
+
     it('e. a replay never invokes the payment gateway a second time', async () => {
       const authorised = createMockPaymentGateway({ outcome: 'AUTHORIZED' });
       let calls = 0;

@@ -15,6 +15,7 @@ import {
 
 import type { PaymentGateway } from '../payments/gateway';
 import type { CommerceRepository, PlaceOrderWriteResult } from '../repository';
+import { checkoutIntentHash } from './checkout-intent-hash';
 
 /**
  * D-172 §3.3/§3.4 — checkout, in two steps.
@@ -142,6 +143,12 @@ export async function placeCheckoutOrder(
   }
 
   const couponCode = draft.couponCode ? normalizeCouponCode(draft.couponCode) : null;
+  const intentHash = checkoutIntentHash({
+    lines: normalized.items,
+    customer: draft.customer,
+    couponCode,
+    shippingMethodId,
+  });
 
   let written: PlaceOrderWriteResult;
   try {
@@ -159,6 +166,7 @@ export async function placeCheckoutOrder(
       items: normalized.items,
       couponCode,
       idempotencyKey: draft.idempotencyKey,
+      intentHash,
       paymentRefId: null,
       // The trail's opening row records that the CUSTOMER created this order, as
       // opposed to the merchant or a callback moving it later.
