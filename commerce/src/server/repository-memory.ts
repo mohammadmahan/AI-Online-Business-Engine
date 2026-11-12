@@ -10,7 +10,12 @@ import {
   orderReference,
 } from '@/lib/notification-rules';
 import { stockLevelFor } from '@/lib/inventory-rules';
-import { shippingAmountFor } from '@/lib/shipping';
+import {
+  estimateParcel,
+  quoteShipping,
+  type ShippingConfig,
+} from '@/lib/shipping';
+import { getShippingConfig } from '@/server/shipping/config';
 import { normalizePhoneNumber, normalizePostalCode } from '@/lib/validation';
 
 import {
@@ -76,6 +81,8 @@ export interface MemoryRepositorySeed {
     totalAmount: number;
     discountAmount: number;
     shippingAmount: number;
+    carrierId?: string | null;
+    carrierName?: string | null;
     trackingCode: string | null;
     shippingAddress: string;
     paymentRefId: string | null;
@@ -246,6 +253,8 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
 
   const ordersTable: MemoryOrderRow[] = (seed.orders ?? []).map((order) => ({
     ...order,
+    carrierId: order.carrierId ?? null,
+    carrierName: order.carrierName ?? null,
     itemCount: order.items.reduce((total, item) => total + item.quantity, 0),
     // A seeded order carries no variant binding, so cancelling one restocks
     // nothing — the double cannot invent which variant it was.
@@ -698,6 +707,8 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         totalAmount: order.totalAmount,
         discountAmount: order.discountAmount,
         shippingAmount: order.shippingAmount,
+        carrierId: order.carrierId,
+        carrierName: order.carrierName,
         trackingCode: order.trackingCode,
         itemCount: order.itemCount,
         createdAt: order.createdAt,
@@ -927,15 +938,32 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       if (input.items.length === 0) {
         return { ok: false, code: 'EMPTY_CART', message: 'سبد خرید خالی است.' };
       }
-      const shipping = shippingAmountFor(input.shippingMethodId);
-      if (shipping === null) {
+      const shippingConfig: ShippingConfig = input.shippingConfig ?? getShippingConfig();
+      const parcel = estimateParcel(
+        shippingConfig.parcelPolicy,
+        input.items.reduce((total, item) => total + item.quantity, 0),
+      );
+      if (parcel === null) {
         return {
           ok: false,
-          code: 'SHIPPING_UNKNOWN',
-          message: 'روش ارسال انتخابی معتبر نیست.',
+          code: 'SHIPPING_INELIGIBLE',
+          message: 'سبد خرید برای ارسال از طریق این فروشگاه مناسب نیست.',
           field: 'shippingMethodId',
         };
       }
+      const quoted = quoteShipping(shippingConfig, input.shippingMethodId, {
+        address: input.shippingAddress,
+        parcel,
+      });
+      if (!quoted.ok) {
+        return {
+          ok: false,
+          code: quoted.code,
+          message: quoted.message,
+          field: 'shippingMethodId',
+        };
+      }
+      const shipping = quoted.quote.amount;
 
       const priced: Array<{ item: (typeof input.items)[number]; unitPrice: number }> = [];
       let subtotal = 0;
@@ -1029,6 +1057,8 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
         totalAmount: totals.total,
         discountAmount: totals.discount,
         shippingAmount: totals.shipping,
+        carrierId: quoted.quote.carrierId,
+        carrierName: quoted.quote.carrierName,
         trackingCode: null,
         shippingAddress: input.shippingAddress.trim(),
         paymentRefId: input.paymentRefId,

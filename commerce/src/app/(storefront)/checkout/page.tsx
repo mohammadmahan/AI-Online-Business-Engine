@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 
 import { CheckoutForm } from '@/components/storefront/checkout-form';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
+import type { ShippingConfig } from '@/lib/shipping';
 import { getRepository } from '@/server/db-context';
+import { getShippingConfig } from '@/server/shipping/config';
 
 /**
  * D-172 §3.4 — the one-step checkout.
@@ -23,6 +25,18 @@ export const dynamic = 'force-dynamic';
 
 export default function CheckoutPage() {
   const repository = getRepository();
+  let shippingConfig: ShippingConfig | null = null;
+  if (repository !== null) {
+    try {
+      shippingConfig = getShippingConfig();
+    } catch (error) {
+      // The startup guard should already have refused; this keeps a later bad
+      // runtime configuration from rendering a form that cannot price shipping.
+      console.error('[commerce] shipping configuration unavailable', {
+        name: error instanceof Error ? error.name : 'UnknownError',
+      });
+    }
+  }
 
   return (
     <>
@@ -34,8 +48,12 @@ export default function CheckoutPage() {
         <div className="mt-6">
           <StorefrontUnavailable what="فرم تسویهٔ خرید" />
         </div>
+      ) : shippingConfig === null ? (
+        <div className="mt-6">
+          <StorefrontUnavailable what="روش‌های ارسال" />
+        </div>
       ) : (
-        <CheckoutForm />
+        <CheckoutForm shippingConfig={shippingConfig} />
       )}
     </>
   );

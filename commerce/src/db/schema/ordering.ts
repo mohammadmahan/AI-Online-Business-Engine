@@ -63,6 +63,15 @@ export const orders = commerce.table(
     shippingAmount: bigint('shipping_amount', { mode: 'number' })
       .notNull()
       .default(0),
+    /**
+     * D-175 — the chosen carrier, snapshotted at placement.
+     *
+     * NULL is reserved for orders written before carriers existed. New orders
+     * write BOTH fields; no update path changes them, so the merchant reads what
+     * the customer chose even after the registry is reordered/disabled.
+     */
+    carrierId: varchar('carrier_id', { length: 64 }),
+    carrierName: varchar('carrier_name', { length: 255 }),
     status: orderStatus('status').notNull().default('PENDING'),
     /**
      * Checkout idempotency key, owned by the browser's checkout intent.
@@ -129,6 +138,10 @@ export const orders = commerce.table(
     check('orders_total_amount_non_negative', sql`${table.totalAmount} >= 0`),
     check('orders_discount_amount_non_negative', sql`${table.discountAmount} >= 0`),
     check('orders_shipping_amount_non_negative', sql`${table.shippingAmount} >= 0`),
+    check(
+      'orders_carrier_snapshot_complete',
+      sql`(${table.carrierId} is null and ${table.carrierName} is null) or (${table.carrierId} is not null and ${table.carrierId} <> '' and ${table.carrierName} is not null and ${table.carrierName} <> '')`,
+    ),
     check(
       'orders_payment_amount_positive',
       sql`${table.paymentAmount} is null or ${table.paymentAmount} > 0`,

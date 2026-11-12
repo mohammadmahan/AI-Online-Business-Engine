@@ -564,10 +564,12 @@ describe(
           total_amount: string;
           discount_amount: string;
           shipping_amount: string;
+          carrier_id: string | null;
+          carrier_name: string | null;
           payment_ref_id: string | null;
           shipping_address: string;
         }>(
-          `select status, total_amount, discount_amount, shipping_amount, payment_ref_id, shipping_address
+          `select status, total_amount, discount_amount, shipping_amount, carrier_id, carrier_name, payment_ref_id, shipping_address
              from commerce.orders where id = $1`,
           [placed.orderId],
         );
@@ -577,6 +579,8 @@ describe(
         assert.equal(Number(row?.total_amount), expected.total);
         assert.equal(Number(row?.discount_amount), expected.discount);
         assert.equal(Number(row?.shipping_amount), expected.shipping);
+        assert.equal(row?.carrier_id, DEFAULT_SHIPPING_METHOD_ID);
+        assert.equal(row?.carrier_name, 'پست ایران (پیشتاز)');
         assert.equal(row?.payment_ref_id, null, 'nothing was charged, so nothing is recorded');
         assert.equal(row?.shipping_address, 'تهران، خیابان ولیعصر، پلاک ۱۲، واحد ۳');
 
@@ -615,6 +619,38 @@ describe(
 
         // The stock the order consumed, read from the row.
         assert.equal(await stockOfSku('P3-BLK-S'), before - 2);
+      });
+
+      it('keeps the carrier snapshot immutable across a lifecycle transition', async () => {
+        const placed = await placeCheckoutOrder(
+          repo,
+          mockPaymentGateway,
+          draft({
+            shippingMethodId: 'EXPRESS_COURIER',
+            lines: [{ variantId: variantIds['P3-WHT-M'] as string, quantity: 1 }],
+          }),
+        );
+        assert.ok(placed.ok);
+
+        // Cancel rather than pay: this order is a lifecycle witness, not a sale,
+        // so it must not change the best-seller expectations below.
+        const moved = await transitionOrder(repo, placed.orderId, 'CANCELLED', MERCHANT_TRANSITION);
+        assert.deepEqual(moved, { ok: true });
+
+        const after = await pool.query<{
+          status: string;
+          carrier_id: string | null;
+          carrier_name: string | null;
+          shipping_amount: string;
+        }>(
+          `select status, carrier_id, carrier_name, shipping_amount
+             from commerce.orders where id = $1`,
+          [placed.orderId],
+        );
+        assert.equal(after.rows[0]?.status, 'CANCELLED');
+        assert.equal(after.rows[0]?.carrier_id, 'EXPRESS_COURIER');
+        assert.equal(after.rows[0]?.carrier_name, 'پیک محلی');
+        assert.equal(Number(after.rows[0]?.shipping_amount), 90_000);
       });
 
       it('refuses the oversell: the last pieces sell once, then the line is refused', async () => {

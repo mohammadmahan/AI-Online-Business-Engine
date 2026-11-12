@@ -1,0 +1,3 @@
+ALTER TABLE "commerce"."orders" ADD COLUMN "carrier_id" varchar(64);--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD COLUMN "carrier_name" varchar(255);--> statement-breakpoint
+ALTER TABLE "commerce"."orders" ADD CONSTRAINT "orders_carrier_snapshot_complete" CHECK (("commerce"."orders"."carrier_id" is null and "commerce"."orders"."carrier_name" is null) or ("commerce"."orders"."carrier_id" is not null and "commerce"."orders"."carrier_id" <> '' and "commerce"."orders"."carrier_name" is not null and "commerce"."orders"."carrier_name" <> ''));

@@ -21,7 +21,12 @@ import {
   type OrderNotificationChannel,
   type OrderNotificationKind,
 } from '@/lib/notification-rules';
-import { shippingAmountFor } from '@/lib/shipping';
+import {
+  estimateParcel,
+  quoteShipping,
+  type ShippingConfig,
+} from '@/lib/shipping';
+import { getShippingConfig } from '@/server/shipping/config';
 import { normalizePhoneNumber, normalizePostalCode } from '@/lib/validation';
 import {
   categories,
@@ -128,6 +133,9 @@ export interface OrderListItem {
   totalAmount: number;
   discountAmount: number;
   shippingAmount: number;
+  /** D-175 snapshot; NULL on orders written before carriers existed. */
+  carrierId: string | null;
+  carrierName: string | null;
   trackingCode: string | null;
   itemCount: number;
   createdAt: Date;
@@ -374,6 +382,8 @@ export interface PlaceOrderInput {
   customer: { fullName: string; phoneNumber: string; address: string; postalCode: string };
   shippingAddress: string;
   shippingMethodId: string;
+  /** Server-resolved registry snapshot; direct callers get the process config. */
+  shippingConfig?: ShippingConfig;
   items: Array<{ variantId: string; quantity: number }>;
   /** Coupon code, already upper-cased by the caller; `null` for none. */
   couponCode: string | null;
@@ -425,6 +435,8 @@ export type PlaceOrderWriteResult =
         | 'STOCK_INSUFFICIENT'
         | 'COUPON_INVALID'
         | 'SHIPPING_UNKNOWN'
+        | 'SHIPPING_DISABLED'
+        | 'SHIPPING_INELIGIBLE'
         | 'IDEMPOTENCY_MISMATCH';
       message: string;
       field?: string;
@@ -1443,6 +1455,8 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           totalAmount: orders.totalAmount,
           discountAmount: orders.discountAmount,
           shippingAmount: orders.shippingAmount,
+          carrierId: orders.carrierId,
+          carrierName: orders.carrierName,
           trackingCode: orders.trackingCode,
           createdAt: orders.createdAt,
           itemCount: sql<number>`coalesce(sum(${orderItems.quantity}), 0)`,
@@ -1465,6 +1479,8 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
           totalAmount: orders.totalAmount,
           discountAmount: orders.discountAmount,
           shippingAmount: orders.shippingAmount,
+          carrierId: orders.carrierId,
+          carrierName: orders.carrierName,
           trackingCode: orders.trackingCode,
           createdAt: orders.createdAt,
           shippingAddress: orders.shippingAddress,
@@ -1796,15 +1812,35 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         return { ok: false, code: 'EMPTY_CART', message: 'سبد خرید خالی است.' };
       }
 
-      const shippingAmount = shippingAmountFor(input.shippingMethodId);
-      if (shippingAmount === null) {
+      // D-175 — the server re-derives the quote from the registry, the address
+      // and the cart quantity. The browser sends only a carrier id, never a
+      // price, and a disabled/ineligible carrier is refused rather than swapped.
+      const shippingConfig = input.shippingConfig ?? getShippingConfig();
+      const parcel = estimateParcel(
+        shippingConfig.parcelPolicy,
+        input.items.reduce((total, item) => total + item.quantity, 0),
+      );
+      if (parcel === null) {
         return {
           ok: false,
-          code: 'SHIPPING_UNKNOWN',
-          message: 'روش ارسال انتخابی معتبر نیست.',
+          code: 'SHIPPING_INELIGIBLE',
+          message: 'سبد خرید برای ارسال از طریق این فروشگاه مناسب نیست.',
           field: 'shippingMethodId',
         };
       }
+      const shippingQuote = quoteShipping(shippingConfig, input.shippingMethodId, {
+        address: input.shippingAddress,
+        parcel,
+      });
+      if (!shippingQuote.ok) {
+        return {
+          ok: false,
+          code: shippingQuote.code,
+          message: shippingQuote.message,
+          field: 'shippingMethodId',
+        };
+      }
+      const shippingAmount = shippingQuote.quote.amount;
 
       try {
         return await db.transaction(async (tx) => {
@@ -1977,6 +2013,8 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
                   totalAmount: totals.total,
                   discountAmount: totals.discount,
                   shippingAmount: totals.shipping,
+                  carrierId: shippingQuote.quote.carrierId,
+                  carrierName: shippingQuote.quote.carrierName,
                   status: 'PENDING',
                   idempotencyKey,
                   checkoutIntentHash: input.intentHash ?? null,
@@ -1992,6 +2030,8 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
                   totalAmount: totals.total,
                   discountAmount: totals.discount,
                   shippingAmount: totals.shipping,
+                  carrierId: shippingQuote.quote.carrierId,
+                  carrierName: shippingQuote.quote.carrierName,
                   status: 'PENDING',
                   paymentRefId: input.paymentRefId,
                   shippingAddress: input.shippingAddress.trim(),

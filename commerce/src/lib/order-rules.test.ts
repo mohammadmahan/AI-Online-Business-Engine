@@ -124,6 +124,8 @@ function order(overrides: Partial<OrderDetail> = {}): OrderDetail {
     totalAmount: 1_000_000,
     discountAmount: 0,
     shippingAmount: 50_000,
+    carrierId: null,
+    carrierName: null,
     trackingCode: null,
     createdAt: new Date('2026-10-01T10:00:00.000Z'),
     itemCount: 2,

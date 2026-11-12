@@ -57,6 +57,13 @@
       "when": 1794394839716,
       "tag": "0007_fluffy_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794477962541,
+      "tag": "0008_giant_glorian",
+      "breakpoints": true
     }
   ]
 }

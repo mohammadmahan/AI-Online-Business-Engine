@@ -181,7 +181,31 @@ async function runFull(browser) {
   await page.getByLabel('شمارهٔ موبایل').fill('09120000000');
   await page.getByLabel('نشانی').fill('تهران، خیابان آزمایشی، پلاک ۱، واحد ۱');
   await page.getByLabel('کد پستی').fill('1111111111');
-  await page.getByRole('radio', { name: /پست پیشتاز/ }).check();
+
+  // D-175 — the Tehran address makes all three approved carriers eligible.
+  const carrierRadios = page.locator('input[name="checkout-shipping"]');
+  await page.waitForFunction(
+    () => document.querySelectorAll('input[name="checkout-shipping"]').length === 3,
+    null,
+    { timeout: 10_000 },
+  );
+  const carrierLabels = await page
+    .locator('input[name="checkout-shipping"]')
+    .evaluateAll((inputs) =>
+      inputs.map((input) => input.closest('label')?.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
+    );
+  record(
+    carrierLabels.length === 3 &&
+      carrierLabels[0].includes('پست ایران') &&
+      carrierLabels[1].includes('تیپاکس') &&
+      carrierLabels[2].includes('پیک محلی'),
+    'checkout shows three eligible carriers in priority order',
+    carrierLabels.join(' | '),
+  );
+  record(await carrierRadios.first().isChecked(), 'first eligible carrier is preselected');
+  await page.getByRole('radio', { name: /پیک محلی/ }).check();
+  record(await page.getByRole('radio', { name: /پیک محلی/ }).isChecked(), 'carrier selection is changeable');
+
   await page.getByRole('button', { name: 'ثبت سفارش' }).click();
   await page.getByRole('heading', { name: 'سفارش ثبت شد' }).waitFor({ timeout: 30_000 });
   const successText = await page.locator('body').innerText();
@@ -209,6 +233,7 @@ async function runFull(browser) {
     record(ordersText.includes(orderId.slice(0, 8)), 'merchant order list shows the synthetic order', orderId.slice(0, 8));
     record(ordersText.includes('PENDING'), 'merchant order list shows PENDING');
     record(ordersText.includes('کاربر آزمایشی ال‌اس‌ای'), 'merchant order list shows synthetic customer');
+    record(ordersText.includes('پیک محلی'), 'merchant order list shows the stored carrier');
   }
 
   const known = await fetch(`${base}/products/manto-katan-jelo-baste`, { redirect: 'manual' });

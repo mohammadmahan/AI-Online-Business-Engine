@@ -1,5 +1,6 @@
 import { formatCountFa, formatDateFa, formatMachineCode, formatToman } from '@/lib/format';
 import { ORDER_STATUS_LABELS, computeTotals } from '@/lib/order-rules';
+import { LEGACY_CARRIER_LABEL } from '@/lib/shipping';
 import type { OrderDetail } from '@/server/repository';
 import { Banner } from '@/components/ui/primitives';
 
@@ -57,6 +58,10 @@ export function PackingSlip({ order }: { order: OrderDetail }) {
           <p className="mt-1 text-cp-label text-ink">{order.shippingAddress}</p>
           <p className="text-cp-label text-ink-muted">
             کد پستی: <span className="cp-code">{order.postalCode}</span>
+          </p>
+          <p className="mt-1 text-cp-label text-ink-muted">
+            حامل: {order.carrierName ?? LEGACY_CARRIER_LABEL}
+            {order.carrierId ? <span className="cp-code"> ({order.carrierId})</span> : null}
           </p>
         </div>
         <div>

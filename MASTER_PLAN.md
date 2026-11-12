@@ -410,6 +410,16 @@ It remains loopback/local/mock only: production deployment, real payment/SMS,
 live webhooks, paid AI and every provider/credential gate remain unauthorized
 (D-045 / D-139).
 
+**Multi-Carrier Shipping Track (MCS, D-175, 2026-11-12).** The owner approved a
+local three-carrier shipping layer — Iran Post, Tipax and local courier — with a
+declarative registry (enablement, priority, coverage, limits, pricing, ETA,
+capabilities), configuration-only all/subset/single modes, server-authoritative
+eligibility and price, immutable carrier persistence on the order, merchant
+visibility, and one sandbox adapter contract per carrier. Its canonical checklist
+is [`docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md`](docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md).
+No real carrier credential, contract, API call, label purchase or production
+deployment is authorized; D-045/D-139 still gate go-live.
+
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
 documents link (the read-before-work order is `PROJECT_RULES.md` §2).

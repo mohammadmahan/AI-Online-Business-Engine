@@ -232,6 +232,8 @@ export interface OrderRefused {
     | 'STOCK_INSUFFICIENT'
     | 'COUPON_INVALID'
     | 'SHIPPING_UNKNOWN'
+    | 'SHIPPING_DISABLED'
+    | 'SHIPPING_INELIGIBLE'
     | 'IDEMPOTENCY_MISMATCH'
     | 'UNEXPECTED';
   message: string;

@@ -5,7 +5,7 @@ import type {
   PlaceOrderResult,
 } from '@/contracts/storefront';
 import { quantityProblem } from '@/lib/checkout-rules';
-import { shippingAmountFor } from '@/lib/shipping';
+import { estimateParcel, quoteShipping, type ShippingConfig } from '@/lib/shipping';
 import {
   isUuid,
   issuesToMessage,
@@ -15,6 +15,7 @@ import {
 
 import type { PaymentGateway } from '../payments/gateway';
 import type { CommerceRepository, PlaceOrderWriteResult } from '../repository';
+import { getShippingConfig } from '../shipping/config';
 import { checkoutIntentHash } from './checkout-intent-hash';
 
 /**
@@ -108,6 +109,7 @@ export async function placeCheckoutOrder(
   repo: CommerceRepository,
   gateway: PaymentGateway,
   draft: CheckoutDraft,
+  shippingConfig: ShippingConfig = getShippingConfig(),
 ): Promise<PlaceOrderResult> {
   if (!isUuid(draft.idempotencyKey)) {
     return validationRefusal('شناسهٔ یکتای تسویه معتبر نیست.', 'idempotencyKey');
@@ -133,11 +135,27 @@ export async function placeCheckoutOrder(
   }
 
   const shippingMethodId = typeof draft.shippingMethodId === 'string' ? draft.shippingMethodId : '';
-  if (shippingAmountFor(shippingMethodId) === null) {
+  const parcel = estimateParcel(
+    shippingConfig.parcelPolicy,
+    normalized.items.reduce((total, item) => total + item.quantity, 0),
+  );
+  if (parcel === null) {
     return {
       ok: false,
-      code: 'SHIPPING_UNKNOWN',
-      message: 'روش ارسال انتخابی معتبر نیست.',
+      code: 'SHIPPING_INELIGIBLE',
+      message: 'سبد خرید برای ارسال از طریق این فروشگاه مناسب نیست.',
+      field: 'shippingMethodId',
+    };
+  }
+  const shippingQuote = quoteShipping(shippingConfig, shippingMethodId, {
+    address: draft.customer.address,
+    parcel,
+  });
+  if (!shippingQuote.ok) {
+    return {
+      ok: false,
+      code: shippingQuote.code,
+      message: shippingQuote.message,
       field: 'shippingMethodId',
     };
   }
@@ -163,6 +181,7 @@ export async function placeCheckoutOrder(
       // the stored customer profile is never overwritten by it.
       shippingAddress: draft.customer.address,
       shippingMethodId,
+      shippingConfig,
       items: normalized.items,
       couponCode,
       idempotencyKey: draft.idempotencyKey,

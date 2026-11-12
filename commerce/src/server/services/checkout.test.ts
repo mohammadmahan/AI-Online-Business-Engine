@@ -4,7 +4,12 @@ import { describe, it } from 'node:test';
 import type { ProductCreatePayload } from '@/contracts/catalog';
 import type { CheckoutDraft } from '@/contracts/storefront';
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
-import { DEFAULT_SHIPPING_METHOD_ID, shippingAmountFor } from '@/lib/shipping';
+import {
+  DEFAULT_SHIPPING_METHOD_ID,
+  VALIDATED_DEFAULT_SHIPPING_CONFIG,
+  applyShippingOverrides,
+  shippingAmountFor,
+} from '@/lib/shipping';
 import { createMockPaymentGateway, mockPaymentGateway } from '@/server/payments/gateway';
 import { createMemoryRepository } from '@/server/repository-memory';
 import type { MemoryRepositorySeed } from '@/server/repository-memory';
@@ -278,6 +283,83 @@ describe('placeCheckoutOrder — the write path (§3.4)', () => {
       (await getOrder(repository, placed.orderId))?.paymentRefId,
       placed.payment.reference,
     );
+  });
+});
+
+describe('carrier eligibility and persistence (D-175)', () => {
+  it('refuses an ineligible single-carrier destination and writes nothing', async () => {
+    const { repository, blackSmall } = await harness();
+    const localOnly = applyShippingOverrides(VALIDATED_DEFAULT_SHIPPING_CONFIG, {
+      enabled: 'EXPRESS_COURIER',
+    });
+
+    const refused = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({
+        customer: {
+          ...draft().customer,
+          address: 'مشهد، بلوار وکیل‌آباد، پلاک ۱',
+        },
+        shippingMethodId: 'EXPRESS_COURIER',
+        lines: [{ variantId: blackSmall, quantity: 1 }],
+      }),
+      localOnly,
+    );
+    assert.equal(refused.ok, false);
+    assert.equal(!refused.ok && refused.code, 'SHIPPING_INELIGIBLE');
+    assert.deepEqual(await listOrders(repository), []);
+    assert.equal(await stockOf(repository, blackSmall), 4);
+  });
+
+  it('refuses a carrier disabled by configuration, without fallback', async () => {
+    const { repository, blackSmall } = await harness();
+    const subset = applyShippingOverrides(VALIDATED_DEFAULT_SHIPPING_CONFIG, {
+      enabled: 'POST_PISHTAZ,EXPRESS_COURIER',
+    });
+
+    const refused = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({
+        shippingMethodId: 'TIPAX_PAY_ON_DELIVERY',
+        lines: [{ variantId: blackSmall, quantity: 1 }],
+      }),
+      subset,
+    );
+    assert.equal(refused.ok, false);
+    assert.equal(!refused.ok && refused.code, 'SHIPPING_DISABLED');
+    assert.deepEqual(await listOrders(repository), []);
+  });
+
+  it('stores the chosen carrier snapshot, its server quote and keeps it across a transition', async () => {
+    const { repository, blackSmall } = await harness();
+    const placed = await placeCheckoutOrder(
+      repository,
+      mockPaymentGateway,
+      draft({
+        shippingMethodId: 'EXPRESS_COURIER',
+        lines: [{ variantId: blackSmall, quantity: 1 }],
+      }),
+    );
+    assert.ok(placed.ok);
+    assert.equal(placed.totals.shipping, 90_000);
+
+    const before = (await listOrders(repository))[0];
+    assert.ok(before);
+    assert.equal(before.carrierId, 'EXPRESS_COURIER');
+    assert.equal(before.carrierName, 'پیک محلی');
+    assert.equal(before.shippingAmount, placed.totals.shipping);
+    assert.equal(before.totalAmount, placed.totals.total);
+
+    assert.deepEqual(
+      await transitionOrder(repository, placed.orderId, 'PAID', MERCHANT_TRANSITION),
+      { ok: true },
+    );
+    const after = (await getOrder(repository, placed.orderId)) ?? null;
+    assert.equal(after?.carrierId, 'EXPRESS_COURIER');
+    assert.equal(after?.carrierName, 'پیک محلی');
+    assert.equal(after?.shippingAmount, 90_000);
   });
 });
 

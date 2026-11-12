@@ -14,7 +14,13 @@ import { type CheckoutFieldErrors, submitCheckout } from '@/lib/checkout-submit'
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
 import { fieldA11y } from '@/lib/field-a11y';
 import { formatCountFa, formatToman } from '@/lib/format';
-import { DEFAULT_SHIPPING_METHOD_ID, SHIPPING_METHODS, shippingAmountFor } from '@/lib/shipping';
+import {
+  DEFAULT_SHIPPING_METHOD_ID,
+  NO_ELIGIBLE_CARRIER_MESSAGE,
+  eligibleShippingOptions,
+  estimateParcel,
+  type ShippingConfig,
+} from '@/lib/shipping';
 import {
   CHECKOUT_TOTAL_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -85,7 +91,7 @@ function checkoutKeyStorage(): CheckoutKeyStorage {
  * means) live in `@/lib/checkout-submit`, where they are exercised without a
  * browser — the same split the PDP's selection rules use.
  */
-export function CheckoutForm() {
+export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfig }) {
   const { lines, subtotal, hydrated, clear } = useCart();
 
   const [fullName, setFullName] = useState('');
@@ -112,7 +118,18 @@ export function CheckoutForm() {
    */
   const inFlight = useRef(false);
 
-  const shipping = shippingAmountFor(shippingMethodId) ?? 0;
+  const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+  const parcel = estimateParcel(shippingConfig.parcelPolicy, totalQuantity);
+  const eligible = parcel
+    ? eligibleShippingOptions(shippingConfig, { address, parcel })
+    : [];
+  const selected = eligible.find((option) => option.carrierId === shippingMethodId) ?? eligible[0];
+  const selectedCarrierId = selected?.carrierId ?? '';
+
+  // Address/cart changes can invalidate the previous choice. Deriving the
+  // effective selection (instead of syncing it in an effect) keeps the first
+  // eligible option authoritative without a cascading render.
+  const shipping = selected?.amount ?? 0;
   const preview: CheckoutTotals = computeCheckoutTotals({ subtotal, discount: 0, shipping });
 
   if (!hydrated) {
@@ -143,6 +160,10 @@ export function CheckoutForm() {
     if (inFlight.current) {
       return;
     }
+    if (selectedCarrierId === '') {
+      setSubmitError(NO_ELIGIBLE_CARRIER_MESSAGE);
+      return;
+    }
     inFlight.current = true;
     setBusy(true);
     setErrors({});
@@ -155,7 +176,7 @@ export function CheckoutForm() {
       lines: lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity })),
       customer: { fullName, phoneNumber, address, postalCode },
       couponCode: couponCode.trim() === '' ? null : couponCode,
-      shippingMethodId,
+      shippingMethodId: selectedCarrierId,
     };
 
     try {
@@ -163,7 +184,7 @@ export function CheckoutForm() {
         {
           customer: { fullName, phoneNumber, address, postalCode },
           couponCode,
-          shippingMethodId,
+          shippingMethodId: selectedCarrierId,
           cartLines: lines,
           idempotencyKey: checkoutIdempotencyKey(intent, keyStorage),
         },
@@ -314,33 +335,45 @@ export function CheckoutForm() {
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-cp-label font-medium text-ink">روش ارسال</legend>
-            {SHIPPING_METHODS.map((method) => (
-              <label
-                key={method.id}
-                className="flex items-start gap-2 rounded-[--radius-cp] border border-edge p-2 text-cp-label text-ink"
-              >
-                <input
-                  type="radio"
-                  name="checkout-shipping"
-                  value={method.id}
-                  checked={shippingMethodId === method.id}
-                  onChange={() => setShippingMethodId(method.id)}
-                />
-                <span>
-                  <span className="font-medium">{method.label}</span>
-                  <span className="cp-code block text-cp-caption text-ink-muted">
-                    {method.amount === 0 ? 'هزینه با گیرنده' : formatToman(method.amount)}
+            {eligible.length === 0 ? (
+              <p className="rounded-[--radius-cp] border border-dashed border-edge-strong bg-surface-muted p-3 text-cp-label text-ink-muted">
+                {NO_ELIGIBLE_CARRIER_MESSAGE}
+              </p>
+            ) : (
+              eligible.map((option) => (
+                <label
+                  key={option.carrierId}
+                  className="flex items-start gap-2 rounded-[--radius-cp] border border-edge p-2 text-cp-label text-ink"
+                >
+                  <input
+                    type="radio"
+                    name="checkout-shipping"
+                    value={option.carrierId}
+                    checked={selectedCarrierId === option.carrierId}
+                    onChange={() => setShippingMethodId(option.carrierId)}
+                  />
+                  <span>
+                    <span className="font-medium">{option.carrierName}</span>
+                    <span className="cp-code block text-cp-caption text-ink-muted">
+                      {option.amount === 0 ? 'هزینه با گیرنده' : formatToman(option.amount)}
+                    </span>
+                    <span className="block text-cp-caption text-ink-muted">
+                      {option.deliveryEstimate.label}
+                      {option.capabilities.pickupPoint ? ' · تحویل در نقطهٔ تحویل' : ''}
+                    </span>
                   </span>
-                  <span className="block text-cp-caption text-ink-muted">
-                    {method.description}
-                  </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              ))
+            )}
           </fieldset>
 
           <div>
-            <button type="submit" className={buttonClass.primary} disabled={busy} aria-busy={busy}>
+            <button
+              type="submit"
+              className={buttonClass.primary}
+              disabled={busy || eligible.length === 0}
+              aria-busy={busy}
+            >
               {busy ? 'در حال ثبت سفارش…' : 'ثبت سفارش'}
             </button>
           </div>

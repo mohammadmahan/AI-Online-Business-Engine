@@ -6315,7 +6315,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 8 | Secret-management tooling | Concept resolved: D-045 + Batch 2 extension (environment separation, reference-based credentials, rotation concept, redaction, Git/prompt exclusion — `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §12); concrete tooling selection **Open** | First credential | 5 |
 | 9 | AI provider(s) — concrete vendor/model selection (OpenAI / Anthropic / local) + credentials; D-062 makes selection a drop-in `AiProvider`, D-045 gates credentials | Open | Owner selection + connectivity milestone | 7 |
 | 10 | ~~Iranian payment provider~~ — **RESOLVED 2026-10-23 (owner ruling): ZarinPal SELECTED as PRIMARY**, adapted behind the EXISTING seam `commerce/src/server/payments/gateway.ts` (`PaymentGateway.authorize()` / `.verifyCallback()`) for roadmap §6.1. **Architecture: adapter pattern; provider swappable** — Zibal, NextPay or any other Iranian gateway drops in behind the SAME interface with **no change to the order write path and NO new dispatch path**. Credentials, callback signature scheme and accepted event set are still owner-supplied and do not exist yet (D-045). **AMENDED 2026-10-24 — local/demo Mock Payment Sandbox (append-only; adds NO provider and moves NO gate).** `PAYMENT_MODE=mock` (exact value, case-folded) selects the OFFLINE mock adapter — `authorize()` answers `AUTHORIZED` with a `MOCK-` reference and redirects to `/api/payments/mock/callback?reference=MOCK-<orderId>`; that route is `404` unless the same mode is on AND `NODE_ENV` is not `production`, and production refuses the selection itself. Nothing contacts ZarinPal, no credential is read, and the order stays `PENDING` until the callback applies `PAID` through the SAME `applyPaymentCallback` the signed webhook and the ZarinPal return use (one transition service, one audit vocabulary, one idempotency boundary): a replay is `duplicate` and writes no second audit row, no stock movement and no second SMS job, because the confirmation is only QUEUED in `commerce.notification_outbox` and the default `MockSmsChannel` sends nothing (D-045). A `MOCK-` reference cannot be honoured by the ZarinPal return (no durable `(zarinpal, authority)` record), and the demo route refuses any reference without the prefix. Evidence: `npm test` 324/324 across 79 suites, `typecheck` 0, `lint` 0, `build` 0 with the new dynamic route. This is a LOCAL/DEMO sandbox, not a live integration: no credential exists and no sandbox round-trip was run, so the §6.1 build remains the outstanding work | Resolved 2026-10-23 | — (selection closed; the §6.1 build is the remaining work) | 12 (fashion track §6.1 — gate G2) |
-| 11 | Iranian shipping provider | Open | Shipping go-live | 13 |
+| 11 | Iranian shipping provider | ~~Open~~ **Selected for the local/mock layer 2026-11-12 (D-175): three-carrier registry — Iran Post, Tipax, local courier — with configuration-only enablement/priority/coverage/pricing.** Real credentials, contracts, API calls and go-live remain **Open and owner-gated** (D-045/D-139); no live carrier is activated. | Shipping go-live (local layer built) | 13 |
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
 | 13 | ~~Variant-defining attributes~~ — resolved: D-018 **Approved** ({color, size}, per-axis applicability) | Resolved | — | 2 (done) |
 | 14 | ~~Variant ID generation mechanism~~ — resolved: D-017 **Approved** (UUIDv4) | Resolved | — | 2 (done) |
@@ -6499,3 +6499,48 @@ untracked files.
 **Status:** COMPLETED 2026-11-12 (local/offline verification); completion evidence
 is appended to the LSE track document and `TODO.md`. This decision changes no
 production, credential or provider authorization.
+
+---
+
+## D-175 — Multi-carrier shipping registry and selection policy
+
+**Date:** 2026-11-12
+**Status:** Approved by direct owner instruction
+**Source:** the owner approved the next track: a multi-carrier shipping provider
+layer with three selectable checkout options (Iran Post, Tipax, local courier),
+configuration-only disablement/restriction, and no code changes for those modes.
+
+**Decision.** Implement the **MCS — Multi-Carrier Shipping Track** in
+`docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md`. Commerce gains one declarative
+carrier registry and one selection/quote policy:
+
+- stable existing ids `POST_PISHTAZ` (Iran Post), `TIPAX_PAY_ON_DELIVERY`
+  (Tipax) and `EXPRESS_COURIER` (local courier);
+- carrier enablement, priority, coverage, weight/dimension limits, pricing, ETA
+  and capability flags in the registry, not in checkout/order code;
+- three configuration modes through `COMMERCE_SHIPPING_ENABLED` only — all,
+  subset, exactly one (and `none` as a fail-closed negative mode); optional
+  priority override and a validated full JSON override;
+- checkout shows only enabled+eligible carriers, ordered by priority, with the
+  first eligible preselected and an explicit no-eligible refusal;
+- the chosen carrier is stored immutably on the order (`carrier_id` +
+  `carrier_name`) and shown to the merchant; legacy NULL orders remain valid;
+- one adapter interface with deterministic address-free parcel/shipment hashes
+  and a local sandbox adapter per carrier, 15 s timeout, bounded retries only for
+  transient errors, and **no fallback** to another carrier.
+
+**Boundary.** This selects/records a local shipping choice layer only. It does
+not call Iran Post, Tipax or any courier endpoint, does not buy labels, does not
+issue barcodes and does not wire the Python Phase 12 `SandboxCarrier` /
+`Phase12Attestation` / OMS boundary. Real carrier credentials, contracts, API
+calls, tracking and go-live remain owner-gated (D-045 / D-139). Payment, SMS,
+media, AI and deployment are unchanged.
+
+**Known local constraint.** Commerce has no per-SKU weight/dimension data; MCS
+uses a declared parcel-estimation policy (packaging grams + grams per item +
+fixed parcel dimensions) and validates it against carrier limits. This is
+documented, not presented as a real carrier measurement.
+
+**Status:** implementation and local verification recorded in the MCS track
+document and `TODO.md`. This decision changes no production, credential or
+provider authorization.

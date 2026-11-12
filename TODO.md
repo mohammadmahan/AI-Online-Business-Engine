@@ -2642,12 +2642,35 @@ repository hygiene, not deployment authorization.
             - [x] **LSE-06** Final offline/live-local/E2E verification and
                   evidence close-out — DONE 2026-11-12 (547/547 offline;
                   87/87 live; build 22 routes)
+      - [x] **MCS — Multi-Carrier Shipping Track (D-175, owner-approved
+            2026-11-12).** **COMPLETE (local/offline) 2026-11-12.** Canonical
+            checklist:
+            [`docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md`](docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md).
+            Iran Post, Tipax and local courier behind one data-driven registry;
+            all/subset/single enabled by configuration only. Local/mock only;
+            real carrier credentials, API calls and go-live remain D-045/D-139.
+            - [x] **MCS-01** Baseline, canonical track document and decision
+                  reconciliation
+            - [x] **MCS-02** Registry, validation, parcel estimate and pure
+                  eligibility/quote + unit tests (11 registry + 7 config tests)
+            - [x] **MCS-03** Order carrier persistence/migration, legacy fallback
+                  and live tests (migration `0008`; live 88/88)
+            - [x] **MCS-04** Server-authoritative checkout validation and dynamic
+                  client selection
+            - [x] **MCS-05** Adapter contract, hashes and three sandbox adapters
+                  with timeout/retry/no-fallback tests (7/7)
+            - [x] **MCS-06** Admin order and packing-slip carrier visibility
+            - [x] **MCS-07** E2E extension and all/subset/single/no-eligible tests
+                  (E2E 59/59)
+            - [x] **MCS-08** Full verification, evidence and close-out
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable
                   behind the same `PaymentGateway` seam, no new dispatch path
             - [ ] **O** Shipping provider — decision-register row 11 —
-                  **still OPEN**; stays mock-only, no carrier integration
+                  **local/mock three-carrier layer SELECTED 2026-11-12
+                  (D-175: Iran Post, Tipax, local courier)**; real credentials,
+                  API calls and go-live remain OPEN and owner-gated
             - [x] **O** SMS provider — decision-register row 74 —
                   **SELECTED 2026-10-23: Kavenegar (primary)**; stays swappable
                   behind the same `ChannelAdapter` seam, no second dispatch path

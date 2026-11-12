@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import type { OrderStatus } from '@/db/schema';
 import { formatCountFa, formatDateTimeFa, formatMachineCode, formatToman } from '@/lib/format';
+import { LEGACY_CARRIER_LABEL } from '@/lib/shipping';
 import {
   ORDER_STATUS_LABELS,
   canSetTracking,
@@ -113,6 +114,7 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
               <Th>مشتری</Th>
               <Th>وضعیت</Th>
               <Th>مبلغ کل</Th>
+              <Th>حامل</Th>
               <Th>اقلام</Th>
               <Th>تاریخ ثبت</Th>
               <Th>کد رهگیری</Th>
@@ -140,6 +142,12 @@ export function OrderWorkspace({ orders }: { orders: OrderListItem[] }) {
                   </Badge>
                 </Td>
                 <Td>{formatToman(order.totalAmount)}</Td>
+                <Td>
+                  {order.carrierName ?? LEGACY_CARRIER_LABEL}
+                  <span className="block cp-code text-cp-caption text-ink-muted">
+                    {order.carrierId ?? '—'}
+                  </span>
+                </Td>
                 <Td>{formatCountFa(order.itemCount)}</Td>
                 <Td>{formatDateTimeFa(order.createdAt)}</Td>
                 <Td>

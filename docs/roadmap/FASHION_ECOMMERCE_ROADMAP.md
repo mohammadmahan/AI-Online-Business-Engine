@@ -771,6 +771,18 @@ disposable loopback harness, local media and system Chrome. It grants no
 deployment, payment, SMS, webhook, AI or provider authorization. LSE tasks
 `LSE-01`…`LSE-06` and their evidence live in that document.
 
+#### Multi-Carrier Shipping Track (MCS, D-175, 2026-11-12)
+
+**The owner approved a local three-carrier layer: Iran Post, Tipax and local
+courier.** `MULTI_CARRIER_SHIPPING_TRACK.md` is the checklist. It replaces the
+hardcoded checkout array with a declarative registry (enablement, priority,
+coverage, weight/dimension limits, pricing, ETA, capabilities), configuration-only
+all/subset/single modes, eligibility + server-authoritative quote, immutable
+carrier persistence on the order, admin visibility, and one sandbox adapter
+contract per carrier. Real carrier credentials, contracts, API calls, label
+purchase and go-live remain owner-gated (D-045/D-139); the canonical Phase 12
+`SandboxCarrier`/`Phase12Attestation` boundary is untouched.
+
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 

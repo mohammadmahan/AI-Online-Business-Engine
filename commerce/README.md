@@ -197,6 +197,38 @@ harness. Payment stays `UNAVAILABLE`; no real provider is called.
 Full runbook, scope and owner gates:
 [`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`](../docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md).
 
+## Multi-carrier shipping (D-175) — local/mock only
+
+Checkout reads ONE registry from `src/lib/shipping.ts`: Iran Post
+(`POST_PISHTAZ`), Tipax (`TIPAX_PAY_ON_DELIVERY`) and local courier
+(`EXPRESS_COURIER`). Each record declares enablement, priority, coverage, weight/
+dimension limits, pricing, ETA and capability flags. The browser receives the
+resolved snapshot from the server checkout page; the server recomputes the same
+quote before writing the order and stores `carrier_id`, `carrier_name` and the
+shipping amount. Historical orders with no carrier remain valid and show
+«ثبت‌نشده (سفارش قدیمی)».
+
+Configuration only — no checkout/order code change:
+
+```bash
+# all three (default): leave unset
+# subset:
+COMMERCE_SHIPPING_ENABLED=POST_PISHTAZ,TIPAX_PAY_ON_DELIVERY
+# exactly one:
+COMMERCE_SHIPPING_ENABLED=EXPRESS_COURIER
+# emergency/negative: none eligible
+COMMERCE_SHIPPING_ENABLED=none
+# optional order override:
+COMMERCE_SHIPPING_PRIORITY=EXPRESS_COURIER,POST_PISHTAZ,TIPAX_PAY_ON_DELIVERY
+```
+
+Invalid lists/JSON are rejected at server startup (`src/instrumentation.ts`).
+The adapter contract and three local sandboxes live under `src/server/shipping/`;
+no carrier network call, credential, label purchase or shipment persistence
+exists. Real carrier integration remains owner-gated (D-045/D-139).
+
+Checklist: [`docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md`](../docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md).
+
 ## Local media (G-5) — filesystem store, or MinIO
 
 Two LOCAL backends sit behind the provider-neutral `MediaStoreAdapter`, selected
