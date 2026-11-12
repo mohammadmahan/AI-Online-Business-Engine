@@ -6463,3 +6463,39 @@ direct owner sign-off, not an inference from code, tests or a prior document.
   whole update back. Existing row ids are preserved without revalidating or
   migrating legacy database images. This is local/offline hardening only and
   changes no production, credential or provider authorization.
+
+---
+
+## D-174 — Local Storefront & E2E Verification Track (LSE)
+
+**Date:** 2026-11-12
+**Status:** Approved by direct owner instruction
+**Source:** the current owner instruction: document and execute the next safe
+local/offline track, treating the prior storefront/E2E proposal as a hypothesis
+to verify against the repository.
+
+**Decision.** The next local/offline track is **LSE — Local Storefront & E2E
+Verification Track**, recorded in
+`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`. It verifies the ALREADY
+IMPLEMENTED D-172 customer storefront and merchant order surface against a
+disposable loopback PostgreSQL harness, local/mock providers and system Chrome.
+It does not build a second storefront, adopt WooCommerce, replace the D-172
+SSOT, add a database/vendor, or authorize a deployment.
+
+**Scope.** Repeatable browser checks for the homepage, catalog, PDP, cart,
+checkout, fail-closed surfaces, HTTP status, responsive/RTL behavior, basic
+accessibility and merchant order reconciliation; plus the local runbook,
+seed/reset procedure and evidence record. Tasks are `LSE-01`…`LSE-06` in the
+track document.
+
+**Non-goals and unchanged gates.** Production/staging deployment (D-139),
+real ZarinPal payment or credentials, real Kavenegar SMS, live webhooks, paid
+external AI, destructive data changes, production media provider (G-5),
+shipping provider (row 11), and D-168 sealed-template re-attestation remain
+owner-gated. The phase-6 **B1 credentials** row is unchanged. LSE may use only
+local synthetic data and may not touch `.cloud-attachments/` or user-owned
+untracked files.
+
+**Status:** COMPLETED 2026-11-12 (local/offline verification); completion evidence
+is appended to the LSE track document and `TODO.md`. This decision changes no
+production, credential or provider authorization.

@@ -2621,6 +2621,27 @@ repository hygiene, not deployment authorization.
             only. The phase-6 checklist's **B1 credentials** item
             (ZarinPal/Kavenegar IDs, dispatch token, webhook secret) remains
             unchecked and owner-gated (D-045).
+      - [ ] **LSE — Local Storefront & E2E Verification Track (D-174,
+            owner-directed 2026-11-12).** Canonical checklist:
+            [`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`](docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md).
+            This verifies the ALREADY IMPLEMENTED storefront; it is not a second
+            storefront, not WooCommerce, and not production authorization.
+            - [x] **LSE-01** Baseline reconciliation and canonical LSE record —
+                  DONE 2026-11-12 (baseline `e30d42d`; historical pilot/graph
+                  records classified; no code changed)
+            - [x] **LSE-02** Repeatable E2E harness (`check:e2e`, loopback guard,
+                  system Chrome, PASS/FAIL report) — DONE 2026-11-12
+            - [x] **LSE-03** Storefront golden path: home → catalog → PDP →
+                  persistent cart → synthetic checkout — DONE 2026-11-12
+                  (55/55, three consecutive runs)
+            - [x] **LSE-04** Fail-closed/no-DB, HTTP status, responsive/RTL and
+                  basic accessibility guards — DONE 2026-11-12 (13/13; HTTP
+                  200/404; 320/390/1440)
+            - [x] **LSE-05** Merchant order reconciliation for the synthetic
+                  checkout order — DONE 2026-11-12 (order prefix + PENDING)
+            - [x] **LSE-06** Final offline/live-local/E2E verification and
+                  evidence close-out — DONE 2026-11-12 (547/547 offline;
+                  87/87 live; build 22 routes)
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

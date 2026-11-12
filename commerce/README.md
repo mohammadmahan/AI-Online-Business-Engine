@@ -72,6 +72,8 @@ npm run build          # production build                  — offline
 npm run media:bucket   # LOCAL MinIO bucket + read policy  — loopback:19000 only
 npm run admin:hash     # produce ADMIN_PASSWORD_HASH (scrypt) for commerce/.env
 npm run check:http-status # 200 for a published slug, 404 for an unknown one
+npm run check:e2e      # full local browser journey; needs seeded loopback DB + admin env
+npm run check:e2e:fail-closed # browser check against a server started WITHOUT DATABASE_URL
 npm run db:migrate     # APPLY migrations — needs DATABASE_URL, owner-gated
 npm run db:studio      # inspect — needs DATABASE_URL, owner-gated
 ```
@@ -170,6 +172,30 @@ file, `db:reset`, `db:seed`, and `COMMERCE_DATABASE_URL` must agree).
 After starting a server, verify product visibility status codes with
 `COMMERCE_BASE_URL=http://localhost:13001 KNOWN_PRODUCT_SLUG=<published-slug>
 npm run check:http-status`; unknown slugs must be **404**, never a rendered 200.
+
+### Local browser E2E (LSE)
+
+`npm run check:e2e` drives the existing storefront in the local system Chrome
+through `playwright-core` (already installed; no downloaded browser): home →
+catalog search/filter → PDP → persistent cart → synthetic checkout → merchant
+order list, then 320/390/1440 overflow/RTL/basic accessible-name checks and
+HTTP 200/404 status. It requires:
+
+- `COMMERCE_BASE_URL` on loopback (default `http://127.0.0.1:13002`);
+  non-loopback values are refused before a browser opens;
+- a seeded disposable harness (`db:up`, `db:reset`, `db:seed`);
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD` for a **local synthetic** merchant
+  identity (never commit them).
+
+The customer data is synthetic and the order is written only to the disposable
+harness. Payment stays `UNAVAILABLE`; no real provider is called.
+
+`npm run check:e2e:fail-closed` runs against a second server started WITHOUT
+`DATABASE_URL`. Every data surface must show the unavailable notice and
+`/checkout` must render no customer form. It needs no admin credentials.
+
+Full runbook, scope and owner gates:
+[`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`](../docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md).
 
 ## Local media (G-5) — filesystem store, or MinIO
 

@@ -23,6 +23,8 @@
     "media:orphans": "node scripts/media-orphans.mjs",
     "check:http-status": "node scripts/check-storefront-status.mjs",
     "check:admin-mobile": "node scripts/check-admin-mobile.mjs",
+    "check:e2e": "node scripts/check-storefront-e2e.mjs",
+    "check:e2e:fail-closed": "node scripts/check-storefront-e2e.mjs --fail-closed",
     "admin:hash": "node scripts/hash-admin-password.mjs",
     "scheduler:notifications": "node scripts/dispatch-scheduler.mjs",
     "smoke:db": "npm run test:build && node --import ./test/register.mjs --test --test-concurrency=1 .test-build/__tests__/live-db",

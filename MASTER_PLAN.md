@@ -398,6 +398,18 @@ mismatched provider URLs and incomplete references are refused before any write.
 This is local/offline hardening only; it changes no production, credential or
 provider gate.
 
+**Local Storefront & E2E Verification Track (LSE, D-174, 2026-11-12).** The next
+safe local track verifies the storefront and merchant order surface that already
+exist in `commerce/`; it does not build a second storefront or adopt WooCommerce.
+Its canonical execution checklist is
+[`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`](docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md).
+LSE adds a repeatable system-Chrome browser check, fail-closed/no-DB checks,
+responsive/RTL and basic accessibility guards, synthetic checkout against the
+disposable harness with merchant-panel reconciliation, and refreshed evidence.
+It remains loopback/local/mock only: production deployment, real payment/SMS,
+live webhooks, paid AI and every provider/credential gate remain unauthorized
+(D-045 / D-139).
+
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
 documents link (the read-before-work order is `PROJECT_RULES.md` §2).

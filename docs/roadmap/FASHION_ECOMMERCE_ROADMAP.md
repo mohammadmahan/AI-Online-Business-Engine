@@ -759,6 +759,18 @@ and approved the Phase 5 completion and closure records named above, as
   legacy values, so no database image data is migrated or deleted. This remains
   local/offline hardening only.
 
+#### Local Storefront & E2E Verification Track (LSE, D-174, 2026-11-12)
+
+**This is a verification track over the already implemented Phase 3 surfaces,
+not a new phase and not a rebuild.** The canonical checklist is
+[`LOCAL_STOREFRONT_E2E_TRACK.md`](LOCAL_STOREFRONT_E2E_TRACK.md). It adds a
+repeatable local browser journey (home → catalog → PDP → cart → synthetic
+checkout → merchant order reconciliation), no-DB fail-closed checks, HTTP
+status, responsive/RTL and basic accessibility guards, using only the
+disposable loopback harness, local media and system Chrome. It grants no
+deployment, payment, SMS, webhook, AI or provider authorization. LSE tasks
+`LSE-01`…`LSE-06` and their evidence live in that document.
+
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
 

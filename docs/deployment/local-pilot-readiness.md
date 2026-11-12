@@ -10,6 +10,14 @@
 > The commerce harness default is now **55431** (configurable through
 > `COMMERCE_DB_PORT`); references to 55432 below describe the historical run and
 > the Python canonical stack's port.
+>
+> **Current verification pointer (2026-11-12).** This file remains historical.
+> The current repeatable local evidence at `e30d42d` is recorded in
+> [`docs/roadmap/LOCAL_STOREFRONT_E2E_TRACK.md`](../roadmap/LOCAL_STOREFRONT_E2E_TRACK.md):
+> 547/547 offline tests, 87/87 live-PostgreSQL tests, full browser E2E 55/55,
+> fail-closed 13/13, and unknown PDP **404**. The soft-404 observation in §5.1 is
+> a measurement of the older commit, not current behavior.
+
 (`feat(commerce): read-only orphan-media dry run for the local provider`), identical
 to `origin/main` at the time of testing (`git rev-list --left-right --count` = `0 0`,
 clean tree apart from the untracked `.cloud-attachments/`). This record is an
@@ -156,6 +164,12 @@ must not be treated as recoverable by these steps.
 ## 5. Known observations, classified
 
 ### 5.1 Soft-404 HTTP status on DRAFT and unknown PDPs — **documented limitation for (1); blocker for (2)/(3)**
+
+> **Historical observation; current behavior differs (2026-11-12).** At the
+> older commit measured here, the route answered 200. At `e30d42d`, the built
+> server returns **404** for an unknown slug (`check:http-status` and the E2E
+> runner both assert it). The text below is retained as history, not as a
+> current defect claim.
 
 `GET /products/<draft-or-unknown>` renders the correct not-found page and leaks no
 product content, but answers **HTTP 200**; the identical page at an unknown
