@@ -238,13 +238,16 @@ class RouteTarget:
     temperature: float = 0.7
 
 
+# D-176 — the development default is the locally hosted Ollama model.
+# `model` here is only a routing label used for error/ledger records; the
+# adapter reads the real model name from OLLAMA_MODEL.
 DEFAULT_ROUTING_POLICY: Dict[str, RouteTarget] = {
     "propose_content_idea": RouteTarget(
-        "mock", "mock-1", "content_idea_proposal.v1", budget_usd=0.50),
+        "ollama", "ollama", "content_idea_proposal.v1", budget_usd=0.50),
     "generate_caption": RouteTarget(
-        "mock", "mock-1", "caption_proposal.v1", budget_usd=0.50),
+        "ollama", "ollama", "caption_proposal.v1", budget_usd=0.50),
     "enrich_description": RouteTarget(
-        "mock", "mock-1", "product_description_enrichment.v1",
+        "ollama", "ollama", "product_description_enrichment.v1",
         budget_usd=1.00),
     # D-172 §4.1 — the two NEW fashion copy channels. The Instagram
     # caption channel deliberately reuses the approved
@@ -252,24 +255,39 @@ DEFAULT_ROUTING_POLICY: Dict[str, RouteTarget] = {
     # request-side input, so no second caption contract is introduced
     # (G-6: one dispatch path per channel).
     "fashion_telegram_announcement": RouteTarget(
-        "mock", "mock-1", "telegram_announcement.v1", budget_usd=0.25),
+        "ollama", "ollama", "telegram_announcement.v1", budget_usd=0.25),
     "fashion_seo_copy": RouteTarget(
-        "mock", "mock-1", "seo_copy.v1", budget_usd=0.50),
+        "ollama", "ollama", "seo_copy.v1", budget_usd=0.50),
     # D-172 §4.2 — trend/hashtag intelligence. One key, one contract:
     # the tag set is its own artifact (it is consumed by the caption /
     # Telegram channels, not merged into one of them).
     "fashion_trend_hashtags": RouteTarget(
-        "mock", "mock-1", "trend_hashtag_set.v1", budget_usd=0.25),
+        "ollama", "ollama", "trend_hashtag_set.v1", budget_usd=0.25),
 }
 
-# static tariff table (USD per 1K tokens); mock is free
+# Explicit test/air-gapped policy. Kept as data (not a hidden provider
+# fallback) so every test that registers ONLY the deterministic mock can
+# keep using the same task surface without reaching a daemon.
+MOCK_ROUTING_POLICY: Dict[str, RouteTarget] = {
+    task: RouteTarget("mock", "mock-1", target.schema_id,
+                      target.budget_usd, target.max_tokens,
+                      target.temperature)
+    for task, target in DEFAULT_ROUTING_POLICY.items()
+}
+
+# static tariff table (USD per 1K tokens); local Ollama and mock are free
 TARIFFS: Dict[tuple, Dict[str, float]] = {
     ("mock", "mock-1"): {"input": 0.0, "output": 0.0},
+    ("ollama", "ollama"): {"input": 0.0, "output": 0.0},
 }
 SOFT_BUDGET_RATIO = 0.8
 
 
 def estimate_cost(provider: str, model: str, usage: Dict) -> Dict:
+    # D-176: local inference has no paid per-token price. The model id is
+    # whatever the owner pulled, so do not flag it as an unknown tariff.
+    if provider == "ollama":
+        return {"cost_usd": 0.0, "unknown_tariff": False}
     tariff = TARIFFS.get((provider, model))
     if tariff is None:
         return {"cost_usd": 0.0, "unknown_tariff": True}
@@ -383,7 +401,18 @@ class ModelRouter:
                  budgets: Optional[Dict[str, float]] = None,
                  bucket_capacity: int = 30):
         self.providers = providers
-        self.policy = dict(policy or DEFAULT_ROUTING_POLICY)
+        if policy is None:
+            # D-176: a development router that registers Ollama gets the
+            # local default. A router that registers ONLY the deterministic
+            # mock is the explicit offline/test harness and keeps the mock
+            # policy. Any other unregistered default fails closed at run().
+            if "ollama" in providers:
+                policy = DEFAULT_ROUTING_POLICY
+            elif "mock" in providers:
+                policy = MOCK_ROUTING_POLICY
+            else:
+                policy = DEFAULT_ROUTING_POLICY
+        self.policy = dict(policy)
         self.ledger = ledger
         self.budgets = dict(budgets or {})
         self._spend: Dict[str, float] = {}

@@ -225,7 +225,8 @@ class TemplateParityTests(unittest.TestCase):
     def test_policy_routes_the_template_schema(self):
         target = DEFAULT_ROUTING_POLICY[ft.TASK_TYPE]
         self.assertEqual(target.schema_id, ft.SCHEMA_ID)
-        self.assertEqual(target.provider, "mock")
+        self.assertEqual(target.provider, "ollama")
+        self.assertEqual(target.model, "ollama")
         self.assertEqual(ft.TEMPLATE_ID, ft.TASK_TYPE)
 
     def test_prompt_embeds_brief_facts_and_template_identity(self):
@@ -636,10 +637,12 @@ class AuthorityBoundaryTests(unittest.TestCase):
 
 class ProviderNeutralityTests(unittest.TestCase):
 
-    def test_shipped_policy_is_offline_mock_only(self):
+    def test_shipped_policy_is_local_ollama_only(self):
         target = DEFAULT_ROUTING_POLICY[ft.TASK_TYPE]
-        self.assertEqual(target.provider, "mock")
-        self.assertEqual(target.model, "mock-1")
+        self.assertEqual(target.provider, "ollama")
+        self.assertEqual(target.model, "ollama")
+        self.assertNotIn(target.provider,
+                         {"openai", "anthropic", "deepseek"})
 
     def test_engine_runs_on_any_ai_provider(self):
         provider = _AdaptiveProvider()

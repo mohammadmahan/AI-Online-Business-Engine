@@ -23,6 +23,7 @@ no credentials (none exist — D-045).
 """
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
@@ -48,13 +49,17 @@ from canonical.ai_runtime import (  # noqa: E402
     AiProviderError, AiRequest, BudgetExceeded, MockAiProvider,
     ModelRouter, RouteTarget,
 )
+from services import ollama_transport as ollama_http  # noqa: E402
+from services.ai_runtime_factory import (  # noqa: E402
+    build_default_ai_router,
+)
 
 SCRIPT = REPO / "local" / "scripts" / "validate_ai_engine_live.py"
 
 _KEY = "test-local-dummy"  # synthetic example — docs placeholder shape (D-045)
 
 _IG_ENV = (LIVE_ENV_FLAG, "OPENAI_API_KEY", "DEEPSEEK_API_KEY",
-           "ANTHROPIC_API_KEY", "OLLAMA_MODEL")
+           "ANTHROPIC_API_KEY", "OLLAMA_MODEL", "OLLAMA_BASE_URL")
 
 
 def _req(tag="t", task="generate_caption"):
@@ -91,13 +96,18 @@ class TestProviderGate(unittest.TestCase):
         os.environ["DEEPSEEK_API_KEY"] = _KEY
         os.environ["OLLAMA_MODEL"] = "llama3.2"
 
-    def test_no_flag_refuses_all_providers(self):
-        for ctor in (lambda: DeepSeekProvider(transport=lambda r: {}),
-                     lambda: OllamaProvider(transport=lambda r: {})):
-            with self.assertRaises(AiProviderError) as ctx:
-                ctor()
-            self.assertIn("AI_LIVE_ENABLED", str(ctx.exception))
-            self.assertEqual(ctx.exception.failure_class, "B")
+    def test_paid_provider_requires_flag_but_ollama_does_not(self):
+        with self.assertRaises(AiProviderError) as ctx:
+            DeepSeekProvider(transport=lambda r: {})
+        self.assertIn("AI_LIVE_ENABLED", str(ctx.exception))
+        self.assertEqual(ctx.exception.failure_class, "B")
+
+        # D-176 — local Ollama needs no paid flag/key, only a model name
+        # and the loopback daemon.
+        os.environ["OLLAMA_MODEL"] = "llama3.2"
+        provider = OllamaProvider(transport=lambda r: {})
+        self.assertEqual(provider.model, "llama3.2")
+        self.assertTrue(provider.base_url.startswith("http://127.0.0.1"))
 
     def test_flag_without_key_refuses(self):
         os.environ[LIVE_ENV_FLAG] = "true"
@@ -105,10 +115,47 @@ class TestProviderGate(unittest.TestCase):
             DeepSeekProvider(transport=lambda r: {})
 
     def test_ollama_model_name_is_the_gate(self):
-        os.environ[LIVE_ENV_FLAG] = "true"
         with self.assertRaises(AiProviderError) as ctx:
             OllamaProvider(transport=lambda r: {})
         self.assertIn("OLLAMA_MODEL", str(ctx.exception))
+        self.assertEqual(ctx.exception.failure_class, "B")
+
+    def test_ollama_rejects_non_loopback_endpoint(self):
+        os.environ["OLLAMA_MODEL"] = "llama3.2"
+        with self.assertRaises(AiProviderError) as ctx:
+            OllamaProvider(transport=lambda r: {},
+                           base_url="http://192.168.1.20:11434")
+        self.assertIn("loopback", str(ctx.exception))
+        self.assertEqual(ctx.exception.failure_class, "B")
+
+    def test_ollama_unreachable_daemon_is_clear_class_a(self):
+        os.environ["OLLAMA_MODEL"] = "llama3.2"
+        router = build_default_ai_router(
+            model="llama3.2", base_url="http://127.0.0.1:11434")
+        with mock.patch.object(
+                ollama_http.urllib.request, "urlopen",
+                side_effect=ollama_http.urllib.error.URLError(
+                    "connection refused")):
+            with self.assertRaises(AiProviderError) as ctx:
+                router.run(_req(task="generate_caption"))
+        self.assertEqual(ctx.exception.failure_class, "A")
+        self.assertIn("daemon unreachable", str(ctx.exception))
+        self.assertIn("ollama serve", str(ctx.exception))
+
+    def test_ollama_missing_model_is_clear_class_b(self):
+        os.environ["OLLAMA_MODEL"] = "llama3.2"
+        router = build_default_ai_router(
+            model="llama3.2", base_url="http://127.0.0.1:11434")
+        error = ollama_http.urllib.error.HTTPError(
+            "http://127.0.0.1:11434/api/chat", 404, "Not Found", {},
+            io.BytesIO(b'{"error":"model llama3.2 not found"}'))
+        with mock.patch.object(ollama_http.urllib.request, "urlopen",
+                               side_effect=error):
+            with self.assertRaises(AiProviderError) as ctx:
+                router.run(_req(task="generate_caption"))
+        self.assertEqual(ctx.exception.failure_class, "B")
+        self.assertIn("not available", str(ctx.exception))
+        self.assertIn("ollama pull", str(ctx.exception))
 
     def test_default_transport_refuses_at_call_time(self):
         self._keyed()

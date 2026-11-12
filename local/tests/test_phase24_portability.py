@@ -55,6 +55,7 @@ from canonical.ai_runtime import (  # noqa: E402
     AiRequest,
     MockAiProvider,
 )
+from canonical.ai_providers_multi import OllamaProvider  # noqa: E402
 from canonical.budget_engine import BudgetExhausted  # noqa: E402
 from canonical.obs_contracts import (  # noqa: E402
     JsonlLogSink,
@@ -77,6 +78,18 @@ def _req(schema_id="content_idea_proposal.v1", payload=None):
 class TestT1ProviderConformance(unittest.TestCase):
     def test_shipped_mock_conforms(self):
         P.assert_provider_conformance(MockAiProvider())
+
+    def test_local_ollama_conforms_with_injected_transport(self):
+        def transport(request_dict):
+            schema_id = request_dict["_schema_id"]
+            output = MockAiProvider.MOCK_OUTPUTS[schema_id]
+            return {"message": {"content": json.dumps(
+                        output, ensure_ascii=False)},
+                    "model": "llama3.2", "prompt_eval_count": 3,
+                    "eval_count": 4, "done_reason": "stop"}
+
+        P.assert_provider_conformance(
+            OllamaProvider(transport=transport, model="llama3.2"))
 
     def test_metered_mock_conforms_and_meters_exactly(self):
         lk = B.provider_lockout_pair()

@@ -12,10 +12,10 @@ This module answers it in ONE deterministic, offline, fail-closed place.
 
 What it is NOT
 --------------
-  - It does not SELECT a provider. Decision 9 / G-4 (the AI provider
-    choice) is the owner's and remains OPEN; nothing here names a
-    vendor, constructs an adapter, opens a socket, or reads an
-    environment variable.
+  - It does not select a paid vendor. D-176 selects the local Ollama
+    model as the development default; paid provider selection (decision
+    9 / G-4) remains the owner's and OPEN. Nothing here constructs an
+    adapter, opens a socket, or reads an environment variable.
   - It does not replace the router's guardrails. `ModelRouter` keeps
     the D-063 budget refusal and the local rate limiter; the gate
     reports the SAME numbers through public read-only views
@@ -29,10 +29,12 @@ What it is NOT
 The rule the gate enforces
 --------------------------
 1. DENY BY DEFAULT. A provider must be DECLARED in the catalogue
-   (mock only, unless the caller declares more) and REGISTERED in the
-   router. Anything undeclared is refused by name, not guessed.
-2. MOCK IS THE ONLY UNGATED CLASS. `mock` is local, deterministic and
-   free; every other class is `live` and needs an owner decision.
+   (local mock + local Ollama unless the caller declares more) and
+   REGISTERED in the router. Anything undeclared is refused by name,
+   not guessed.
+2. LOCAL IS THE UNGATED CLASS. `mock` is deterministic and free;
+   `ollama` is loopback-only and keyless (D-176). Every external class
+   is `live` and needs an owner decision.
 3. LIVE NEEDS A RECORDED OWNER DECISION. `OwnerDecision` carries the
    decision reference (decision 9 / D-139 vocabulary), who approved
    it, the provider names and task types it covers, and an optional
@@ -77,8 +79,11 @@ from canonical.ai_runtime import (AiProviderError, MockAiProvider,
 
 GATE_SCHEMA = "ai.provider_gate.v1"
 PROVIDER_CLASS_MOCK = "mock"
+PROVIDER_CLASS_LOCAL = "local"
 PROVIDER_CLASS_LIVE = "live"
-PROVIDER_CLASSES = (PROVIDER_CLASS_MOCK, PROVIDER_CLASS_LIVE)
+PROVIDER_CLASSES = (PROVIDER_CLASS_MOCK, PROVIDER_CLASS_LOCAL,
+                    PROVIDER_CLASS_LIVE)
+LOCAL_PROVIDER_NAMES = ("ollama",)
 
 ENVIRONMENT_LOCAL = "local"
 ENVIRONMENT_PRODUCTION = "production"
@@ -94,6 +99,7 @@ FASHION_TASKS = (
 
 # decision codes — stable, asserted by the battery
 ALLOWED_MOCK = "ALLOWED_MOCK"
+ALLOWED_LOCAL = "ALLOWED_LOCAL"
 ALLOWED_LIVE = "ALLOWED_LIVE"
 TASK_NOT_ROUTED = "TASK_NOT_ROUTED"
 PROVIDER_UNDECLARED = "PROVIDER_UNDECLARED"
@@ -174,6 +180,15 @@ class ProviderDeclaration:
                 raise GateConfigError(
                     "provider 'mock': a local provider carries no key "
                     "variable")
+        elif self.provider_class == PROVIDER_CLASS_LOCAL:
+            if name not in LOCAL_PROVIDER_NAMES:
+                raise GateConfigError(
+                    f"provider {name!r}: the local class is reserved for "
+                    f"{LOCAL_PROVIDER_NAMES}")
+            if key_env:
+                raise GateConfigError(
+                    f"provider {name!r}: a local provider carries no key "
+                    "variable")
         else:
             if not key_env:
                 raise GateConfigError(
@@ -190,9 +205,13 @@ class ProviderDeclaration:
 
 
 def default_catalogue() -> Dict[str, ProviderDeclaration]:
-    """The ONLY provider enabled without an owner decision: local mock."""
-    return {"mock": ProviderDeclaration("mock", PROVIDER_CLASS_MOCK,
-                                        models=("mock-1",))}
+    """Providers enabled without an owner decision: local mock + Ollama."""
+    return {
+        "mock": ProviderDeclaration("mock", PROVIDER_CLASS_MOCK,
+                                    models=("mock-1",)),
+        "ollama": ProviderDeclaration("ollama", PROVIDER_CLASS_LOCAL,
+                                      models=("ollama",)),
+    }
 
 
 # --- owner decision -----------------------------------------------------------
@@ -475,14 +494,19 @@ class ProviderGate:
                 detail=f"schema {target.schema_id!r} is not a registered "
                        "AI contract")
 
-        if declaration.provider_class == PROVIDER_CLASS_MOCK:
-            # construction pinned the mock class to the name `mock`, so
-            # reaching here means the route really is the local provider
+        if declaration.provider_class in (PROVIDER_CLASS_MOCK,
+                                          PROVIDER_CLASS_LOCAL):
+            # Local providers carry no credential and reach no paid API.
+            code = (ALLOWED_MOCK
+                    if declaration.provider_class == PROVIDER_CLASS_MOCK
+                    else ALLOWED_LOCAL)
+            detail = ("local deterministic provider — offline by construction"
+                      if declaration.provider_class == PROVIDER_CLASS_MOCK
+                      else "local loopback provider — keyless and offline "
+                           "(D-176)")
             return self._decision(
-                allowed=True, code=ALLOWED_MOCK, phase="wiring",
-                task_type=task_type, target=target,
-                detail="local deterministic provider — offline by "
-                       "construction")
+                allowed=True, code=code, phase="wiring",
+                task_type=task_type, target=target, detail=detail)
 
         # live class: every additional rule must pass
         if self.environment == ENVIRONMENT_PRODUCTION:
@@ -694,6 +718,7 @@ def offline_gate(**kwargs) -> ProviderGate:
 
 __all__ = [
     "ALLOWED_LIVE",
+    "ALLOWED_LOCAL",
     "ALLOWED_MOCK",
     "BUDGET_EXHAUSTED",
     "BUDGET_NOT_DECLARED",
@@ -710,6 +735,7 @@ __all__ = [
     "OWNER_DECISION_MISSING",
     "OwnerDecision",
     "PROVIDER_CLASS_LIVE",
+    "PROVIDER_CLASS_LOCAL",
     "PROVIDER_CLASS_MOCK",
     "PROVIDER_CLASS_UNKNOWN",
     "PROVIDER_NOT_REGISTERED",

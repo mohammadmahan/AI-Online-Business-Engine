@@ -41,16 +41,16 @@ for p in (str(LOCAL), str(LOCAL / "canonical"), str(LOCAL / "services")):
 
 from canonical import ai_provider_gate as gate_mod  # noqa: E402
 from canonical.ai_provider_gate import (  # noqa: E402
-    ALLOWED_LIVE, ALLOWED_MOCK, BUDGET_EXHAUSTED, BUDGET_NOT_DECLARED,
-    CREDENTIAL_UNAVAILABLE, ENVIRONMENT_LOCAL, ENVIRONMENT_PRODUCTION,
-    FASHION_TASKS, GATE_SCHEMA, GateConfigError, LIVE_BLOCKED_IN_PRODUCTION,
-    OWNER_DECISION_EXPIRED, OWNER_DECISION_MISSING, OwnerDecision,
-    PROVIDER_CLASS_LIVE, PROVIDER_CLASS_MOCK, PROVIDER_NOT_REGISTERED,
-    PROVIDER_OUTSIDE_OWNER_SCOPE,
-    PROVIDER_UNDECLARED, ProviderDeclaration, ProviderGate,
-    ProviderGateError, RATE_LIMITED, SCHEMA_UNREGISTERED, TASK_NOT_ROUTED,
-    TASK_OUTSIDE_OWNER_SCOPE, default_catalogue, offline_gate,
-    wire_fashion_engines)
+    ALLOWED_LIVE, ALLOWED_LOCAL, ALLOWED_MOCK, BUDGET_EXHAUSTED,
+    BUDGET_NOT_DECLARED, CREDENTIAL_UNAVAILABLE, ENVIRONMENT_LOCAL,
+    ENVIRONMENT_PRODUCTION, FASHION_TASKS, GATE_SCHEMA, GateConfigError,
+    LIVE_BLOCKED_IN_PRODUCTION, OWNER_DECISION_EXPIRED,
+    OWNER_DECISION_MISSING, OwnerDecision, PROVIDER_CLASS_LIVE,
+    PROVIDER_CLASS_LOCAL, PROVIDER_CLASS_MOCK, PROVIDER_NOT_REGISTERED,
+    PROVIDER_OUTSIDE_OWNER_SCOPE, PROVIDER_UNDECLARED, ProviderDeclaration,
+    ProviderGate, ProviderGateError, RATE_LIMITED, SCHEMA_UNREGISTERED,
+    TASK_NOT_ROUTED, TASK_OUTSIDE_OWNER_SCOPE, default_catalogue,
+    offline_gate, wire_fashion_engines)
 from canonical.ai_runtime import (  # noqa: E402
     AiProvider, AiProviderError, AiResponse, MockAiProvider, ModelRouter,
     RouteTarget)
@@ -146,11 +146,20 @@ def _decision(**over):
 
 class CatalogueTests(unittest.TestCase):
 
-    def test_default_catalogue_is_the_local_mock_only(self):
+    def test_default_catalogue_is_local_providers_only(self):
         cat = default_catalogue()
-        self.assertEqual(sorted(cat), ["mock"])
+        self.assertEqual(sorted(cat), ["mock", "ollama"])
         self.assertEqual(cat["mock"].provider_class, PROVIDER_CLASS_MOCK)
         self.assertEqual(cat["mock"].key_env, "")
+        self.assertEqual(cat["ollama"].provider_class, PROVIDER_CLASS_LOCAL)
+        self.assertEqual(cat["ollama"].key_env, "")
+
+    def test_local_ollama_is_allowed_without_owner_decision(self):
+        router = ModelRouter({"ollama": MockAiProvider()})
+        decision = ProviderGate(router).decide("fashion_seo_copy")
+        self.assertTrue(decision.allowed, decision.detail)
+        self.assertEqual(decision.code, ALLOWED_LOCAL)
+        self.assertEqual(decision.provider, "ollama")
 
     def test_mock_declaration_cannot_claim_another_name(self):
         with self.assertRaises(GateConfigError):

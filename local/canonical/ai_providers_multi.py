@@ -3,12 +3,12 @@
 Extends the shipped D-066 live layer WITHOUT touching it:
 
   - `DeepSeekProvider` / `OllamaProvider` — two more drop-in
-    `AiProvider` adapters (the register row 9 selection stays the
-    owner's; D-045 gates every key exactly like OpenAI/Anthropic).
-    DeepSeek is OpenAI-schema-compatible over HTTPS (per official
-    docs, reviewed 2026-09-21); Ollama targets the LOCAL daemon
-    (127.0.0.1 default — air-gapped by construction until the owner
-    runs a model).
+    `AiProvider` adapters. D-176 makes the LOCAL Ollama adapter the
+    development default (`build_default_ai_router`): it needs no paid
+    key, but requires `OLLAMA_MODEL` and a loopback endpoint. DeepSeek
+    remains an optional paid adapter behind the D-045/D-066 gates.
+    Tests inject transports; only the explicit local transport opens a
+    loopback socket.
   - `ProviderChain` — deterministic multi-provider fallback CHAIN
     (primary → secondary → … → mock terminal): a Class-A/C failure
     advances to the next live provider, exhausting the chain falls
@@ -31,7 +31,8 @@ Extends the shipped D-066 live layer WITHOUT touching it:
   - `redact_ai` — strips key material (`sk-…`, Bearer forms, and the
     caller's known keys) from any escaping string (D-124).
 
-Zero network, zero credentials: transports always injected; gates
+Zero network in tests: transports are injected. The local Ollama
+default is loopback-only and requires no credential; paid adapters
 reuse `require_live_key` (D-066/D-045).
 """
 from __future__ import annotations
@@ -51,7 +52,7 @@ __all__ = [
     "DEEPSEEK_BASE_DEFAULT", "OLLAMA_BASE_DEFAULT",
     "DeepSeekProvider", "OllamaProvider", "ProviderChain",
     "ProviderCircuitBreaker", "classify_provider_error",
-    "redact_ai", "CONTEXT_LENGTH_MARKERS",
+    "redact_ai", "CONTEXT_LENGTH_MARKERS", "resolve_ollama_settings",
 ]
 
 DEEPSEEK_BASE_DEFAULT = "https://api.deepseek.com"
@@ -240,40 +241,76 @@ class DeepSeekProvider(AiProvider):
             latency_ms=int(body.get("latency_ms", latency)))
 
 
-class OllamaProvider(AiProvider):
-    """Local Ollama adapter (D-062 drop-in; localhost daemon).
+_LOOPBACK_OLLAMA_RE = re.compile(
+    r"^https?://(?:\[::1\]|127\.0\.0\.1|localhost)(?::\d+)?(?:/|$)")
 
-    The default base URL is the loopback daemon — air-gapped by
-    construction (D-045/D-053): no key exists, none is requested; the
-    "credential" is the owner's decision to run a local model at all.
-    A remote host requires an explicit base_url override by the owner.
+
+def _require_loopback_ollama_url(base_url: str) -> str:
+    """D-176: the local default must never talk to a remote host.
+
+    Implemented without urllib so the canonical layer stays free of
+    network libraries (D-116). A remote host returns False and is refused.
+    """
+    if not _LOOPBACK_OLLAMA_RE.match(base_url):
+        raise AiProviderError(
+            "OllamaProvider requires a loopback OLLAMA_BASE_URL "
+            "(127.0.0.1/localhost/::1); non-local endpoints are owner-gated "
+            f"(D-176): {base_url!r}", failure_class="B")
+    return base_url
+
+
+def resolve_ollama_settings(model: Optional[str] = None,
+                            base_url: Optional[str] = None
+                            ) -> tuple:
+    """Resolve and validate the D-176 local model/endpoint pair."""
+    resolved_model = (model if model is not None
+                      else os.environ.get("OLLAMA_MODEL", "")).strip()
+    if not resolved_model:
+        raise AiProviderError(
+            "OllamaProvider disabled: OLLAMA_MODEL is not set; "
+            "set a locally pulled model name (D-176, no paid key needed)",
+            failure_class="B")
+    resolved_base = (base_url or os.environ.get("OLLAMA_BASE_URL")
+                     or OLLAMA_BASE_DEFAULT).rstrip("/")
+    return resolved_model, _require_loopback_ollama_url(resolved_base)
+
+
+class OllamaProvider(AiProvider):
+    """Local Ollama adapter (D-062 drop-in; D-176 development default).
+
+    No paid API key is required: the model name is read from
+    ``OLLAMA_MODEL`` and the daemon must be on loopback. HTTP stays out
+    of this canonical module (D-116): the localhost transport is built by
+    ``services.ai_runtime_factory`` and injected. Tests inject a fake
+    transport and never open a socket. A missing daemon/model produces a
+    clear Class-A/B failure — this adapter NEVER falls back to a paid
+    provider or to the mock.
     """
 
     name = "ollama"
-    KEY_ENV = "OLLAMA_MODEL"  # the MODEL name is the enablement gate
+    MODEL_ENV = "OLLAMA_MODEL"
 
     def __init__(self, transport: Optional[Callable[[Dict], Dict]] = None,
                  model: Optional[str] = None,
-                 base_url: str = OLLAMA_BASE_DEFAULT,
+                 base_url: Optional[str] = None,
                  timeout_s: float = 60.0):
-        from canonical.ai_providers_live import require_live_key
-        self.model = model if model is not None \
-            else require_live_key(self.name, self.KEY_ENV)
-        if transport is None:
-            raise AiProviderError(
-                "OllamaProvider requires an injected transport — "
-                "direct HTTP is forbidden in this architecture "
-                "(D-053/D-066)", failure_class="B")
-        self._transport = transport
-        self.base_url = base_url.rstrip("/")
+        self.model, self.base_url = resolve_ollama_settings(model, base_url)
         self.timeout_s = timeout_s
+        self._transport = transport
         self.calls: List[AiRequest] = []
 
     def generate(self, request: AiRequest) -> AiResponse:
+        if self._transport is None:
+            raise AiProviderError(
+                "OllamaProvider has no local transport; use "
+                "services.ai_runtime_factory.build_default_ai_router "
+                "(D-176 fail-closed)", failure_class="B")
         self.calls.append(request)
         started = time.monotonic()
         request_dict = {
             "url": f"{self.base_url}/api/chat",
+            # Internal only; the transport strips `_` fields before POSTing.
+            "_schema_id": request.schema_id,
             "model": self.model,
             "messages": [
                 {"role": "system", "content":
@@ -303,11 +340,14 @@ class OllamaProvider(AiProvider):
             parsed = json.loads(content) if content else None
         except json.JSONDecodeError:
             parsed = None
+        usage = {"prompt_tokens": int(body.get("prompt_eval_count", 0)),
+                 "completion_tokens": int(body.get("eval_count", 0)),
+                 # D-129: local inference is free, never an unknown tariff.
+                 "estimated_cost": 0.0}
         return AiResponse(
             text=content,
             parsed=parsed,
-            usage={"prompt_tokens": int(body.get("prompt_eval_count", 0)),
-                   "completion_tokens": int(body.get("eval_count", 0))},
+            usage=usage,
             provider=self.name, model=body.get("model", self.model),
             finish_reason=str(body.get("done_reason", "stop")),
             latency_ms=int(body.get("latency_ms", latency)))

@@ -464,18 +464,18 @@ class ProviderBoundaryAuditTests(unittest.TestCase):
             router.run(self._req())
         self.assertEqual(cm.exception.failure_class, "B")
 
-    def test_default_policy_has_no_real_provider(self):
-        # D-172 §4.1 added the two fashion copy channels (the Instagram
-        # channel intentionally reuses `generate_caption`, G-6) and
-        # D-172 §4.2 adds the trend/hashtag channel: the policy surface
-        # grows by exactly one key per new artifact, and every key is
-        # still mock.
+    def test_default_policy_uses_local_ollama(self):
+        # D-176: the development default is the loopback Ollama adapter.
+        # D-172 §4.1/§4.2 added the fashion copy and trend channels; the
+        # policy surface must still contain exactly those keys.
         self.assertEqual(set(DEFAULT_ROUTING_POLICY), {
             "propose_content_idea", "generate_caption",
             "enrich_description", "fashion_telegram_announcement",
             "fashion_seo_copy", "fashion_trend_hashtags"})
         for target in DEFAULT_ROUTING_POLICY.values():
-            self.assertEqual(target.provider, "mock")
+            self.assertEqual(target.provider, "ollama")
+            self.assertNotIn(target.provider,
+                             {"openai", "anthropic", "deepseek"})
 
     def test_no_credential_material_in_modules(self):
         banned = ("api_key", "apikey", "secret", "bearer",

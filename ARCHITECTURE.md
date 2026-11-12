@@ -88,10 +88,16 @@ replaced with minimal damage (PROJECT_RULES §35):
 - `ShippingProvider`
 - `InstagramProvider`
 
-Provider selections are Open decisions (see `DECISIONS.md`). Iranian
-payment and shipping providers will be researched and selected in their
-phases (Phase 12 / Phase 13); hosting and n8n deployment model in
-Phases 3–5.
+Provider selections are recorded in `DECISIONS.md`. **D-176 selects a locally
+hosted Ollama model as the development default for `AIProvider`** — no paid AI
+API or credential is required for local work. A paid API provider remains
+optional and can be added later through configuration behind the same
+interface; its selection and credentials stay owner-gated (D-045/D-066). The
+deterministic mock remains the test fallback. The Ollama local default is
+implemented and verified offline (2026-11-12); a missing daemon/model fails
+closed. Iranian
+payment and shipping providers will be researched and selected in their phases
+(Phase 12 / Phase 13); hosting and n8n deployment model in Phases 3–5.
 
 ## 6. Environments
 

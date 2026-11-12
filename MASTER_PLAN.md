@@ -24,7 +24,8 @@ other online businesses with minimal change.
 -   Ecommerce core: WooCommerce
 -   Automation/orchestration: n8n
 -   Business management/knowledge: Notion
--   Runtime AI: API-based AI services
+-   Runtime AI: locally hosted Ollama model by default; paid API optional
+    behind the provider boundary (D-176)
 -   Development/custom tooling: Freebuff
 -   Engineering/architecture assistance: Claude or another capable
     engineering model
@@ -86,7 +87,12 @@ state.
 
 **AI Runtime** handles classification, extraction, content drafts,
 customer assistance, sales assistance, analysis, recommendations, and
-low-risk decisions. AI must never invent facts.
+low-risk decisions. AI must never invent facts. **D-176 (approved
+2026-11-12)** selects a locally hosted Ollama model as the development
+default, so no paid AI API is required for local work. The runtime stays
+behind the provider-neutral `AiProvider` boundary so a paid provider can
+be added later through configuration only. The local default is implemented;
+the deterministic mock remains the explicit test/air-gapped fallback.
 
 **Instagram** is the initial customer acquisition and communication
 channel. Prefer official Meta APIs and supported integrations.
@@ -409,6 +415,19 @@ disposable harness with merchant-panel reconciliation, and refreshed evidence.
 It remains loopback/local/mock only: production deployment, real payment/SMS,
 live webhooks, paid AI and every provider/credential gate remain unauthorized
 (D-045 / D-139).
+
+**Local AI runtime default (D-176, 2026-11-12).** The owner approved a locally
+hosted Ollama model as the default AI runtime for development, with **no paid AI
+API and no credential required**. The architecture keeps the existing
+provider-neutral `AiProvider` boundary and routing policy, so a paid
+OpenAI/Anthropic/DeepSeek provider can be added later through configuration
+without changing business logic. The deterministic `MockAiProvider` remains the
+test/air-gapped fallback, not the planned development default. Real external AI
+calls, credentials, production deployment and paid spend remain **owner-gated**
+(D-045/D-066/D-139). Status: **IMPLEMENTED locally and verified offline
+(2026-11-12)** — Ollama is the routing default, the factory injects a loopback
+transport, and a missing daemon/model fails closed. No live generation, external
+network, paid key or deployment was used.
 
 **Multi-Carrier Shipping Track (MCS, D-175, 2026-11-12).** The owner approved a
 local three-carrier shipping layer — Iran Post, Tipax and local courier — with a

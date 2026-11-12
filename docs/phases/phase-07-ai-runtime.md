@@ -10,6 +10,12 @@
 - Scope discipline: **no external AI API connection, no credentials,
   no keys** (owner-gated per D-045/D-053). All local development runs
   against **Mock AI Providers** behind a provider-neutral boundary.
+- **Later amendment (2026-11-12, D-176):** the approved development
+  default is a **locally hosted Ollama model**, not the mock and not a
+  paid API. `MockAiProvider` remains the deterministic test/fallback
+  provider. This M1 design text is retained as history; the D-176
+  implementation is COMPLETED locally (2026-11-12) and changes no
+  authority rule below.
 
 ## 1. Objective
 

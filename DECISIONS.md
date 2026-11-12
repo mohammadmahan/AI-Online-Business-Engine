@@ -29,7 +29,7 @@ major decisions (PROJECT_RULES §3).
 | D-005 | Notion = Business Operating System (non-transactional) | Approved |
 | D-006 | Excel = import/cleanup tool only | Approved |
 | D-007 | Freebuff = development/custom-tool layer | Approved |
-| D-008 | AI Runtime = API-based AI services within autonomy tiers | Approved |
+| D-008 | AI Runtime = provider-neutral AI services within autonomy tiers (D-176 sets local Ollama as the development default) | Approved |
 | D-009 | Instagram = initial acquisition/communication channel | Approved |
 | D-010 | Currency: numeric Iranian Toman | Approved |
 | D-011 | Provenance and missing-data states | Approved |
@@ -176,6 +176,12 @@ major decisions (PROJECT_RULES §3).
 - **Rationale:** AI value with hard integrity boundaries.
 - **Source:** MASTER_PLAN §3–§5, §9; PROJECT_RULES §6–§7, §32–§33
 - **Open sub-decision:** Which AI provider(s) — Phase 7.
+- **Later amendment (2026-11-12, D-176):** the default development
+  runtime is a **locally hosted Ollama model**, not a paid API. This
+  changes only the default transport/provider; the autonomy tiers,
+  validation, provenance and “AI never invents facts” constraints
+  above remain in force. Paid API providers remain optional and
+  owner-gated.
 
 ## D-009 — Instagram = initial acquisition/communication channel
 
@@ -6313,7 +6319,7 @@ environment.md`. Business rules, canonical schemas/contracts, sync/
 | 6 | WooCommerce hosting / VPS | Open | Store setup | 3–4 |
 | 7 | n8n deployment model (cloud vs self-hosted) | Open | n8n foundation | 5 |
 | 8 | Secret-management tooling | Concept resolved: D-045 + Batch 2 extension (environment separation, reference-based credentials, rotation concept, redaction, Git/prompt exclusion — `docs/phases/phase-03-2-woocommerce-sync-architecture.md` §12); concrete tooling selection **Open** | First credential | 5 |
-| 9 | AI provider(s) — concrete vendor/model selection (OpenAI / Anthropic / local) + credentials; D-062 makes selection a drop-in `AiProvider`, D-045 gates credentials | Open | Owner selection + connectivity milestone | 7 |
+| 9 | AI provider(s) — concrete vendor/model selection (OpenAI / Anthropic / local) + credentials; D-062 makes selection a drop-in `AiProvider`, D-045 gates credentials | **Partially resolved 2026-11-12 (D-176): local Ollama is the implemented development default (verified local/offline); paid OpenAI/Anthropic/DeepSeek providers remain optional, unselected and owner-gated.** | Local-default implementation; paid-provider selection remains Open | 7 |
 | 10 | ~~Iranian payment provider~~ — **RESOLVED 2026-10-23 (owner ruling): ZarinPal SELECTED as PRIMARY**, adapted behind the EXISTING seam `commerce/src/server/payments/gateway.ts` (`PaymentGateway.authorize()` / `.verifyCallback()`) for roadmap §6.1. **Architecture: adapter pattern; provider swappable** — Zibal, NextPay or any other Iranian gateway drops in behind the SAME interface with **no change to the order write path and NO new dispatch path**. Credentials, callback signature scheme and accepted event set are still owner-supplied and do not exist yet (D-045). **AMENDED 2026-10-24 — local/demo Mock Payment Sandbox (append-only; adds NO provider and moves NO gate).** `PAYMENT_MODE=mock` (exact value, case-folded) selects the OFFLINE mock adapter — `authorize()` answers `AUTHORIZED` with a `MOCK-` reference and redirects to `/api/payments/mock/callback?reference=MOCK-<orderId>`; that route is `404` unless the same mode is on AND `NODE_ENV` is not `production`, and production refuses the selection itself. Nothing contacts ZarinPal, no credential is read, and the order stays `PENDING` until the callback applies `PAID` through the SAME `applyPaymentCallback` the signed webhook and the ZarinPal return use (one transition service, one audit vocabulary, one idempotency boundary): a replay is `duplicate` and writes no second audit row, no stock movement and no second SMS job, because the confirmation is only QUEUED in `commerce.notification_outbox` and the default `MockSmsChannel` sends nothing (D-045). A `MOCK-` reference cannot be honoured by the ZarinPal return (no durable `(zarinpal, authority)` record), and the demo route refuses any reference without the prefix. Evidence: `npm test` 324/324 across 79 suites, `typecheck` 0, `lint` 0, `build` 0 with the new dynamic route. This is a LOCAL/DEMO sandbox, not a live integration: no credential exists and no sandbox round-trip was run, so the §6.1 build remains the outstanding work | Resolved 2026-10-23 | — (selection closed; the §6.1 build is the remaining work) | 12 (fashion track §6.1 — gate G2) |
 | 11 | Iranian shipping provider | ~~Open~~ **Selected for the local/mock layer 2026-11-12 (D-175): three-carrier registry — Iran Post, Tipax, local courier — with configuration-only enablement/priority/coverage/pricing.** Real credentials, contracts, API calls and go-live remain **Open and owner-gated** (D-045/D-139); no live carrier is activated. | Shipping go-live (local layer built) | 13 |
 | 12 | Instagram API surface / account setup | Open | Instagram integration | 9 |
@@ -6544,3 +6550,103 @@ documented, not presented as a real carrier measurement.
 **Status:** implementation and local verification recorded in the MCS track
 document and `TODO.md`. This decision changes no production, credential or
 provider authorization.
+
+---
+
+## D-176 — Default AI runtime: locally hosted Ollama, provider-neutral paid API optional
+
+**Date:** 2026-11-12
+**Status:** Approved by direct owner instruction; implementation **COMPLETED
+(local/offline) 2026-11-12**. No paid provider, credential or deployment was
+activated.
+**Source:** the owner directed that the default AI runtime use a locally hosted
+model through Ollama, with no paid AI API required for development, while
+keeping a provider interface so a paid API can be added later by configuration
+without rewriting business logic.
+
+**Decision.** The **development default** for the AI runtime is a locally hosted
+Ollama model reached at the loopback daemon
+(`OLLAMA_BASE_URL=http://127.0.0.1:11434`, model selected by `OLLAMA_MODEL`).
+No OpenAI, Anthropic, DeepSeek or other paid API key is required for local
+development. The existing provider-neutral boundary remains authoritative:
+
+- `AiProvider` / `ModelRouter` stay the only business-facing seam; tasks,
+  contracts, proposal lifecycle, HITL, provenance and observability do not know
+  which vendor answers.
+- Ollama is one `AiProvider` implementation, not a parallel AI subsystem.
+- `MockAiProvider` remains the deterministic **test/air-gapped fallback**; it is
+  no longer the intended development default once D-176 is implemented.
+- A paid provider (OpenAI/Anthropic/DeepSeek or another compatible API) can be
+  added later as a drop-in `AiProvider` selected by configuration/routing policy,
+  with no rewrite of tasks or business rules.
+- The local path must fail closed with a clear error when the Ollama daemon or
+  model is unavailable. It must not silently substitute a paid provider; mock
+  responses are limited to tests or an explicitly requested fallback.
+- The default endpoint is loopback. A non-loopback Ollama host is refused by
+  the current implementation; any future override would require an explicit
+  owner decision, not a silent default.
+
+**Cost and credentials.** Local inference has no paid per-token API cost. D-063
+cost accounting remains active; a local tariff is zero/known, and unknown
+provider tariffs are still flagged rather than guessed. D-045 is unchanged: no
+API key, token, credential or secret is added to source, docs, logs or fixtures.
+The paid adapters and their credential gates (D-066) remain available but
+off by default.
+
+**Implemented state (local, 2026-11-12).** The shipped
+`DEFAULT_ROUTING_POLICY` now routes every task to `ollama`; a mock-only router
+used by tests keeps an explicit `MOCK_ROUTING_POLICY`, so the offline harness is
+unchanged. `OllamaProvider` no longer requires `AI_LIVE_ENABLED` or a paid key:
+it requires `OLLAMA_MODEL`, accepts only a loopback `OLLAMA_BASE_URL`, and is
+built with a localhost transport by
+`local/services/ai_runtime_factory.py` (`build_default_ai_router`). The HTTP
+client lives in `local/services/ollama_transport.py`, keeping
+`local/canonical/` free of network libraries (D-116). A missing daemon/model
+raises a clear Class-A/Class-B error; there is no paid or mock fallback in this
+factory. Tests inject transports and open no sockets.
+
+**Relationship to earlier decisions (append-only, no historical rewrite).**
+
+- D-008: the autonomy, validation, provenance and “AI never invents facts”
+  rules remain; only its implication that the default runtime is a paid
+  “API-based” service is amended by this decision.
+- D-062: the `AiProvider` boundary, strict contracts and router remain exactly
+  as approved; only the default local implementation changes from mock to
+  Ollama. Mock remains the test implementation.
+- D-066: paid live-provider gates remain in force. Local Ollama is not a paid
+  live provider, so it must not require a paid API key; any non-loopback host
+  is still an explicit owner decision.
+- D-129: any Ollama adapter must pass the same provider-conformance contract.
+
+**Implementation acceptance criteria (verified locally).**
+
+1. The default routing target for development is the local Ollama provider;
+   a paid provider is selectable only by explicit configuration.
+2. `OLLAMA_MODEL` selects the model; the default endpoint is loopback, and a
+   non-loopback endpoint is refused without an explicit owner override.
+3. A missing daemon/model produces a clear fail-closed error; no paid provider
+   is contacted as a fallback.
+4. The existing `AiProvider`, strict output contracts, proposal/HITL pipeline
+   and authority boundaries are unchanged.
+5. Tests remain zero-network by default, and provider conformance plus the
+   applicable Python/live-wiring checks pass. No real API key is used.
+6. Documentation and `.env.example` now describe the implemented local
+   behavior; no production behavior is claimed.
+
+**Verification (2026-11-12).** `py_compile` passed for the changed runtime,
+provider, gate, service and test modules. D-176/provider/security suites:
+**279 tests, 0 failures, 12 skips** (skips need live PostgreSQL). The broader
+AI/fashion suite: **590 tests, 0 failures, 12 skips**. Existing provider
+conformance (D-129) now includes an injected-transport Ollama conformance case
+and passes. `local/scripts/validate_ai_engine_live.py` offline drill: **15/15,
+exit 0**. A real call with no daemon running at `127.0.0.1:11434` returned
+Class-`A` with “Ollama daemon unreachable … Start `ollama serve`”, while the
+routing policy reported `ollama` — fail-closed behavior demonstrated. No live
+model generation, external network or paid key was used. Full Python discovery:
+2,850 run with 4 environment-dependent failures (Docker/live-PostgreSQL absent)
+and 115 skips; none is in the changed AI path.
+
+**Owner gates.** Real paid provider selection, paid API calls, external AI
+credentials, production deployment and any non-loopback Ollama endpoint remain
+owner-gated (D-045/D-066/D-139). This decision authorizes the local
+implementation only, not a production AI connection.

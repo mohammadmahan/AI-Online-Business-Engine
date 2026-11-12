@@ -5564,7 +5564,29 @@ generated ≥8 value stored only in the gitignored operator file
       received_at not a safe ordering key on VMs — monotonic
       ingest_seq/receive_seq ordering now, Phase 6 doc §7.1.6).
       Phase 7 total 100/100, battery 294/294 zero-skip.
-      Standing owner gate: real AI provider selection + credentials
+      Standing owner gate: real **paid** AI provider selection + credentials
       (register row 9, D-045) — none exist, none requested; live
-      provider compatibility NOT proven by Phase 7.
+      provider compatibility NOT proven by Phase 7. **D-176 (2026-11-12)
+      selects local Ollama as the development default; local implementation is
+      COMPLETE and leaves this historical gate for paid providers intact.**
+- [x] **D-176 — default local Ollama AI runtime (COMPLETE local/offline,
+      2026-11-12).** Development uses a locally hosted Ollama model; no paid
+      AI API or credential is required. The provider-neutral
+      `AiProvider`/`ModelRouter` boundary is unchanged, so a paid provider
+      remains a configuration-only later addition. `MockAiProvider` is the
+      deterministic test/air-gapped fallback only. Evidence: D-176 verification
+      block; 279 focused tests / 0 fail / 12 skips, 590 broader AI/fashion
+      tests / 0 fail, conformance suite green, live-drill 15/15, and a real
+      no-daemon call returned Class-A with the `ollama serve` message.
+      - [x] Default routing policy targets loopback Ollama;
+            `OLLAMA_MODEL` selects the model and
+            `OLLAMA_BASE_URL=http://127.0.0.1:11434` is the default endpoint.
+      - [x] The local path requires no paid API key; a non-loopback host is
+            refused by the provider before construction completes.
+      - [x] Missing daemon/model fails closed with a clear Class-A/B error;
+            no paid or mock fallback exists in the default factory.
+      - [x] D-129 conformance includes an injected-transport Ollama case; the
+            paid adapters stay optional and owner-gated (D-045/D-066).
+      - [x] `.env.example` documents the Ollama defaults and preserves
+            `AI_LIVE_ENABLED=false` for paid providers; no credential added.
 - [ ] Phase 7+ — Instagram, payment, shipping integrations

@@ -246,7 +246,8 @@ class TemplateParityTests(unittest.TestCase):
         for channel, spec in fc.CHANNELS.items():
             target = DEFAULT_ROUTING_POLICY[spec["task_type"]]
             self.assertEqual(target.schema_id, spec["schema_id"], channel)
-            self.assertEqual(target.provider, "mock")
+            self.assertEqual(target.provider, "ollama")
+            self.assertEqual(target.model, "ollama")
 
     def test_instagram_caption_reuses_the_approved_caption_channel(self):
         # G-6: one dispatch path per channel — no second caption contract
@@ -705,10 +706,12 @@ class AuthorityBoundaryTests(unittest.TestCase):
 
 class ProviderNeutralityTests(unittest.TestCase):
 
-    def test_shipped_policy_is_offline_mock_only(self):
+    def test_shipped_policy_is_local_ollama_only(self):
         for spec in fc.CHANNELS.values():
             target = DEFAULT_ROUTING_POLICY[spec["task_type"]]
-            self.assertEqual(target.provider, "mock", spec["task_type"])
+            self.assertEqual(target.provider, "ollama", spec["task_type"])
+            self.assertNotIn(target.provider,
+                             {"openai", "anthropic", "deepseek"})
 
     def test_engine_runs_on_any_ai_provider(self):
         provider = _StubProvider()

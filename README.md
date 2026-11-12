@@ -17,9 +17,11 @@ complete**, and **G0 is ACCEPTED / RESOLVED** by Mohammad's direct owner
 sign-off (**D-173**). **B1–B6 are unblocked for local/offline preparation
 only.** **This is not a launch and not production approval:** live activation,
 payment capture, shipment purchase, SMS and public publishing remain behind the
-separate one-time D-139 owner authorization; shipping and AI providers remain
-unselected. The engine runs local-first (D-053) with mock providers; no
-production credentials exist (D-045).
+separate one-time D-139 owner authorization; live shipping activation and paid
+AI providers remain unselected. **D-176 makes a locally hosted Ollama model the
+development AI default (implemented and verified locally)**, so development
+needs no paid AI API or key. The deterministic mock remains the test fallback.
+The engine runs local-first (D-053); no production credentials exist (D-045).
 
 Latest recorded isolated evidence (2026-11-11 remediation) is in
 `docs/audits/remediation-2026-11-11.md`: commerce **540/129 offline** and
@@ -45,7 +47,7 @@ were not run because no disposable `COMMERCE_DATABASE_URL` was configured; the
 | **WooCommerce** | Ecommerce Source of Truth — products, variants, SKUs, prices, inventory, orders, customers, coupons |
 | **n8n** | Automation / orchestration — webhooks, workflows, AI orchestration, retries, idempotency |
 | **Notion** | Business Operating System — dashboards, SOPs, knowledge, content calendar (never transactional truth) |
-| **AI Runtime** | API-based AI services — classification, extraction, drafts, assistance, analysis (never invents facts) |
+| **AI Runtime** | Locally hosted Ollama by default (D-176, implemented local default); provider-neutral paid API optional — classification, extraction, drafts, assistance, analysis (never invents facts) |
 | **Instagram** | Initial customer acquisition and communication channel (official APIs preferred) |
 | **Freebuff** | Development / custom-tool layer — internal tools, adapters, tests (does not replace WooCommerce or n8n) |
 
