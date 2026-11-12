@@ -119,7 +119,11 @@ class LocalObjectStore(MediaStore):
                     if fn.endswith(".meta.json") or fn.endswith(".tmp"):
                         continue
                     full = os.path.join(dirpath, fn)
-                    keys.append(os.path.relpath(full, bucket_dir))
+                    # Object keys are always forward-slash delimited
+                    # (put() builds them with "/"); os.path.relpath emits
+                    # backslashes on Windows, so normalize the separator.
+                    keys.append(
+                        os.path.relpath(full, bucket_dir).replace(os.sep, "/"))
         return sorted(keys)
 
 

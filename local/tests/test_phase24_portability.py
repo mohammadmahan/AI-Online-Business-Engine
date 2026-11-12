@@ -205,6 +205,19 @@ class TestT2MediaConformance(unittest.TestCase):
         store.delete(r1["object_key"])
         self.assertNotIn(r1["object_key"], store.list())
 
+    def test_list_keys_match_put_keys_on_any_os(self):
+        # D-132 regression: keys are forward-slash delimited (put() builds
+        # them with "/"), but os.path.relpath emits the platform separator,
+        # so listed keys used to never match on Windows.
+        store = B.local_object_store()
+        put_key = store.put(b"list-sep-normalize", "text/plain")["object_key"]
+        released = store.list()
+        self.assertIn(put_key, released)
+        self.assertTrue(all("\\" not in k for k in released),
+                        f"non-portable key separator in {released!r}")
+        store.delete(put_key)
+        self.assertNotIn(put_key, store.list())
+
 
 # ============================================================================
 # T3 — D-131 channel registry & hot-swap
