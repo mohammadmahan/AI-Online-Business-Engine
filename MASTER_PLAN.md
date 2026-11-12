@@ -377,13 +377,17 @@ TODO.md
 docs/
 ```
 
-**Current gate status (2026-11-11 remediation).** The fashion-track **G0 gate
-is UNVERIFIED / owner-gated pending explicit owner confirmation**. A later
-record claims acceptance on 2026-11-03, but no owner-signed acceptance artifact
-has been located and the historical G0 OPEN entries in this file remain as
-recorded. This status does not authorize B1–B6, deployment or production
-activation (D-139); it supersedes only the *current-status* reading of those
-entries, not their historical text.
+**Current gate status (owner resolution 2026-11-12).** The fashion-track **G0
+gate is ACCEPTED / RESOLVED** by direct owner sign-off (D-173). Mohammad
+explicitly reviewed and approved the G0 checkpoint; the acceptance object is the
+Phase 5 §5.1/§5.2 completion records, the Phase 5 closure record, D-172 §5.9 and
+§6, and the evidence they cite, accepted as **offline** records. **B1–B6 are
+unblocked for local/offline preparation.** Production deployment, real payment
+capture, SMS, live provider connections and paid third-party AI remain
+unauthorized without separate explicit owner authorization (D-045 / D-139). The
+earlier 2026-11-03 acceptance claim and the 2026-11-11 review-gap entries below
+are retained as history; this later direct sign-off is the governing acceptance
+and does not retroactively validate that earlier artifact.
 
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
@@ -1214,15 +1218,14 @@ Phase 4** (Fashion AI Engine).
 > **build artifacts are COMPLETE and verified** —
 > `docs/deployment/phase-6-cutover-checklist.md` records 24 `[AUTO]` clauses
 > passed and 9 `[BLOCKED]`, verdict **build/artifact GO · production activation
-> NO-GO** — while **production activation remains NOT authorized** (G0 owner
-> sign-off and D-139 unchanged). Separately, the **local-only** G-5 MinIO media
+> NO-GO** — while **production activation remains NOT authorized** (D-139
+> unchanged; G0 has since been accepted 2026-11-12, D-173). Separately, the **local-only** G-5 MinIO media
 > backend is IMPLEMENTED and live-tested on loopback (commit `a2ce4c3`; D-172
 > amendment 2026-11-02); the **production media provider is still unselected**.
-> **G0 remains OPEN:** Mohammad's explicit informed review and acceptance of
-> the fashion Phase 5 completion and closure records is still required, and no
-> owner acceptance date exists — the §5.1/§5.2 records and the Phase 5 closure
-> record await that review. No phase is complete, and production activation is
-> still NOT authorized (D-139).
+> **G0 status at that date:** OPEN. **Superseded 2026-11-12:** G0 is now
+> ACCEPTED / RESOLVED by direct owner sign-off (D-173); B1–B6 are unblocked for
+> local/offline preparation. Production activation is still NOT authorized
+> (D-139).
 >
 
 ### Phase 0 --- Foundation
@@ -1459,9 +1462,9 @@ the ENGINE track only — it does not mean this project is finished or idle.
 2026-10-23).** Fashion Phase 6 §6.1–§6.3 **build artifacts are now COMPLETE
 and verified** (24 `[AUTO]` clauses passed, 9 `[BLOCKED]`; **build/artifact GO ·
 production activation NO-GO**), so “NOT started” above describes the pre-build
-state only. **G0 remains OPEN:** the owner's explicit informed review and
-acceptance of the Phase 5 closure records is still required before any B1–B6
-item can start, and no acceptance date exists. Separately, the **local-only G-5
+state only. **G0 status at that date: OPEN.** **Superseded 2026-11-12:** the
+owner's direct sign-off accepted G0 (D-173), so B1–B6 are unblocked for
+local/offline preparation. Separately, the **local-only G-5
 media backend** is implemented and live-tested on loopback (commit `a2ce4c3`)
 and its **local flag is closed**; the **production media provider remains
 OPEN**. Production activation is still NOT authorized (D-139).
@@ -1479,6 +1482,21 @@ Phase 27 optimization work is approved or started. Latest recorded isolated
 evidence (2026-11-11 remediation) is commerce 540/129 offline + 87/26 live,
 control plane 119/21, Python 2,877/0 failed/102 skipped; not every suite was
 rerun at every later commit. See `docs/audits/remediation-2026-11-11.md`.
+
+**Owner resolution 2026-11-12 (append-only; supersedes the current-status reading
+of the two paragraphs above).** Mohammad directly and explicitly reviewed and
+approved the **G0** checkpoint. **G0 is ACCEPTED / RESOLVED** and recorded as
+**D-173**. The acceptance is of the Phase 5 completion and closure records —
+roadmap §5.1/§5.2 and the Phase 5 closure record, D-172 §5.9/§6, and the
+evidence they cite — as **offline** records. **B1–B6 are unblocked for
+local/offline preparation only.** The 2026-11-03 acceptance claim and the
+2026-11-11 unverified finding remain as history; this later direct sign-off is
+the governing acceptance and does not retroactively validate the earlier
+artifact. Production deployment, credentials, real payment/SMS and live or paid
+provider activation remain unauthorized without separate explicit owner
+authorization (D-045 / D-139). The first safe B1 stabilization task is the
+product-creation media reference gate recorded in the roadmap and
+`docs/audits/remediation-2026-11-11.md`.
 
 Completed (Phases 0--26 plus the post-baseline hardening, Dokploy
 and Live Wiring programs; per-phase detail in §13 and the
@@ -1784,8 +1802,9 @@ and Live Wiring programs; per-phase detail in §13 and the
     and verified (build GO / activation NO-GO), and the local-only G-5 media
     backend is implemented and loopback-tested (`a2ce4c3`) and its local flag is
     closed. Production activation and the production media provider remain
-    open; **G0 remains OPEN** (the Phase 5 closure records still await
-    Mohammad's explicit informed acceptance, and no acceptance date exists).
+    open; **G0 status at that date: OPEN** (superseded 2026-11-12 — G0 is now
+    ACCEPTED / RESOLVED by direct owner sign-off, D-173, and B1–B6 are unblocked
+    for local/offline preparation).
     **Provider status update (2026-10-23):** two of the three selections named
     here are CLOSED — payment = **ZarinPal** (register row 10) and SMS =
     **Kavenegar** (row 74), both behind their existing seams (adapter pattern,

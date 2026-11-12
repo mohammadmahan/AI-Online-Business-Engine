@@ -112,6 +112,21 @@ const SKU_ORDER = Object.keys(FIXTURE_STOCK);
 /** The shipping amount the order must carry, taken from the shared table. */
 const SHIPPING_AMOUNT = shippingAmountFor(DEFAULT_SHIPPING_METHOD_ID);
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-live-phase3',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+const IMAGE_B = reference('4a', 'b');
+
 describe(
   'D-172 Phase 3 — live storefront suite: catalog, PDP, checkout and the stock it consumes',
   { skip: skipReason() },
@@ -229,19 +244,17 @@ describe(
         ],
         images: [
           {
-            storagePath: 'commerce/live-p3/main.jpg',
-            publicUrl: 'https://example.invalid/live-p3/main.jpg',
+            ...IMAGE_A,
             displayOrder: 0,
             isPrimary: true,
           },
           {
-            storagePath: 'commerce/live-p3/detail.jpg',
-            publicUrl: 'https://example.invalid/live-p3/detail.jpg',
+            ...IMAGE_B,
             displayOrder: 1,
           },
         ],
       };
-      const createdManto = await createProduct(repo, manto);
+      const createdManto = await createProduct(repo, manto, LOCAL_ENV);
       assert.ok(createdManto.ok, `createProduct refused the manto fixture: ${JSON.stringify(createdManto)}`);
       SKU_ORDER.slice(0, 5).forEach((sku, index) => {
         const id = createdManto.variantIds[index];
@@ -265,7 +278,7 @@ describe(
         ],
         images: [],
       };
-      const createdShomiz = await createProduct(repo, shomiz);
+      const createdShomiz = await createProduct(repo, shomiz, LOCAL_ENV);
       assert.ok(createdShomiz.ok, 'createProduct refused the shomiz fixture');
       variantIds['P3-SHZ-38'] = createdShomiz.variantIds[0] as string;
 
@@ -280,7 +293,7 @@ describe(
         ],
         images: [],
       };
-      const createdDraft = await createProduct(repo, draftProduct);
+      const createdDraft = await createProduct(repo, draftProduct, LOCAL_ENV);
       assert.ok(createdDraft.ok, 'createProduct refused the draft fixture');
       variantIds['P3-DRAFT-1'] = createdDraft.variantIds[0] as string;
 
@@ -481,11 +494,11 @@ describe(
         assert.deepEqual(
           product.images.map((image) => image.url),
           [
-            'https://example.invalid/live-p3/main.jpg',
-            'https://example.invalid/live-p3/detail.jpg',
+            IMAGE_A.publicUrl,
+            IMAGE_B.publicUrl,
           ],
         );
-        assert.equal(product.primaryImageUrl, 'https://example.invalid/live-p3/main.jpg');
+        assert.equal(product.primaryImageUrl, IMAGE_A.publicUrl);
         assert.deepEqual(
           product.images.map((image) => image.variantId),
           [null, null],

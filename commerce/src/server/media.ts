@@ -60,7 +60,7 @@ export interface MediaStoreAdapter {
 }
 
 export const MEDIA_NOT_CONFIGURED_MESSAGE =
-  'ذخیره‌سازی محلی رسانه در این نصب فعال نیست؛ تصویر انتخاب‌شده ذخیره نمی‌شود. می‌توانید محصول را بدون تصویر ثبت کنید یا تصویرِ میزبانی‌شدهٔ خودتان را با نشانی بیرونی پیوست کنید.';
+  'ذخیره‌سازی محلی رسانه در این نصب فعال نیست؛ تصویر انتخاب‌شده ذخیره نمی‌شود. محصول را بدون تصویر ثبت کنید یا نخست ذخیره‌سازی رسانه را فعال کنید؛ پیوست نشانی بیرونی مجاز نیست.';
 
 /** Case-insensitive so a padded/uppercase build flag cannot relax a guard. */
 export function isProductionEnvironment(env: MediaEnvironment = process.env): boolean {

@@ -174,6 +174,21 @@ const PRODUCT_SLUG = 'manto-katan-live';
 const VARIANT_SKUS = ['MK-LIVE-BLK-S', 'MK-LIVE-BLK-M', 'MK-LIVE-WHT-S', 'MK-LIVE-WHT-M'];
 const COUPON_CODE = 'LIVE25';
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-live-phase2',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+const IMAGE_B = reference('4a', 'b');
+
 describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', { skip: skipReason() }, () => {
   let pool!: Pool;
   let db!: CommerceDb;
@@ -375,20 +390,18 @@ describe('D-172 Phase 2 — live PostgreSQL smoke suite (disposable harness)', {
         ],
         images: [
           {
-            storagePath: 'commerce/live/main.jpg',
-            publicUrl: 'https://example.invalid/live/main.jpg',
+            ...IMAGE_A,
             displayOrder: 0,
             isPrimary: true,
           },
           {
-            storagePath: 'commerce/live/detail.jpg',
-            publicUrl: 'https://example.invalid/live/detail.jpg',
+            ...IMAGE_B,
             displayOrder: 1,
           },
         ],
       };
 
-      const created = await createProduct(repo, payload);
+      const created = await createProduct(repo, payload, LOCAL_ENV);
       assert.ok(created.ok, `createProduct refused a valid payload: ${JSON.stringify(created)}`);
       productId = created.productId;
       assert.equal(created.variantIds.length, 4);

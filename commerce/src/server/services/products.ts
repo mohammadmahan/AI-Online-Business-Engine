@@ -1,4 +1,8 @@
-import type { ProductCreatePayload, ProductUpdatePayload } from '@/contracts/catalog';
+import type {
+  ProductCreatePayload,
+  ProductImagePayload,
+  ProductUpdatePayload,
+} from '@/contracts/catalog';
 import { toDescriptionHtml } from '@/lib/variant-matrix';
 import {
   isUuid,
@@ -8,6 +12,8 @@ import {
   validateProductUpdate,
 } from '@/lib/validation';
 
+import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaPublicPrefix, type MediaEnvironment } from '../media';
+import { validateStoredImageReference } from '../media/reference';
 import type { CommerceRepository, NewProductGraph, ProductListItem } from '../repository';
 
 /**
@@ -29,6 +35,39 @@ export type CreateProductResult =
       message: string;
       issues: Array<{ field: string; message: string }>;
     };
+
+/**
+ * New products may only carry images this store wrote.
+ *
+ * The gallery editor already enforces this; creation used to accept any
+ * non-empty path/url pair, which let a crafted action hotlink a third-party
+ * image (or a tracking pixel) into `product_images`. Reusing the same reference
+ * gate keeps both write paths from drifting apart. Media is optional, but a
+ * submitted reference is never trusted on its shape alone.
+ */
+export function productImageIssues(
+  images: readonly ProductImagePayload[],
+  env: MediaEnvironment = process.env,
+): Array<{ field: string; message: string }> {
+  if (images.length === 0) {
+    return [];
+  }
+  if (mediaPublicPrefix(env) === null) {
+    return [{ field: 'images', message: MEDIA_NOT_CONFIGURED_MESSAGE }];
+  }
+
+  const issues: Array<{ field: string; message: string }> = [];
+  images.forEach((image, index) => {
+    if (!image.storagePath.trim() || !image.publicUrl.trim()) {
+      return; // the general validator already reports the missing half
+    }
+    const verdict = validateStoredImageReference(image.storagePath, image.publicUrl, env);
+    if (!verdict.ok) {
+      issues.push({ field: `images.${index}.publicUrl`, message: verdict.message });
+    }
+  });
+  return issues;
+}
 
 /**
  * The two catalog uniqueness rules the DATABASE still owns, mapped to the field
@@ -87,6 +126,7 @@ function duplicateIssue(
 export async function createProduct(
   repo: CommerceRepository,
   payload: ProductCreatePayload,
+  env: MediaEnvironment = process.env,
 ): Promise<CreateProductResult> {
   const validation = validateProduct(payload);
   if (!validation.ok) {
@@ -95,6 +135,16 @@ export async function createProduct(
       code: 'VALIDATION_ERROR',
       message: issuesToMessage(validation.issues),
       issues: validation.issues,
+    };
+  }
+
+  const imageIssues = productImageIssues(payload.images ?? [], env);
+  if (imageIssues.length > 0) {
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: issuesToMessage(imageIssues),
+      issues: imageIssues,
     };
   }
 

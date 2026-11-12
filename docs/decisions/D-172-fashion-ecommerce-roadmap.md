@@ -211,6 +211,18 @@ informed review and acceptance**, and **no owner acceptance date exists**. B1–
 and production activation remain blocked (D-139), **shipping (row 11)** and the
 **AI provider (row 9)** remain OPEN, and no phase is complete.
 
+**AMENDMENT 2026-11-12 — G0 ACCEPTED / RESOLVED by direct owner sign-off
+(append-only; D-173).** Mohammad directly and explicitly reviewed and approved
+the G0 checkpoint. The Phase 5 completion and closure records named above are
+accepted as **offline** records. **G0 is closed; B1–B6 are unblocked for
+local/offline preparation only.** The 2026-11-03 claim and the 2026-11-11
+unverified finding remain history and are not retroactively validated.
+Production deployment, credentials, real payment/SMS and live or paid provider
+activation remain unauthorized (D-045 / D-139). The first safe B1 stabilization
+closed the create-form external-media gap: `createProduct` now enforces the same
+content-addressed media-reference gate as the gallery editor, and the form's
+free-text external-URL control was removed.
+
 ## 5. Deliverables in this change
 
 | Artifact | Change |

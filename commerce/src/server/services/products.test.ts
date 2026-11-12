@@ -6,6 +6,21 @@ import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository, NewProductGraph } from '@/server/repository';
 import { createProduct, listProducts } from '@/server/services/products';
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-products-test',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+const IMAGE_B = reference('4a', 'b');
+
 /**
  * D-172 §2.1 — the ingestion WRITE, exercised against the deterministic memory
  * repository. A refusal must leave the catalog exactly as it was: no partial
@@ -41,19 +56,18 @@ describe('product ingestion service (§2.1)', () => {
       validProductPayload({
         images: [
           {
-            storagePath: 'products/manto/1.jpg',
-            publicUrl: 'https://cdn.example/manto/1.jpg',
+            ...IMAGE_A,
             displayOrder: 0,
             isPrimary: true,
           },
           {
-            storagePath: 'products/manto/2.jpg',
-            publicUrl: 'https://cdn.example/manto/2.jpg',
+            ...IMAGE_B,
             displayOrder: 1,
             isPrimary: false,
           },
         ],
       }),
+      LOCAL_ENV,
     );
 
     assert.equal(result.ok, true);
@@ -131,10 +145,11 @@ describe('product ingestion service (§2.1)', () => {
       repository,
       validProductPayload({
         images: [
-          { storagePath: 'a/1.jpg', publicUrl: 'https://cdn.example/1.jpg' },
-          { storagePath: 'a/2.jpg', publicUrl: 'https://cdn.example/2.jpg' },
+          IMAGE_A,
+          IMAGE_B,
         ],
       }),
+      LOCAL_ENV,
     );
 
     assert.equal(result.ok, true);
@@ -155,10 +170,11 @@ describe('product ingestion service (§2.1)', () => {
       repository,
       validProductPayload({
         images: [
-          { storagePath: 'a/1.jpg', publicUrl: 'https://cdn.example/1.jpg', isPrimary: false },
-          { storagePath: 'a/2.jpg', publicUrl: 'https://cdn.example/2.jpg', isPrimary: false },
+          { ...IMAGE_A, isPrimary: false },
+          { ...IMAGE_B, isPrimary: false },
         ],
       }),
+      LOCAL_ENV,
     );
 
     assert.equal(result.ok, true);
@@ -177,12 +193,12 @@ describe('product ingestion service (§2.1)', () => {
       repository,
       validProductPayload({
         images: [
-          { storagePath: 'a/1.jpg', publicUrl: 'https://cdn.example/1.jpg' },
-          { storagePath: 'a/2.jpg', publicUrl: 'https://cdn.example/2.jpg', isPrimary: true },
+          IMAGE_A,
+          { ...IMAGE_B, isPrimary: true },
         ],
       }),
+      LOCAL_ENV,
     );
-
     assert.equal(result.ok, true);
     // An omitted flag on slot 0 must not default to `true` and collide with the
     // merchant's explicit choice — the explicit slot stays the only primary.
@@ -190,6 +206,42 @@ describe('product ingestion service (§2.1)', () => {
       (graphs[0]?.images ?? []).map((image) => image.isPrimary),
       [false, true],
     );
+  });
+
+  it('refuses an external image URL and writes nothing', async () => {
+    const { repository, graphs } = recordingRepository();
+
+    const result = await createProduct(
+      repository,
+      validProductPayload({
+        images: [{ storagePath: IMAGE_A.storagePath, publicUrl: 'https://evil.example/x.jpg' }],
+      }),
+      LOCAL_ENV,
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'images.0.publicUrl');
+    assert.match(result.message, /انبار رسانه|هم‌خوان/);
+    assert.equal(graphs.length, 0);
+    assert.deepEqual(await listProducts(repository), []);
+  });
+
+  it('refuses images when no media provider is configured', async () => {
+    const { repository, graphs } = recordingRepository();
+
+    const result = await createProduct(
+      repository,
+      validProductPayload({ images: [IMAGE_A] }),
+      {},
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'images');
+    assert.equal(graphs.length, 0);
   });
 
   it('accepts a product with no images (§1.4 media is optional)', async () => {

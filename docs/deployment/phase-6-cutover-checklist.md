@@ -152,6 +152,11 @@ evidence column) · **`[OWNER]`** requires an owner act and was **not** performe
 
 **Remaining owner-gated production blockers, in the order they must be cleared:**
 
+> **Preparation status 2026-11-12:** G0 is ACCEPTED / RESOLVED (D-173), so
+> B1–B6 may be prepared and verified **locally/offline**. The rows below are
+> still production blockers: their execution, credentials, deployment and live
+> activation require separate explicit owner authorization (D-045 / D-139).
+
 | # | Blocker | Owner act required | Blocks |
 | --- | --- | --- | --- |
 | B1 | **D-045 credentials** — ZarinPal merchant id + public callback URL; Kavenegar API key + sender line; a generated `NOTIFICATIONS_DISPATCH_TOKEN`; `COMMERCE_PAYMENT_WEBHOOK_SECRET` if the signed webhook is kept | issue + place in the secret store (never in git) | P6-C16, C17, C23, C27 |

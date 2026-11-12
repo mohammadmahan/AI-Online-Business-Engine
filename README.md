@@ -10,17 +10,16 @@ The architecture must later be reusable for other online businesses
 with minimal change. The guiding principle: **build on existing
 technology; do not rebuild mature systems without a strong reason.**
 
-**Status (reconciled 2026-11-11):** the engine track through **Phase 26**
+**Status (owner resolution 2026-11-12):** the engine track through **Phase 26**
 is closed, with the Live Wiring program and Dokploy Stages A–H verified
-offline/local. The active D-172 fashion track has **Phase 6 build
-artifacts complete**, but its **G0 gate is unresolved and owner-gated**:
-a 2026-11-03 acceptance record exists in the roadmap, while the canonical
-status files require an owner-signed acceptance artifact and still mark
-G0 unverified. **This is not a launch and not production approval:**
-live activation, payment capture, shipment purchase, SMS and public
-publishing remain behind the separate one-time D-139 owner authorization;
-shipping and AI providers remain unselected. The engine runs local-first
-(D-053) with mock providers; no production credentials exist (D-045).
+offline/local. The active D-172 fashion track has **Phase 6 build artifacts
+complete**, and **G0 is ACCEPTED / RESOLVED** by Mohammad's direct owner
+sign-off (**D-173**). **B1–B6 are unblocked for local/offline preparation
+only.** **This is not a launch and not production approval:** live activation,
+payment capture, shipment purchase, SMS and public publishing remain behind the
+separate one-time D-139 owner authorization; shipping and AI providers remain
+unselected. The engine runs local-first (D-053) with mock providers; no
+production credentials exist (D-045).
 
 Latest recorded isolated evidence (2026-11-11 remediation) is in
 `docs/audits/remediation-2026-11-11.md`: commerce **540/129 offline** and

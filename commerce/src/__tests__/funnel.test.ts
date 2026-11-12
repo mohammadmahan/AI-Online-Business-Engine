@@ -34,6 +34,21 @@ import {
 import { createProduct } from '@/server/services/products';
 import { getPublishedProduct, listPublishedProducts } from '@/server/services/storefront';
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-funnel-test',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+const IMAGE_B = reference('4a', 'b');
+
 /**
  * D-172 §3 — the CUSTOMER FUNNEL, end to end, without a browser.
  *
@@ -128,14 +143,12 @@ const MANTO_PAYLOAD: ProductCreatePayload = {
   ],
   images: [
     {
-      storagePath: 'commerce/funnel/main.jpg',
-      publicUrl: 'https://example.invalid/funnel/main.jpg',
+      ...IMAGE_A,
       displayOrder: 0,
       isPrimary: true,
     },
     {
-      storagePath: 'commerce/funnel/detail.jpg',
-      publicUrl: 'https://example.invalid/funnel/detail.jpg',
+      ...IMAGE_B,
       displayOrder: 1,
     },
   ],
@@ -200,7 +213,7 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
 
   before(async () => {
     for (const payload of [MANTO_PAYLOAD, SHOMIZ_PAYLOAD]) {
-      const created = await createProduct(repository, payload);
+      const created = await createProduct(repository, payload, LOCAL_ENV);
       assert.ok(created.ok, `the fixture product must be written: ${JSON.stringify(created)}`);
       payload.variants.forEach((variant, index) => {
         const id = created.variantIds[index];
@@ -219,7 +232,7 @@ describe('D-172 §3 — the storefront funnel, end to end (hermetic)', () => {
         { sku: 'FUN-DRAFT-1', colorName: 'مشکی', colorHex: '#111111', size: 'S', stockQuantity: 9 },
       ],
       images: [],
-    });
+    }, LOCAL_ENV);
     assert.ok(draft.ok, 'the draft fixture must be written');
     variantIds['FUN-DRAFT-1'] = draft.variantIds[0] as string;
   });

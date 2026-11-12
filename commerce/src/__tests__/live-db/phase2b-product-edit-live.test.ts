@@ -44,6 +44,20 @@ function skipReason(): string | undefined {
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL('../../../drizzle', import.meta.url));
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-live-phase2b',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+
 describe('D-172 §2.1 — live product edit (disposable harness)', { skip: skipReason() }, () => {
   let pool!: Pool;
   let db!: CommerceDb;
@@ -84,13 +98,13 @@ describe('D-172 §2.1 — live product edit (disposable harness)', { skip: skipR
         slug: 'manto-katan-live',
         images: [
           {
-            storagePath: 'products/live/1.jpg',
-            publicUrl: 'https://cdn.example/live/1.jpg',
+            ...IMAGE_A,
             displayOrder: 0,
             isPrimary: true,
           },
         ],
       }),
+      LOCAL_ENV,
     );
     assert.equal(first.ok, true);
     if (!first.ok) throw new Error('fixture product refused');
@@ -103,6 +117,7 @@ describe('D-172 §2.1 — live product edit (disposable harness)', { skip: skipR
         slug: 'shomiz-abrisham-live',
         variants: [variant({ sku: 'SHOMIZ-LIVE-1', size: '40' })],
       }),
+      LOCAL_ENV,
     );
     assert.equal(second.ok, true);
     if (!second.ok) throw new Error('fixture product refused');

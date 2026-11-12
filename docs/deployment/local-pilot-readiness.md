@@ -25,12 +25,12 @@ storefront visibility) into one decision.
 **What this is not.** It is not a claim that the project or roadmap is complete, not
 authorization for real customers, real money, live SMS, a reachable network, a
 deployment or production activation. It does not close, open or reinterpret any
-owner gate. A later record **claims** G0 acceptance on 2026-11-03, but no
-owner-signed acceptance artifact is present and the authoritative status files
-still record G0 OPEN. The **CURRENT G0 gate is therefore UNVERIFIED /
-owner-gated pending explicit owner confirmation**; production activation remains
-blocked behind D-139, and B1–B6 remain as recorded below. The 2026-10-24 “no
-scheduler exists” statement is historical, not current status.
+owner gate on its own evidence. **Current status (2026-11-12):** G0 was later
+**ACCEPTED / RESOLVED** by Mohammad's direct owner sign-off (D-173), so B1–B6
+are unblocked for local/offline preparation only. The 2026-11-03 claim and the
+earlier unverified finding are historical. Production activation remains blocked
+behind D-139, and no credential or live provider is authorized. The 2026-10-24
+“no scheduler exists” statement is historical, not current status.
 
 ---
 
@@ -166,13 +166,17 @@ STEP 4's scope; the content rule is correct).
 It matters to crawlers, caches and uptime monitoring, so it must be fixed before any
 reachable/real-customer pilot. For the loopback synthetic pilot it has no effect.
 
-### 5.2 Create-form external media URLs vs gallery-editor restriction — **documented limitation for (1); blocker for (2)/(3)**
+### 5.2 Create-form external media URLs vs gallery-editor restriction — **REPAIRED 2026-11-12; no longer a blocker**
 
 The create payload accepts any non-empty `storagePath`/`publicUrl` pair, so an
 operator could hotlink a third-party image, while the gallery editor only offers
 uploaded objects. In a developer-only, synthetic pilot this is an operator footgun,
 not a data-integrity defect; for a merchant-facing pilot it would permit tracking
-pixels and broken external sources. Not repaired.
+pixels and broken external sources. **Repaired 2026-11-12 (D-173):**
+`createProduct` now applies the same content-addressed reference gate as the
+gallery editor, refusing external/mismatched URLs and any image when no media
+provider is configured; the create form's free-text external-URL control was
+removed. The observation above is retained as the pre-fix record.
 
 ### 5.3 Retained orphan media — **deferred non-pilot item (policy, working as intended)**
 

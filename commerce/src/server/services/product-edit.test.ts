@@ -8,6 +8,21 @@ import { createMemoryRepository } from '@/server/repository-memory';
 import type { CommerceRepository } from '@/server/repository';
 import { createProduct, updateProduct } from '@/server/services/products';
 
+const LOCAL_ENV = {
+  NODE_ENV: 'development',
+  MEDIA_PROVIDER: 'local',
+  MEDIA_LOCAL_DIR: '/tmp/commerce-product-edit-test',
+};
+
+function reference(prefix: string, fill: string) {
+  const hash = `${prefix}${fill.repeat(62)}`;
+  const storagePath = `products/sha256/${prefix}/${hash}.jpg`;
+  return { storagePath, publicUrl: `/media/${storagePath}` };
+}
+
+const IMAGE_A = reference('9d', 'c');
+const IMAGE_B = reference('4a', 'b');
+
 /**
  * D-172 §2.1 — the admin EDIT write.
  *
@@ -43,19 +58,18 @@ async function seedProduct(
       slug,
       images: [
         {
-          storagePath: 'products/manto/1.jpg',
-          publicUrl: 'https://cdn.example/manto/1.jpg',
+          ...IMAGE_A,
           displayOrder: 0,
           isPrimary: true,
         },
         {
-          storagePath: 'products/manto/2.jpg',
-          publicUrl: 'https://cdn.example/manto/2.jpg',
+          ...IMAGE_B,
           displayOrder: 1,
           isPrimary: false,
         },
       ],
     }),
+    LOCAL_ENV,
   );
   assert.equal(created.ok, true);
   if (!created.ok) {

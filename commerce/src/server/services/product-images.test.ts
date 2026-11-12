@@ -70,7 +70,7 @@ interface Harness {
 
 async function harness(): Promise<Harness> {
   const repository = createMemoryRepository();
-  const created = await createProduct(repository, payload());
+  const created = await createProduct(repository, payload(), LOCAL_ENV);
   assert.ok(created.ok, `fixture product must be written: ${JSON.stringify(created)}`);
   return { repository, productId: created.productId, slug: 'shal-terme-edit' };
 }
@@ -201,12 +201,13 @@ describe('updateProductImages — refusals', () => {
 
   it('refuses a reference id that belongs to another product, leaving both galleries intact', async () => {
     const repository = createMemoryRepository();
-    const alpha = await createProduct(repository, payload());
+    const alpha = await createProduct(repository, payload(), LOCAL_ENV);
     const beta = await createProduct(
       repository,
       payload({ slug: 'shal-terme-other', title: 'شال دیگر', variants: [
         { sku: 'OTHER-BLK-FS', colorName: 'مشکی', colorHex: '#111111', size: 'FreeSize', stockQuantity: 1 },
       ] }),
+      LOCAL_ENV,
     );
     assert.ok(alpha.ok && beta.ok);
 

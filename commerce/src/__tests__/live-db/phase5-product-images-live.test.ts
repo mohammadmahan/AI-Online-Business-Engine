@@ -142,13 +142,18 @@ describe('D-172 §2.1 — live PostgreSQL gallery edit (disposable harness)', { 
       })),
     });
 
-    const product = await createProduct(repo, payload(SLUG, 'شال ترمه', 'LIVE-IMG-FS', IMAGES));
+    const product = await createProduct(
+      repo,
+      payload(SLUG, 'شال ترمه', 'LIVE-IMG-FS', IMAGES),
+      LOCAL_ENV,
+    );
     assert.ok(product.ok, JSON.stringify(product));
     productId = product.productId;
 
     const other = await createProduct(
       repo,
       payload(OTHER_SLUG, 'شال دیگر', 'LIVE-IMG-OTH', [EXTRA]),
+      LOCAL_ENV,
     );
     assert.ok(other.ok, JSON.stringify(other));
     otherProductId = other.productId;

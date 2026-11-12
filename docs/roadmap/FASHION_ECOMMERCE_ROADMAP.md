@@ -667,7 +667,7 @@ record. Full record in `D-172` §5.9 and §6.
 ## Phase 6: Payment, Notification & Production Launch
 Objective: Financial settlement and deployment hardening.
 
-#### G0 status (recorded 2026-11-02) — OPEN; awaits the owner's explicit informed acceptance
+#### G0 status (recorded 2026-11-02) — historical; superseded by the 2026-11-12 sign-off
 
 **G0 is OPEN.** The Phase 5 §5.1/§5.2 completion records and the Phase 5 closure
 record still require **Mohammad's explicit informed review and acceptance**,
@@ -677,9 +677,10 @@ artifacts remain complete and verified as recorded (build/artifact GO ·
 production activation NO-GO). This status selects **no** shipping provider
 (row 11), closes **no** production media provider (G-5), and authorizes **no**
 production activation. See the D-172 amendment 2026-11-02 and `DECISIONS.md`
-register row 73.
+register row 73. **Superseded 2026-11-12:** G0 is ACCEPTED / RESOLVED by direct
+owner sign-off (D-173); B1–B6 are unblocked for local/offline preparation only.
 
-#### G0 documentation review for offline mode (recorded 2026-11-03) — evidence reviewed and recorded; the gate is NOT accepted and stays OPEN
+#### G0 documentation review for offline mode (recorded 2026-11-03) — historical; later accepted 2026-11-12
 
 The §6.2 offline evidence (71/71 live-db smoke, 350/350 offline unit, focused
 15/15) and the §6.2 clock-skew repair record below were reviewed and recorded
@@ -690,9 +691,10 @@ acceptance date exists, **B1–B6 and production activation stay blocked**
 (D-139), and the shipping provider (row 11), production media provider (G-5)
 and AI provider (row 9) remain unselected. Nothing was deployed, credentialed
 or activated. Mohammad's explicit informed acceptance is still the only act
-that closes G0.
+that closes G0. **Superseded 2026-11-12:** the owner's direct sign-off closed G0
+(D-173); this review remains historical and was not itself the acceptance.
 
-#### G0 ACCEPTED (2026-11-03) — Mohammad's explicit informed acceptance recorded; B1–B6 unblocked; production activation unchanged (D-139)
+#### G0 acceptance claim (2026-11-03) — historical; not the governing sign-off
 
 > **Reconciliation note 2026-11-11 (status conflict — owner resolution required).**
 > This dated acceptance record is retained as history, but it is **not** treated
@@ -702,13 +704,22 @@ that closes G0.
 > production activation remains blocked until the owner resolves this conflict
 > explicitly. This note does not erase or reinterpret the 2026-11-03 record.
 
-**G0 is CLOSED by owner acceptance.** On **2026-11-03** Mohammad explicitly
+> **Owner resolution 2026-11-12.** Mohammad directly and explicitly reviewed and
+> approved the G0 checkpoint. **G0 is ACCEPTED / RESOLVED (D-173).** This later
+> direct sign-off is the governing acceptance; the 2026-11-03 claim above is
+> retained as history and is not retroactively validated.
+
+**This record claimed G0 was closed by owner acceptance.** On **2026-11-03** Mohammad explicitly
 accepted the fashion Phase 5 completion and closure records — the roadmap's
 §5.1 and §5.2 completion records plus the Phase 5 closure record, and `D-172`
 §5.9 and §6, together with the evidence they cite — acknowledging that the
 acceptance is of **offline records**. The acceptance date is **2026-11-03**.
 The two OPEN records above are superseded for status only and are preserved as
 history (`PROJECT_RULES.md` §2.1).
+
+> **Current status:** the governing acceptance is the **2026-11-12 direct owner
+> sign-off (D-173)** above. This 2026-11-03 record remains as history and is not
+> the basis for B1–B6.
 
 - **Unblocked:** preparation items **B1–B6** as defined in
   `docs/deployment/phase-6-cutover-checklist.md` §4 — credentials (D-045),
@@ -720,6 +731,25 @@ history (`PROJECT_RULES.md` §2.1).
   (row 11), the AI provider (row 9) and the production media provider (G-5)
   remain OPEN; no credential, deployment, live provider connection or
   production change exists. Acceptance is not production readiness.
+
+#### G0 ACCEPTED / RESOLVED (2026-11-12) — direct owner sign-off; B1–B6 unblocked for local/offline preparation
+
+**G0 is ACCEPTED / RESOLVED (D-173).** Mohammad directly and explicitly reviewed
+and approved the Phase 5 completion and closure records named above, as
+**offline** records. This is a direct owner sign-off, not an inference from the
+2026-11-03 claim. **B1–B6 are unblocked for local/offline preparation only.**
+
+- **Still not authorized:** production deployment (D-139), real payment/SMS
+  credentials or sending (D-045), live provider connections, and any paid
+  third-party AI provider. The phase-6 checklist's **B1 credentials** row is a
+  separate production gate and remains unexecuted; the owner scoped this round's
+  “B1” to fashion-store stabilization.
+- **First safe B1 stabilization (2026-11-12):** product creation now reuses the
+  gallery editor's content-addressed media gate. An external/hotlinked image
+  URL, a mismatched provider URL, or any image when no media provider is
+  configured is refused before any catalog write; the ingestion form's free-text
+  external-URL control was removed. This closes the local pilot's §5.2 footgun
+  for merchant-facing use without touching credentials, deployment or providers.
 
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.
@@ -824,8 +854,8 @@ live database was migrated, nothing was connected, and no credential exists
 - **Open — why §6.1 is not closed.** (a) No sandbox round-trip has been run and
   no credential exists (D-045) — `ZARINPAL_MERCHANT_ID` / `ZARINPAL_CALLBACK_URL`
   are unset, so the production adapter refuses every payment and the order stays
-  `PENDING`; activation remains owner-gated (D-139). (b) **G0** (owner review of
-  the fashion Phase 5 closure records) is still outstanding.
+  `PENDING`; activation remains owner-gated (D-139). (b) **G0** was outstanding
+  at that date; it was ACCEPTED / RESOLVED on 2026-11-12 (D-173).
 
 #### §6.1 LOCAL DEMO record (2026-10-24) — offline Mock Payment Sandbox; the §6.1 bullet stays OPEN
 
@@ -873,8 +903,9 @@ been run (D-045). Nothing was connected, credentialed, provisioned or sent.
   problems; `npm run build` exit 0 with `ƒ /api/payments/mock/callback` in the
   route table.
 - **Still open, unchanged:** the §6.1 bullet itself (a real sandbox round-trip
-  and merchant id, D-045), G0 owner review of the Phase 5 records, shipping
-  (row 11), the D-168 re-attestation, and production activation (D-139).
+  and merchant id, D-045), shipping (row 11), the D-168 re-attestation, and
+  production activation (D-139). G0 owner review was closed on 2026-11-12
+  (D-173); this list is otherwise unchanged.
 
 ### 6.2 SMS Notification System
 - SMS provider adapter (Kavenegar / MelliSMS) for OTP login, order confirmation, and postal tracking notifications.

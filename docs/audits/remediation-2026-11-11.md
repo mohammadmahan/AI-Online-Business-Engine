@@ -1,8 +1,17 @@
 # Remediation report — 2026-11-11 audit
 
+> **Status update 2026-11-12:** G0 is **ACCEPTED / RESOLVED** by Mohammad's
+> direct owner sign-off (**D-173**); B1–B6 are unblocked for local/offline
+> preparation only. The unverified/G0-open statements below are the 2026-11-11
+> audit record and are retained as history. This does not authorize production,
+> credentials or live providers. The first safe B1 stabilization (external
+> create-form media references) is now repaired; see the roadmap and local pilot
+> §5.2.
+
 Scope: every finding `AUD-01`–`AUD-14` plus the audit's documented coverage
-gaps. This is a remediation record, **not** a launch approval. G0 remains
-**UNVERIFIED / owner-gated**; no staging or production deployment, real payment,
+gaps. This is a remediation record, **not** a launch approval. At the time of
+this audit G0 was **UNVERIFIED / owner-gated**; it was later ACCEPTED / RESOLVED
+on 2026-11-12 (D-173). No staging or production deployment, real payment,
 SMS, social post, AI call, customer-data transfer or destructive migration was
 performed.
 
@@ -73,8 +82,9 @@ Standing stack after remediation:
 
 ## Owner decisions still required
 
-1. Sign (or reject) the G0 gate with a durable owner artifact. Do not infer
-   approval from this report.
+1. ~~Sign (or reject) the G0 gate with a durable owner artifact.~~ **Resolved
+   2026-11-12:** Mohammad directly and explicitly approved G0 (D-173). Do not
+   treat this audit as the approval itself.
 2. Approve an authentication/authorization design before any non-loopback
    control-plane exposure.
 3. Supply and authorize payment, SMS and other provider credentials in the

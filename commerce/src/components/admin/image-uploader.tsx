@@ -7,7 +7,7 @@ import type { ProductImagePayload } from '@/contracts/catalog';
 import { formatCountFa } from '@/lib/format';
 import { formatByteSize, compressImage } from '@/lib/image';
 import { cn } from '@/lib/utils';
-import { Banner, Badge, Field, buttonClass, inputClass } from '@/components/ui/primitives';
+import { Banner, Badge, buttonClass } from '@/components/ui/primitives';
 
 /**
  * D-172 §2.1 — multi-image uploader.
@@ -26,8 +26,9 @@ import { Banner, Badge, Field, buttonClass, inputClass } from '@/components/ui/p
  *     gallery rows that point at images which do not exist. The production
  *     provider is still undecided (G-5 remains open beyond local development).
  *
- * A merchant who already hosts images elsewhere can attach them by path + URL;
- * that path persists today and goes through the normal §1.4 contract.
+ * There is deliberately no free-text path/URL box: both the create service and
+ * the gallery editor only accept references the configured media provider
+ * produced, so offering one here would be a promise the server cannot keep.
  */
 
 export interface CompressedPreview {
@@ -55,9 +56,6 @@ export function ImageUploader({
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualPath, setManualPath] = useState('');
-  const [manualUrl, setManualUrl] = useState('');
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) {
@@ -109,33 +107,14 @@ export function ImageUploader({
     imagesChange(images.map((image, order) => ({ ...image, isPrimary: order === index })));
   }
 
-  function addManual() {
-    if (manualPath.trim().length === 0 || manualUrl.trim().length === 0) {
-      setNotice('برای افزودن تصویر بیرونی، مسیر ذخیره‌سازی و نشانی هر دو لازم است.');
-      return;
-    }
-    imagesChange([
-      ...images,
-      {
-        storagePath: manualPath.trim(),
-        publicUrl: manualUrl.trim(),
-        displayOrder: images.length,
-        isPrimary: images.length === 0,
-      },
-    ]);
-    setManualPath('');
-    setManualUrl('');
-    setNotice(null);
-  }
-
   return (
     <div className="flex flex-col gap-3">
       {uploadBlocked ? (
         <Banner tone="warning" title="بارگذاری فایل تصویر در این نصب فعال نیست">
           ذخیره‌سازی محلی رسانه (فایل‌سیستم یا MinIO) پیکربندی نشده است، یا این یک بیلد تولیدی
           است. تصویرها فقط در همین مرورگر فشرده و پیش‌نمایش می‌شوند؛ محصول بدون تصویر ثبت می‌شود
-          یا می‌توانید تصویرِ میزبانی‌شدهٔ خودتان را با «نشانی بیرونی» پیوست کنید. انتخاب رسانهٔ
-          تولیدی همچنان باز است (G-5).
+          تا زمانی که ذخیره‌سازی رسانه فعال شود. پیوست نشانی بیرونی مجاز نیست. انتخاب رسانهٔ تولیدی
+          همچنان باز است (G-5).
         </Banner>
       ) : null}
 
@@ -267,41 +246,6 @@ export function ImageUploader({
         )}
       </section>
 
-      <div>
-        <button
-          type="button"
-          className={buttonClass.neutral}
-          aria-expanded={manualOpen}
-          onClick={() => setManualOpen(!manualOpen)}
-        >
-          افزودن تصویر با نشانی بیرونی
-        </button>
-        {manualOpen ? (
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <Field label="مسیر ذخیره‌سازی" htmlFor="manual-path" hint="مثال: products/manto/1.jpg">
-              <input
-                id="manual-path"
-                className={cn(inputClass, 'cp-code')}
-                value={manualPath}
-                onChange={(event) => setManualPath(event.target.value)}
-              />
-            </Field>
-            <Field label="نشانی عمومی تصویر" htmlFor="manual-url">
-              <input
-                id="manual-url"
-                className={cn(inputClass, 'cp-code')}
-                dir="ltr"
-                value={manualUrl}
-                onChange={(event) => setManualUrl(event.target.value)}
-                placeholder="https://…"
-              />
-            </Field>
-            <button type="button" className={buttonClass.primary} onClick={addManual}>
-              پیوست
-            </button>
-          </div>
-        ) : null}
-      </div>
     </div>
   );
 }

@@ -2,15 +2,16 @@
 
 Living task list for the AI-First Online Business Engine.
 
-> **Current execution status (2026-11-11 reconciliation).** The engine track is
+> **Current execution status (owner resolution 2026-11-12).** The engine track is
 > **closed through Phase 26** and dormant; no engine Phase 27 work is approved.
-> The active D-172 fashion track has **Phase 6 build artifacts complete** but
-> its gate is unresolved: a **2026-11-03 G0 acceptance claim** exists in the
-> roadmap, while the canonical status files mark G0 **UNVERIFIED / owner-gated**
-> because no owner-signed acceptance artifact has been located. This conflict
-> requires an explicit owner decision; it does not authorize B1–B6, deployment,
-> credentials or production activation (D-139). The latest isolated evidence
-> is in `docs/audits/remediation-2026-11-11.md`.
+> The active D-172 fashion track has **Phase 6 build artifacts complete**, and
+> **G0 is ACCEPTED / RESOLVED** by Mohammad's direct owner sign-off (**D-173**).
+> **B1–B6 are unblocked for local/offline preparation only.** Production
+> deployment, credentials, real payment/SMS and live or paid provider activation
+> remain unauthorized without separate explicit owner authorization (D-045 /
+> D-139). The earlier 2026-11-03 acceptance claim and the 2026-11-11 unverified
+> finding are retained as history. The latest isolated evidence is in
+> `docs/audits/remediation-2026-11-11.md`.
 
 - Conventions: `[ ]` open, `[x]` done. Completed items stay until the
   phase closes.
@@ -1749,10 +1750,10 @@ repository hygiene, not deployment authorization.
       §4.1–§4.2 COMPLETE & VERIFIED (offline); the AI provider gate and
       **Phase 5 100% COMPLETE & VERIFIED (offline — §5.1's inline
       keyboard closed 2026-10-22)**; fashion Phase 6 **BUILD COMPLETE &
-      VERIFIED (2026-10-24); **G0 OPEN — Mohammad's explicit informed review
-      and acceptance of the Phase 5 closure records is still required, and no
-      acceptance date exists**, while production activation stays owner-gated
-      (D-139)** — payment (10) and SMS (register row 74) SELECTED 2026-10-23,
+      VERIFIED (2026-10-24); **G0 ACCEPTED / RESOLVED 2026-11-12 by direct owner
+      sign-off (D-173); B1–B6 unblocked for local/offline preparation**, while
+      production activation stays owner-gated (D-139)** — payment (10) and SMS
+      (register row 74) SELECTED 2026-10-23,
       leaving only the shipping provider (11) selection**:
       [`docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md`](docs/roadmap/FASHION_ECOMMERCE_ROADMAP.md)
       is the **authoritative execution plan** for the fashion commerce
@@ -2550,10 +2551,12 @@ repository hygiene, not deployment authorization.
           deployment authorization and manifest wiring (D-139/C-1/C-2),
           **B4** digest pinning (G-5/C-8), **B5** a dispatch scheduler, and
           **B6** observability (MON-001). **G0** (owner review of the Phase 5
-          closure records) is **OPEN and blocks every B1–B6 item below**:
-          the records (D-172 §5.9 and §6, the roadmap's §5.1/§5.2 records plus
-          the Phase 5 closure record) still require Mohammad's explicit
-          informed review and acceptance, and no owner acceptance date exists.
+          closure records) is **ACCEPTED / RESOLVED 2026-11-12 by direct owner
+          sign-off (D-173)**, so the B1–B6 items below are unblocked for
+          **local/offline preparation only**. The records (D-172 §5.9 and §6,
+          the roadmap's §5.1/§5.2 records plus the Phase 5 closure record) were
+          accepted as offline records; production activation and provider
+          credentials remain unauthorized (D-045 / D-139).
           **Next Launch Checklist — fashion Phase 6 only (recorded
           2026-10-23).** Ordered; a **B** item starts only after the **O**
           item it sits under. **O** marks what the docs call an owner act
@@ -2565,20 +2568,22 @@ repository hygiene, not deployment authorization.
           (D-139, above) stays its own separate owner decision and is NOT part
           of this list, and the AI provider (row 9), media storage (G-5) and
           G-6 are not Phase 6 gates and are deliberately absent.
-      - [x] **G0 — owner sign-off of Phase 5 — ACCEPTED 2026-11-03 (B1–B6
-            unblocked; production activation still blocked)**
-            - [ ] **O** Owner explicit informed review/acceptance of the
+      - [x] **G0 — owner sign-off of Phase 5 — ACCEPTED / RESOLVED 2026-11-12
+            (B1–B6 unblocked for local/offline preparation; production
+            activation still blocked)**
+            - [x] **O** Owner explicit informed review/acceptance of the
                   fashion Phase 5 completion and closure records (D-172 §5.9
                   and §6; roadmap §5.1/§5.2 records plus the Phase 5 closure
-                  record) — **NOT ACCEPTED; no acceptance date exists.** The
-                  records still await Mohammad's explicit informed review.
-                  This gate stays OPEN and blocks B1–B6; production activation
+                  record) — **ACCEPTED / RESOLVED 2026-11-12 by direct owner
+                  sign-off (D-173).** The earlier “NOT ACCEPTED; no acceptance
+                  date exists” finding is retained in D-173 as history and no
+                  longer describes the current gate. Production activation
                   remains unauthorized (D-139) and shipping (row 11) remains
-                  OPEN. *(Superseded for status on 2026-11-03 by the acceptance
-                  recorded below; this pre-decision wording is preserved as
-                  history per `PROJECT_RULES.md` §2.1.)*
-            - [x] **ACCEPTED 2026-11-03 — Mohammad's explicit informed
-                  acceptance recorded.** The acceptance object is the five
+                  OPEN.
+            - [x] **Earlier 2026-11-03 acceptance claim — historical only.**
+                  It is not the basis of D-173 and is not treated as a
+                  retroactively verified owner-signed artifact. The acceptance
+                  object is the five
                   records named above (roadmap §5.1 and §5.2 completion records
                   and the Phase 5 closure record; D-172 §5.9 and §6) plus the
                   evidence they cite, accepted as **offline** records. **B1–B6
@@ -2593,13 +2598,22 @@ repository hygiene, not deployment authorization.
                   offline unit, focused 15/15) and the outbox clock-skew repair
                   (commit `5753bfa`) were reviewed and recorded, alongside the
                   Phase 5 acceptance package (D-172 §5.9 and §6; roadmap
-                  §5.1/§5.2 records plus the Phase 5 closure record). G0
-                  remains **OPEN**: Mohammad's explicit informed acceptance is
-                  still unrecorded, no acceptance date exists, B1–B6 stay
-                  blocked, and production activation remains unauthorized
-                  (D-139). Shipping (row 11), production media (G-5) and the AI
-                  provider (row 9) remain unselected; nothing was deployed,
-                  credentialed or sent.
+                  §5.1/§5.2 records plus the Phase 5 closure record). **This
+                  review was not acceptance at that date and is retained as
+                  history; G0 was later ACCEPTED / RESOLVED on 2026-11-12 by
+                  direct owner sign-off (D-173).** Production activation remains
+                  unauthorized (D-139). Shipping (row 11), production media
+                  (G-5) and the AI provider (row 9) remain unselected; nothing
+                  was deployed, credentialed or sent.
+      - [x] **B1 (owner-scoped fashion-store stabilization slice) — media/
+            gallery integrity — EXECUTED 2026-11-12.** `createProduct` now
+            reuses the gallery editor's content-addressed media-reference gate,
+            refusing external/hotlinked URLs and refusing images when no media
+            provider is configured; the create form's free-text external-URL
+            control was removed. Focused offline tests cover both refusals.
+            This is the **local/offline** slice only. The phase-6 checklist's
+            **B1 credentials** item (ZarinPal/Kavenegar IDs, dispatch token,
+            webhook secret) remains unchecked and owner-gated (D-045).
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable
@@ -2716,7 +2730,8 @@ repository hygiene, not deployment authorization.
                   55432), which the suite resets and migrates itself; no staging or
                   production instance was touched.
                   Ordering note: **G0** (owner review of the fashion Phase 5
-                  closure records) is still OUTSTANDING. The adapter work above
+                  closure records) was OUTSTANDING at that date; it was ACCEPTED
+                  / RESOLVED on 2026-11-12 (D-173). The adapter work above
                   was carried out on DIRECT owner instruction in-session and is
                   build-only — nothing was provisioned, migrated against a live
                   database, connected or credentialed, so no gate below G0 was
@@ -2816,8 +2831,9 @@ repository hygiene, not deployment authorization.
                   phone number is stored as the identity only, so no producer
                   emits these events yet.
                   Ordering note: **G0** (owner review of the fashion Phase 5
-                  closure records) remains OUTSTANDING; this work is
-                  build-only and crossed no gate.
+                  closure records) was OUTSTANDING at that date; it was ACCEPTED
+                  / RESOLVED on 2026-11-12 (D-173). This work is build-only and
+                  crossed no gate.
             - [ ] **B** §2.3 buyer SMS trigger + order-confirmation outbox —
                   **BUILT & VERIFIED (2026-10-24, `commerce/`); the box stays
                   unticked for the credential reason above, not for missing
