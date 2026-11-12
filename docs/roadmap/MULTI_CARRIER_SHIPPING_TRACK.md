@@ -527,7 +527,8 @@ Append-only; filled as tasks complete.
   changeable, order placed, admin shows the carrier. All three configuration
   modes plus `none` are covered by the environment tests.
 - **2026-11-12 — MCS-08:** `npm run verify` green (offline 572/572, 132
-  suites); `db:check` clean; `npm run build` green (23 routes); live DB
+  suites); `db:check` clean; `npm run build` green (22 routes; the pre-existing
+  `src/server/media/serve.ts:88` Turbopack tracing warning remains); live DB
   88/88; `check:e2e` 59/59; `check:e2e:fail-closed` 13/13; HTTP status 3/3
   against the DB-backed server; invalid `COMMERCE_SHIPPING_ENABLED` exits 1
   before serving. All local; no carrier endpoint, credential or deployment.
