@@ -2606,14 +2606,21 @@ repository hygiene, not deployment authorization.
                   (G-5) and the AI provider (row 9) remain unselected; nothing
                   was deployed, credentialed or sent.
       - [x] **B1 (owner-scoped fashion-store stabilization slice) — media/
-            gallery integrity — EXECUTED 2026-11-12.** `createProduct` now
-            reuses the gallery editor's content-addressed media-reference gate,
-            refusing external/hotlinked URLs and refusing images when no media
-            provider is configured; the create form's free-text external-URL
-            control was removed. Focused offline tests cover both refusals.
-            This is the **local/offline** slice only. The phase-6 checklist's
-            **B1 credentials** item (ZarinPal/Kavenegar IDs, dispatch token,
-            webhook secret) remains unchecked and owner-gated (D-045).
+            gallery integrity — EXECUTED 2026-11-12 (create + update parity).**
+            Creation, product update and the gallery editor now share ONE
+            content-addressed media-reference gate. `createProduct` refuses
+            external/hotlinked URLs and images when no media provider is
+            configured; `updateProduct` accepts an optional gallery selection,
+            validates every new reference before any lookup/write, and writes
+            the product row plus gallery in one transaction. External/mismatched
+            URLs and incomplete slots are refused without a partial update;
+            existing rows keep their ids and legacy values. Focused offline tests
+            cover update refusal, no-provider refusal, rolling back on a foreign
+            image id, and a successful product+gallery update; gallery tests
+            cover the same reference rules. This is the **local/offline** slice
+            only. The phase-6 checklist's **B1 credentials** item
+            (ZarinPal/Kavenegar IDs, dispatch token, webhook secret) remains
+            unchecked and owner-gated (D-045).
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

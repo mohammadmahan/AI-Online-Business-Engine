@@ -1,8 +1,10 @@
 import type {
   ProductCreatePayload,
   ProductImagePayload,
+  ProductImageSelectionEntry,
   ProductUpdatePayload,
 } from '@/contracts/catalog';
+import { normalizeImageSelection } from '@/lib/product-images';
 import { toDescriptionHtml } from '@/lib/variant-matrix';
 import {
   isUuid,
@@ -12,8 +14,8 @@ import {
   validateProductUpdate,
 } from '@/lib/validation';
 
-import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaPublicPrefix, type MediaEnvironment } from '../media';
-import { validateStoredImageReference } from '../media/reference';
+import type { MediaEnvironment } from '../media';
+import { validateImageReferences } from '../media/image-references';
 import type { CommerceRepository, NewProductGraph, ProductListItem } from '../repository';
 
 /**
@@ -52,21 +54,11 @@ export function productImageIssues(
   if (images.length === 0) {
     return [];
   }
-  if (mediaPublicPrefix(env) === null) {
-    return [{ field: 'images', message: MEDIA_NOT_CONFIGURED_MESSAGE }];
-  }
-
-  const issues: Array<{ field: string; message: string }> = [];
-  images.forEach((image, index) => {
-    if (!image.storagePath.trim() || !image.publicUrl.trim()) {
-      return; // the general validator already reports the missing half
-    }
-    const verdict = validateStoredImageReference(image.storagePath, image.publicUrl, env);
-    if (!verdict.ok) {
-      issues.push({ field: `images.${index}.publicUrl`, message: verdict.message });
-    }
-  });
-  return issues;
+  const verdict = validateImageReferences(
+    images.map((image, index) => ({ ...image, displayOrder: index })),
+    env,
+  );
+  return verdict.ok ? [] : verdict.issues;
 }
 
 /**
@@ -236,6 +228,7 @@ export async function updateProduct(
   repo: CommerceRepository,
   productId: string,
   payload: ProductUpdatePayload,
+  env: MediaEnvironment = process.env,
 ): Promise<UpdateProductResult> {
   // A malformed id is "no such product", not a database cast error.
   if (!isUuid(productId)) {
@@ -250,6 +243,34 @@ export async function updateProduct(
       message: issuesToMessage(validation.issues),
       issues: validation.issues,
     };
+  }
+
+  // The optional gallery is normalised and media-gated BEFORE the product is
+  // read or written. A new reference must be one this store produced; an
+  // existing row is referenced by id and keeps its legacy value untouched.
+  let images: ProductImageSelectionEntry[] | null = null;
+  let normalizedImages: ReturnType<typeof normalizeImageSelection> | null = null;
+  if (payload.images !== undefined) {
+    const normalized = normalizeImageSelection(payload.images);
+    if (!normalized.ok) {
+      return {
+        ok: false,
+        code: 'VALIDATION_ERROR',
+        message: normalized.message,
+        issues: [{ field: normalized.field, message: normalized.message }],
+      };
+    }
+    const media = validateImageReferences(normalized.selection.add, env);
+    if (!media.ok) {
+      return {
+        ok: false,
+        code: 'VALIDATION_ERROR',
+        message: issuesToMessage(media.issues),
+        issues: media.issues,
+      };
+    }
+    images = payload.images;
+    normalizedImages = normalized;
   }
 
   const existing = await repo.getProductForEdit(productId);
@@ -276,7 +297,7 @@ export async function updateProduct(
       ? existing.descriptionHtml
       : toDescriptionHtml(descriptionRaw);
 
-  const updated = await repo.updateProductDetails(productId, {
+  const details = {
     categoryId: payload.categoryId,
     title: payload.title.trim(),
     slug: payload.slug.trim(),
@@ -289,7 +310,16 @@ export async function updateProduct(
     careInstructions:
       typeof payload.careInstructions === 'string' ? payload.careInstructions.trim() || null : null,
     status: payload.status,
-  });
+  };
+
+  const updated =
+    images !== null && normalizedImages !== null
+      ? await repo.updateProductDetailsWithImages(
+          productId,
+          details,
+          normalizedImages.selection,
+        )
+      : await repo.updateProductDetails(productId, details);
 
   if (updated.ok) {
     return { ok: true, productId };
@@ -303,6 +333,14 @@ export async function updateProduct(
       code: 'VALIDATION_ERROR',
       message: DUPLICATE_SLUG_ISSUE.message,
       issues: [DUPLICATE_SLUG_ISSUE],
+    };
+  }
+  if (updated.reason === 'FOREIGN_IMAGE') {
+    return {
+      ok: false,
+      code: 'VALIDATION_ERROR',
+      message: 'یکی از تصویرها به این محصول تعلق ندارد؛ تغییرات ذخیره نشد.',
+      issues: [{ field: 'images', message: 'یکی از تصویرها به این محصول تعلق ندارد.' }],
     };
   }
   return {

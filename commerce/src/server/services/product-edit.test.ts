@@ -22,6 +22,7 @@ function reference(prefix: string, fill: string) {
 
 const IMAGE_A = reference('9d', 'c');
 const IMAGE_B = reference('4a', 'b');
+const IMAGE_C = reference('7f', 'e');
 
 /**
  * D-172 §2.1 — the admin EDIT write.
@@ -89,6 +90,10 @@ function countingRepository(): { repository: CommerceRepository; writes: () => n
       async updateProductDetails(productId, input) {
         count += 1;
         return inner.updateProductDetails(productId, input);
+      },
+      async updateProductDetailsWithImages(productId, input, images) {
+        count += 1;
+        return inner.updateProductDetailsWithImages(productId, input, images);
       },
     },
   };
@@ -220,6 +225,153 @@ describe('product edit service (§2.1)', () => {
     const malformed = await updateProduct(repository, 'not-a-uuid', editPayload());
     assert.equal(malformed.ok, false);
     if (!malformed.ok) assert.equal(malformed.code, 'NOT_FOUND');
+  });
+
+  it('refuses an external or mismatched image reference during update and writes nothing', async () => {
+    const { repository, writes } = countingRepository();
+    const productId = await seedProduct(repository);
+    const beforeProduct = await repository.getProductForEdit(productId);
+    const beforeImages = await repository.getProductImageEditor(productId);
+
+    const offenders = [
+      { ...IMAGE_C, publicUrl: 'https://evil.example/x.jpg' },
+      { ...IMAGE_C, publicUrl: `${IMAGE_C.publicUrl}?v=2` },
+      { ...IMAGE_C, storagePath: IMAGE_C.storagePath.replace('7f', 'ff') },
+    ];
+
+    for (const offender of offenders) {
+      const result = await updateProduct(
+        repository,
+        productId,
+        editPayload({ title: 'عنوان نباید ذخیره شود', images: [offender] }),
+        LOCAL_ENV,
+      );
+      assert.equal(result.ok, false, JSON.stringify(offender));
+      if (result.ok) return;
+      assert.equal(result.code, 'VALIDATION_ERROR');
+      assert.equal(result.issues[0]?.field, 'images.0.publicUrl');
+      assert.deepEqual(await repository.getProductForEdit(productId), beforeProduct);
+      assert.deepEqual(await repository.getProductImageEditor(productId), beforeImages);
+    }
+    assert.equal(writes(), 0);
+  });
+
+  it('refuses an incomplete image slot during update and writes nothing', async () => {
+    const { repository, writes } = countingRepository();
+    const productId = await seedProduct(repository);
+    const beforeProduct = await repository.getProductForEdit(productId);
+    const beforeImages = await repository.getProductImageEditor(productId);
+
+    const result = await updateProduct(
+      repository,
+      productId,
+      editPayload({
+        title: 'عنوان نباید ذخیره شود',
+        images: [{ storagePath: IMAGE_C.storagePath, publicUrl: '' }],
+      }),
+      LOCAL_ENV,
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'images.0');
+    assert.equal(writes(), 0);
+    assert.deepEqual(await repository.getProductForEdit(productId), beforeProduct);
+    assert.deepEqual(await repository.getProductImageEditor(productId), beforeImages);
+  });
+
+  it('refuses a new image reference during update when no media provider is configured', async () => {
+    const { repository, writes } = countingRepository();
+    const productId = await seedProduct(repository);
+    const beforeProduct = await repository.getProductForEdit(productId);
+    const beforeImages = await repository.getProductImageEditor(productId);
+
+    const result = await updateProduct(
+      repository,
+      productId,
+      editPayload({ title: 'عنوان نباید ذخیره شود', images: [IMAGE_C] }),
+      {},
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'images');
+    assert.match(result.message, /ذخیره‌سازی محلی رسانه|نشانی بیرونی/);
+    assert.equal(writes(), 0);
+    assert.deepEqual(await repository.getProductForEdit(productId), beforeProduct);
+    assert.deepEqual(await repository.getProductImageEditor(productId), beforeImages);
+  });
+
+  it('updates product fields and gallery together with valid content-addressed references', async () => {
+    const repository = createMemoryRepository();
+    const productId = await seedProduct(repository);
+    const before = await repository.getProductImageEditor(productId);
+    assert.ok(before);
+    const [first, second] = before.images;
+    assert.ok(first && second);
+
+    const result = await updateProduct(
+      repository,
+      productId,
+      editPayload({
+        title: 'عنوان هم‌زمان با گالری',
+        images: [
+          { id: second.id },
+          { storagePath: IMAGE_C.storagePath, publicUrl: IMAGE_C.publicUrl },
+          { id: first.id, isPrimary: true },
+        ],
+      }),
+      LOCAL_ENV,
+    );
+    assert.deepEqual(result, { ok: true, productId });
+
+    const product = await repository.getProductForEdit(productId);
+    assert.equal(product?.title, 'عنوان هم‌زمان با گالری');
+
+    const after = await repository.getProductImageEditor(productId);
+    assert.ok(after);
+    assert.deepEqual(
+      after.images.map((row) => ({
+        path: row.storagePath,
+        order: row.displayOrder,
+        primary: row.isPrimary,
+      })),
+      [
+        { path: IMAGE_B.storagePath, order: 0, primary: false },
+        { path: IMAGE_C.storagePath, order: 1, primary: false },
+        { path: IMAGE_A.storagePath, order: 2, primary: true },
+      ],
+    );
+  });
+
+  it('rolls the product fields back when the update references another product image', async () => {
+    const repository = createMemoryRepository();
+    const firstId = await seedProduct(repository);
+    const secondId = await seedProduct(repository, 'shomiz-abrisham');
+    const firstBefore = await repository.getProductForEdit(firstId);
+    const firstImages = await repository.getProductImageEditor(firstId);
+    const secondImages = await repository.getProductImageEditor(secondId);
+    assert.ok(firstBefore && firstImages && secondImages);
+
+    const result = await updateProduct(
+      repository,
+      firstId,
+      editPayload({
+        title: 'عنوان نباید ذخیره شود',
+        images: [{ id: secondImages.images[0]!.id }],
+      }),
+      LOCAL_ENV,
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.code, 'VALIDATION_ERROR');
+    assert.equal(result.issues[0]?.field, 'images');
+    assert.deepEqual(await repository.getProductForEdit(firstId), firstBefore);
+    assert.deepEqual(await repository.getProductImageEditor(firstId), firstImages);
+    assert.deepEqual(await repository.getProductImageEditor(secondId), secondImages);
   });
 
   it('rejects a category that does not exist, before touching the row', async () => {

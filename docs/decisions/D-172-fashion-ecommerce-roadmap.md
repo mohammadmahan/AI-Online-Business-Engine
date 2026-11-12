@@ -221,7 +221,12 @@ Production deployment, credentials, real payment/SMS and live or paid provider
 activation remain unauthorized (D-045 / D-139). The first safe B1 stabilization
 closed the create-form external-media gap: `createProduct` now enforces the same
 content-addressed media-reference gate as the gallery editor, and the form's
-free-text external-URL control was removed.
+free-text external-URL control was removed. The 2026-11-12 update-path parity
+follow-up extends that same gate to `updateProduct`: a submitted gallery selection
+is validated before any lookup/write, product fields and gallery commit in one
+transaction, and a foreign image id rolls the update back. Legacy rows referenced
+by id are preserved without revalidation or migration. Local/offline only; no
+production, credential or provider authorization changes.
 
 ## 5. Deliverables in this change
 

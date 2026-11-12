@@ -581,6 +581,32 @@ export function createMemoryRepository(seed: MemoryRepositorySeed = {}): Commerc
       return { ok: true };
     },
 
+    async updateProductDetailsWithImages(productId, input, images) {
+      const product = productsTable.find((row) => row.id === productId);
+      if (!product) {
+        return { ok: false, reason: 'NOT_FOUND' };
+      }
+      const ownedIds = new Set(
+        imagesTable.filter((row) => row.productId === productId).map((row) => row.id),
+      );
+      if (images.keep.some((entry) => !ownedIds.has(entry.id))) {
+        return { ok: false, reason: 'FOREIGN_IMAGE' };
+      }
+
+      const updated = await this.updateProductDetails(productId, input);
+      if (!updated.ok) {
+        return updated;
+      }
+      const written = await this.replaceProductImages(productId, images);
+      if (!written.ok) {
+        return {
+          ok: false,
+          reason: written.reason === 'FOREIGN_IMAGE' ? 'FOREIGN_IMAGE' : 'NOT_FOUND',
+        };
+      }
+      return { ok: true };
+    },
+
     async replaceProductImages(productId, input) {
       const product = productsTable.find((row) => row.id === productId);
       if (!product) {

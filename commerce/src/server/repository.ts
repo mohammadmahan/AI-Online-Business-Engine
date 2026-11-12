@@ -618,7 +618,10 @@ export interface ProductDetailsWrite {
  */
 export type ProductDetailsWriteResult =
   | { ok: true }
-  | { ok: false; reason: 'NOT_FOUND' | 'DUPLICATE_SLUG' | 'CATEGORY_NOT_FOUND' };
+  | {
+      ok: false;
+      reason: 'NOT_FOUND' | 'DUPLICATE_SLUG' | 'CATEGORY_NOT_FOUND' | 'FOREIGN_IMAGE';
+    };
 
 export interface CommerceRepository {
   listCategories(): Promise<Array<{ id: string; name: string; slug: string }>>;
@@ -659,6 +662,21 @@ export interface CommerceRepository {
   updateProductDetails(
     productId: string,
     input: ProductDetailsWrite,
+  ): Promise<ProductDetailsWriteResult>;
+
+  /**
+   * §2.1 — writes the product row and its gallery in ONE transaction.
+   *
+   * Used only when an update supplies `images`. The same ownership rule as
+   * `replaceProductImages` is checked against the rows the product actually
+   * holds BEFORE the product is changed, so a foreign/stale id refuses the
+   * whole update. Any later failure rolls back both writes, including the
+   * product row and its gallery associations.
+   */
+  updateProductDetailsWithImages(
+    productId: string,
+    input: ProductDetailsWrite,
+    images: ProductImagesWriteInput,
   ): Promise<ProductDetailsWriteResult>;
 
   /**
@@ -1160,6 +1178,97 @@ export function createPostgresRepository(db: CommerceDb): CommerceRepository {
         return rows.length === 0
           ? { ok: false as const, reason: 'NOT_FOUND' as const }
           : { ok: true as const };
+      } catch (error) {
+        const { code, constraint } = driverViolation(error);
+        if (code === '23505' && constraint === 'products_slug_unique') {
+          return { ok: false as const, reason: 'DUPLICATE_SLUG' as const };
+        }
+        if (code === '23503' && constraint === 'products_category_id_categories_id_fk') {
+          return { ok: false as const, reason: 'CATEGORY_NOT_FOUND' as const };
+        }
+        throw error;
+      }
+    },
+
+    async updateProductDetailsWithImages(productId, input, images) {
+      try {
+        return await db.transaction(async (tx) => {
+          // Lock the product before checking gallery ownership, then keep that
+          // lock through the product write and gallery replacement.
+          const [product] = await tx
+            .select({ id: products.id })
+            .from(products)
+            .where(eq(products.id, productId))
+            .for('update');
+          if (!product) {
+            return { ok: false as const, reason: 'NOT_FOUND' as const };
+          }
+
+          if (images.keep.length > 0) {
+            const ownedRows = await tx
+              .select({ id: productImages.id })
+              .from(productImages)
+              .where(eq(productImages.productId, productId))
+              .for('update');
+            const ownedIds = new Set(ownedRows.map((row) => row.id));
+            if (images.keep.some((entry) => !ownedIds.has(entry.id))) {
+              return { ok: false as const, reason: 'FOREIGN_IMAGE' as const };
+            }
+          }
+
+          const rows = await tx
+            .update(products)
+            .set({ ...input, updatedAt: new Date() })
+            .where(eq(products.id, productId))
+            .returning({ id: products.id });
+          if (rows.length === 0) {
+            return { ok: false as const, reason: 'NOT_FOUND' as const };
+          }
+
+          const ownedRows = await tx
+            .select({ id: productImages.id })
+            .from(productImages)
+            .where(eq(productImages.productId, productId))
+            .for('update');
+          const keepIds = new Set(images.keep.map((entry) => entry.id));
+          const removeIds = ownedRows
+            .map((row) => row.id)
+            .filter((id) => !keepIds.has(id));
+          if (removeIds.length > 0) {
+            await tx
+              .delete(productImages)
+              .where(
+                and(
+                  eq(productImages.productId, productId),
+                  inArray(productImages.id, removeIds),
+                ),
+              );
+          }
+
+          for (const entry of images.keep) {
+            await tx
+              .update(productImages)
+              .set({ displayOrder: entry.displayOrder, isPrimary: entry.isPrimary })
+              .where(
+                and(eq(productImages.id, entry.id), eq(productImages.productId, productId)),
+              );
+          }
+
+          if (images.add.length > 0) {
+            await tx.insert(productImages).values(
+              images.add.map((entry) => ({
+                productId,
+                variantId: null,
+                storagePath: entry.storagePath,
+                publicUrl: entry.publicUrl,
+                displayOrder: entry.displayOrder,
+                isPrimary: entry.isPrimary,
+              })),
+            );
+          }
+
+          return { ok: true as const };
+        });
       } catch (error) {
         const { code, constraint } = driverViolation(error);
         if (code === '23505' && constraint === 'products_slug_unique') {

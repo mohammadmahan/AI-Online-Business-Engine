@@ -5,8 +5,9 @@
 > preparation only. The unverified/G0-open statements below are the 2026-11-11
 > audit record and are retained as history. This does not authorize production,
 > credentials or live providers. The first safe B1 stabilization (external
-> create-form media references) is now repaired; see the roadmap and local pilot
-> §5.2.
+> create-form media references) is repaired, and the 2026-11-12 follow-up gives
+> product update and the gallery editor the same pre-write media gate; see the
+> roadmap and local pilot §5.2.
 
 Scope: every finding `AUD-01`–`AUD-14` plus the audit's documented coverage
 gaps. This is a remediation record, **not** a launch approval. At the time of

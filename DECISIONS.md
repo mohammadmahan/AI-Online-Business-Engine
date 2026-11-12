@@ -6454,3 +6454,12 @@ direct owner sign-off, not an inference from code, tests or a prior document.
   rejecting external/hotlinked image URLs and refusing images when no media
   provider is configured. The create form's free-text external-URL control was
   removed. Focused offline tests cover the refusal and the no-provider case.
+- **Update-path parity follow-up executed 2026-11-12:** the same media gate now
+  serves `createProduct`, `updateProduct` and the gallery editor. An update may
+  carry the ordered gallery selection; every new reference is validated before
+  the product is read or any row is written, and the product row plus gallery are
+  committed in one repository transaction. External/mismatched URLs and
+  incomplete slots are refused before the write; a foreign image id rolls the
+  whole update back. Existing row ids are preserved without revalidating or
+  migrating legacy database images. This is local/offline hardening only and
+  changes no production, credential or provider authorization.

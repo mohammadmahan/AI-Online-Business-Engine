@@ -750,6 +750,14 @@ and approved the Phase 5 completion and closure records named above, as
   configured is refused before any catalog write; the ingestion form's free-text
   external-URL control was removed. This closes the local pilot's §5.2 footgun
   for merchant-facing use without touching credentials, deployment or providers.
+- **Update-path parity follow-up (2026-11-12):** creation, product update and the
+  gallery editor now share one gate. `updateProduct` may carry the ordered gallery
+  selection; every new reference is validated before the product is read or any
+  row is written, and the product row plus gallery commit in one transaction.
+  External/mismatched URLs and incomplete slots are refused before the write; a
+  foreign image id rolls the whole update back. Existing rows keep their ids and
+  legacy values, so no database image data is migrated or deleted. This remains
+  local/offline hardening only.
 
 ### 6.1 Payment Gateway Integration
 - Iranian payment gateway adapter (ZarinPal / Shaparak IPG) with callback verification and idempotent order updating.

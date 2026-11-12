@@ -178,6 +178,14 @@ gallery editor, refusing external/mismatched URLs and any image when no media
 provider is configured; the create form's free-text external-URL control was
 removed. The observation above is retained as the pre-fix record.
 
+**Update-path parity follow-up (2026-11-12):** `updateProduct` and the gallery
+service now use the same gate. An update may include the ordered gallery
+selection; all new references are validated before the product is read or any
+row is written, and product fields plus gallery are committed in one transaction.
+External/mismatched URLs, incomplete slots and foreign image ids are refused
+without a partial update. Existing rows keep their ids, so legacy database image
+rows are neither revalidated nor migrated or deleted by this change.
+
 ### 5.3 Retained orphan media — **deferred non-pilot item (policy, working as intended)**
 
 The unreferenced object (`54/548b…`, 13,650 B in development; 70 B in the isolated

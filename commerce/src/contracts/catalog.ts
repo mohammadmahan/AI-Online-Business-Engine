@@ -150,9 +150,15 @@ export interface ProductCreatePayload {
  *
  * Full rather than partial on purpose: the edit page renders every field it
  * submits, so "omitted" would be indistinguishable from "cleared" and a partial
- * payload could erase a value the merchant never saw. Variants, images and SKUs
- * are absent by design — they have their own workflows (`inventory`, `images`)
- * and this write must never recreate them.
+ * payload could erase a value the merchant never saw. Variants and SKUs are
+ * absent by design — they have their own workflow (`inventory`) and this write
+ * must never recreate them.
+ *
+ * `images` is optional: when omitted, the gallery is preserved exactly as it
+ * was. When supplied, it is the same ordered selection the gallery editor uses
+ * (existing rows by id, fresh rows by path + url), and the product and gallery
+ * are written together after the shared media-reference gate accepts every new
+ * reference.
  */
 export interface ProductUpdatePayload {
   categoryId: string;
@@ -165,4 +171,5 @@ export interface ProductUpdatePayload {
   season: string;
   careInstructions: string | null;
   status: ProductStatus;
+  images?: ProductImageSelectionEntry[];
 }

@@ -389,6 +389,15 @@ earlier 2026-11-03 acceptance claim and the 2026-11-11 review-gap entries below
 are retained as history; this later direct sign-off is the governing acceptance
 and does not retroactively validate that earlier artifact.
 
+**B1 stabilization follow-up (2026-11-12).** The content-addressed media gate is
+now shared by product creation, product update and the gallery editor. Product
+updates may carry the gallery selection; the product row and gallery are written
+in one transaction only after every new reference is accepted, and a foreign or
+legacy row is referenced by id without revalidation. External/hotlinked URLs,
+mismatched provider URLs and incomplete references are refused before any write.
+This is local/offline hardening only; it changes no production, credential or
+provider gate.
+
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
 documents link (the read-before-work order is `PROJECT_RULES.md` §2).

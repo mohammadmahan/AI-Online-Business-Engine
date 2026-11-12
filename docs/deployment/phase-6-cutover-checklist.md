@@ -153,9 +153,13 @@ evidence column) · **`[OWNER]`** requires an owner act and was **not** performe
 **Remaining owner-gated production blockers, in the order they must be cleared:**
 
 > **Preparation status 2026-11-12:** G0 is ACCEPTED / RESOLVED (D-173), so
-> B1–B6 may be prepared and verified **locally/offline**. The rows below are
-> still production blockers: their execution, credentials, deployment and live
-> activation require separate explicit owner authorization (D-045 / D-139).
+> B1–B6 may be prepared and verified **locally/offline**. The owner-scoped B1
+> stabilization now covers both create and update: product fields and an
+> optional gallery selection validate every new media reference before any
+> write and commit together in one transaction. The **B1 credentials** row below
+> is unchanged and still owner-gated. All rows remain production blockers: their
+> execution, credentials, deployment and live activation require separate
+> explicit owner authorization (D-045 / D-139).
 
 | # | Blocker | Owner act required | Blocks |
 | --- | --- | --- | --- |

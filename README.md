@@ -30,6 +30,12 @@ production behavior or approve a release. Later commits changed tests,
 documentation and the CSP/mobile fixes; every suite was not rerun at every
 subsequent HEAD, and the control plane was not changed by that remediation.
 
+At the 2026-11-12 B1 create/update parity HEAD, the full commerce offline
+verification was rerun: **547/547 tests across 129 suites**, typecheck, lint,
+`drizzle-kit check` and the production build all passed. Live-PostgreSQL suites
+were not run because no disposable `COMMERCE_DATABASE_URL` was configured; the
+540/129 figures above remain the 2026-11-11 remediation baseline.
+
 ---
 
 ## System stack

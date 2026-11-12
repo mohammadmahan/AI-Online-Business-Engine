@@ -2,8 +2,8 @@ import type { ProductImageSelectionEntry } from '@/contracts/catalog';
 import { normalizeImageSelection } from '@/lib/product-images';
 import { isUuid } from '@/lib/validation';
 
-import { MEDIA_NOT_CONFIGURED_MESSAGE, mediaPublicPrefix, type MediaEnvironment } from '../media';
-import { validateStoredImageReference } from '../media/reference';
+import type { MediaEnvironment } from '../media';
+import { validateImageReferences } from '../media/image-references';
 import type { CommerceRepository } from '../repository';
 
 /**
@@ -63,24 +63,14 @@ export async function updateProductImages(
   const { keep, add } = normalized.selection;
 
   if (add.length > 0) {
-    if (mediaPublicPrefix(env) === null) {
+    const media = validateImageReferences(add, env);
+    if (!media.ok) {
       return {
         ok: false,
-        code: 'MEDIA_NOT_CONFIGURED',
-        message: MEDIA_NOT_CONFIGURED_MESSAGE,
-        field: 'images',
+        code: media.code,
+        message: media.issues[0]?.message ?? 'تصویر معتبر نیست.',
+        field: media.issues[0]?.field ?? 'images',
       };
-    }
-    for (const entry of add) {
-      const verdict = validateStoredImageReference(entry.storagePath, entry.publicUrl, env);
-      if (!verdict.ok) {
-        return {
-          ok: false,
-          code: 'VALIDATION_ERROR',
-          message: verdict.message,
-          field: `images.${entry.displayOrder}.publicUrl`,
-        };
-      }
     }
   }
 
