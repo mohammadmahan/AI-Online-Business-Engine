@@ -25,9 +25,15 @@ export function StorefrontHeader() {
 
   return (
     <header className="border-b border-sf-edge bg-sf-canvas">
-      <div className="mx-auto flex w-full max-w-6xl flex-nowrap items-center justify-between gap-3 px-5 py-4 sm:gap-4 sm:px-8 sm:py-5">
+      {/*
+        The cart button grows by the count badge (e.g. «سبد خرید (۱)»), which at
+        320–389px pushed this nowrap row past the viewport (measured 388>374 and
+        404>390). Base density is therefore compact and the row may wrap only on
+        genuinely narrow screens; from `sm` it is the single editorial row again.
+      */}
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-8 sm:py-5">
         <Link href="/" className="group inline-flex shrink-0 flex-col gap-0.5">
-          <span className="font-display text-lg font-semibold leading-none text-sf-ink sm:text-2xl">
+          <span className="font-display text-base font-semibold leading-none text-sf-ink sm:text-2xl">
             فروشگاه پوشاک
           </span>
           <span className="sf-eyebrow sf-eyebrow-latin text-[0.625rem] font-medium">
@@ -35,13 +41,14 @@ export function StorefrontHeader() {
           </span>
         </Link>
 
-        <nav aria-label="بخش‌های فروشگاه" className="flex shrink-0 items-center gap-3 sm:gap-5">
+        <nav aria-label="بخش‌های فروشگاه" className="flex shrink-0 items-center gap-2 sm:gap-5">
           <Link className="sf-link whitespace-nowrap text-sf-caption font-medium" href="/catalog">
             همهٔ محصولات
           </Link>
           <button
             type="button"
-            className={`${sfButton.quiet} px-4 sm:px-6`}
+            className={sfButton.quietCompact}
+            data-cart-trigger
             onClick={openCart}
             aria-haspopup="dialog"
             aria-label={
@@ -51,7 +58,7 @@ export function StorefrontHeader() {
             <ShoppingBag aria-hidden="true" size={15} />
             سبد خرید
             {hydrated && count > 0 ? (
-              <span className="cp-code ms-1 text-sf-caption">({formatCountFa(count)})</span>
+              <span className="sf-code ms-1 text-sf-caption">({formatCountFa(count)})</span>
             ) : null}
           </button>
         </nav>

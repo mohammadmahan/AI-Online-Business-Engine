@@ -6745,3 +6745,42 @@ credential, and no production change (D-045/D-139 unchanged).
 
 **Status:** IMPLEMENTED and VERIFIED locally/offline; committed 2026-11-14 after
 owner visual approval. No production, credential or provider gate is changed.
+
+**Amendment — Phase 2A cart drawer (2026-11-14, append-only).** The drawer is a
+CUSTOMER surface, so it adopts the same `--sf-*` layer through a
+`surface="storefront"` chrome on the shared Modal; the merchant default
+(`surface="panel"`) is unchanged, including its focus behaviour. Inside the
+drawer the admin blue primary, admin radius, admin whites and the admin focus
+ring are gone, while every accessible name, role, H2 heading level, Radix focus
+trap, Escape handling and the quantity live region are preserved.
+
+**Focus restoration and fallback priority.** The storefront cart button is not a
+Radix `Dialog.Trigger` (it lives in the header, the drawer is rendered by the
+layout), so Radix had no trigger to restore and focus fell to `<body>`. The
+drawer now remembers its opener in Radix's `onOpenAutoFocus` and restores it from
+`onCloseAutoFocus` (`preventDefault()` first), with this strict priority:
+
+1. **Opener** — the element focused when the drawer opened (header button, or
+the PDP add button), if it is still connected, enabled, visible and focusable;
+2. **Trigger** — the visible header cart button (`[data-cart-trigger]`);
+3. **Landmark heading** — `focusStorefrontLandmark()`: the first `h1`/`h2` inside
+   `#main-content`, or the landmark itself when no heading exists, made
+   programmatically focusable with `tabindex="-1"` ONLY when it lacks one and
+   cleaned up on blur, so normal Tab order never changes.
+
+Focus therefore never rests on `document.body`, inside the unmounted dialog, or
+on an arbitrary hidden element. No timeout is used; the decision is synchronous
+within Radix's close event. Decision logic is in `src/lib/focus-return.ts`.
+
+**Verification of Phase 2A.** `scripts/check-cart-focus.mjs` drives real system
+Chrome on loopback (18/18): keyboard open, Tab and Shift+Tab trapping, Escape and
+the close control returning to the trigger, the PDP add button as opener, a
+removed opener falling back to the trigger, both preferred targets removed
+falling back to the visible `#main-content` heading, a painted ink focus ring,
+and no horizontal overflow at 320px with a populated drawer. Native 390x844 and
+1440x900 screenshots were inspected by the owner. Offline decisions and the
+source contract are pinned in `focus-return.test.ts` and
+`storefront-theme.test.ts`. Final gates: typecheck, lint and build exit 0;
+**588 tests, 585 pass**, with only the three known Windows `fs.symlink` `EPERM`
+tests failing (environmental, unskipped and unweakened). No deployment,
+credential, provider or production change is implied.

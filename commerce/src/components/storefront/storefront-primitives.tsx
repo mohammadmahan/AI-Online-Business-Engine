@@ -18,6 +18,15 @@ export const sfButton = {
   /** Secondary action: hairline outline, same ink text (16.57:1 on canvas). */
   quiet:
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-sf border border-sf-edge-strong px-6 py-3 text-sf-caption font-medium text-sf-ink transition-colors hover:bg-sf-muted',
+  /** Header-sized quiet action: the same hairline, tighter at phone widths. */
+  quietCompact:
+    'inline-flex min-h-11 items-center justify-center gap-2 rounded-sf border border-sf-edge-strong px-3 text-sf-caption font-medium text-sf-ink transition-colors hover:bg-sf-muted sm:px-6',
+  /** Square 44px control for a stepper: icon-only, labelled by `aria-label`. */
+  icon:
+    'inline-flex size-11 items-center justify-center rounded-sf border border-sf-edge-strong text-sf-ink transition-colors hover:bg-sf-muted disabled:opacity-40',
+  /** Compact labelled control; the Persian label carries the meaning, not colour. */
+  compact:
+    'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sf border border-sf-edge-strong px-3 text-sf-caption font-medium text-sf-ink transition-colors hover:bg-sf-muted disabled:opacity-40',
 } as const;
 
 /** Section eyebrow: small, letterspaced, muted — editorial, not decorative. */

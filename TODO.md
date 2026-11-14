@@ -2684,12 +2684,40 @@ repository hygiene, not deployment authorization.
             unskipped. A 4th Windows failure — a hardcoded `/tmp/media-root`
             assertion — was a real path-portability assumption and is fixed in
             the same commit (`path.resolve('/tmp/media-root')`).
-        - [ ] **SF-UI Phase 2A — cart drawer only (next).** Move the drawer onto
-              the `--sf-*` layer (ivory surface, ink text, hairlines, display-face
-              heading, storefront buttons/focus ring) with every accessible name,
-              role, heading level, focus trap, Escape behaviour and live-region
-              announcement preserved. Checkout, cart logic and quantity rules are
-              out of scope for this step.
+        - [x] **SF-UI Phase 2A — cart drawer only.** **COMPLETE (local/offline)
+              2026-11-14, committed after owner visual review** (Phase 1 shipped
+              as `7bf6e34`).
+              The drawer renders in a `surface="storefront"` Modal chrome: ivory
+              surface, warm ink, hairlines, display-face heading, 2px ink focus
+              ring and storefront buttons. Radix still owns the focus trap,
+              Escape handling, heading level and the «بستن» accessible name; the
+              quantity live region and every labelled stepper/remove control are
+              unchanged. Checkout, cart logic and quantity rules were not
+              touched. `storefront-theme.test.ts` now fails if the drawer regains
+              an admin token, loses its a11y contract, or the admin dialog's
+              default chrome shifts. Two drawer defects found during that review
+              were fixed in the same Phase 2A set: the populated header
+              (`سبد خرید (۱)`) overflowed the 390/320 viewport, and a full basket
+              could exceed the viewport because the fixed dialog had no height
+              cap. **Focus restoration added 2026-11-14:** the drawer remembers
+              its opener in Radix's `onOpenAutoFocus` and restores it from
+              `onCloseAutoFocus` (preventDefault + `resolveFocusReturn` in
+              `src/lib/focus-return.ts`), falling back to the `[data-cart-trigger]`
+              header button when the opener is gone, disabled or unfocusable.
+              `scripts/check-cart-focus.mjs` proves it with real Chrome
+              interaction (**18/18**: keyboard open, Tab/Shift+Tab trap, Escape
+              and the close control return to the trigger, PDP add returns to the
+              add button, a removed opener falls back, visible ink ring, 320px
+              overflow, and — with the opener AND the header trigger both
+              removed — focus lands on the visible `#main-content` heading via
+              `focusStorefrontLandmark`, which grants `tabindex="-1"` only while
+              needed and drops it on blur). Native screenshots at 390x844 and
+              1440x900 (plus a fallback-focus frame) were inspected by the owner
+              and then removed with the rest of `review/` after the push, per
+              owner instruction; the check script is preserved in this commit.
+              Verification:
+              typecheck, lint and build exit 0; **588 tests, 585 pass**, and only
+              the three Windows symlink `EPERM` tests fail.
         - [ ] **SF-UI Phase 2B — remaining surfaces still on `--cp-*`:** catalog
               browser (white filter card, `#1e40af` active chips, admin `h1`),
               PDP gallery/price block/lavender CTA, and the checkout shell. Each

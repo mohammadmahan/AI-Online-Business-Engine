@@ -227,6 +227,15 @@
     text-transform: uppercase;
   }
 
+  /* Latin machine values (a size code) inside storefront RTL text. Same rule as
+     the panel's `.cp-code`, named for the storefront so a storefront component
+     never has to reach for a merchant-panel utility. */
+  .sf-code {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
   /* A hairline rule that reads as a printed page, not a UI border. */
   .sf-rule {
     border-block-start: 1px solid var(--sf-edge);

@@ -58,6 +58,7 @@ const TEXT_PAIRINGS: ReadonlyArray<readonly [fg: string, bg: string, where: stri
   ['sf-accent', 'sf-canvas', 'discount label'],
   ['sf-accent', 'sf-surface', 'discount label on a card'],
   ['sf-ink-inverse', 'sf-inverse', 'inverted primary button'],
+  ['sf-ink', 'sf-surface-muted', 'hover state of a storefront control'],
 ];
 
 describe('D-172 §3 storefront visual system', () => {
@@ -97,6 +98,68 @@ describe('D-172 §3 storefront visual system', () => {
     assert.equal(token('cp-text'), '#0f172a');
     assert.equal(token('cp-text-muted'), '#475569');
     assert.equal(token('cp-primary'), '#1e40af');
+  });
+
+  it('keeps the cart drawer on the storefront layer, with no admin token left', () => {
+    const drawer = readFileSync(resolve(process.cwd(), 'src/components/storefront/cart-drawer.tsx'), 'utf8');
+    // A customer surface must not borrow the merchant panel's palette or its
+    // button/primitive vocabulary — that is what made the drawer read as a
+    // different product. This is a source assertion on purpose: a class edit is
+    // exactly how the regression would come back.
+    assert.doesNotMatch(drawer, /\bcp-[a-z]/, 'the drawer must not use any --cp-* / cp-* utility');
+    assert.doesNotMatch(drawer, /--radius-cp|buttonClass\./, 'the drawer must not use admin primitives');
+    assert.doesNotMatch(drawer, /\b(bg-surface|text-ink|border-edge|border-edge-strong|text-danger)\b/);
+    assert.match(drawer, /surface="storefront"/, 'the drawer must request the storefront chrome');
+    assert.match(drawer, /sfButton\./, 'the drawer must use the storefront interaction set');
+  });
+
+  it('preserves the drawer accessibility contract across the restyle', () => {
+    const drawer = readFileSync(resolve(process.cwd(), 'src/components/storefront/cart-drawer.tsx'), 'utf8');
+    const dialog = readFileSync(resolve(process.cwd(), 'src/components/ui/dialog.tsx'), 'utf8');
+    // Live region for quantity changes, labelled steppers, and the Radix dialog
+    // (focus trap + Escape + focus return) are behavioural, not visual. They must
+    // survive any chrome change.
+    assert.match(drawer, /aria-live="polite"/);
+    assert.match(drawer, /aria-label=\{`کاهش تعداد/);
+    assert.match(drawer, /aria-label=\{`افزودن یک عدد به/);
+    assert.match(drawer, /aria-label=\{`حذف /);
+    assert.match(dialog, /aria-label="بستن"/);
+    assert.match(dialog, /RadixDialog\.Root/);
+    assert.match(dialog, /onOpenChange/);
+  });
+
+  it('adds the storefront chrome without changing the admin dialog default', () => {
+    const dialog = readFileSync(resolve(process.cwd(), 'src/components/ui/dialog.tsx'), 'utf8');
+    const sfChrome = dialog.slice(dialog.indexOf('storefront: {'), dialog.indexOf('} as const;'));
+    assert.doesNotMatch(sfChrome, /\bcp-[a-z]/, 'the storefront chrome must not carry admin tokens');
+    assert.match(sfChrome, /bg-sf-surface/);
+    assert.match(sfChrome, /border-sf-edge/);
+    assert.match(sfChrome, /font-display/, 'the drawer heading uses the display face');
+    // The admin default is untouched: still the panel chrome, still the default.
+    const panelChrome = dialog.slice(dialog.indexOf('panel: {'), dialog.indexOf('storefront: {'));
+    assert.match(panelChrome, /bg-surface/);
+    assert.match(panelChrome, /--radius-cp/);
+    assert.match(dialog, /surface = 'panel'/);
+    assert.match(dialog, /data-surface=\{surface === 'storefront'/);
+  });
+
+  it('returns focus to the cart opener instead of leaving it on <body>', () => {
+    const drawer = readFileSync(resolve(process.cwd(), 'src/components/storefront/cart-drawer.tsx'), 'utf8');
+    const header = readFileSync(resolve(process.cwd(), 'src/components/storefront/storefront-header.tsx'), 'utf8');
+    const dialog = readFileSync(resolve(process.cwd(), 'src/components/ui/dialog.tsx'), 'utf8');
+    // The opener is remembered before Radix moves focus, and the close event is
+    // handled rather than left to Radix (there is no Dialog.Trigger to restore).
+    assert.match(drawer, /onOpenAutoFocus=\{rememberOpener\}/);
+    assert.match(drawer, /onCloseAutoFocus=\{returnFocus\}/);
+    assert.match(drawer, /resolveFocusReturn\(opener, trigger\)/);
+    // Last resort when both preferred targets are gone: the page's own heading.
+    assert.match(drawer, /focusStorefrontLandmark\(document\)/);
+    // A stable fallback target that still exists when the opener does not.
+    assert.match(header, /data-cart-trigger/);
+    // The shared Modal only forwards the events; admin passes neither.
+    assert.match(dialog, /onOpenAutoFocus\?: \(event: Event\) => void/);
+    assert.match(dialog, /onCloseAutoFocus\?: \(event: Event\) => void/);
+    assert.match(dialog, /onCloseAutoFocus=\{onCloseAutoFocus\}/);
   });
 
   it('encodes direction nowhere in the storefront tokens', () => {
