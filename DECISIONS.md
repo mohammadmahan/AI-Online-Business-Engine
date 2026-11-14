@@ -6827,3 +6827,58 @@ environment touched). Gates on the committed tree: typecheck, lint and build exi
 0; **592 tests, 589 pass**, with only the three known Windows `fs.symlink` `EPERM`
 tests failing. No deployment, credential, provider or production change is
 implied; PDP and checkout remain on `--cp-*` for Phase 2C.
+
+**Phase 2C — PDP editorial baseline (2026-11-14, append-only).** The product
+page is the third customer surface restyled under D-177, and the last one whose
+LOGIC was deliberately left where it is: `src/lib/variant-selection.ts` still owns
+preselection, the full published size list, disabled cells, the level the badge
+may claim, the quantity cap and the cart line. No rule was rewritten in the
+component; `storefront-theme.test.ts` keeps every admin token and primitive out
+of the PDP files while the funnel suite still drives the matrix.
+
+- **3:4 hero.** The gallery uses the same portrait crop as the catalog card, so a
+  colour change no longer jumps between a square and a portrait frame and the
+  editorial grid reads as one publication. Zoom (mouse-origin scaling), the
+  swipeable thumbnail rail, colour-scoped photos and the accessible labels are
+  unchanged; the selected thumbnail is an ink border plus `aria-current`, never
+  colour alone. Missing images render an ivory/hairline 3:4 placeholder instead of
+  a dashed admin box.
+- **Desktop 7fr/5fr.** At 1440 the page is a `minmax(0,7fr) / minmax(0,5fr)`
+  gallery/buy-box grid with a 56px gutter: the image keeps enough width to read as
+  the product, while the buy box stays a single narrow column so price, stock,
+  colour, size, quantity and the CTA scan top to bottom without wrapping into a
+  second column.
+- **Mobile order.** One column: gallery, then the whole buy box, THEN the long
+  description and specifications. Purchase controls therefore precede prose in
+  document order, and the 3:4 hero is intentionally the catalog crop rather than
+  a shorter mobile-only ratio. The CTA still sits below the option chips at 390
+  (no sticky CTA is added: nothing demonstrated a need, and a sticky bar would
+  need its own focus/occlusion review).
+- **Level-only stock.** The indicator is a dot + Persian label + Latin code
+  (`IN` / `LOW` / `OUT`), with the explanatory sentence beside it. Raw quantities
+  never reach the browser, and state is never colour-only. Out-of-stock size
+  cells remain visible and disabled, labelled «ناموجود», so a customer learns
+  that this colour has no L instead of losing the button.
+- **Size chart: manual focus restoration, deliberately.** The chart is the only
+  PDP modal switched to `surface="storefront"`; the shared admin Modal default is
+  untouched. Its trigger is a plain button (not a Radix `Dialog.Trigger`), so
+  Radix's close event would otherwise land focus on `<body>`. The PDP supplies
+  `onCloseAutoFocus`, calls `preventDefault()` and focuses the remembered guide
+  button synchronously — the same class of fix as D-177 Phase 2A, with no timeout
+  and no change to Radix's trap, Escape handling or close-button semantics. The
+  table inside is hairline `sf-code` markup and marks the selected size's row.
+
+**Owner visual approval (2026-11-14).** The owner manually inspected and approved
+all five native Phase 2C captures: the 390 layout, the 1440 layout, the
+size-chart modal, the add-to-cart drawer state, and the missing-image
+placeholder. Evidence: `scripts/check-pdp-visual.mjs` passed **23/23** in real
+Chrome on loopback (display face, 3:4 hero, colour re-scoping, disabled
+out-of-stock cell, quantity reveal, drawer line, focus return to the add button,
+storefront chart chrome, Escape focus return, buy box before description at both
+widths, two-column desktop, no 390/1440 overflow), the Phase 2A cart-focus
+regression still passed **18/18**, and the temporary missing-image harness passed
+3/3 before removal (no data, database or environment change). Gates on the
+committed tree: typecheck, lint and build exit 0; **593 tests, 590 pass**, with
+only the three known Windows `fs.symlink` `EPERM` tests failing. No deployment,
+credential, provider or production change is implied. The checkout shell and its
+order-success state remain on `--cp-*` for Phase 2D.

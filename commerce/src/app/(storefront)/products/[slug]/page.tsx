@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { ProductExperience } from '@/components/storefront/product-experience';
 import { ProductRail } from '@/components/storefront/product-rail';
+import { SectionEyebrow } from '@/components/storefront/storefront-primitives';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
 import { getRepository } from '@/server/db-context';
 import { getPublishedProduct, listPublishedProducts } from '@/server/services/storefront';
@@ -29,6 +30,11 @@ import { getPublishedProduct, listPublishedProducts } from '@/server/services/st
  * `generateMetadata` re-reads the product: one extra indexed lookup by slug for a
  * correct title, which is a trade this page accepts rather than shipping an
  * untitled product page.
+ *
+ * Phase 2C (D-177): the shell is editorial — link breadcrumb, eyebrow, display
+ * face, hairline section rules and prose/spacing on the `--sf-*` layer. The
+ * purchase controls still come BEFORE the long description in document order, so
+ * a phone does not have to scroll through the story to reach the CTA.
  */
 
 export const dynamic = 'force-dynamic';
@@ -62,8 +68,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (repository === null) {
     return (
       <>
-        <h1 className="text-cp-display font-bold text-ink">صفحهٔ محصول</h1>
-        <div className="mt-4">
+        <header className="border-b border-sf-edge pb-8">
+          <SectionEyebrow>فروشگاه پوشاک · محصول</SectionEyebrow>
+          <h1 className="mt-2 font-display text-sf-title font-semibold text-sf-ink">
+            صفحهٔ محصول
+          </h1>
+        </header>
+        <div className="mt-8">
           <StorefrontUnavailable what="صفحهٔ محصول" />
         </div>
       </>
@@ -87,52 +98,63 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <article>
-      <nav aria-label="مسیر صفحه" className="text-cp-caption text-ink-muted">
-        <Link href="/">خانه</Link>
-        {' / '}
-        <Link href="/catalog">همهٔ محصولات</Link>
-        {' / '}
-        <span>{product.title}</span>
+      <nav aria-label="مسیر صفحه" className="text-sf-caption text-sf-ink-muted">
+        <Link href="/" className="sf-link">
+          خانه
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <Link href="/catalog" className="sf-link">
+          همهٔ محصولات
+        </Link>
+        <span aria-hidden="true"> / </span>
+        <span className="text-sf-ink">{product.title}</span>
       </nav>
 
-      <header className="mt-2">
-        <h1 className="text-cp-display font-bold text-ink">{product.title}</h1>
-        <p className="mt-1 text-cp-label text-ink-muted">
-          {product.categoryName} — پارچه: {product.fabricType} — فصل: {product.season}
-        </p>
+      <header className="mt-6 border-b border-sf-edge pb-8">
+        <SectionEyebrow>
+          {product.categoryName} · {product.fabricType} · {product.season}
+        </SectionEyebrow>
+        <h1 className="mt-3 max-w-3xl font-display text-sf-title font-semibold leading-tight text-sf-ink">
+          {product.title}
+        </h1>
       </header>
 
       <ProductExperience product={product} />
 
-      <section aria-labelledby="pdp-description" className="mt-10">
-        <h2 id="pdp-description" className="text-cp-heading font-semibold text-ink">
+      <section aria-labelledby="pdp-description" className="mt-16 border-t border-sf-edge pt-10">
+        <h2
+          id="pdp-description"
+          className="font-display text-sf-title font-semibold text-sf-ink"
+        >
           توضیحات
         </h2>
         {paragraphs.length === 0 ? (
-          <p className="mt-2 text-cp-label text-ink-muted">برای این محصول توضیحی ثبت نشده است.</p>
+          <p className="mt-3 max-w-2xl text-sf-body leading-relaxed text-sf-ink-muted">
+            برای این محصول توضیحی ثبت نشده است.
+          </p>
         ) : (
           paragraphs.map((paragraph, index) => (
             <p
               key={index}
-              className="mt-2 whitespace-pre-line text-cp-body text-ink"
+              className="mt-3 max-w-2xl whitespace-pre-line text-sf-body leading-relaxed text-sf-ink"
             >
               {paragraph}
             </p>
           ))
         )}
 
-        <dl className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[--radius-cp] border border-edge bg-surface p-3">
-            <dt className="text-cp-caption text-ink-muted">پارچه</dt>
-            <dd className="text-cp-label text-ink">{product.fabricType}</dd>
+        <dl className="mt-10 grid gap-6 border-t border-sf-edge pt-6 sm:grid-cols-3">
+          <div>
+            <dt className="text-sf-caption text-sf-ink-muted">پارچه</dt>
+            <dd className="mt-1 text-sf-body text-sf-ink">{product.fabricType}</dd>
           </div>
-          <div className="rounded-[--radius-cp] border border-edge bg-surface p-3">
-            <dt className="text-cp-caption text-ink-muted">فصل</dt>
-            <dd className="text-cp-label text-ink">{product.season}</dd>
+          <div>
+            <dt className="text-sf-caption text-sf-ink-muted">فصل</dt>
+            <dd className="mt-1 text-sf-body text-sf-ink">{product.season}</dd>
           </div>
-          <div className="rounded-[--radius-cp] border border-edge bg-surface p-3">
-            <dt className="text-cp-caption text-ink-muted">نگه‌داری و شست‌وشو</dt>
-            <dd className="text-cp-label text-ink">
+          <div>
+            <dt className="text-sf-caption text-sf-ink-muted">نگه‌داری و شست‌وشو</dt>
+            <dd className="mt-1 text-sf-body text-sf-ink">
               {product.careInstructions ?? 'توضیحی ثبت نشده است.'}
             </dd>
           </div>

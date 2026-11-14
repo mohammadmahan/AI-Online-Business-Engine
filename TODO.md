@@ -2739,8 +2739,29 @@ repository hygiene, not deployment authorization.
               typecheck, lint and build exit 0; **592 tests, 589 pass**, only the
               three Windows symlink `EPERM` tests fail. **The owner manually
               inspected and approved all seven native catalog screenshots.**
-              PDP gallery/price block and the checkout shell remain on `--cp-*`
-              for Phase 2C.
+        - [x] **SF-UI Phase 2C — PDP editorial redesign + size-chart integration.
+              COMPLETE, verified and owner-approved 2026-11-14.** The PDP shell
+              is editorial (breadcrumb, eyebrow, display heading, hairline rules,
+              prose + hairline specs); the gallery is a 3:4 frame matching the
+              catalog crop with ink controls, an ink/`aria-current` selected
+              thumbnail and an editorial missing-image placeholder; the buy box
+              uses `sfChip` colour/size facets, an ink CTA, `sfField` quantity and
+              a LEVEL-only indicator (dot + Persian label + `IN`/`LOW`/`OUT` code,
+              never a quantity). Out-of-stock size cells stay visible but
+              disabled; the size-chart modal is the ONLY storefront-surface Modal
+              and restores focus to its trigger through `onCloseAutoFocus` (no
+              Radix Trigger on that button, no timeout). 390 is one column with
+              the buy box before the description; 1440 is a 7fr/5fr
+              gallery/buy-box grid. All selection rules remain in
+              `variant-selection.ts`; colour reset, cap, cart-open and the Phase
+              2A focus return are unchanged. `check-pdp-visual.mjs` passes
+              **23/23** and the Phase 2A cart-focus regression **18/18** in real
+              Chrome; the temporary missing-image harness passed 3/3 and was
+              removed. Gates: typecheck, lint and build exit 0; **593 tests, 590
+              pass**, only the three Windows symlink `EPERM` tests fail. **The
+              owner manually inspected and approved all five native PDP
+              screenshots.** The checkout shell and order-success state remain on
+              `--cp-*` for Phase 2D.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

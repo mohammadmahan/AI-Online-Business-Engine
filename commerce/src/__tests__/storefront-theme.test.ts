@@ -241,6 +241,58 @@ describe('D-172 §3 storefront visual system', () => {
     assert.match(notice, /font-display/);
   });
 
+  it('keeps the PDP on the storefront layer, with no admin token or primitive left', () => {
+    const page = readFileSync(
+      resolve(process.cwd(), 'src/app/(storefront)/products/[slug]/page.tsx'),
+      'utf8',
+    );
+    const experience = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/product-experience.tsx'),
+      'utf8',
+    );
+    const gallery = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/product-gallery.tsx'),
+      'utf8',
+    );
+    for (const [name, source] of [
+      ['PDP page', page],
+      ['PDP buy box', experience],
+      ['PDP gallery', gallery],
+    ] as const) {
+      assert.doesNotMatch(source, /\bcp-[a-z]/, `${name} must not use any --cp-* / cp-* utility`);
+      assert.doesNotMatch(
+        source,
+        /--radius-cp|buttonClass\.|inputClass|\bBadge\b/,
+        `${name} must not use admin primitives`,
+      );
+      assert.doesNotMatch(
+        source,
+        /\b(bg-surface|text-ink(?![\w-])|border-edge(?![\w-])|border-primary|text-primary|bg-primary)\b/,
+        `${name} must not borrow the panel palette`,
+      );
+    }
+    assert.match(page, /font-display text-sf-title/, 'the PDP heading uses the display face');
+    assert.match(page, /border-sf-edge/);
+    // Purchase controls precede the long description in document order.
+    assert.ok(
+      page.indexOf('<ProductExperience') < page.indexOf('id="pdp-description"'),
+      'the buy box must come before the description section',
+    );
+    assert.match(experience, /surface="storefront"/, 'only the size-chart modal asks for storefront chrome');
+    assert.match(experience, /onCloseAutoFocus=\{/);
+    assert.match(experience, /sizeGuideRef\.current\?\.focus\(\)/);
+    assert.match(experience, /sfButton\.primary/);
+    assert.match(experience, /sfChip\.active/);
+    assert.match(experience, /aria-pressed=\{selectedSize === size\}/);
+    assert.match(experience, /role="group"/);
+    assert.match(experience, /STOCK_LEVEL_LABELS\[level\]/);
+    assert.match(experience, /افزودن به سبد خرید/);
+    assert.match(experience, /type="range"|select/, 'quantity stays a real form control');
+    assert.match(gallery, /aspect-\[3\/4\]/, 'the 3:4 hero matches the catalog crop');
+    assert.match(gallery, /aria-current=\{imageIndex === index\}/);
+    assert.doesNotMatch(gallery, /border-primary/);
+  });
+
   it('encodes direction nowhere in the storefront tokens', () => {
     // RTL is a document-level switch (src/lib/document.ts); a storefront token
     // must not hard-code a side, or the two would fight after a dir change.
