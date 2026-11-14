@@ -293,6 +293,51 @@ describe('D-172 §3 storefront visual system', () => {
     assert.doesNotMatch(gallery, /border-primary/);
   });
 
+  it('keeps the checkout shell and inline order result on the storefront layer', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/app/(storefront)/checkout/page.tsx'), 'utf8');
+    const form = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/checkout-form.tsx'),
+      'utf8',
+    );
+
+    for (const [name, source] of [
+      ['checkout page', page],
+      ['checkout form', form],
+    ] as const) {
+      assert.doesNotMatch(source, /\bcp-[a-z]/, `${name} must not use any --cp-* / cp-* utility`);
+      assert.doesNotMatch(
+        source,
+        /--radius-cp|buttonClass\.|inputClass|\b(Badge|Banner|Card|CardHeader|Table|Th|Td)\b/,
+        `${name} must not use admin primitives`,
+      );
+      assert.doesNotMatch(
+        source,
+        /\b(bg-surface|text-ink(?![\w-])|border-edge(?![\w-])|border-primary|text-primary|bg-primary)\b/,
+        `${name} must not borrow the panel palette`,
+      );
+    }
+
+    assert.match(page, /SectionEyebrow/, 'the checkout heading is editorial');
+    assert.match(page, /font-display text-sf-title/, 'the checkout heading uses the display face');
+    assert.match(page, /border-sf-edge/);
+
+    assert.match(form, /sfButton\.primary/, 'the submit CTA is the ink button');
+    assert.match(form, /sfField/, 'the checkout fields use the storefront field');
+    assert.match(form, /سبد خرید خالی است/, 'the empty-cart state is present');
+    assert.match(form, /name="checkout-shipping"/, 'shipping stays a real radio group');
+    assert.match(form, /aria-busy=\{busy\}/, 'the in-flight submit state is preserved');
+    assert.match(form, /role="alert"/, 'field errors remain announced');
+    assert.match(form, /role="status"/, 'notices and the result remain a live region');
+    assert.match(form, /PAYMENT_STATUS_LABELS\[result\.payment\.status\]/, 'the gateway status is shown');
+    assert.match(
+      form,
+      /پرداخت آنلاین انجام نشده/,
+      'the sandbox success state never implies a completed payment',
+    );
+    assert.doesNotMatch(form, /پرداخت با موفقیت/);
+    assert.match(form, /id="checkout-result-title"/, 'the inline order result is labelled');
+  });
+
   it('encodes direction nowhere in the storefront tokens', () => {
     // RTL is a document-level switch (src/lib/document.ts); a storefront token
     // must not hard-code a side, or the two would fight after a dir change.

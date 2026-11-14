@@ -2762,6 +2762,34 @@ repository hygiene, not deployment authorization.
               owner manually inspected and approved all five native PDP
               screenshots.** The checkout shell and order-success state remain on
               `--cp-*` for Phase 2D.
+        - [x] **SF-UI Phase 2D — checkout shell and order-result experience.
+              COMPLETE, verified and owner-approved 2026-11-14.**
+              Presentation-only: `checkout/page.tsx` and `checkout-form.tsx` now
+              use the editorial shell (`SectionEyebrow`, display face, hairlines,
+              `sfField`, `sfButton`, editorial notices) while submission order,
+              validation, cart preflight, idempotency, shipping, server totals,
+              payment status, cart clearing and redirects are unchanged. Empty,
+              loading, validation, refusal and transport-error states are
+              restyled; the inline sandbox result keeps «سفارش ثبت شد», reports
+              `UNAVAILABLE`/«در انتظار پرداخت», says no online payment was taken,
+              and replaces the now-cleared form and zero-total summary instead of
+              sitting beside them. Field `role="alert"`/`aria-invalid`/
+              `aria-describedby`, notice `role="status"`, keyboard order and the
+              storefront ink focus ring are preserved. No admin token or shared
+              admin primitive is used.
+              Verification: `npm run typecheck`, `npm run lint` and `npm run
+              build` exit 0; **594 tests, 594 pass, 0 fail, 0 skipped** on this
+              macOS host (Windows symlink `EPERM` tests not exercised);
+              `node scripts/check-checkout-visual.mjs` **41/41** real-Chrome
+              checks against a disposable loopback PostgreSQL fixture with
+              payment deliberately unconfigured. Native captures produced for
+              approval (temporary; removed after approval):
+              `review/phase-2d-checkout-390.png`, `-1440.png`, `-empty-390.png`,
+              `-errors-390.png`, `-success-390.png`, `-success-1440.png`.
+              **The owner inspected and approved all six captures on 2026-11-14;
+              commit and fast-forward push are authorized.**
+              No deployment, credential, live payment/SMS/carrier/AI provider or
+              production change was made (D-045/D-139 unchanged).
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

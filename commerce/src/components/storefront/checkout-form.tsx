@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 
-import type { CheckoutTotals, PlaceOrderResult } from '@/contracts/storefront';
+import type { CheckoutTotals, OrderPlaced, PlaceOrderResult } from '@/contracts/storefront';
 import {
   checkoutIdempotencyKey,
   clearCheckoutIdempotencyKey,
@@ -24,12 +25,12 @@ import {
 import {
   CHECKOUT_TOTAL_LABELS,
   PAYMENT_STATUS_LABELS,
-  PAYMENT_STATUS_TONE,
 } from '@/lib/storefront-display';
-import { Badge, Banner, Card, CardHeader, Field, Table, Td, Th, buttonClass, inputClass } from '@/components/ui/primitives';
+import { cn } from '@/lib/utils';
 import { checkCartAvailabilityAction, placeOrderAction } from '@/server/actions/storefront';
 
 import { useCart } from './cart-provider';
+import { SectionEyebrow, sfButton, sfField } from './storefront-primitives';
 
 /**
  * `sessionStorage` when the browser allows it; otherwise an in-page fallback so
@@ -77,6 +78,11 @@ function checkoutKeyStorage(): CheckoutKeyStorage {
  * the answer is `UNAVAILABLE` and the customer is told nothing was charged — the
  * order exists as `PENDING` for the boutique to handle (AC-8: never a faked
  * status).
+ *
+ * D-177 Phase 2D changes only the presentation: the checkout shell and its
+ * inline order result use the storefront `--sf-*` layer. Submission order,
+ * validation, idempotency, shipping, totals, payment status and focus behavior
+ * are unchanged.
  *
  * Phone-number OTP (roadmap §3.4) is deliberately absent: the SMS provider is
  * now selected (decision row 74, Kavenegar) and its channel adapter exists in
@@ -134,7 +140,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
 
   if (!hydrated) {
     return (
-      <p className="mt-6 text-cp-label text-ink-muted" role="status">
+      <p className="mt-8 text-sf-body text-sf-ink-muted" role="status">
         در حال خواندن سبد خرید…
       </p>
     );
@@ -142,14 +148,24 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
 
   if (lines.length === 0 && !(result?.ok ?? false)) {
     return (
-      <div className="mt-6 flex flex-col items-start gap-3 rounded-[--radius-cp] border border-dashed border-edge-strong bg-surface-muted p-4">
-        <p className="text-cp-label text-ink-muted">
-          سبد خرید خالی است؛ برای ثبت سفارش ابتدا یک محصول، رنگ و اندازه انتخاب کنید.
+      <section
+        aria-labelledby="checkout-empty-title"
+        className="mt-8 mx-auto flex max-w-2xl flex-col items-start gap-4 border border-sf-edge bg-sf-surface p-6 sm:p-8"
+      >
+        <SectionEyebrow>سبد خرید</SectionEyebrow>
+        <h2
+          id="checkout-empty-title"
+          className="font-display text-sf-title font-semibold text-sf-ink"
+        >
+          سبد خرید خالی است
+        </h2>
+        <p className="text-sf-body leading-relaxed text-sf-ink-muted">
+          برای ثبت سفارش ابتدا یک محصول، رنگ و اندازه انتخاب کنید.
         </p>
-        <Link className={buttonClass.primary} href="/catalog">
+        <Link className={sfButton.primary} href="/catalog">
           رفتن به فهرست محصولات
         </Link>
-      </div>
+      </section>
     );
   }
 
@@ -230,22 +246,50 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
   const addressA11y = fieldA11y(errors.address, 'checkout-address-error');
   const postalA11y = fieldA11y(errors.postalCode, 'checkout-postal-error');
 
+  // The order result is the whole surface once the order exists. Keeping the
+  // now-cleared form and its zero-total summary beside it would read as a second,
+  // contradictory checkout rather than a completed sandbox result.
+  if (result !== null && result.ok) {
+    return (
+      <div className="mt-10 mx-auto max-w-3xl">
+        {notes.map((note) => (
+          <CheckoutNotice key={note} title="قیمت روی سرور به‌روز است">
+            {note}
+          </CheckoutNotice>
+        ))}
+        <CheckoutSuccess result={result} />
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-      <Card>
-        <CardHeader
-          title="اطلاعات گیرنده"
-          description="شمارهٔ موبایل و نشانی دقیق پستی. این اطلاعات فقط برای همین سفارش استفاده می‌شود."
-        />
+    <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start lg:gap-14">
+      <section
+        aria-labelledby="checkout-customer-title"
+        className="border border-sf-edge bg-sf-surface p-5 sm:p-8"
+      >
+        <header className="border-b border-sf-edge pb-5">
+          <SectionEyebrow>اطلاعات گیرنده</SectionEyebrow>
+          <h2
+            id="checkout-customer-title"
+            className="mt-2 font-display text-sf-title font-semibold text-sf-ink"
+          >
+            اطلاعات گیرنده
+          </h2>
+          <p className="mt-2 max-w-2xl text-sf-caption leading-relaxed text-sf-ink-muted">
+            شمارهٔ موبایل و نشانی دقیق پستی. این اطلاعات فقط برای همین سفارش استفاده می‌شود.
+          </p>
+        </header>
+
         <form
           aria-label="فرم تسویهٔ خرید"
-          className="flex flex-col gap-4"
+          className="mt-6 flex flex-col gap-6"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
           }}
         >
-          <Field
+          <CheckoutField
             label="نام و نام خانوادگی"
             htmlFor="checkout-name"
             required
@@ -254,15 +298,15 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
           >
             <input
               id="checkout-name"
-              className={inputClass}
+              className={sfField}
               value={fullName}
               autoComplete="name"
               {...nameA11y.inputProps}
               onChange={(event) => setFullName(event.target.value)}
             />
-          </Field>
+          </CheckoutField>
 
-          <Field
+          <CheckoutField
             label="شمارهٔ موبایل"
             htmlFor="checkout-phone"
             required
@@ -272,7 +316,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
           >
             <input
               id="checkout-phone"
-              className={inputClass}
+              className={sfField}
               inputMode="numeric"
               dir="ltr"
               autoComplete="tel"
@@ -280,9 +324,9 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
               {...phoneA11y.inputProps}
               onChange={(event) => setPhoneNumber(event.target.value)}
             />
-          </Field>
+          </CheckoutField>
 
-          <Field
+          <CheckoutField
             label="نشانی"
             htmlFor="checkout-address"
             required
@@ -292,15 +336,15 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
           >
             <textarea
               id="checkout-address"
-              className={inputClass}
+              className={cn(sfField, 'min-h-24 py-3')}
               rows={3}
               value={address}
               {...addressA11y.inputProps}
               onChange={(event) => setAddress(event.target.value)}
             />
-          </Field>
+          </CheckoutField>
 
-          <Field
+          <CheckoutField
             label="کد پستی"
             htmlFor="checkout-postal"
             required
@@ -310,54 +354,60 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
           >
             <input
               id="checkout-postal"
-              className={inputClass}
+              className={sfField}
               inputMode="numeric"
               dir="ltr"
               value={postalCode}
               {...postalA11y.inputProps}
               onChange={(event) => setPostalCode(event.target.value)}
             />
-          </Field>
+          </CheckoutField>
 
-          <Field
+          <CheckoutField
             label="کد تخفیف"
             htmlFor="checkout-coupon"
             hint="اختیاری — اعتبار کد روی سرور بررسی می‌شود"
           >
             <input
               id="checkout-coupon"
-              className={`${inputClass} cp-code`}
+              className={cn(sfField, 'sf-code')}
               dir="ltr"
               value={couponCode}
               onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
             />
-          </Field>
+          </CheckoutField>
 
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-cp-label font-medium text-ink">روش ارسال</legend>
+          <fieldset className="flex flex-col gap-3">
+            <legend className="text-sf-caption font-medium text-sf-ink">روش ارسال</legend>
             {eligible.length === 0 ? (
-              <p className="rounded-[--radius-cp] border border-dashed border-edge-strong bg-surface-muted p-3 text-cp-label text-ink-muted">
+              <p className="border border-sf-edge bg-sf-surface p-4 text-sf-caption leading-relaxed text-sf-ink-muted">
                 {NO_ELIGIBLE_CARRIER_MESSAGE}
               </p>
             ) : (
               eligible.map((option) => (
                 <label
                   key={option.carrierId}
-                  className="flex items-start gap-2 rounded-[--radius-cp] border border-edge p-2 text-cp-label text-ink"
+                  className={cn(
+                    'flex cursor-pointer items-start gap-3 rounded-sf border p-3 text-sf-caption text-sf-ink transition-colors',
+                    selectedCarrierId === option.carrierId
+                      ? 'border-sf-ink bg-sf-surface'
+                      : 'border-sf-edge bg-sf-surface hover:border-sf-edge-strong',
+                  )}
                 >
                   <input
                     type="radio"
                     name="checkout-shipping"
+                    className="mt-1 size-4 accent-sf-ink"
                     value={option.carrierId}
                     checked={selectedCarrierId === option.carrierId}
                     onChange={() => setShippingMethodId(option.carrierId)}
                   />
                   <span>
                     <span className="font-medium">{option.carrierName}</span>
-                    <span className="cp-code block text-cp-caption text-ink-muted">
+                    <span className="sf-code mt-1 block text-sf-caption text-sf-ink-muted">
                       {option.amount === 0 ? 'هزینه با گیرنده' : formatToman(option.amount)}
                     </span>
-                    <span className="block text-cp-caption text-ink-muted">
+                    <span className="mt-1 block text-sf-caption text-sf-ink-muted">
                       {option.deliveryEstimate.label}
                       {option.capabilities.pickupPoint ? ' · تحویل در نقطهٔ تحویل' : ''}
                     </span>
@@ -370,7 +420,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
           <div>
             <button
               type="submit"
-              className={buttonClass.primary}
+              className={cn(sfButton.primary, 'w-full disabled:opacity-60 sm:w-auto')}
               disabled={busy || eligible.length === 0}
               aria-busy={busy}
             >
@@ -378,136 +428,234 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
             </button>
           </div>
         </form>
-      </Card>
+      </section>
 
-      <div className="flex flex-col gap-4">
-        <Card>
-          <CardHeader title="سبد خرید" description="هر قلم در یک سطر، با قیمت سرور." />
-          <ul className="flex flex-col gap-2">
+      <div className="flex flex-col gap-6">
+        <section
+          aria-labelledby="checkout-summary-title"
+          className="border border-sf-edge bg-sf-surface p-5 sm:p-6"
+        >
+          <header>
+            <SectionEyebrow>خلاصهٔ سفارش</SectionEyebrow>
+            <h2
+              id="checkout-summary-title"
+              className="mt-2 font-display text-sf-title font-semibold text-sf-ink"
+            >
+              سبد خرید
+            </h2>
+            <p className="mt-2 text-sf-caption leading-relaxed text-sf-ink-muted">
+              هر قلم در یک سطر، با قیمت سرور.
+            </p>
+          </header>
+
+          <ul className="mt-5 border-t border-sf-edge">
             {lines.map((line) => (
               <li
                 key={line.variantId}
-                className="flex items-start justify-between gap-2 border-b border-edge pb-2 last:border-b-0"
+                className="flex items-start justify-between gap-3 border-b border-sf-edge py-3"
               >
-                <span className="text-cp-label text-ink">
+                <span className="text-sf-caption text-sf-ink">
                   {line.productTitle}
-                  <span className="block text-cp-caption text-ink-muted">
-                    {line.colorName} · اندازه <span className="cp-code">{line.size}</span> · تعداد{' '}
-                    <span className="cp-code">{formatCountFa(line.quantity)}</span> (حداکثر{' '}
-                    <span className="cp-code">{formatCountFa(MAX_LINE_QUANTITY)}</span>)
+                  <span className="mt-1 block text-sf-caption text-sf-ink-muted">
+                    {line.colorName} · اندازه <span className="sf-code">{line.size}</span> · تعداد{' '}
+                    <span className="sf-code">{formatCountFa(line.quantity)}</span> (حداکثر{' '}
+                    <span className="sf-code">{formatCountFa(MAX_LINE_QUANTITY)}</span>)
                   </span>
                 </span>
-                <span className="shrink-0 text-cp-label text-ink">
+                <span className="shrink-0 text-sf-caption text-sf-ink">
                   {formatToman(line.unitPrice * line.quantity)}
                 </span>
               </li>
             ))}
           </ul>
 
-          <dl className="mt-3 flex flex-col gap-1 text-cp-label">
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-muted">{CHECKOUT_TOTAL_LABELS.subtotal}</dt>
-              <dd className="text-ink">{formatToman(preview.subtotal)}</dd>
+          <dl className="mt-4 flex flex-col gap-2 text-sf-caption">
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-sf-ink-muted">{CHECKOUT_TOTAL_LABELS.subtotal}</dt>
+              <dd className="text-sf-ink">{formatToman(preview.subtotal)}</dd>
             </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-ink-muted">{CHECKOUT_TOTAL_LABELS.shipping}</dt>
-              <dd className="text-ink">{formatToman(preview.shipping)}</dd>
+            <div className="flex items-center justify-between gap-4">
+              <dt className="text-sf-ink-muted">{CHECKOUT_TOTAL_LABELS.shipping}</dt>
+              <dd className="text-sf-ink">{formatToman(preview.shipping)}</dd>
             </div>
-            <div className="flex items-center justify-between border-t border-edge pt-1">
-              <dt className="font-medium text-ink">{CHECKOUT_TOTAL_LABELS.total}</dt>
-              <dd className="font-semibold text-ink">{formatToman(preview.total)}</dd>
+            <div className="flex items-center justify-between gap-4 border-t border-sf-edge pt-3">
+              <dt className="font-medium text-sf-ink">{CHECKOUT_TOTAL_LABELS.total}</dt>
+              <dd className="font-semibold text-sf-ink">{formatToman(preview.total)}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-cp-caption text-ink-muted">
+          <p className="mt-3 text-sf-caption leading-relaxed text-sf-ink-muted">
             تخفیف کد تخفیف پس از بررسی روی سرور اعمال می‌شود و در همین صفحه نمایش داده خواهد شد.
           </p>
-        </Card>
+        </section>
 
         {notes.map((note) => (
-          <Banner key={note} tone="warning" title="قیمت روی سرور به‌روز است">
+          <CheckoutNotice key={note} title="قیمت روی سرور به‌روز است">
             {note}
-          </Banner>
+          </CheckoutNotice>
         ))}
 
         {result !== null && !result.ok ? (
-          <Banner tone="danger" title="سفارش ثبت نشد">
+          <CheckoutNotice title="سفارش ثبت نشد" tone="danger">
             {result.message}
-            {result.field ? <span className="cp-code"> [{result.field}]</span> : null}
-          </Banner>
+            {result.field ? <span className="sf-code"> [{result.field}]</span> : null}
+          </CheckoutNotice>
         ) : null}
 
         {submitError !== null ? (
-          <Banner tone="danger" title="نتیجهٔ ثبت سفارش تأیید نشد">
+          <CheckoutNotice title="نتیجهٔ ثبت سفارش تأیید نشد" tone="danger">
             {submitError}
-          </Banner>
+          </CheckoutNotice>
         ) : null}
 
-        {result !== null && result.ok ? (
-          <Card>
-            <CardHeader
-              title="سفارش ثبت شد"
-              description={
-                result.replayed
-                  ? 'این سبد پیش‌تر ثبت شده بود؛ سفارش تازه‌ای ایجاد نشد و موجودی یا تخفیف دوباره مصرف نشد.'
-                  : 'سفارش با وضعیت «در انتظار پرداخت» ثبت شده است.'
-              }
-            />
-            <p className="text-cp-label text-ink">
-              شناسهٔ سفارش: <span className="cp-code">{result.orderId}</span>
-            </p>
-            <p className="mt-2">
-              <Badge tone={PAYMENT_STATUS_TONE[result.payment.status]}>
-                {PAYMENT_STATUS_LABELS[result.payment.status]}{' '}
-                <span className="cp-code">{result.payment.status}</span>
-              </Badge>
-            </p>
-            <p className="mt-2 text-cp-label text-ink-muted">{result.payment.message}</p>
-            {result.payment.redirectUrl ? (
-              <a className={`${buttonClass.primary} mt-3`} href={result.payment.redirectUrl}>
-                ادامهٔ پرداخت در درگاه
-              </a>
-            ) : null}
-            <Table
-              caption="جمع نهایی سفارش"
-              head={
-                <tr>
-                  <Th>شرح</Th>
-                  <Th>مبلغ</Th>
-                </tr>
-              }
-            >
-              <tr>
-                <Td>{CHECKOUT_TOTAL_LABELS.subtotal}</Td>
-                <Td>{formatToman(result.totals.subtotal)}</Td>
-              </tr>
-              <tr>
-                <Td>
-                  {CHECKOUT_TOTAL_LABELS.discount}
-                  {result.couponApplied ? <span className="cp-code"> (اعمال شد)</span> : null}
-                </Td>
-                <Td>{formatToman(result.totals.discount)}</Td>
-              </tr>
-              <tr>
-                <Td>{CHECKOUT_TOTAL_LABELS.shipping}</Td>
-                <Td>{formatToman(result.totals.shipping)}</Td>
-              </tr>
-              <tr>
-                <Td>{CHECKOUT_TOTAL_LABELS.total}</Td>
-                <Td>{formatToman(result.totals.total)}</Td>
-              </tr>
-            </Table>
-            <Link className={`${buttonClass.neutral} mt-3`} href="/catalog">
-              بازگشت به فهرست محصولات
-            </Link>
-          </Card>
-        ) : null}
-
-        {lines.length > 0 && result?.ok !== true ? (
-          <p className="text-cp-caption text-ink-muted">
+        {lines.length > 0 ? (
+          <p className="text-sf-caption leading-relaxed text-sf-ink-muted">
             با ثبت سفارش، سفارش شما با وضعیت «در انتظار پرداخت» برای بررسی فروشگاه ثبت می‌شود.
           </p>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** The inline sandbox order result; it never claims a payment that did not occur. */
+function CheckoutSuccess({ result }: { result: OrderPlaced }) {
+  const paymentUnavailable = result.payment.status === 'UNAVAILABLE';
+  const description = result.replayed
+    ? 'این سبد پیش‌تر ثبت شده بود؛ سفارش تازه‌ای ایجاد نشد و موجودی یا تخفیف دوباره مصرف نشد.'
+    : paymentUnavailable
+      ? 'سفارش با وضعیت «در انتظار پرداخت» ثبت شده است؛ پرداخت آنلاین انجام نشده و هیچ مبلغی از مشتری دریافت نشده است.'
+      : 'سفارش با وضعیت «در انتظار پرداخت» ثبت شده است.';
+
+  return (
+    <section
+      role="status"
+      aria-labelledby="checkout-result-title"
+      className="border border-sf-ink bg-sf-surface p-5 sm:p-8"
+    >
+      <header>
+        <SectionEyebrow>نتیجهٔ سفارش</SectionEyebrow>
+        <h2
+          id="checkout-result-title"
+          className="mt-2 font-display text-sf-title font-semibold text-sf-ink"
+        >
+          سفارش ثبت شد
+        </h2>
+        <p className="mt-2 max-w-2xl text-sf-caption leading-relaxed text-sf-ink-muted">
+          {description}
+        </p>
+      </header>
+
+      <dl className="mt-6 flex flex-col gap-3 border-y border-sf-edge py-4 text-sf-caption">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <dt className="text-sf-ink-muted">شناسهٔ سفارش</dt>
+          <dd className="sf-code break-all text-sf-ink">{result.orderId}</dd>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <dt className="text-sf-ink-muted">وضعیت پرداخت</dt>
+          <dd>
+            <span className="inline-flex items-center gap-2 border border-sf-edge-strong px-2 py-1 text-sf-caption text-sf-ink">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-sf-ink" />
+              {PAYMENT_STATUS_LABELS[result.payment.status]}{' '}
+              <span className="sf-code">{result.payment.status}</span>
+            </span>
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-3 text-sf-caption leading-relaxed text-sf-ink-muted">
+        {result.payment.message}
+      </p>
+      {result.payment.redirectUrl ? (
+        <a className={cn(sfButton.primary, 'mt-4')} href={result.payment.redirectUrl}>
+          ادامهٔ پرداخت در درگاه
+        </a>
+      ) : null}
+
+      <h3 className="mt-8 font-display text-lg font-semibold text-sf-ink">جمع نهایی سفارش</h3>
+      <dl className="mt-3 flex flex-col gap-2 text-sf-caption">
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-sf-ink-muted">{CHECKOUT_TOTAL_LABELS.subtotal}</dt>
+          <dd className="text-sf-ink">{formatToman(result.totals.subtotal)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-sf-ink-muted">
+            {CHECKOUT_TOTAL_LABELS.discount}
+            {result.couponApplied ? <span className="sf-code"> (اعمال شد)</span> : null}
+          </dt>
+          <dd className="text-sf-ink">{formatToman(result.totals.discount)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <dt className="text-sf-ink-muted">{CHECKOUT_TOTAL_LABELS.shipping}</dt>
+          <dd className="text-sf-ink">{formatToman(result.totals.shipping)}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4 border-t border-sf-edge pt-3">
+          <dt className="font-medium text-sf-ink">{CHECKOUT_TOTAL_LABELS.total}</dt>
+          <dd className="font-semibold text-sf-ink">{formatToman(result.totals.total)}</dd>
+        </div>
+      </dl>
+
+      <Link className={cn(sfButton.quiet, 'mt-6')} href="/catalog">
+        بازگشت به فهرست محصولات
+      </Link>
+    </section>
+  );
+}
+
+/** The checkout's field contract, on the storefront layer. */
+function CheckoutField({
+  label,
+  hint,
+  error,
+  errorId,
+  htmlFor,
+  children,
+  required,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  errorId?: string;
+  htmlFor?: string;
+  children: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={htmlFor} className="text-sf-caption font-medium text-sf-ink">
+        {label}
+        {required ? <span aria-hidden="true"> *</span> : null}
+      </label>
+      {children}
+      {hint ? <p className="text-sf-caption leading-relaxed text-sf-ink-muted">{hint}</p> : null}
+      {error ? (
+        <p id={errorId} className="text-sf-caption font-medium text-sf-accent" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** The checkout's notice contract; tone is a border, never colour-only meaning. */
+function CheckoutNotice({
+  title,
+  children,
+  tone = 'quiet',
+}: {
+  title: string;
+  children: ReactNode;
+  tone?: 'quiet' | 'danger';
+}) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        'border bg-sf-surface p-4',
+        tone === 'danger' ? 'border-sf-accent' : 'border-sf-edge',
+      )}
+    >
+      <p className="font-display text-base font-semibold text-sf-ink">{title}</p>
+      <div className="mt-1 text-sf-caption leading-relaxed text-sf-ink-muted">{children}</div>
     </div>
   );
 }
