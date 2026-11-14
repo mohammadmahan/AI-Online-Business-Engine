@@ -19,7 +19,7 @@ import {
 } from '@/lib/catalog-filters';
 import { formatCountFa, formatToman } from '@/lib/format';
 import { CATALOG_SORT_OPTIONS } from '@/lib/storefront-display';
-import { buttonClass, inputClass } from '@/components/ui/primitives';
+import { sfButton, sfChip, sfField } from '@/components/storefront/storefront-primitives';
 import { cn } from '@/lib/utils';
 import type { StorefrontCategory } from '@/server/repository';
 
@@ -32,6 +32,13 @@ import { ProductCard } from './product-card';
  * browser through `@/lib/catalog-filters`, so a chip is instant and costs no
  * round trip. The facets themselves are DERIVED from those cards, which is why a
  * size nobody stocks, or a colour nobody sells, never appears as an option.
+ *
+ * Phase 2B (D-177) puts this surface on the editorial layer: hairline panel on
+ * ivory, ink chips instead of the panel's blue `aria-pressed` treatment, display
+ * typography and editorial grid rhythm. On a phone the whole filter panel would
+ * otherwise push the first row of products below the fold, so it starts
+ * COLLAPSED behind an `aria-expanded` disclosure; the desktop rail is always
+ * open. Filtering is unchanged and still instant either way.
  *
  * Filters that match nothing say so and offer a way back, and the paging button
  * reports how many products are left instead of merely being enabled — the two
@@ -52,6 +59,9 @@ export function CatalogBrowser({
     category: initialCategory,
   });
   const [page, setPage] = useState(1);
+  // Closed on a phone so the grid is visible on arrival; the `lg:` rail is
+  // always shown regardless of this state.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const facets = useMemo(() => deriveFacets(cards), [cards]);
   const ceiling = facets.maxPrice > 0 ? facets.maxPrice : 0;
@@ -101,34 +111,65 @@ export function CatalogBrowser({
     return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
   }
 
+  const filterPanelId = 'catalog-filters';
+
   return (
-    <div className="mt-6 flex flex-col gap-4 lg:flex-row">
+    <div className="mt-10 flex flex-col gap-8 lg:flex-row lg:items-start">
+      <div className="flex flex-wrap items-center gap-3 lg:hidden">
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls={filterPanelId}
+          className={cn(sfButton.quiet, 'flex-1 justify-between')}
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          <span className="flex items-center gap-2">
+            فیلترها
+            {activeCount > 0 ? (
+              <span className="text-sf-ink-muted">({formatCountFa(activeCount)})</span>
+            ) : null}
+          </span>
+          <span aria-hidden="true" className="text-base leading-none">
+            {filtersOpen ? '−' : '+'}
+          </span>
+        </button>
+        {activeCount > 0 ? (
+          <button type="button" className="sf-link text-sf-caption" onClick={clearAll}>
+            پاک کردن فیلترها
+          </button>
+        ) : null}
+      </div>
+
       <form
+        id={filterPanelId}
         aria-label="فیلترهای فهرست محصولات"
-        className="flex w-full flex-col gap-4 rounded-[--radius-cp] border border-edge bg-surface p-4 lg:max-w-xs"
+        className={cn(
+          'w-full flex-col gap-6 rounded-sf border border-sf-edge bg-sf-surface p-5 lg:flex lg:w-80 lg:shrink-0',
+          filtersOpen ? 'flex' : 'hidden',
+        )}
         onSubmit={(event) => event.preventDefault()}
       >
-        <div className="flex flex-col gap-1">
-          <label htmlFor="catalog-search" className="text-cp-label font-medium text-ink">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="catalog-search" className="text-sf-caption font-medium text-sf-ink">
             جست‌وجو
           </label>
           <input
             id="catalog-search"
             type="search"
-            className={inputClass}
+            className={sfField}
             value={filters.query}
             placeholder="نام محصول یا دسته"
             onChange={(event) => update({ query: event.target.value })}
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="catalog-sort" className="text-cp-label font-medium text-ink">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="catalog-sort" className="text-sf-caption font-medium text-sf-ink">
             ترتیب نمایش
           </label>
           <select
             id="catalog-sort"
-            className={inputClass}
+            className={sfField}
             value={filters.sort}
             onChange={(event) => update({ sort: event.target.value as CatalogSort })}
           >
@@ -140,16 +181,15 @@ export function CatalogBrowser({
           </select>
         </div>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-cp-label font-medium text-ink">دسته‌بندی</legend>
+        <fieldset className="flex flex-col gap-3 border-t border-sf-edge pt-6">
+          <legend className="text-sf-caption font-medium text-sf-ink">دسته‌بندی</legend>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               aria-pressed={filters.category === null}
               className={cn(
-                buttonClass.neutral,
-                'px-2 text-cp-caption',
-                filters.category === null && 'border-primary text-primary',
+                sfChip.base,
+                filters.category === null ? sfChip.active : sfChip.rest,
               )}
               onClick={() => update({ category: null })}
             >
@@ -161,22 +201,21 @@ export function CatalogBrowser({
                 type="button"
                 aria-pressed={filters.category === category.name}
                 className={cn(
-                  buttonClass.neutral,
-                  'px-2 text-cp-caption',
-                  filters.category === category.name && 'border-primary text-primary',
+                  sfChip.base,
+                  filters.category === category.name ? sfChip.active : sfChip.rest,
                 )}
                 onClick={() => update({ category: category.name })}
               >
-                {category.name}{' '}
-                <span className="cp-code">{formatCountFa(category.productCount)}</span>
+                {category.name}
+                <span className="text-sf-caption">{formatCountFa(category.productCount)}</span>
               </button>
             ))}
           </div>
         </fieldset>
 
         {facets.sizes.length > 0 ? (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-cp-label font-medium text-ink">اندازه</legend>
+          <fieldset className="flex flex-col gap-3 border-t border-sf-edge pt-6">
+            <legend className="text-sf-caption font-medium text-sf-ink">اندازه</legend>
             <div className="flex flex-wrap gap-2">
               {facets.sizes.map((size) => (
                 <button
@@ -184,13 +223,13 @@ export function CatalogBrowser({
                   type="button"
                   aria-pressed={filters.sizes.includes(size)}
                   className={cn(
-                    buttonClass.neutral,
-                    'px-3 text-cp-caption',
-                    filters.sizes.includes(size) && 'border-primary text-primary',
+                    sfChip.base,
+                    'px-4',
+                    filters.sizes.includes(size) ? sfChip.active : sfChip.rest,
                   )}
                   onClick={() => update({ sizes: toggle(filters.sizes, size) })}
                 >
-                  <span className="cp-code">{size}</span>
+                  <span className="sf-code">{size}</span>
                 </button>
               ))}
             </div>
@@ -198,8 +237,8 @@ export function CatalogBrowser({
         ) : null}
 
         {facets.colors.length > 0 ? (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-cp-label font-medium text-ink">رنگ</legend>
+          <fieldset className="flex flex-col gap-3 border-t border-sf-edge pt-6">
+            <legend className="text-sf-caption font-medium text-sf-ink">رنگ</legend>
             <div className="flex flex-wrap gap-2">
               {facets.colors.map((color) => (
                 <button
@@ -207,15 +246,14 @@ export function CatalogBrowser({
                   type="button"
                   aria-pressed={filters.colors.includes(color.name)}
                   className={cn(
-                    buttonClass.neutral,
-                    'px-2 text-cp-caption',
-                    filters.colors.includes(color.name) && 'border-primary text-primary',
+                    sfChip.base,
+                    filters.colors.includes(color.name) ? sfChip.active : sfChip.rest,
                   )}
                   onClick={() => update({ colors: toggle(filters.colors, color.name) })}
                 >
                   <span
                     aria-hidden="true"
-                    className="inline-block size-4 rounded-full border border-edge-strong"
+                    className="inline-block size-4 rounded-full border border-sf-edge-strong"
                     style={{ backgroundColor: color.hex }}
                   />
                   {color.name}
@@ -226,9 +264,9 @@ export function CatalogBrowser({
         ) : null}
 
         {ceiling > 0 ? (
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-cp-label font-medium text-ink">محدودهٔ قیمت</legend>
-            <label htmlFor="catalog-price-min" className="text-cp-caption text-ink-muted">
+          <fieldset className="flex flex-col gap-2 border-t border-sf-edge pt-6">
+            <legend className="text-sf-caption font-medium text-sf-ink">محدودهٔ قیمت</legend>
+            <label htmlFor="catalog-price-min" className="text-sf-caption text-sf-ink-muted">
               از {formatToman(minSlider)}
             </label>
             <input
@@ -238,13 +276,15 @@ export function CatalogBrowser({
               max={ceiling}
               step={priceStep}
               value={minSlider}
+              aria-describedby="catalog-price-bounds"
+              className="h-11 w-full accent-sf-ink"
               onChange={(event) => {
                 const next = Math.min(Number(event.target.value), maxSlider);
                 setMinSlider(next);
                 update({ minPrice: next === 0 ? null : next });
               }}
             />
-            <label htmlFor="catalog-price-max" className="text-cp-caption text-ink-muted">
+            <label htmlFor="catalog-price-max" className="text-sf-caption text-sf-ink-muted">
               تا {formatToman(maxSlider)}
             </label>
             <input
@@ -254,60 +294,64 @@ export function CatalogBrowser({
               max={ceiling}
               step={priceStep}
               value={maxSlider}
+              aria-describedby="catalog-price-bounds"
+              className="h-11 w-full accent-sf-ink"
               onChange={(event) => {
                 const next = Math.max(Number(event.target.value), minSlider);
                 setMaxSlider(next);
                 update({ maxPrice: next >= ceiling ? null : next });
               }}
             />
-            <p className="text-cp-caption text-ink-muted">
+            <p id="catalog-price-bounds" className="text-sf-caption text-sf-ink-muted">
               کم‌ترین و بیش‌ترین قیمت منتشرشده: {formatToman(facets.minPrice)} تا{' '}
               {formatToman(facets.maxPrice)}
             </p>
           </fieldset>
         ) : null}
 
-        <label className="flex items-center gap-2 text-cp-label text-ink">
+        <label className="flex min-h-11 items-center gap-3 border-t border-sf-edge pt-6 text-sf-body text-sf-ink">
           <input
             type="checkbox"
+            className="size-4 accent-sf-ink"
             checked={filters.onlyAvailable}
             onChange={(event) => update({ onlyAvailable: event.target.checked })}
           />
           فقط کالاهای موجود
         </label>
 
-        <p className="flex flex-wrap items-center gap-2 text-cp-caption text-ink-muted">
+        <p className="flex flex-wrap items-center gap-3 text-sf-caption text-sf-ink-muted">
           <span>
-            فیلترهای فعال: <span className="cp-code">{formatCountFa(activeCount)}</span>
+            فیلترهای فعال: <span className="text-sf-ink">{formatCountFa(activeCount)}</span>
           </span>
           {activeCount > 0 ? (
-            <button type="button" className={buttonClass.neutral} onClick={clearAll}>
+            <button type="button" className="sf-link text-sf-caption" onClick={clearAll}>
               پاک کردن فیلترها
             </button>
           ) : null}
         </p>
       </form>
 
-      <div className="flex-1">
-        <p role="status" className="text-cp-label text-ink-muted">
+      <div className="min-w-0 flex-1">
+        <p role="status" className="text-sf-caption text-sf-ink-muted">
           {visible.total === 0
             ? 'محصولی با این فیلترها پیدا نشد.'
             : `${formatCountFa(visible.total)} محصول، نمایش ${formatCountFa(visible.items.length)} مورد`}
         </p>
 
         {visible.items.length === 0 ? (
-          <div className="mt-4 flex flex-col items-start gap-3 rounded-[--radius-cp] border border-dashed border-edge-strong bg-surface-muted p-4">
-            <p className="text-cp-label text-ink-muted">
+          <div className="mt-6 border border-sf-edge bg-sf-surface p-8">
+            <p className="font-display text-xl font-semibold text-sf-ink">نتیجه‌ای پیدا نشد</p>
+            <p className="mt-2 max-w-md text-sf-caption leading-relaxed text-sf-ink-muted">
               هیچ محصولی با این ترکیب فیلترها مطابقت ندارد. یکی از فیلترها را بردارید یا همه را پاک
               کنید.
             </p>
-            <button type="button" className={buttonClass.primary} onClick={clearAll}>
+            <button type="button" className={cn(sfButton.primary, 'mt-5')} onClick={clearAll}>
               پاک کردن فیلترها
             </button>
           </div>
         ) : (
           <>
-            <ul className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-3">
               {visible.items.map((card) => (
                 <li key={card.id}>
                   <ProductCard card={card} />
@@ -315,18 +359,20 @@ export function CatalogBrowser({
               ))}
             </ul>
             {visible.hasMore ? (
-              <div className="mt-6">
+              <div className="mt-12">
                 <button
                   type="button"
-                  className={buttonClass.primary}
+                  className={sfButton.primary}
                   onClick={() => setPage((current) => current + 1)}
                 >
-                  نمایش محصولات بیشتر (
-                  {formatCountFa(visible.total - visible.items.length)} مورد باقی‌مانده)
+                  نمایش محصولات بیشتر ({formatCountFa(visible.total - visible.items.length)} مورد
+                  باقی‌مانده)
                 </button>
               </div>
             ) : visible.total > CATALOG_PAGE_SIZE ? (
-              <p className="mt-6 text-cp-caption text-ink-muted">همهٔ محصولات نمایش داده شد.</p>
+              <p className="mt-10 text-sf-caption text-sf-ink-muted">
+                همهٔ محصولات نمایش داده شد.
+              </p>
             ) : null}
           </>
         )}

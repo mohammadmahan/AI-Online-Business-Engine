@@ -2719,10 +2719,28 @@ repository hygiene, not deployment authorization.
               Verification:
               typecheck, lint and build exit 0; **588 tests, 585 pass**, and only
               the three Windows symlink `EPERM` tests fail.
-        - [ ] **SF-UI Phase 2B — remaining surfaces still on `--cp-*`:** catalog
-              browser (white filter card, `#1e40af` active chips, admin `h1`),
-              PDP gallery/price block/lavender CTA, and the checkout shell. Each
-              keeps its workflow unchanged while adopting the token layer.
+        - [x] **SF-UI Phase 2B — catalog editorial redesign and mobile
+              ergonomics. COMPLETE, verified and owner-approved 2026-11-14.**
+              The catalog page header (eyebrow, display-face `h1`, hairline rule)
+              and every filter control moved onto `--sf-*`: ivory `#FFFDF9` rail,
+              `#E2D8C9` hairlines, 2px radius, ink `sfChip` when pressed, hairline
+              `sfField`, ink-accent ranges and checkbox. Mobile filters are a
+              collapsed `aria-expanded`/`aria-controls` disclosure (desktop rail
+              always open) and the grid is two-up at 390 / three-up at 1440, so a
+              product title and price are in the first viewport. The skeleton now
+              mirrors the 3:4 card (warm `--sf-surface-muted`, same widths and
+              column gaps — verified equal within 2px at both widths); the
+              no-results block and the unavailable notice are editorial, not
+              admin banners. `aria-pressed`, `role="status"`, labels and the
+              storefront focus ring are preserved. `scripts/check-catalog-visual.mjs`
+              passes **22/22** in real Chrome (disclosure, instant filtering,
+              clear, token colors, no overflow, native captures); the temporary
+              unavailable/skeleton harness passed 19/19 and was removed. Gates:
+              typecheck, lint and build exit 0; **592 tests, 589 pass**, only the
+              three Windows symlink `EPERM` tests fail. **The owner manually
+              inspected and approved all seven native catalog screenshots.**
+              PDP gallery/price block and the checkout shell remain on `--cp-*`
+              for Phase 2C.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

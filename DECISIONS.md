@@ -6785,3 +6785,45 @@ source contract are pinned in `focus-return.test.ts` and
 **588 tests, 585 pass**, with only the three known Windows `fs.symlink` `EPERM`
 tests failing (environmental, unskipped and unweakened). No deployment,
 credential, provider or production change is implied.
+
+**Phase 2B — catalog editorial baseline (2026-11-14, append-only).** The
+catalog is the second customer surface to adopt the Phase 1 editorial layer
+(D-177), and it keeps its behaviour exactly: the server still sends the
+published cards once, and faceting, search, price range, availability and paging
+still run in the browser over `@/lib/catalog-filters`. What changed is chrome and
+phone ergonomics.
+
+- **Page and rail.** Eyebrow, display-face `h1` and a hairline rule replace the
+  admin `text-cp-display` heading. The filter rail paints `--sf-surface` ivory
+  (`#FFFDF9`) with a `--sf-edge` hairline (`#E2D8C9`) and the 2px `--radius-sf`,
+  and its controls use the storefront field and chip vocabulary instead of the
+  panel's 8px/blue primitives. Pressed facets are ink blocks (`--sf-ink`, inverse
+  text) and still carry `aria-pressed`; colour swatches keep a visible
+  `--sf-edge-strong` border on both ivory and ink; the price ranges and checkbox
+  use the ink accent with a 44px band and their labels/description intact.
+- **Mobile disclosure (390).** The whole rail is collapsed by default behind a
+  button that reports `aria-expanded` and controls the panel via `aria-controls`;
+  the desktop rail (`lg:`) is always open regardless. This is what puts a product
+  title and price inside the first 390x844 viewport instead of after seven filter
+  groups. Filtering remains instant and unchanged while open.
+- **Grid and skeleton.** Two columns at 390, three from `lg`, with a 16px phone
+  gutter and the 24px editorial gutter above it. The loading skeleton is the
+  card's exact geometry — 3:4 image, caption/title/price/stock lines, same widths
+  and gaps — so hydration does not shift the grid. It paints its own warm muted
+  blocks because the panel `Skeleton` hard-codes the cool admin fill.
+- **States.** The no-results block and `StorefrontUnavailable` are ivory/hairline
+  editorial notices (`role="status"` preserved); the admin warning `Banner` is no
+  longer used on customer surfaces.
+
+**Owner visual approval (2026-11-14).** The owner manually inspected and approved
+all seven native Phase 2B captures: mobile grid (`catalog-390`), mobile filters
+open (`catalog-390-filters`), desktop (`catalog-1440`), and both unavailable and
+both skeleton states at 390 and 1440. Evidence from that review: the visual script
+passed **22/22** in real Chrome on loopback (disclosure, instant filtering, clear,
+panel ivory + hairline computed styles, ink range accent, no 390 overflow), and a
+temporary local harness rendered the real unavailable notice and skeleton
+(**19/19** geometry/token checks; removed after capture, no database or
+environment touched). Gates on the committed tree: typecheck, lint and build exit
+0; **592 tests, 589 pass**, with only the three known Windows `fs.symlink` `EPERM`
+tests failing. No deployment, credential, provider or production change is
+implied; PDP and checkout remain on `--cp-*` for Phase 2C.

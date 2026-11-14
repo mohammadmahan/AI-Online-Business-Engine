@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 import { CatalogBrowser } from '@/components/storefront/catalog-browser';
+import { SectionEyebrow } from '@/components/storefront/storefront-primitives';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
-import { Placeholder } from '@/components/ui/primitives';
 import { getRepository } from '@/server/db-context';
 import { listPublishedProducts, listStorefrontCategories } from '@/server/services/storefront';
 
@@ -17,6 +17,10 @@ import { listPublishedProducts, listStorefrontCategories } from '@/server/servic
  * A category that matches nothing is NOT corrected or silently dropped: the
  * browser says nothing matched and offers to clear the filters, because quietly
  * showing the whole catalog would answer a question the customer did not ask.
+ *
+ * Phase 2B (D-177): the page header and empty state join the editorial layer —
+ * eyebrow, display-face title, hairline rule and `--sf-*` spacing — so the
+ * catalog reads as the same publication as the homepage and the drawer.
  */
 
 export const metadata: Metadata = {
@@ -46,8 +50,13 @@ export default async function CatalogPage({
   if (repository === null) {
     return (
       <>
-        <h1 className="text-cp-display font-bold text-ink">همهٔ محصولات</h1>
-        <div className="mt-4">
+        <header className="border-b border-sf-edge pb-8">
+          <SectionEyebrow>فروشگاه پوشاک · کاتالوگ</SectionEyebrow>
+          <h1 className="mt-2 font-display text-sf-title font-semibold text-sf-ink">
+            همهٔ محصولات
+          </h1>
+        </header>
+        <div className="mt-8">
           <StorefrontUnavailable what="فهرست محصولات" />
         </div>
       </>
@@ -61,17 +70,23 @@ export default async function CatalogPage({
 
   return (
     <>
-      <h1 className="text-cp-display font-bold text-ink">همهٔ محصولات</h1>
-      <p className="mt-1 text-cp-label text-ink-muted">
-        فیلترها بی‌درنگ روی محصولات منتشرشده اعمال می‌شوند؛ تعداد محصولات هر دسته از همین فهرست
-        محاسبه شده است.
-      </p>
+      <header className="border-b border-sf-edge pb-8">
+        <SectionEyebrow>فروشگاه پوشاک · کاتالوگ</SectionEyebrow>
+        <h1 className="mt-2 font-display text-sf-title font-semibold text-sf-ink">
+          همهٔ محصولات
+        </h1>
+        <p className="mt-3 max-w-2xl text-sf-caption leading-relaxed text-sf-ink-muted">
+          فیلترها بی‌درنگ روی محصولات منتشرشده اعمال می‌شوند؛ تعداد محصولات هر دسته از همین فهرست
+          محاسبه شده است.
+        </p>
+      </header>
 
       {cards.length === 0 ? (
-        <div className="mt-6">
-          <Placeholder>
+        <div className="mt-8 border border-sf-edge bg-sf-surface p-8">
+          <p className="font-display text-xl font-semibold text-sf-ink">هنوز محصولی نیست</p>
+          <p className="mt-2 max-w-md text-sf-caption leading-relaxed text-sf-ink-muted">
             هنوز محصول منتشرشده‌ای وجود ندارد. محصول‌های پیش‌نویس در فروشگاه نمایش داده نمی‌شوند.
-          </Placeholder>
+          </p>
         </div>
       ) : (
         <CatalogBrowser cards={cards} categories={categories} initialCategory={initialCategory} />

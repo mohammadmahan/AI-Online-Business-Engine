@@ -162,6 +162,85 @@ describe('D-172 §3 storefront visual system', () => {
     assert.match(dialog, /onCloseAutoFocus=\{onCloseAutoFocus\}/);
   });
 
+  it('keeps the catalog on the storefront layer, with no admin token or primitive left', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/app/(storefront)/catalog/page.tsx'), 'utf8');
+    const browser = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/catalog-browser.tsx'),
+      'utf8',
+    );
+    for (const [name, source] of [
+      ['catalog page', page],
+      ['catalog browser', browser],
+    ] as const) {
+      assert.doesNotMatch(source, /\bcp-[a-z]/, `${name} must not use any --cp-* / cp-* utility`);
+      assert.doesNotMatch(
+        source,
+        /--radius-cp|buttonClass\.|inputClass/,
+        `${name} must not use admin primitives`,
+      );
+      assert.doesNotMatch(
+        source,
+        /\b(bg-surface|text-ink(?![\w-])|border-edge(?![\w-])|border-primary|text-primary|bg-primary)\b/,
+        `${name} must not borrow the panel palette`,
+      );
+    }
+    // The editorial controls the brief calls out explicitly.
+    assert.match(browser, /sfButton\.primary/, 'load-more / empty-result CTA is the ink button');
+    assert.match(browser, /sfField/, 'search and sort use the hairline storefront field');
+    assert.match(browser, /sfChip\.active/, 'pressed facets are ink chips');
+    assert.match(browser, /accent-sf-ink/, 'checkboxes and range sliders take the ink accent');
+    assert.match(browser, /type="range"/);
+    assert.match(browser, /border-sf-edge-strong/, 'swatches keep a storefront-visible border');
+    assert.match(browser, /aria-expanded=\{filtersOpen\}/, 'mobile filters are a disclosure');
+    assert.match(browser, /aria-controls=\{filterPanelId\}/);
+    assert.match(
+      browser,
+      /grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10/,
+      'the real grid and the skeleton share one geometry',
+    );
+  });
+
+  it('preserves the catalog accessibility and instant-filter contract', () => {
+    const browser = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/catalog-browser.tsx'),
+      'utf8',
+    );
+    assert.match(browser, /aria-pressed=\{filters\.category === null\}/);
+    assert.match(browser, /aria-pressed=\{filters\.sizes\.includes\(size\)\}/);
+    assert.match(browser, /aria-pressed=\{filters\.colors\.includes\(color\.name\)\}/);
+    assert.match(browser, /role="status"/);
+    assert.match(browser, /aria-label="فیلترهای فهرست محصولات"/);
+    assert.match(browser, /aria-describedby="catalog-price-bounds"/);
+    // Filtering still runs in the browser over the published cards.
+    assert.match(browser, /applyFilters\(cards, filters\)/);
+  });
+
+  it('shapes the grid skeleton like the 3:4 editorial card', () => {
+    const skeleton = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/product-grid-skeleton.tsx'),
+      'utf8',
+    );
+    assert.match(skeleton, /aspect-\[3\/4\]/, 'the image block matches the card crop');
+    assert.match(
+      skeleton,
+      /grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10/,
+      'the grid rhythm matches the catalog, including the two-up phone layout',
+    );
+    assert.doesNotMatch(skeleton, /\bcp-[a-z]|--radius-cp|bg-surface-muted/);
+    assert.match(skeleton, /bg-sf-muted/);
+  });
+
+  it('renders the unavailable notice as an editorial notice, not an admin banner', () => {
+    const notice = readFileSync(
+      resolve(process.cwd(), 'src/components/storefront/storefront-unavailable.tsx'),
+      'utf8',
+    );
+    assert.doesNotMatch(notice, /<Banner/);
+    assert.match(notice, /role="status"/, 'the failure is still announced');
+    assert.match(notice, /border-sf-edge/, 'hairline instead of the warning fill');
+    assert.match(notice, /font-display/);
+  });
+
   it('encodes direction nowhere in the storefront tokens', () => {
     // RTL is a document-level switch (src/lib/document.ts); a storefront token
     // must not hard-code a side, or the two would fight after a dir change.

@@ -29,6 +29,23 @@ export const sfButton = {
     'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-sf border border-sf-edge-strong px-3 text-sf-caption font-medium text-sf-ink transition-colors hover:bg-sf-muted disabled:opacity-40',
 } as const;
 
+/**
+ * Text field (search, select): the hairline control, never the panel's 8px
+ * radius. 44px minimum height keeps the touch target while the type stays small.
+ */
+export const sfField =
+  'min-h-11 w-full rounded-sf border border-sf-edge-strong bg-sf-surface px-3 text-sf-body text-sf-ink placeholder:text-sf-ink-muted';
+
+/**
+ * Facet chip: quiet hairline at rest, ink block when pressed. State is carried by
+ * `aria-pressed` AND the filled treatment, never colour alone.
+ */
+export const sfChip = {
+  base: 'inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-sf border px-3 text-sf-caption transition-colors',
+  rest: 'border-sf-edge-strong bg-transparent text-sf-ink hover:bg-sf-muted',
+  active: 'border-sf-ink bg-sf-ink text-sf-ink-inverse hover:bg-sf-ink',
+} as const;
+
 /** Section eyebrow: small, letterspaced, muted — editorial, not decorative. */
 export function SectionEyebrow({ children }: { children: React.ReactNode }) {
   return <p className="sf-eyebrow font-medium">{children}</p>;
