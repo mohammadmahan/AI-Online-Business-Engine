@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Vazirmatn } from 'next/font/google';
+import { Noto_Naskh_Arabic, Vazirmatn } from 'next/font/google';
 
 import { DOCUMENT_DIRECTION, DOCUMENT_LANGUAGE } from '@/lib/document';
 
@@ -22,6 +22,22 @@ const vazirmatn = Vazirmatn({
   subsets: ['arabic', 'latin'],
   display: 'swap',
   variable: '--font-vazirmatn',
+});
+
+/**
+ * D-172 §3 — the storefront's editorial display face.
+ *
+ * A Naskh serif for headings pairs with the sans body face and is what makes the
+ * storefront read as a fashion catalog rather than a data panel. Self-hosted at
+ * build time by `next/font` like Vazirmatn, so neither surface requests a font
+ * from a third-party origin at runtime (D-171 §3.1, and the CSP's
+ * `font-src 'self'` stays accurate).
+ */
+const editorial = Noto_Naskh_Arabic({
+  subsets: ['arabic'],
+  weight: ['400', '600', '700'],
+  display: 'swap',
+  variable: '--font-editorial',
 });
 
 export const metadata: Metadata = {
@@ -54,7 +70,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang={DOCUMENT_LANGUAGE}
       dir={DOCUMENT_DIRECTION}
       data-theme="light"
-      className={vazirmatn.variable}
+      className={`${vazirmatn.variable} ${editorial.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-dvh" suppressHydrationWarning>

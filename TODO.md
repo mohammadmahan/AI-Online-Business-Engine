@@ -2663,6 +2663,37 @@ repository hygiene, not deployment authorization.
             - [x] **MCS-07** E2E extension and all/subset/single/no-eligible tests
                   (E2E 59/59)
             - [x] **MCS-08** Full verification, evidence and close-out
+      - [x] **SF-UI Phase 1 — storefront editorial design foundation (D-177,
+            owner-approved 2026-11-14).** **COMPLETE (local/offline) 2026-11-14**
+            and committed after owner visual review. Scoped `--sf-*` token layer
+            beside the untouched D-171 `--cp-*` tokens, Noto Naskh Arabic display
+            face self-hosted through `next/font`, hairline rules, editorial
+            masthead/hero/category circles/product cards/rails/footer, and a
+            warm-ink scoped focus ring. Contrast is enforced by
+            `src/__tests__/storefront-theme.test.ts` (lowest measured pairing
+            **5.11:1**, `--sf-ink-muted` on `--sf-surface-muted`); admin tokens
+            are pinned to their D-171 values in the same test. Browser evidence:
+            `review/home-390.png`, `home-1440.png`, `catalog-390.png`,
+            `catalog-1440.png`, `pdp-390.png`, `pdp-1440.png`,
+            `cart-drawer-390.png`, `admin-login-1440.png`; 390/1440 review plus a
+            320px overflow check (no document overflow on any of the three pages).
+            Verification: typecheck exit 0, lint exit 0, build exit 0 (22 routes),
+            **576 tests / 573 pass**. The 3 remaining failures are Windows
+            `fs.symlink` **`EPERM` environment limiters** (no Developer Mode /
+            `SeCreateSymbolicLinkPrivilege`), not code defects; they stay
+            unskipped. A 4th Windows failure — a hardcoded `/tmp/media-root`
+            assertion — was a real path-portability assumption and is fixed in
+            the same commit (`path.resolve('/tmp/media-root')`).
+        - [ ] **SF-UI Phase 2A — cart drawer only (next).** Move the drawer onto
+              the `--sf-*` layer (ivory surface, ink text, hairlines, display-face
+              heading, storefront buttons/focus ring) with every accessible name,
+              role, heading level, focus trap, Escape behaviour and live-region
+              announcement preserved. Checkout, cart logic and quantity rules are
+              out of scope for this step.
+        - [ ] **SF-UI Phase 2B — remaining surfaces still on `--cp-*`:** catalog
+              browser (white filter card, `#1e40af` active chips, admin `h1`),
+              PDP gallery/price block/lavender CTA, and the checkout shell. Each
+              keeps its workflow unchanged while adopting the token layer.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { ProductRail } from '@/components/storefront/product-rail';
+import { SectionEyebrow, sfButton } from '@/components/storefront/storefront-primitives';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
-import { Placeholder, buttonClass } from '@/components/ui/primitives';
 import { formatCountFa } from '@/lib/format';
 import {
   HOME_RAIL_SIZE,
@@ -32,10 +32,17 @@ import {
  * With an empty catalog the page says so and offers nothing else, rather than
  * rendering rails of placeholders. With no configured connection it refuses to
  * render an empty shop at all (D-171 §2.2).
+ *
+ * Presentation is the editorial storefront system (D-172 §3): a full-bleed
+ * masthead statement instead of a boxed admin card, hairline rules, and the
+ * display face for headings. Copy, link labels and the data contract are
+ * unchanged, so the storefront E2E script still drives the same page.
  */
 
 export const metadata: Metadata = {
-  title: 'فروشگاه پوشاک',
+  // `absolute` on purpose: the root template would otherwise append the shop
+  // name to the shop name and the tab would read «فروشگاه پوشاک · فروشگاه پوشاک».
+  title: { absolute: 'فروشگاه پوشاک' },
   description: 'فهرست محصولات پوشاک، انتخاب رنگ و اندازه و تسویهٔ خرید.',
 };
 
@@ -62,56 +69,56 @@ export default async function StorefrontHomePage() {
 
   return (
     <>
-      <section className="rounded-[--radius-cp] border border-edge bg-surface p-6 sm:p-10">
-        <p className="text-cp-caption text-ink-muted">پوشاک زنانه — انتخاب رنگ و اندازه</p>
-        <h1 className="mt-2 text-cp-display font-bold text-ink">
+      <section className="border-b border-sf-edge pb-12 pt-2 sm:pb-16 sm:pt-6">
+        <SectionEyebrow>پوشاک زنانه — انتخاب رنگ و اندازه</SectionEyebrow>
+        <h1 className="mt-5 max-w-4xl font-display text-sf-hero font-semibold leading-[1.12] text-sf-ink">
           اندازهٔ درست، رنگ دلخواه، سفارش در یک مرحله
         </h1>
-        <p className="mt-3 max-w-2xl text-cp-body text-ink-muted">
+        <p className="mt-6 max-w-2xl text-sf-body leading-relaxed text-sf-ink-muted">
           موجودی هر ترکیب رنگ و اندازه پیش از ثبت سفارش بررسی می‌شود و مبلغ نهایی روی سرور محاسبه
           می‌گردد. کد پستی و شمارهٔ تماس فقط برای همین سفارش استفاده می‌شود.
         </p>
-        <p className="mt-5 flex flex-wrap gap-2">
-          <Link className={buttonClass.primary} href="/catalog">
+        <p className="mt-8 flex flex-wrap items-center gap-3">
+          <Link className={sfButton.primary} href="/catalog">
             دیدن همهٔ محصولات
           </Link>
-          <Link className={buttonClass.neutral} href="/checkout">
+          <Link className={sfButton.quiet} href="/checkout">
             تسویهٔ سبد خرید
           </Link>
         </p>
       </section>
 
       {collections.isEmpty ? (
-        <div className="mt-8">
-          <Placeholder>
-            هنوز محصول منتشرشده‌ای در فروشگاه وجود ندارد. پس از انتشار محصول در پنل مدیریت، در همین
-            صفحه نمایش داده می‌شود.
-          </Placeholder>
+        <div className="mt-12 border border-sf-edge bg-sf-surface p-6 text-sf-caption leading-relaxed text-sf-ink-muted">
+          هنوز محصول منتشرشده‌ای در فروشگاه وجود ندارد. پس از انتشار محصول در پنل مدیریت، در همین صفحه
+          نمایش داده می‌شود.
         </div>
       ) : (
         <>
           {categories.length > 0 ? (
-            <section aria-labelledby="storefront-categories" className="mt-8">
-              <h2 id="storefront-categories" className="text-cp-heading font-semibold text-ink">
+            <section aria-labelledby="storefront-categories" className="mt-14">
+              <h2
+                id="storefront-categories"
+                className="font-display text-sf-title font-semibold text-sf-ink"
+              >
                 دسته‌بندی‌ها
               </h2>
-              <ul className="mt-4 flex flex-wrap gap-6">
+              <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
                 {categories.map((category) => (
                   <li key={category.slug}>
-                    <Link
-                      href={categoryCircleHref(category.name)}
-                      className="flex w-28 flex-col items-center gap-2 text-center"
-                    >
+                    <Link href={categoryCircleHref(category.name)} className="group block">
                       <span
                         aria-hidden="true"
-                        className="flex size-24 flex-col items-center justify-center rounded-full border-2 border-primary bg-surface-muted"
+                        className="mx-auto flex aspect-square w-full max-w-[8.5rem] flex-col items-center justify-center rounded-full border border-sf-edge bg-sf-surface transition-colors group-hover:bg-sf-muted"
                       >
-                        <span className="text-cp-heading font-bold text-ink">
+                        <span className="font-display text-2xl font-semibold text-sf-ink">
                           {formatCountFa(category.productCount)}
                         </span>
-                        <span className="text-cp-caption text-ink-muted">محصول</span>
+                        <span className="mt-0.5 text-sf-caption text-sf-ink-muted">محصول</span>
                       </span>
-                      <span className="text-cp-label font-medium text-ink">{category.name}</span>
+                      <span className="mt-3 block text-center text-sf-caption font-medium text-sf-ink">
+                        {category.name}
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -140,8 +147,8 @@ export default async function StorefrontHomePage() {
             cards={bestSellers}
           />
 
-          <p className="mt-10">
-            <Link className={buttonClass.neutral} href="/catalog">
+          <p className="mt-14">
+            <Link className={sfButton.quiet} href="/catalog">
               دیدن همهٔ محصولات با فیلتر اندازه، رنگ و قیمت
             </Link>
           </p>

@@ -6650,3 +6650,98 @@ and 115 skips; none is in the changed AI path.
 credentials, production deployment and any non-loopback Ollama endpoint remain
 owner-gated (D-045/D-066/D-139). This decision authorizes the local
 implementation only, not a production AI connection.
+
+---
+
+## D-177 — Editorial storefront visual system (Phase 1 design foundation)
+
+**Date:** 2026-11-14
+**Status:** Approved by direct owner instruction (visual review of the rendered
+storefront, then explicit approval to commit)
+**Source:** the owner's Phase 1 validation instruction: finish and commit the
+already-implemented editorial design foundation, without beginning the next
+redesign phase, on local/mock data only.
+
+**Decision.** The customer storefront gets its own measured visual system, the
+`--sf-*` token layer in `commerce/src/app/globals.css`, scoped to
+`[data-surface="storefront"]` in markup and deliberately SEPARATE from the
+D-171 §3 merchant-panel tokens (`--cp-*`). The storefront is an editorial fashion
+surface; the merchant panel is a data surface. One palette per surface, neither
+inheriting the other's hexes:
+
+| Token | Value | Meaning |
+| --- | --- | --- |
+| `--sf-canvas` | `#f6f2ec` | warm ivory page |
+| `--sf-surface` | `#fffdf9` | card / drawer surface |
+| `--sf-surface-muted` | `#efe8dd` | muted block |
+| `--sf-ink` | `#17130f` | near-black warm ink |
+| `--sf-ink-muted` | `#6a5f54` | captions, eyebrows |
+| `--sf-edge` / `--sf-edge-strong` | `#e2d8c9` / `#b9a892` | decorative hairlines |
+| `--sf-accent` | `#7a6234` | muted brass, discount labels |
+| `--sf-inverse` / `--sf-ink-inverse` | `#14110e` / `#faf6ef` | inverted primary action |
+
+**Measured contrast (WCAG 2.2 AA floor 4.5:1), from the committed tokens:**
+
+| Pairing | Ratio |
+| --- | --- |
+| `--sf-ink` on `--sf-canvas` | **16.57:1** |
+| `--sf-ink` on `--sf-surface` | **18.19:1** |
+| `--sf-ink-muted` on `--sf-canvas` | **5.57:1** |
+| `--sf-ink-muted` on `--sf-surface` | **6.12:1** |
+| `--sf-ink-muted` on `--sf-surface-muted` | **5.11:1** (lowest) |
+| `--sf-accent` on `--sf-surface` | **5.70:1** |
+| `--sf-ink-inverse` on `--sf-inverse` | **17.46:1** |
+
+These are enforced, not merely documented: `storefront-theme.test.ts` parses the
+CSS token block, fails any pairing below 4.5:1, pins the D-171 merchant values
+(`--cp-canvas #f8fafc`, `--cp-surface #ffffff`, `--cp-text #0f172a`,
+`--cp-text-muted #475569`, `--cp-primary #1e40af`) to prove the storefront
+restyle did not drag the admin palette with it, and asserts the token block
+encodes no physical side (direction stays a document-level switch).
+
+**Display face.** Storefront headings use Noto Naskh Arabic, self-hosted at build
+time by `next/font` (`--font-editorial`), paired with Vazirmatn as the body face
+for prose and numerals. A Naskh serif is what makes the shop read as a fashion
+catalog rather than a data panel; self-hosting keeps `font-src 'self'` accurate
+and requests no third-party font origin at runtime.
+
+**Interaction set.** Hairline rules (`--sf-edge`, decorative only — never the sole
+border of a control), 44px minimum touch targets on storefront actions, the
+editorial link/button primitives in `storefront-primitives.tsx`, and a scoped
+focus ring `[data-surface="storefront"] :focus-visible` in warm ink at 2px with
+3px offset. The ring is a SHAPE as well as a colour, so focus is never conveyed
+by colour alone; it replaces the merchant panel's blue ring on storefront
+controls only, and the D-171 ring remains in force for every admin control.
+
+**Phase 1 scope DELIVERED (this decision's committed surface).** Masthead/header,
+hero, category circles, product cards (3:4 imagery, display-face titles, Persian
+availability plus Latin code), catalogue rails with hairline headings, editorial
+footer, and the empty/unavailable states. Routes, product data, cart behaviour,
+admin tokens and every server action are unchanged. The homepage title is set to
+`absolute` so the tab no longer reads «فروشگاه پوشاک · فروشگاه پوشاک».
+
+**Verification (owner visual review 2026-11-14).** Rendered at 390px and 1440px
+and checked at 320px for horizontal overflow (no document overflow on home,
+catalog or PDP: 303 ≤ 320); Persian RTL typography, 3:4 image crops, navigation,
+and admin isolation were inspected in a real browser. Evidence: `review/`
+screenshots (`home-390`, `home-1440`, `catalog-390`, `catalog-1440`, `pdp-390`,
+`pdp-1440`, `cart-drawer-390`, `admin-login-1440`). Defects found in that review
+and repaired inside the foundation: Persian eyebrow letter-spacing that broke the
+joined script, category discs oversized at 1440, a two-row (140px) mobile
+masthead, the duplicated document title, and the admin-blue focus ring.
+
+**Known environmental limiter (not a code defect).** Three `media-orphans`
+symlink tests fail on this Windows host with `EPERM` from `fs.symlink`, because
+creating symlinks requires Developer Mode or `SeCreateSymbolicLinkPrivilege`.
+They are left unskipped and unweakened; they pass where symlink creation is
+permitted. A fourth Windows-only failure was a genuine path-portability
+assumption (a literal `/tmp/media-root` against a `path.resolve`-derived root)
+and was fixed in the same commit.
+
+**Not in this decision.** The catalog browser, PDP gallery/price block, cart
+drawer and checkout shell still use `--cp-*` and are the remaining Phase 2
+surfaces. This decision authorizes no deployment, no live provider, no
+credential, and no production change (D-045/D-139 unchanged).
+
+**Status:** IMPLEMENTED and VERIFIED locally/offline; committed 2026-11-14 after
+owner visual approval. No production, credential or provider gate is changed.

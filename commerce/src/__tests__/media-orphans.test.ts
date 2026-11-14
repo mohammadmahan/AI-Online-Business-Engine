@@ -346,7 +346,10 @@ describe('§2.1 local media orphan dry run — environment gate', () => {
     const config = orphans.resolveScanConfig(ENV);
     assert.equal(config.ok, true);
     if (!config.ok) return;
-    assert.equal(config.root, '/tmp/media-root');
+    // The runner resolves its root with `path.resolve`, so the expectation must
+    // be resolved the same way: a literal '/tmp/media-root' only matches on
+    // POSIX (on Windows it resolves to a drive-rooted path).
+    assert.equal(config.root, path.resolve('/tmp/media-root'));
     assert.equal(config.database.host, '127.0.0.1');
     assert.equal(config.database.port, '55433');
   });

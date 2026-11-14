@@ -137,6 +137,121 @@
     unicode-bidi: isolate;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
+
+  /* The storefront's product imagery scales on hover; the global
+     prefers-reduced-motion rule below switches that off, not just down. */
+  .sf-zoom {
+    transition: transform 600ms cubic-bezier(0.2, 0.6, 0.2, 1);
+  }
+
+  .group:hover .sf-zoom,
+  .group:focus-visible .sf-zoom {
+    transform: scale(1.03);
+  }
+}
+
+/*
+ * D-172 §3 — THE CUSTOMER STOREFRONT'S OWN VISUAL SYSTEM.
+ *
+ * Scoped, additive and separate from the merchant panel above: the D-171 §3
+ * measured tokens keep their EXACT values (the contrast gate in `control-plane/`
+ * still enforces them), and the storefront gets the editorial fashion system the
+ * roadmap asks for — warm ivory canvas, near-black warm ink, muted brass accent,
+ * hairline rules and a display face paired with Vazirmatn.
+ *
+ * Rules honoured here rather than restated per component:
+ *  - every hex literal lives in THIS file (the ESLint `no-restricted-syntax`
+ *    gate blocks raw hex in components);
+ *  - every text pairing clears WCAG 2.2 AA (≥ 4.5:1) — measured in
+ *    `src/__tests__/storefront-theme.test.ts`, which fails the suite if a token
+ *    is edited below the floor;
+ *  - `--sf-edge` / `--sf-edge-strong` are DECORATIVE hairlines, never the sole
+ *    border of a control (inputs keep the D-171 control tokens);
+ *  - direction is not encoded here: the storefront uses logical properties
+ *    (`text-start`, `ms-*`, `pe-*`) so `dir="rtl"` on <html> remains the only
+ *    switch (src/lib/document.ts).
+ */
+:root {
+  --sf-canvas: #f6f2ec;
+  --sf-surface: #fffdf9;
+  --sf-surface-muted: #efe8dd;
+  --sf-ink: #17130f;
+  --sf-ink-muted: #6a5f54;
+  --sf-edge: #e2d8c9;
+  --sf-edge-strong: #b9a892;
+  --sf-accent: #7a6234;
+  --sf-inverse: #14110e;
+  --sf-ink-inverse: #faf6ef;
+}
+
+@theme inline {
+  --color-sf-canvas: var(--sf-canvas);
+  --color-sf-surface: var(--sf-surface);
+  --color-sf-muted: var(--sf-surface-muted);
+  --color-sf-ink: var(--sf-ink);
+  --color-sf-ink-muted: var(--sf-ink-muted);
+  --color-sf-edge: var(--sf-edge);
+  --color-sf-edge-strong: var(--sf-edge-strong);
+  --color-sf-accent: var(--sf-accent);
+  --color-sf-inverse: var(--sf-inverse);
+  --color-sf-ink-inverse: var(--sf-ink-inverse);
+
+  /* Editorial display face (Noto Naskh Arabic, self-hosted by next/font);
+     Vazirmatn stays the body face for legibility in prose and numerals. */
+  --font-display: var(--font-editorial), 'Noto Naskh Arabic', 'Times New Roman', serif;
+
+  --text-sf-hero: clamp(2.25rem, 1.15rem + 4.2vw, 4.5rem);
+  --text-sf-title: clamp(1.375rem, 1.05rem + 1.15vw, 2rem);
+  --text-sf-eyebrow: 0.6875rem;
+  --text-sf-body: 1rem;
+  --text-sf-caption: 0.8125rem;
+  --tracking-sf-wide: 0.16em;
+  --radius-sf: 2px;
+}
+
+@layer utilities {
+  /* Editorial eyebrow. NO letter-spacing here: Persian is a joined script and
+     any tracking visually breaks the connections between letters (the defect
+     this rule used to cause). Tracking is opt-in, Latin-only, via
+     `.sf-eyebrow-latin`. */
+  .sf-eyebrow {
+    font-size: var(--text-sf-eyebrow);
+    letter-spacing: 0;
+    color: var(--sf-ink-muted);
+  }
+
+  /* Latin-only display text (the wordmark sub-label). Never put a Persian
+     string on this class. */
+  .sf-eyebrow-latin {
+    letter-spacing: var(--tracking-sf-wide);
+    text-transform: uppercase;
+  }
+
+  /* A hairline rule that reads as a printed page, not a UI border. */
+  .sf-rule {
+    border-block-start: 1px solid var(--sf-edge);
+  }
+
+  /* Underline-on-hover for editorial links; focus stays visible via the
+     global :focus-visible outline (never colour-only affordance). */
+  .sf-link {
+    color: var(--sf-ink);
+    text-underline-offset: 0.35em;
+    text-decoration-thickness: 1px;
+  }
+
+  .sf-link:hover {
+    text-decoration-line: underline;
+  }
+
+  /* Storefront focus ring: the admin ring is the merchant panel's blue, which
+     reads as a foreign accent on ivory. Warm ink, 2px, always offset — and
+     never colour-only, because it is a shape as well as a colour. */
+  [data-surface='storefront'] :focus-visible {
+    outline: 2px solid var(--sf-ink);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

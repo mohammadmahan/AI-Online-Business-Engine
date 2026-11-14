@@ -439,6 +439,21 @@ is [`docs/roadmap/MULTI_CARRIER_SHIPPING_TRACK.md`](docs/roadmap/MULTI_CARRIER_S
 No real carrier credential, contract, API call, label purchase or production
 deployment is authorized; D-045/D-139 still gate go-live.
 
+**Editorial storefront design foundation (D-177, 2026-11-14).** The customer
+storefront now carries its own measured visual system — the scoped `--sf-*`
+token layer (warm ivory canvas, near-black ink, muted brass accent, hairline
+rules) and a self-hosted Noto Naskh Arabic display face paired with Vazirmatn —
+while the D-171 §3 merchant-panel tokens (`--cp-*`) keep their exact values. The
+separation is enforced by `commerce/src/__tests__/storefront-theme.test.ts`, which
+fails any storefront pairing below WCAG 2.2 AA (lowest measured: **5.11:1**) and
+pins the admin hexes. Phase 1 covers the masthead, hero, category circles, product
+cards, rails, footer and empty/unavailable states; routes, cart behaviour, admin
+tokens and server logic are unchanged. The catalog browser, PDP gallery/price
+block, cart drawer and checkout shell still use the admin tokens and are the
+remaining Phase 2 surfaces. Owner-reviewed in a real browser at 390/1440 with a
+320px overflow check; committed 2026-11-14. No deployment, credential, provider or
+production change is authorized (D-045/D-139 unchanged).
+
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those
 documents link (the read-before-work order is `PROJECT_RULES.md` §2).
