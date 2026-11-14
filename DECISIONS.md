@@ -6778,7 +6778,8 @@ the close control returning to the trigger, the PDP add button as opener, a
 removed opener falling back to the trigger, both preferred targets removed
 falling back to the visible `#main-content` heading, a painted ink focus ring,
 and no horizontal overflow at 320px with a populated drawer. Native 390x844 and
-1440x900 screenshots were inspected by the owner. Offline decisions and the
+1440x900 screenshots were generated and preserved for owner review; that review
+is still PENDING and no approval is claimed here. Offline decisions and the
 source contract are pinned in `focus-return.test.ts` and
 `storefront-theme.test.ts`. Final gates: typecheck, lint and build exit 0;
 **588 tests, 585 pass**, with only the three known Windows `fs.symlink` `EPERM`

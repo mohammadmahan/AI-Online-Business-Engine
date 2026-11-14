@@ -2685,8 +2685,8 @@ repository hygiene, not deployment authorization.
             assertion — was a real path-portability assumption and is fixed in
             the same commit (`path.resolve('/tmp/media-root')`).
         - [x] **SF-UI Phase 2A — cart drawer only.** **COMPLETE (local/offline)
-              2026-11-14, committed after owner visual review** (Phase 1 shipped
-              as `7bf6e34`).
+              2026-11-14; committed and pushed, owner visual review PENDING**
+              (Phase 1 shipped as `7bf6e34`).
               The drawer renders in a `surface="storefront"` Modal chrome: ivory
               surface, warm ink, hairlines, display-face heading, 2px ink focus
               ring and storefront buttons. Radix still owns the focus trap,
@@ -2712,9 +2712,10 @@ repository hygiene, not deployment authorization.
               removed — focus lands on the visible `#main-content` heading via
               `focusStorefrontLandmark`, which grants `tabindex="-1"` only while
               needed and drops it on blur). Native screenshots at 390x844 and
-              1440x900 (plus a fallback-focus frame) were inspected by the owner
-              and then removed with the rest of `review/` after the push, per
-              owner instruction; the check script is preserved in this commit.
+              1440x900 (plus a fallback-focus frame) were regenerated for owner
+              review and are preserved in `review/`; **the owner has not yet
+              reviewed them**, and no approval is claimed. The check script stays
+              tracked.
               Verification:
               typecheck, lint and build exit 0; **588 tests, 585 pass**, and only
               the three Windows symlink `EPERM` tests fail.
