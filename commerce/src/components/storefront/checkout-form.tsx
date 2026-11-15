@@ -11,7 +11,11 @@ import {
   type CheckoutIntent,
   type CheckoutKeyStorage,
 } from '@/lib/checkout-idempotency';
-import { type CheckoutFieldErrors, submitCheckout } from '@/lib/checkout-submit';
+import {
+  checkoutCustomerErrors,
+  type CheckoutFieldErrors,
+  submitCheckout,
+} from '@/lib/checkout-submit';
 import { MAX_LINE_QUANTITY, computeCheckoutTotals } from '@/lib/checkout-rules';
 import { fieldA11y } from '@/lib/field-a11y';
 import { formatCountFa, formatToman } from '@/lib/format';
@@ -123,6 +127,32 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
    * server — and the write path has no idempotency key, so that is two orders.
    */
   const inFlight = useRef(false);
+  /**
+   * The first invalid field is focused after a client-side validation failure,
+   * so a keyboard or screen-reader user is taken to the error instead of being
+   * left on a submit button with three alerts elsewhere on the page. The refs
+   * are declared unconditionally, before the hydration early-return.
+   */
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+  const postalRef = useRef<HTMLInputElement>(null);
+
+  function focusFirstInvalid(next: CheckoutFieldErrors) {
+    const order = ['fullName', 'phoneNumber', 'address', 'postalCode'] as const;
+    const field = order.find((name) => next[name] !== undefined);
+    if (field === undefined) {
+      return;
+    }
+    // Wait for React to commit `aria-invalid`/`aria-describedby` before moving
+    // focus, so the announcement includes the error that caused the move.
+    requestAnimationFrame(() => {
+      if (field === 'fullName') nameRef.current?.focus();
+      else if (field === 'phoneNumber') phoneRef.current?.focus();
+      else if (field === 'address') addressRef.current?.focus();
+      else postalRef.current?.focus();
+    });
+  }
 
   const totalQuantity = lines.reduce((total, line) => total + line.quantity, 0);
   const parcel = estimateParcel(shippingConfig.parcelPolicy, totalQuantity);
@@ -176,16 +206,32 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
     if (inFlight.current) {
       return;
     }
+    setErrors({});
+    setNotes([]);
+    setResult(null);
+    setSubmitError(null);
+
+    // Validate the customer fields BEFORE the shipping pre-check. With an empty
+    // address there is no eligible carrier, and the old carrier-first guard
+    // returned before validation, leaving focus on the submit button and an
+    // unrelated carrier notice instead of the first field error.
+    const validationErrors = checkoutCustomerErrors({
+      fullName,
+      phoneNumber,
+      address,
+      postalCode,
+    });
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      focusFirstInvalid(validationErrors);
+      return;
+    }
     if (selectedCarrierId === '') {
       setSubmitError(NO_ELIGIBLE_CARRIER_MESSAGE);
       return;
     }
     inFlight.current = true;
     setBusy(true);
-    setErrors({});
-    setNotes([]);
-    setResult(null);
-    setSubmitError(null);
 
     const keyStorage = checkoutKeyStorage();
     const intent: CheckoutIntent = {
@@ -209,6 +255,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
 
       if (outcome.status === 'invalid') {
         setErrors(outcome.errors);
+        focusFirstInvalid(outcome.errors);
         return;
       }
       if (outcome.status === 'error') {
@@ -263,7 +310,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
   }
 
   return (
-    <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start lg:gap-14">
+    <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start lg:gap-14">
       <section
         aria-labelledby="checkout-customer-title"
         className="border border-sf-edge bg-sf-surface p-5 sm:p-8"
@@ -297,6 +344,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
             errorId={nameA11y.errorId}
           >
             <input
+              ref={nameRef}
               id="checkout-name"
               className={sfField}
               value={fullName}
@@ -315,6 +363,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
             errorId={phoneA11y.errorId}
           >
             <input
+              ref={phoneRef}
               id="checkout-phone"
               className={sfField}
               inputMode="numeric"
@@ -335,6 +384,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
             errorId={addressA11y.errorId}
           >
             <textarea
+              ref={addressRef}
               id="checkout-address"
               className={cn(sfField, 'min-h-24 py-3')}
               rows={3}
@@ -353,6 +403,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
             errorId={postalA11y.errorId}
           >
             <input
+              ref={postalRef}
               id="checkout-postal"
               className={sfField}
               inputMode="numeric"
@@ -454,7 +505,7 @@ export function CheckoutForm({ shippingConfig }: { shippingConfig: ShippingConfi
                 key={line.variantId}
                 className="flex items-start justify-between gap-3 border-b border-sf-edge py-3"
               >
-                <span className="text-sf-caption text-sf-ink">
+                <span className="min-w-0 break-words text-sf-caption text-sf-ink">
                   {line.productTitle}
                   <span className="mt-1 block text-sf-caption text-sf-ink-muted">
                     {line.colorName} · اندازه <span className="sf-code">{line.size}</span> · تعداد{' '}

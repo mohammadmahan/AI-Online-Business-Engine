@@ -2790,6 +2790,22 @@ repository hygiene, not deployment authorization.
               commit and fast-forward push are authorized.**
               No deployment, credential, live payment/SMS/carrier/AI provider or
               production change was made (D-045/D-139 unchanged).
+        - [x] **SF-UI Phase 3 — stability, UI/UX audit and full E2E.**
+              **COMPLETE 2026-11-15 — committed and fast-forward pushed.**
+              Full E2E **68/68**, fail-closed **13/13**, checkout visual
+              **42/42**, catalog visual **22/22**, PDP visual **24/24**, cart
+              focus **19/19 three consecutive runs**, `npm run verify`
+              **594/594**, build exit 0. CLS is **0.0000** on initial home,
+              catalog, PDP and checkout, and on home→catalog navigation at
+              390/1440 with the skeleton observed; reduced motion disables the
+              skeleton animation (`animationName: none`).
+              Increment 2 fixes: client validation focuses the first invalid
+              checkout field before the shipping pre-check; the catalog
+              `loading.tsx` uses the shared header, reserved filter geometry and
+              `ProductGridSkeleton`; PDP visual checks handle the zero-image seed;
+              E2E covers decrement, removal, maximum quantity, coupon refusal and
+              validation focus. No deployment, provider credential or production
+              change was made.
       - [ ] **G1 — provider selections (2 of 3 CLOSED 2026-10-23)**
             - [x] **O** Payment provider — decision-register row 10 —
                   **SELECTED 2026-10-23: ZarinPal (primary)**; stays swappable

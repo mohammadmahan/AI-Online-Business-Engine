@@ -451,9 +451,13 @@ cards, rails, footer and empty/unavailable states. Phase 2A restyled the cart
 drawer, Phase 2B the catalog, Phase 2C the PDP and Phase 2D the checkout shell
 and inline order-result state; all customer surfaces now use `--sf-*`. Routes,
 checkout/cart/server logic and admin tokens remain unchanged. Phases 2B/2C/2D
-are owner-approved; Phase 2A remains pending owner visual review. No
-deployment, credential, provider or production change is authorized (D-045/D-139
-unchanged).
+are owner-approved; Phase 2A remains pending owner visual review. The D-177
+Phase 3 stability audit is **COMPLETE (2026-11-15)**: E2E 68/68, fail-closed
+13/13, 594/594 contracts, checkout/catalog/PDP visual suites and cart-focus all
+pass, with CLS 0.0000 and the catalog loading skeleton wired. Checkout validation
+focus, cart decrement/removal/maximum coverage, coupon refusal and zero-image PDP
+handling are complete. No deployment, credential, provider or production change
+was made (D-045/D-139 unchanged).
 
 **Status of record (recorded 2026-10-23).** The canonical governance set is
 this file, `PROJECT_RULES.md`, `TODO.md`, `DECISIONS.md`, and the records those

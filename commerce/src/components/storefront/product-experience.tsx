@@ -297,9 +297,14 @@ export function ProductExperience({ product }: { product: StorefrontProductDetai
           onCloseAutoFocus={(event) => {
             // Radix has no Trigger here (the guide is a plain button), so its
             // default would drop focus on <body>. Return it to the control that
-            // opened the chart, synchronously, with no timeout.
+            // opened the chart. If unmounting wins the same frame, re-assert on
+            // the next frame only when focus was actually lost.
             event.preventDefault();
-            sizeGuideRef.current?.focus();
+            const restore = () => sizeGuideRef.current?.focus();
+            restore();
+            requestAnimationFrame(() => {
+              if (document.activeElement === document.body) restore();
+            });
           }}
         >
           <table className="w-full border-collapse text-start text-sf-caption">

@@ -22,17 +22,29 @@ function Block({ className }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn('block animate-pulse rounded-sf bg-sf-muted', className)}
+      className={cn(
+        'block rounded-sf bg-sf-muted animate-pulse motion-reduce:animate-none',
+        className,
+      )}
     />
   );
 }
 
-export function ProductGridSkeleton({ count = 6 }: { count?: number }) {
+export function ProductGridSkeleton({
+  count = 6,
+  announce = true,
+}: {
+  count?: number;
+  /** Turn off when the caller already renders the same visible status line. */
+  announce?: boolean;
+}) {
   return (
     <div aria-busy="true" className="mt-6">
-      <p role="status" className="sr-only">
-        در حال بارگذاری محصولات…
-      </p>
+      {announce ? (
+        <p role="status" className="sr-only">
+          در حال بارگذاری محصولات…
+        </p>
+      ) : null}
       <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-3">
         {Array.from({ length: count }, (_, index) => (
           <li key={index} className="flex h-full flex-col">

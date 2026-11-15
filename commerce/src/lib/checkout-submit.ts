@@ -115,6 +115,22 @@ function fieldErrorsFrom(issues: Array<{ field: string; message: string }>): Che
   return errors;
 }
 
+/**
+ * The customer-field errors alone, shared by the form (which must move focus and
+ * can do so before the shipping pre-check) and the submission pipeline.
+ */
+export function checkoutCustomerErrors(
+  customer: CheckoutCustomerInput,
+): CheckoutFieldErrors {
+  const validation = validateCheckoutCustomer({
+    fullName: customer?.fullName,
+    phoneNumber: customer?.phoneNumber,
+    address: customer?.address,
+    postalCode: customer?.postalCode,
+  });
+  return validation.ok ? {} : fieldErrorsFrom(validation.issues);
+}
+
 /** `''` and whitespace mean "no coupon"; anything else is upper-cased once. */
 export function normalizeCouponInput(value: string): string | null {
   const trimmed = value.trim();
@@ -147,14 +163,9 @@ export async function submitCheckout(
   input: CheckoutSubmissionInput,
   ports: CheckoutPorts,
 ): Promise<CheckoutSubmission> {
-  const customerValidation = validateCheckoutCustomer({
-    fullName: input.customer?.fullName,
-    phoneNumber: input.customer?.phoneNumber,
-    address: input.customer?.address,
-    postalCode: input.customer?.postalCode,
-  });
-  if (!customerValidation.ok) {
-    return { status: 'invalid', errors: fieldErrorsFrom(customerValidation.issues) };
+  const errors = checkoutCustomerErrors(input.customer);
+  if (Object.keys(errors).length > 0) {
+    return { status: 'invalid', errors };
   }
 
   const lines: CheckoutLineInput[] = input.cartLines.map((line) => ({

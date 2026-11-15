@@ -70,6 +70,11 @@ function pngSize(file) {
 const browser = await chromium.launch({ executablePath, headless: true });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
+const waitForCartTriggerFocus = () =>
+  page.waitForFunction(() => document.activeElement?.hasAttribute('data-cart-trigger'), null, {
+    timeout: 3_000,
+  });
+
 const activeInfo = () =>
   page.evaluate(() => {
     const el = document.activeElement;
@@ -120,6 +125,7 @@ try {
   // ---- Escape restores the opener ------------------------------------------------
   await page.keyboard.press('Escape');
   await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await waitForCartTriggerFocus();
   info = await activeInfo();
   check(info.isCartTrigger, 'Escape returns focus to the cart trigger', info.label);
 
@@ -129,8 +135,18 @@ try {
   const closeBtn = page.getByRole('button', { name: 'بستن' });
   await closeBtn.click();
   await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await waitForCartTriggerFocus();
   info = await activeInfo();
   check(info.isCartTrigger, 'the close control returns focus to the cart trigger', info.label);
+
+  // ---- overlay click restores the opener -----------------------------------------
+  await trigger.click();
+  await page.locator('[role="dialog"]').waitFor({ state: 'visible' });
+  await page.locator('div.fixed.inset-0.z-40').click({ position: { x: 5, y: 5 } });
+  await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await waitForCartTriggerFocus();
+  info = await activeInfo();
+  check(info.isCartTrigger, 'clicking the overlay returns focus to the cart trigger', info.label);
 
   // ---- visible focus ring --------------------------------------------------------
   await page.keyboard.press('Enter');
@@ -150,10 +166,16 @@ try {
   await page.locator('[role="dialog"]').waitFor({ state: 'visible' });
   const lineCount = await page.locator('[role="dialog"] li').count();
   check(lineCount === 1, 'populated drawer shows the added line');
-
   // The add button is still focusable, so it IS the correct return target.
   await page.keyboard.press('Escape');
   await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await page.waitForFunction(
+    () =>
+      document.activeElement?.tagName === 'BUTTON' &&
+      document.activeElement.textContent?.includes('افزودن به سبد خرید'),
+    null,
+    { timeout: 3_000 },
+  );
   info = await activeInfo();
   check(/افزودن/.test(info.label), 'focus returns to the PDP add button that opened the drawer', info.label);
 
@@ -178,6 +200,7 @@ try {
   });
   await page.keyboard.press('Escape');
   await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await waitForCartTriggerFocus();
   info = await activeInfo();
   check(info.isCartTrigger, 'a removed opener falls back to the visible cart trigger', info.label);
 
@@ -220,6 +243,14 @@ try {
 
   await page.keyboard.press('Escape');
   await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  await page.waitForFunction(
+    () => {
+      const el = document.activeElement;
+      return el?.tagName === 'H1' && Boolean(el.closest('#main-content'));
+    },
+    null,
+    { timeout: 3_000 },
+  );
   const landing = await page.evaluate(() => {
     const el = document.activeElement;
     const rect = el?.getBoundingClientRect();

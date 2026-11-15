@@ -229,6 +229,10 @@ try {
   await submit.click();
 
   await page.locator('#checkout-name-error').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.id === 'checkout-name', null, {
+    timeout: 5_000,
+  });
+  check(true, 'invalid submit moves focus to the first invalid field');
   const invalidName = await firstInput.getAttribute('aria-invalid');
   const describedBy = await firstInput.getAttribute('aria-describedby');
   check(invalidName === 'true', 'a validation error marks the field invalid', String(invalidName));

@@ -138,7 +138,19 @@ async function runFull(browser) {
   await page.locator('article h3').first().waitFor({ timeout: 15_000 });
   record((await page.locator('article h3').count()) === 3, 'catalog renders three seeded products');
 
+  // Phase 2B intentionally starts the phone filter panel collapsed so the grid
+  // is visible on arrival. Open it through the real disclosure before typing.
+  const filtersToggle = page.getByRole('button', { name: /^فیلترها/ });
+  if ((await filtersToggle.getAttribute('aria-expanded')) !== 'true') {
+    await filtersToggle.click();
+  }
+  record(
+    (await filtersToggle.getAttribute('aria-expanded')) === 'true',
+    'catalog filter disclosure opens on a phone',
+  );
+
   const search = page.getByLabel('جست‌وجو');
+  await search.waitFor({ state: 'visible', timeout: 10_000 });
   await search.fill('شومیز');
   await page.getByRole('heading', { name: 'شومیز ابریشمی یقه گرد' }).waitFor({ timeout: 10_000 });
   const filteredStatus = await textOf(page.locator('p[role="status"]').filter({ hasText: 'محصول' }).first());
@@ -167,16 +179,81 @@ async function runFull(browser) {
     return live?.textContent?.trim() === '۲';
   }, null, { timeout: 10_000 });
   record(true, 'cart quantity increments to two');
+
+  const decrement = page.getByRole('button', { name: 'کاهش تعداد مانتو کتان جلو بسته' });
+  await decrement.click();
+  await page.waitForFunction(
+    () => document.querySelector('[role="dialog"] [aria-live="polite"]')?.textContent?.trim() === '۱',
+    null,
+    { timeout: 10_000 },
+  );
+  record(await decrement.isDisabled(), 'cart line decrements to one and the minus control stops');
+
+  const increment = page.getByRole('button', { name: 'افزودن یک عدد به مانتو کتان جلو بسته' });
+  for (const expected of ['۲', '۳', '۴', '۵']) {
+    await increment.click();
+    await page.waitForFunction(
+      (value) =>
+        document.querySelector('[role="dialog"] [aria-live="polite"]')?.textContent?.trim() ===
+        value,
+      expected,
+      { timeout: 10_000 },
+    );
+  }
+  record(await increment.isDisabled(), 'cart line stops at the five-piece maximum');
+
+  await page.getByRole('button', { name: 'حذف مانتو کتان جلو بسته از سبد خرید' }).click();
+  await drawer.getByText('سبد خرید خالی است.').waitFor({ state: 'visible', timeout: 10_000 });
+  record(
+    // Radix marks the page behind the modal as aria-hidden, so query the trigger
+    // directly instead of by role while the drawer is still open.
+    (await page.locator('[data-cart-trigger]').getAttribute('aria-label')) === 'سبد خرید',
+    'removing the only line empties the cart and clears the badge',
+  );
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 10_000 });
 
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: /سبد خرید، ۲ کالا/ }).waitFor({ timeout: 10_000 });
+  await page.locator('[data-cart-trigger]').click();
+  await drawer.getByText('سبد خرید خالی است.').waitFor({ state: 'visible', timeout: 10_000 });
+  record(true, 'an empty cart stays empty after reload');
+  await page.keyboard.press('Escape');
+  await drawer.waitFor({ state: 'hidden', timeout: 10_000 });
+
+  // Rebuild one line for the checkout journey after the removal boundary.
+  await page.getByRole('button', { name: /^M/ }).first().click();
+  await page.getByRole('button', { name: 'افزودن به سبد خرید' }).click();
+  await drawer.waitFor({ state: 'visible', timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await drawer.waitFor({ state: 'hidden', timeout: 10_000 });
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: /سبد خرید، ۱ کالا/ }).waitFor({ timeout: 10_000 });
   record(true, 'cart survives reload through localStorage');
 
   await page.goto(`${base}/checkout`, { waitUntil: 'networkidle' });
   const checkoutForm = page.locator('form[aria-label="فرم تسویهٔ خرید"]');
   await checkoutForm.waitFor({ state: 'visible', timeout: 15_000 });
+
+  // Client-side validation must take the keyboard to the first invalid field,
+  // not leave it on the submit button while three alerts render elsewhere.
+  await page.getByRole('button', { name: 'ثبت سفارش' }).click();
+  await page.locator('#checkout-name-error').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.waitForFunction(() => document.activeElement?.id === 'checkout-name', null, {
+    timeout: 5_000,
+  });
+  record(true, 'invalid submit focuses the first invalid field');
+  record(
+    (await page.locator('#checkout-name').getAttribute('aria-invalid')) === 'true' &&
+      (await page.locator('#checkout-name').getAttribute('aria-describedby')) ===
+        'checkout-name-error',
+    'the focused field carries its invalid state and error description',
+  );
+  await page.waitForFunction(() => document.querySelectorAll('[role="alert"]').length === 4, null, {
+    timeout: 5_000,
+  });
+  record(true, 'all four required-field errors are announced');
+
   await page.getByLabel('نام و نام خانوادگی').fill('کاربر آزمایشی ال‌اس‌ای');
   await page.getByLabel('شمارهٔ موبایل').fill('09120000000');
   await page.getByLabel('نشانی').fill('تهران، خیابان آزمایشی، پلاک ۱، واحد ۱');
@@ -205,6 +282,18 @@ async function runFull(browser) {
   record(await carrierRadios.first().isChecked(), 'first eligible carrier is preselected');
   await page.getByRole('radio', { name: /پیک محلی/ }).check();
   record(await page.getByRole('radio', { name: /پیک محلی/ }).isChecked(), 'carrier selection is changeable');
+
+  // An unknown coupon is a server refusal, not a client-side guess. The form
+  // must stay usable and show the exact reason before the valid submission.
+  await page.getByLabel('کد تخفیف').fill('NO-SUCH-CODE');
+  await page.getByRole('button', { name: 'ثبت سفارش' }).click();
+  await page.getByText('کد تخفیف معتبر نیست.').waitFor({ state: 'visible', timeout: 20_000 });
+  record(
+    (await checkoutForm.count()) === 1 &&
+      (await page.locator('body').innerText()).includes('[couponCode]'),
+    'invalid coupon shows a refusal and keeps the checkout form',
+  );
+  await page.getByLabel('کد تخفیف').fill('');
 
   await page.getByRole('button', { name: 'ثبت سفارش' }).click();
   await page.getByRole('heading', { name: 'سفارش ثبت شد' }).waitFor({ timeout: 30_000 });

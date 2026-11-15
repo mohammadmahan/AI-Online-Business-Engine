@@ -50,15 +50,10 @@ export function CartDrawer() {
     openerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
   };
 
-  const returnFocus = (event: Event) => {
-    // Stop Radix's default (no trigger ⇒ focus falls to <body>), then restore.
-    event.preventDefault();
-    const opener = openerRef.current;
-    openerRef.current = null;
-
-    // 1) the element that opened the drawer, 2) the visible header cart
-    // trigger, 3) the page's main heading — never <body>, never the unmounted
-    // dialog, never an arbitrary hidden control.
+  // 1) the element that opened the drawer, 2) the visible header cart
+  // trigger, 3) the page's main heading — never <body>, never the unmounted
+  // dialog, never an arbitrary hidden control.
+  const restoreFocus = (opener: HTMLElement | null) => {
     const trigger = document.querySelector<HTMLElement>('[data-cart-trigger]');
     const target = resolveFocusReturn(opener, trigger);
     if (target) {
@@ -68,10 +63,43 @@ export function CartDrawer() {
     focusStorefrontLandmark(document);
   };
 
+  const returnFocus = (event: Event) => {
+    // Stop Radix's default (no trigger ⇒ focus falls to <body>), then restore.
+    event.preventDefault();
+    const opener = openerRef.current;
+    openerRef.current = null;
+    restoreFocus(opener);
+    // Radix/React can finish unmounting after this callback when a drawer is
+    // closed on the same frame it opens. Re-assert only if focus fell to body;
+    // never steal it from a control the customer has already reached.
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) restoreFocus(opener);
+    });
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      openCart();
+      return;
+    }
+    closeCart();
+    // Safety net for an immediate close (Escape on the opening frame): if Radix
+    // never reaches onCloseAutoFocus, restore once the unmount has settled.
+    const opener = openerRef.current;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (document.activeElement !== document.body) return;
+        // Keep the opener for Radix's later onCloseAutoFocus; it can arrive after
+        // this fallback when the dialog unmounts on a delayed frame.
+        restoreFocus(opener);
+      });
+    });
+  };
+
   return (
     <Modal
       open={isOpen}
-      onOpenChange={(next) => (next ? openCart() : closeCart())}
+      onOpenChange={handleOpenChange}
       title="سبد خرید"
       description="تعداد هر قلم را می‌توانید همین‌جا تغییر دهید. مبلغ نهایی در مرحلهٔ پرداخت روی سرور محاسبه می‌شود."
       surface="storefront"
@@ -113,7 +141,7 @@ export function CartDrawer() {
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <Link
                     href={`/products/${line.productSlug}`}
-                    className="font-display text-base font-semibold leading-snug text-sf-ink"
+                    className="break-words font-display text-base font-semibold leading-snug text-sf-ink"
                     onClick={closeCart}
                   >
                     {line.productTitle}

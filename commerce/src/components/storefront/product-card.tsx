@@ -43,7 +43,7 @@ export function ProductCard({ card }: { card: StorefrontProductCard }) {
 
       <div className="flex flex-1 flex-col gap-1.5 pt-4">
         <p className="text-sf-caption text-sf-ink-muted">{card.categoryName}</p>
-        <h3 className="font-display text-lg font-semibold leading-snug text-sf-ink">
+        <h3 className="break-words font-display text-lg font-semibold leading-snug text-sf-ink">
           <Link href={`/products/${card.slug}`} className="sf-link">
             {card.title}
           </Link>

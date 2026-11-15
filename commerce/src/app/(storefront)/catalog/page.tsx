@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import { CatalogBrowser } from '@/components/storefront/catalog-browser';
-import { SectionEyebrow } from '@/components/storefront/storefront-primitives';
+import { CatalogPageHeader } from '@/components/storefront/catalog-page-header';
 import { StorefrontUnavailable } from '@/components/storefront/storefront-unavailable';
 import { getRepository } from '@/server/db-context';
 import { listPublishedProducts, listStorefrontCategories } from '@/server/services/storefront';
@@ -50,12 +50,7 @@ export default async function CatalogPage({
   if (repository === null) {
     return (
       <>
-        <header className="border-b border-sf-edge pb-8">
-          <SectionEyebrow>فروشگاه پوشاک · کاتالوگ</SectionEyebrow>
-          <h1 className="mt-2 font-display text-sf-title font-semibold text-sf-ink">
-            همهٔ محصولات
-          </h1>
-        </header>
+        <CatalogPageHeader />
         <div className="mt-8">
           <StorefrontUnavailable what="فهرست محصولات" />
         </div>
@@ -70,16 +65,7 @@ export default async function CatalogPage({
 
   return (
     <>
-      <header className="border-b border-sf-edge pb-8">
-        <SectionEyebrow>فروشگاه پوشاک · کاتالوگ</SectionEyebrow>
-        <h1 className="mt-2 font-display text-sf-title font-semibold text-sf-ink">
-          همهٔ محصولات
-        </h1>
-        <p className="mt-3 max-w-2xl text-sf-caption leading-relaxed text-sf-ink-muted">
-          فیلترها بی‌درنگ روی محصولات منتشرشده اعمال می‌شوند؛ تعداد محصولات هر دسته از همین فهرست
-          محاسبه شده است.
-        </p>
-      </header>
+      <CatalogPageHeader />
 
       {cards.length === 0 ? (
         <div className="mt-8 border border-sf-edge bg-sf-surface p-8">

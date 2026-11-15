@@ -107,14 +107,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           همهٔ محصولات
         </Link>
         <span aria-hidden="true"> / </span>
-        <span className="text-sf-ink">{product.title}</span>
+        <span className="break-words text-sf-ink">{product.title}</span>
       </nav>
 
       <header className="mt-6 border-b border-sf-edge pb-8">
         <SectionEyebrow>
           {product.categoryName} · {product.fabricType} · {product.season}
         </SectionEyebrow>
-        <h1 className="mt-3 max-w-3xl font-display text-sf-title font-semibold leading-tight text-sf-ink">
+        <h1 className="mt-3 max-w-3xl break-words font-display text-sf-title font-semibold leading-tight text-sf-ink">
           {product.title}
         </h1>
       </header>
