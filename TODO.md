@@ -5733,3 +5733,22 @@ generated ≥8 value stored only in the gitignored operator file
       - [x] `.env.example` documents the Ollama defaults and preserves
             `AI_LIVE_ENABLED=false` for paid providers; no credential added.
 - [ ] Phase 7+ — Instagram, payment, shipping integrations
+
+---
+
+## Handoff — local demo admin login hardening (2026-11-16)
+
+- **Code commits:** `b002903` — login form now submits with POST before
+  hydration, with a focused rendered-fallback test; `9c44238` — the local-demo
+  setup path accepts a short temporary password only through the explicit
+  `--local-demo` flag, with a warning and a `NODE_ENV=production` refusal; the
+  local runbook records that guarded path. Shared password verification was not
+  weakened.
+- **Checks passed:** focused login-form tests, lint and typecheck; the loopback
+  demo `/healthz` returned 200 and a fresh incognito sign-in reached `/admin`.
+- **Boundary:** the local demo remains loopback-only (`127.0.0.1`), and no
+  credential, password hash, session secret, local env file or generated file was
+  committed. No deployment, production activation, paid/live provider or
+  credential work was performed.
+- **Still open:** D-177 Phase 2A awaits owner visual review (no approval claimed);
+  G-4 / decision 9 remains the owner's AI-provider decision.
