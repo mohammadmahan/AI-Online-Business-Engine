@@ -43,7 +43,11 @@ export function AdminLoginForm({ next }: { next?: string }) {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)}>
+    <form
+      method="post"
+      className="flex flex-col gap-4"
+      onSubmit={(event) => void submit(event)}
+    >
       {error === null ? null : (
         <Banner tone="danger" title="ورود انجام نشد">
           {error}
