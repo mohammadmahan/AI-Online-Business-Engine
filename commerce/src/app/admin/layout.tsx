@@ -37,6 +37,7 @@ const NAV = [
   { href: '/admin/inventory', label: 'موجودی و قیمت' },
   { href: '/admin/orders', label: 'سفارش‌ها' },
   { href: '/admin/promotions', label: 'تخفیف‌ها' },
+  { href: '/admin/assistant', label: 'دستیار هوش مصنوعی' },
 ] as const;
 
 export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {

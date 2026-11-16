@@ -307,6 +307,11 @@ class OllamaProvider(AiProvider):
                 "(D-176 fail-closed)", failure_class="B")
         self.calls.append(request)
         started = time.monotonic()
+        # Ollama accepts a JSON Schema as `format` (structured outputs).
+        # Passing the SAME contract the router validates is materially
+        # stronger than loose JSON mode and prevents a small local model
+        # from echoing the request envelope instead of the expected output.
+        from canonical.ai_contracts import get_schema
         request_dict = {
             "url": f"{self.base_url}/api/chat",
             # Internal only; the transport strips `_` fields before POSTing.
@@ -319,7 +324,7 @@ class OllamaProvider(AiProvider):
                     request.prompt_payload, ensure_ascii=False)},
             ],
             "stream": False,
-            "format": "json",
+            "format": get_schema(request.schema_id),
             "options": {"num_predict": request.max_tokens,
                         "temperature": request.temperature},
         }

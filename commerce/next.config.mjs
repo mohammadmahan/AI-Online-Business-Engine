@@ -28,6 +28,15 @@ const nextConfig = {
    */
   output: 'standalone',
   poweredByHeader: false,
+  /**
+   * Next 16 logs every Server Action call with its arguments in development.
+   * Those arguments include the admin password during sign-in and merchant
+   * product notes during assistant generation. Disable ONLY the argument
+   * printer; request logging and action error reporting stay intact.
+   */
+  logging: {
+    serverFunctions: false,
+  },
   async headers() {
     return [
       {
