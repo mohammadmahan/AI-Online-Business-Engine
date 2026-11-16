@@ -1,0 +1,21 @@
+# D-172 local demo overlay — development only.
+#
+# Use with the ONE local development stack:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --wait postgres commerce-web
+#
+# This file exists so the demo never depends on an ad-hoc /tmp override:
+#
+#   * PAYMENT_MODE=mock selects the offline mock adapter. The mock callback
+#     route is 404 outside this mode and a production build refuses it, so this
+#     cannot enable a real gateway or contact ZarinPal.
+#   * SMS_LIVE_ENABLED=false forces the mock SMS channel even if a host
+#     environment variable says otherwise; nothing leaves the machine.
+#   * No credential literal is added here. The admin credentials are read from
+#     the gitignored commerce/.env and the database/ports stay exactly as the
+#     base stack defines them (loopback only, commerce-dev-postgres).
+services:
+  commerce-web:
+    environment:
+      PAYMENT_MODE: "mock"
+      SMS_LIVE_ENABLED: "false"
