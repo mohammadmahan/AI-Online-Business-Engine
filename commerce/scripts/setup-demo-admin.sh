@@ -3,6 +3,7 @@
 #
 #   cd commerce
 #   bash scripts/setup-demo-admin.sh
+#   bash scripts/setup-demo-admin.sh --local-demo   # temporary weak local password
 #
 # The password is read with echo disabled, hashed with the repository's own
 # scrypt helper (via stdin, never an argument), and written to the gitignored
@@ -13,6 +14,26 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 ENV_FILE="$ROOT/.env"
+
+# LOCAL DEMO ONLY: an explicit flag permits a short temporary password so the
+# loopback-only demo can be opened with throwaway credentials. This exception
+# lives only in this local setup wrapper; the shared verifier still accepts any
+# non-empty password, and no staging/production configuration uses this script.
+local_demo_weak_password=0
+for arg in "$@"; do
+  case "$arg" in
+    --local-demo) local_demo_weak_password=1 ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      echo "Usage: bash scripts/setup-demo-admin.sh [--local-demo]" >&2
+      exit 2
+      ;;
+  esac
+done
+if [ "$local_demo_weak_password" = "1" ] && [ "${NODE_ENV:-}" = "production" ]; then
+  echo "--local-demo is refused when NODE_ENV=production." >&2
+  exit 1
+fi
 
 read -r -p "Admin username [owner]: " admin_username
 admin_username="${admin_username:-owner}"
@@ -30,8 +51,13 @@ if [ -z "$admin_password" ]; then
   exit 1
 fi
 if [ "${#admin_password}" -lt 12 ]; then
-  echo "Use at least 12 characters for the local demo password." >&2
-  exit 1
+  if [ "$local_demo_weak_password" != "1" ]; then
+    echo "Use at least 12 characters for the local demo password." >&2
+    echo "For a temporary loopback-only demo, rerun with --local-demo." >&2
+    exit 1
+  fi
+  echo "WARNING: --local-demo accepted a short temporary admin password." >&2
+  echo "This is loopback-only demo configuration; do not reuse it anywhere else." >&2
 fi
 if [ "$admin_password" != "$admin_password_confirm" ]; then
   echo "Passwords do not match." >&2

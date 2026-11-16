@@ -20,6 +20,10 @@ bash scripts/setup-demo-admin.sh
 
 - Accept the default username `owner` or enter your own (1–64 safe characters).
 - Enter a password of at least 12 characters, then repeat it.
+- For a temporary loopback-only demo, `bash scripts/setup-demo-admin.sh --local-demo`
+  permits a short throwaway password. That explicit path prints a warning and is
+  refused when `NODE_ENV=production`; it does not change shared password
+  verification. Never use it outside this local demo.
 - The script writes `commerce/.env` with owner-only permissions where supported.
 - It prints no credential value.
 
